@@ -1,5 +1,6 @@
 # Runs when GitHub receives a successful deployment status (e.g. Vercel GitHub integration).
-# Verifies the deployed site responds — does NOT log in with Google OAuth (see workflow comment).
+# Production only: preview URLs often return 401 (Vercel Deployment Protection), so smoke would false-fail.
+# Verifies the deployed site responds — does NOT log in with Google OAuth.
 name: Deploy smoke
 
 on:
@@ -7,8 +8,12 @@ on:
 
 jobs:
   smoke:
-    # Only run on success; skip if no URL (some providers omit it).
-    if: github.event.deployment_status.state == 'success'
+    # Only run on successful production deploys; skip previews and other environments.
+    # Vercel typically sends "Production"; GitHub's API default name is "production".
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      (github.event.deployment.environment == 'Production' ||
+       github.event.deployment.environment == 'production')
     runs-on: ubuntu-latest
     steps:
       - name: Resolve deployment URL
@@ -33,5 +38,4 @@ jobs:
           curl -fsSL "${{ steps.url.outputs.base }}/api/health" | tee /tmp/health.json
           grep -q '"ok"' /tmp/health.json
 
-      # Google OAuth on Preview still requires human sign-in or a dedicated E2E setup
-      # (test user + cookie injection / Playwright). This workflow only checks liveness.
+      # This workflow only checks liveness (no OAuth / E2E).
