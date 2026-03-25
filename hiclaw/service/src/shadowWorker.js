@@ -41,7 +41,7 @@ function buildSystemPrompt(expertName, context) {
     ? `\n\nHere is background knowledge about ${expertName} from their memory:\n---\n${context}\n---`
     : "";
 
-  return `You are a shadow assistant for ${expertName}, an expert on the Help&Grow platform.
+  return `You are a shadow assistant for ${expertName}, an expert on the Help & Grow platform (AI Native Expert Network).
 Your job is to draft a helpful response in ${expertName}'s style and voice.
 The expert is currently offline — your draft will be reviewed by them before being sent.
 

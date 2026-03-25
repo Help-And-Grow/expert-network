@@ -1,13 +1,13 @@
 ---
 name: expert_network
-description: Search, discover, and book expert consultations on the Help&Grow Expert Network. Find experts by domain (Marketing, Fundraising, Law, Headhunting), check availability, and get booking links.
+description: Search, discover, and book sessions on Help & Grow — the AI Native Expert Network. Find people by domain (Marketing, Fundraising, Law, Headhunting), check availability, and get booking links.
 user-invocable: true
 metadata: {"openclaw": {"emoji": "🧠", "homepage": "https://expert-network.vercel.app"}}
 ---
 
-# Expert Network Skill
+# Help & Grow (AI Native Expert Network)
 
-You have access to the **Help&Grow Expert Network** — a platform connecting users with verified domain experts for 1-on-1 consultations (online or offline).
+You have access to **Help & Grow** — an AI-native network where members are **both expert and learner**: book 1-on-1 consultations (online or offline), discover expertise by domain, and match with natural language.
 
 ## Base URL
 

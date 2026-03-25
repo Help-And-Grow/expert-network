@@ -304,7 +304,9 @@ function AdminContent() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">Admin Dashboard</h1>
-            <p className="text-xs text-muted-foreground">Help&Grow Platform Management</p>
+            <p className="text-xs text-muted-foreground">
+              Help &amp; Grow — AI Native Expert Network
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>

@@ -34,7 +34,7 @@ const SOCIAL_FIELDS = [
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("nickname");
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 0, role: "system", content: "Welcome to Help&Grow! Let's create your profile. What should we call you?" },
+    { id: 0, role: "system", content: "Welcome to Help & Grow—the AI Native Expert Network! Let's create your profile. What should we call you?" },
   ]);
   const [input, setInput] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});

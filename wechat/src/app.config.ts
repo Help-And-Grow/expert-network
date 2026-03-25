@@ -43,7 +43,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: "light",
     navigationBarBackgroundColor: "#ffffff",
-    navigationBarTitleText: "Help&Grow",
+    navigationBarTitleText: "Help & Grow",
     navigationBarTextStyle: "black",
   },
 });

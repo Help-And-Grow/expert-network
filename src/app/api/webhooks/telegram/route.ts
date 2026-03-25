@@ -167,9 +167,9 @@ export async function POST(request: NextRequest) {
     // /start command
     if (text === "/start" || text.startsWith("/start@")) {
       const welcomeText = [
-        `👋 *Welcome to Help&Grow!*`,
+        `👋 *Welcome to Help & Grow!*`,
         ``,
-        `The AI startup community for Singapore & Southeast Asia. Tell me what you're looking for:`,
+        `The *AI Native Expert Network*—Singapore & Southeast Asia. Everyone's both expert and learner. What are you looking for?`,
         ``,
         `• _"I need advice on expanding my AI startup in SEA"_`,
         `• _"Looking for an AI expert with localisation experience"_`,
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       await sendMessage(botToken, chatId, welcomeText, {
         reply_markup: {
           inline_keyboard: [
-            [webAppButton("🚀 Open Help&Grow", "/")],
+            [webAppButton("🚀 Open Help & Grow", "/")],
             [webAppButton("🔍 Discover Community")],
           ],
         },
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     // /help command
     if (text === "/help" || text.startsWith("/help@")) {
       const helpText = [
-        `*Help&Grow Bot*`,
+        `*Help & Grow Bot*`,
         ``,
         `💬 *Chat with me* — Tell me what you're looking for and I'll recommend the best matches.`,
         ``,

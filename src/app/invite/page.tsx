@@ -61,10 +61,10 @@ function InviteContent() {
               <ShieldCheck className="h-7 w-7 text-indigo-600" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Welcome to Help&Grow
+              Welcome to Help &amp; Grow
             </h1>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              Help&Grow is an invite-only platform. Enter your invitation code to get started.
+              The AI Native Expert Network — invite-only for now. Enter your code to get started.
             </p>
           </div>
 

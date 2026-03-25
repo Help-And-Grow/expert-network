@@ -69,7 +69,7 @@ export default function BookingSuccessPage() {
       booking.expert?.user?.name ||
       "Expert";
     const title = `Session with ${expertName}`;
-    const details = `Help&Grow session - ${booking.sessionType}`;
+    const details = `Help & Grow session — ${booking.sessionType}`;
 
     const formatForGoogle = (d: Date) =>
       d.toISOString().replace(/-|:|\.\d{3}/g, "").slice(0, 15);

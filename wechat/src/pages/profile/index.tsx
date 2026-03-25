@@ -44,12 +44,12 @@ export default function ProfilePage() {
     if (isExpert && expert) {
       const name = user?.nickName || user?.name || "Member";
       return {
-        title: `${name} on Help&Grow`,
+        title: `${name} on Help & Grow`,
         path: `/pages/expert/index?id=${expert.id}`,
       };
     }
     return {
-      title: "Help&Grow — AI Startup Hub for SG & SEA",
+      title: "Help & Grow — AI Native Expert Network",
       path: "/pages/index/index",
     };
   });
@@ -197,7 +197,7 @@ export default function ProfilePage() {
             <Text className="profile__menu-icon">📤</Text>
           </View>
           <View className="profile__menu-content">
-            <Text className="profile__menu-label">Share Help&Grow</Text>
+            <Text className="profile__menu-label">Share Help & Grow</Text>
             <Text className="profile__menu-hint">Invite friends to the community</Text>
           </View>
           <Text className="profile__menu-arrow">›</Text>
@@ -208,8 +208,8 @@ export default function ProfilePage() {
           hoverClass="profile__menu-item--hover"
           onClick={() => {
             Taro.showModal({
-              title: "About Help&Grow",
-              content: "Help&Grow connects AI startup founders, domain experts, and investors across Singapore & Southeast Asia. Book 1-on-1 sessions and grow together.",
+              title: "About Help & Grow",
+              content: "Help & Grow is the AI Native Expert Network: everyone is both expert and learner—offer sessions, book help, learn by doing and grow by helping. Strong roots in Singapore & Southeast Asia.",
               showCancel: false,
               confirmText: "OK",
             });
@@ -220,14 +220,14 @@ export default function ProfilePage() {
           </View>
           <View className="profile__menu-content">
             <Text className="profile__menu-label">About</Text>
-            <Text className="profile__menu-hint">Learn more about Help&Grow</Text>
+            <Text className="profile__menu-hint">Learn more about Help & Grow</Text>
           </View>
           <Text className="profile__menu-arrow">›</Text>
         </View>
       </View>
 
       <View className="profile__footer">
-        <Text className="profile__footer-text">Help&Grow · AI Startup Hub for SG & SEA</Text>
+        <Text className="profile__footer-text">Help & Grow · AI Native Expert Network</Text>
       </View>
     </View>
   );

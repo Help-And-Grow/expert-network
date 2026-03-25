@@ -1,10 +1,12 @@
-# Help&Grow Expert Network
+# Help & Grow — AI Native Expert Network
 
-A mobile-first web platform connecting Singapore-based AI/fintech experts with global startup founders. Built for the Help&Grow community of 1,000+ verified tech professionals.
+**Help & Grow** is the **AI Native Expert Network**: connect as **both expert and learner**, book real sessions, and grow with AI-assisted discovery—toward *service as agent* (digital experts that learn from you and facilitate your work). Strong roots in **Singapore & Southeast Asia**.
+
+Canonical brand copy: [`docs/BRAND.md`](docs/BRAND.md).
 
 ## Tech Stack
 
-- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui
+- **Frontend:** Next.js 15 (App Router), TypeScript, Tailwind CSS, shadcn/ui
 - **Backend:** Next.js API Routes (serverless), Prisma ORM 7
 - **Database:** PostgreSQL (via Supabase or Railway)
 - **Auth:** NextAuth.js (magic link + Google OAuth)
@@ -25,7 +27,7 @@ Calendar-based booking with timezone-aware scheduling, instant confirmation, and
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20.x (see `package.json` engines)
 - PostgreSQL database (local, Supabase, or Railway)
 
 ### Setup

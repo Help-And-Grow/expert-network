@@ -1,8 +1,8 @@
-# Architecture — Expert Network
+# Architecture — Help & Grow
 
 ## Overview
 
-Expert Network is a multi-platform marketplace connecting startup founders in Singapore & Southeast Asia with domain experts for paid consulting sessions. It serves three client surfaces (web, Telegram Mini App, WeChat Mini Program) backed by a single Next.js API layer.
+**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and learners**—offering domain knowledge as services and learning from others—supported by **AI matching**, **mem9-backed context**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real sessions). It serves web, Telegram Mini App, and WeChat Mini Program from one Next.js API layer on Vercel. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
 
 ## System Diagram
 
@@ -122,7 +122,7 @@ Stripe uses Connected Accounts (Express) for marketplace payouts with configurab
 
 ## Memory Architecture (mem9)
 
-Each expert gets a persistent cloud memory space via [mem9.ai](https://mem9.ai) that enriches AI interactions with accumulated context.
+Each expert gets a persistent cloud memory space via [mem9.ai](https://mem9.ai) that enriches AI interactions with accumulated context—foundational for the **service as agent** vision (a digital expert that keeps learning from the human expert and the platform).
 
 ```
 Expert onboarded → ensureExpertSpace() → mem9 space created

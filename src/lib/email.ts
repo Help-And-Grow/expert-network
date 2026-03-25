@@ -7,7 +7,7 @@ function getResend(): Resend | null {
   return _resend;
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Help&Grow <onboarding@resend.dev>";
+const FROM_EMAIL = process.env.EMAIL_FROM || "Help & Grow <onboarding@resend.dev>";
 
 interface BookingEmailParams {
   expertName: string;
@@ -50,7 +50,7 @@ function confirmationHtml(p: BookingEmailParams, recipientRole: "expert" | "foun
   return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <div style="text-align:center;margin-bottom:24px">
-        <h1 style="font-size:24px;color:#1E1B4B;margin:0">Help&Grow</h1>
+        <h1 style="font-size:24px;color:#1E1B4B;margin:0">Help & Grow</h1>
       </div>
       <h2 style="font-size:20px;color:#1E1B4B;margin-bottom:16px">Booking Confirmed!</h2>
       <p>Hi ${greeting},</p>
@@ -69,7 +69,7 @@ function confirmationHtml(p: BookingEmailParams, recipientRole: "expert" | "foun
       </div>` : ""}
       <p style="color:#64748B;font-size:13px">You'll receive a reminder 1 hour before the session.</p>
       <hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0" />
-      <p style="color:#94A3B8;font-size:12px;text-align:center">Help&Grow — Expert Network Platform</p>
+      <p style="color:#94A3B8;font-size:12px;text-align:center">Help & Grow — AI Native Expert Network</p>
     </div>`;
 }
 
@@ -88,7 +88,7 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
   return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <div style="text-align:center;margin-bottom:24px">
-        <h1 style="font-size:24px;color:#1E1B4B;margin:0">Help&Grow</h1>
+        <h1 style="font-size:24px;color:#1E1B4B;margin:0">Help & Grow</h1>
       </div>
       <h2 style="font-size:20px;color:#D97706;margin-bottom:16px">Session Starting in 1 Hour</h2>
       <p>Hi ${greeting},</p>
@@ -105,7 +105,7 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
         </a>
       </div>` : ""}
       <hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0" />
-      <p style="color:#94A3B8;font-size:12px;text-align:center">Help&Grow — Expert Network Platform</p>
+      <p style="color:#94A3B8;font-size:12px;text-align:center">Help & Grow — AI Native Expert Network</p>
     </div>`;
 }
 

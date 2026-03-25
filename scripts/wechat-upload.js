@@ -8,7 +8,7 @@ const PRIVATE_KEY_PATH =
   path.resolve(__dirname, "../private.wx09d0eb079596060d.key");
 
 const VERSION = process.argv[2] || "1.0.0";
-const DESC = process.argv[3] || `Help&Grow v${VERSION}`;
+const DESC = process.argv[3] || `Help & Grow v${VERSION}`;
 
 async function upload() {
   const project = new ci.Project({

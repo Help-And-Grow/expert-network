@@ -1,11 +1,11 @@
 ---
-description: Core architecture, tech stack, and deployment strategy for Expert Network
+description: Core architecture, tech stack, and deployment strategy for Help & Grow
 alwaysApply: true
 ---
 
 # Project Architecture
 
-Expert Network is a platform connecting domain experts with founders/mentees for mentoring sessions.
+**Help & Grow** is an **AI Native Expert Network**: everyone can be **both expert and learner**; we pair people for paid sessions, AI matching, and mem9-backed context, moving toward *service as agent* (always-on digital experts that learn from the human expert). See `docs/BRAND.md`.
 
 ## Tech Stack
 

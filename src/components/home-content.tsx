@@ -57,18 +57,22 @@ export function HomeContent() {
             <div className="flex items-center gap-2">
               <Rocket className="h-5 w-5 text-indigo-400" />
               <span className="text-sm font-medium text-indigo-300 uppercase tracking-wider">
-                Help&amp;Grow
+                Help &amp; Grow
               </span>
             </div>
             <UserMenu variant="light" />
           </div>
+          <p className="text-sm font-medium text-indigo-200/90 mb-2">
+            AI Native Expert Network
+          </p>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
-            Grow Your AI Startup in Singapore &amp; Southeast Asia
+            Learn by doing. Grow by helping.
           </h1>
           <p className="text-lg text-slate-300 mb-8 max-w-md">
-            The platform where AI startup founders, industry experts, and
-            investors connect. Get advice on localisation, talent, BD, and
-            investment — or share your own expertise.
+            Everyone is both <span className="text-white font-medium">expert</span> and{" "}
+            <span className="text-white font-medium">learner</span>—offer what you know, learn
+            what you need. An AI-native network rooted in Singapore &amp; Southeast Asia, building
+            toward always-on digital experts that learn beside you and facilitate real sessions.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {isTelegram || isLoggedIn ? (
@@ -136,25 +140,25 @@ export function HomeContent() {
       {/* Use Cases Section */}
       <section className="px-6 py-16 md:py-20 bg-slate-50 dark:bg-slate-900/50">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 text-center">
-          Three Ways to Grow
+          Why Help &amp; Grow
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 text-center">
-          Whether you&apos;re building, advising, or investing in AI
+          One network for expertise—whether you&apos;re booking help or offering it
         </p>
         <div className="grid gap-6">
           <div className="rounded-xl bg-white dark:bg-slate-800/80 p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700/50">
             <div className="flex items-start gap-4">
               <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-3">
-                <Rocket className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  For AI Startup Founders
+                  Expert and learner, together
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
-                  Get tailored advice on localisation, talent acquisition,
-                  business development, and go-to-market strategy from experts
-                  who know Singapore &amp; SEA.
+                  You bring expertise others need—and you learn from people who&apos;ve been there.
+                  Export part of what you know as a service; buy insight when you need it. We brew a
+                  culture of learning by doing and growing by helping.
                 </p>
               </div>
             </div>
@@ -166,12 +170,12 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  For Industry Experts
+                  Service as agent (our north star)
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
-                  Discover promising AI startups, learn evaluation frameworks,
-                  share your domain expertise, and explore opportunities in the
-                  fast-growing AI ecosystem.
+                  We&apos;re building toward a digital version of you that keeps learning—from
+                  social context, meetings, reflections, and memos—stays online, evolves with you,
+                  answers questions on the platform, and helps you facilitate real sessions.
                 </p>
               </div>
             </div>
@@ -183,12 +187,12 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  For Investors
+                  AI-native, rooted in SEA
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
-                  Book sessions with AI founders and domain experts to
-                  accelerate due diligence, understand emerging technologies,
-                  and make better investment decisions.
+                  Describe what you need in plain language; AI matches you to the right people.
+                  Founders, operators, and investors use the same rails—localisation, talent, BD,
+                  fundraising, and more across Singapore &amp; Southeast Asia.
                 </p>
               </div>
             </div>
@@ -212,8 +216,8 @@ export function HomeContent() {
                 Explore the Community
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                Browse AI startup founders, industry advisors, and investors
-                across Singapore and Southeast Asia.
+                Browse people offering and seeking expertise across Singapore and Southeast Asia—
+                as learners, experts, or both.
               </p>
             </div>
           </div>
@@ -242,8 +246,8 @@ export function HomeContent() {
                 Grow Together
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                Get actionable insights, explore collaborations, and expand
-                your footprint in the AI ecosystem.
+                Turn sessions into momentum—insights you can apply, relationships that compound,
+                and proof of help that travels with you on the network.
               </p>
             </div>
           </div>
@@ -262,9 +266,9 @@ export function HomeContent() {
       <footer className="mt-auto px-6 py-8 bg-slate-100 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800">
         <p className="text-center text-sm text-slate-500 dark:text-slate-400">
           <span className="font-semibold text-slate-700 dark:text-slate-300">
-            Help&amp;Grow
+            Help &amp; Grow
           </span>{" "}
-          — Powering AI startups in Singapore &amp; Southeast Asia
+          — AI Native Expert Network · Singapore &amp; Southeast Asia
         </p>
       </footer>
     </div>

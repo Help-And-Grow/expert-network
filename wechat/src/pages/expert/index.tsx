@@ -89,7 +89,7 @@ export default function ExpertPage() {
   useShareAppMessage(() => {
     const name = expert?.user.nickName ?? expert?.user.name ?? "Expert";
     return {
-      title: `${name} on Help&Grow`,
+      title: `${name} on Help & Grow`,
       path: `/pages/expert/index?id=${expertId}`,
     };
   });
@@ -97,7 +97,7 @@ export default function ExpertPage() {
   useShareTimeline(() => {
     const name = expert?.user.nickName ?? expert?.user.name ?? "Expert";
     return {
-      title: `${name} on Help&Grow`,
+      title: `${name} on Help & Grow`,
       query: `id=${expertId}`,
     };
   });

@@ -1,7 +1,13 @@
-# AGENTS.md — Expert Network
+# AGENTS.md — Help & Grow
 
 > This file is the **table of contents** for agents working in this repo.
 > It is intentionally short (~100 lines). Detailed docs live in `docs/`.
+
+## Brand (read first)
+
+- **Product:** **Help & Grow** — **AI Native Expert Network**
+- **Vision:** *Service as agent* — a digital expert that learns continuously from the human expert (social, meetings, reflection, memos), stays online, evolves with them, answers on-platform, and facilitates the expert.
+- **Ethos:** Everyone is **both expert and learner**; we foster **learning by doing** and **growing by helping**. Full copy: [docs/BRAND.md](docs/BRAND.md).
 
 ## Quick Start
 
@@ -38,6 +44,7 @@ See `docs/` for full details:
 | Design system | [docs/DESIGN.md](docs/DESIGN.md) | UI conventions, component patterns |
 | Frontend | [docs/FRONTEND.md](docs/FRONTEND.md) | Page structure, routing, state |
 | Plans | [docs/PLANS.md](docs/PLANS.md) | Current roadmap and priorities |
+| Brand | [docs/BRAND.md](docs/BRAND.md) | Name, positioning, vision, voice |
 | Product sense | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) | User personas, product principles |
 | Quality | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md) | Per-domain quality grades |
 | Reliability | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Error handling, SLOs, monitoring |
@@ -46,6 +53,7 @@ See `docs/` for full details:
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references |
+| Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 
 ## Key Conventions

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "Help&Grow — AI Startup Hub for Singapore & SEA";
+export const alt = "Help & Grow — AI Native Expert Network";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -38,7 +38,7 @@ export default function OGImage() {
               textAlign: "center",
             }}
           >
-            Help&amp;Grow
+            Help &amp; Grow
           </div>
           <div
             style={{
@@ -48,7 +48,7 @@ export default function OGImage() {
               textAlign: "center",
             }}
           >
-            AI Startup Hub
+            AI Native Expert Network
           </div>
           <div
             style={{
@@ -60,7 +60,7 @@ export default function OGImage() {
               lineHeight: 1.5,
             }}
           >
-            Founders · Experts · Investors — Singapore &amp; Southeast Asia
+            Expert &amp; learner · Singapore &amp; Southeast Asia
           </div>
         </div>
       </div>

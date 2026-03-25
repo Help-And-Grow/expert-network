@@ -242,7 +242,7 @@ export default function OnboardingPage() {
           id: "greeting",
           role: "ai",
           content:
-            "Hey! Welcome to Help&Grow — the AI startup community for Singapore & Southeast Asia. Let's set up your professional profile. It'll take just 2 minutes.",
+            "Hey! Welcome to Help & Grow — the AI Native Expert Network for Singapore & Southeast Asia. Everyone's both expert and learner here; let's set up your profile so others can find you. About 2 minutes.",
           type: "text",
         },
       ]);

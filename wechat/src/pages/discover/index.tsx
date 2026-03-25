@@ -53,7 +53,7 @@ function useInviteGuard() {
   function promptInviteCode() {
     Taro.showModal({
       title: "Invitation Code Required",
-      content: "Help&Grow is invite-only. Please enter your invitation code.",
+      content: "Help & Grow is invite-only. Please enter your invitation code.",
       editable: true,
       placeholderText: "Enter code",
       confirmText: "Submit",

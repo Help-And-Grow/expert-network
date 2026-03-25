@@ -1,5 +1,7 @@
 # Plans & Roadmap
 
+**Product:** [Help & Grow](BRAND.md) — **AI Native Expert Network** (vision: *service as agent*; community: everyone expert + learner, learning by doing / growing by helping).
+
 ## Current Priorities
 
 1. **Stability**: Ensure Stripe webhooks, payment flows, and notifications are reliable across all platforms
@@ -20,7 +22,7 @@
 
 - [x] POMP (Proof of Meet Protocol): on-chain proof for expert + learner each completed booking (EAS on Base)
 - [x] H&G Token (ERC-20): 1:1 SGD earn ratio, 100:1 SGD redemption for booking discounts
-- [x] MCP server exposing Expert Network for AI agent integration
+- [x] MCP server exposing Help & Grow for AI agent integration
 - [x] OpenClaw/QClaw skill for agent-based expert discovery
 - [x] Invitation code system for platform quality control
 - [x] Admin dashboard (overview, users, bookings, invites)

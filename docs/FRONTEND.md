@@ -1,5 +1,7 @@
 # Frontend Architecture
 
+Public copy should align with [**Help & Grow** — AI Native Expert Network](BRAND.md): dual expert/learner identity, *service as agent* vision, learning by doing / growing by helping.
+
 ## Routing
 
 Next.js App Router with file-based routing under `src/app/`.

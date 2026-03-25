@@ -24,13 +24,11 @@ export default function IndexPage() {
         <View className="landing__logo-wrap">
           <View className="landing__logo">H&G</View>
         </View>
-        <Text className="landing__title">Help&Grow</Text>
-        <Text className="landing__subtitle">
-          AI Startup Hub for Singapore & Southeast Asia
-        </Text>
+        <Text className="landing__title">Help & Grow</Text>
+        <Text className="landing__subtitle">AI Native Expert Network</Text>
         <Text className="landing__desc">
-          Where founders, experts, and investors learn from each other.
-          Book 1-on-1 sessions and grow together.
+          Everyone is both expert and learner—book sessions, share what you know, and grow
+          together. Rooted in Singapore & Southeast Asia.
         </Text>
       </View>
 
@@ -57,9 +55,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">🚀</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">For Founders</Text>
+            <Text className="landing__feature-title">Learn & get help</Text>
             <Text className="landing__feature-desc">
-              Get expert advice on localisation, BD, talent, and funding in SEA
+              Book people who’ve done it—localisation, BD, talent, fundraising in SEA
             </Text>
           </View>
         </View>
@@ -68,9 +66,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">💡</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">For Experts</Text>
+            <Text className="landing__feature-title">Share expertise</Text>
             <Text className="landing__feature-desc">
-              Share knowledge, discover promising AI startups, and earn from sessions
+              Offer what you know as a service; learn from the community too
             </Text>
           </View>
         </View>
@@ -79,9 +77,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">📊</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">For Investors</Text>
+            <Text className="landing__feature-title">AI-native network</Text>
             <Text className="landing__feature-desc">
-              Learn from founders and experts to understand AI domains quickly
+              Natural-language matching; building toward always-on digital experts beside you
             </Text>
           </View>
         </View>

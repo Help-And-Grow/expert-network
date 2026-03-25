@@ -1,4 +1,4 @@
-# HiClaw integration (Expert Network)
+# HiClaw integration (Help & Grow)
 
 ## Database: TiDB Cloud Zero
 
@@ -14,7 +14,7 @@ HiClaw session data (`expert_status`, `sessions`, `waiting_room`) is designed to
    - This **`hiclaw/service`** on your home machine / ECS
    - **Vercel** (same variable) if you also use `/admin/tidb`, `/api/webhook/onchain`, and `/api/reputation/:expertId` against the same cluster
 
-For a **production** Help&Grow deployment, treat Zero as **“provision → claim → then use the stable connection string”**, not as an unclaimed disposable instance.
+For a **production** Help & Grow deployment, treat Zero as **“provision → claim → then use the stable connection string”**, not as an unclaimed disposable instance.
 
 ## Run the shadow service locally
 

@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: "Help&Grow",
+  navigationBarTitleText: "Help & Grow",
   navigationStyle: "custom",
 });

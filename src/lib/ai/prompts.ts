@@ -111,7 +111,7 @@ export function buildProfilePromptWithNativeSearch(
   socialLinks: string,
   resumeSection: string
 ): string {
-  return `You are creating a professional profile on Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia, connecting startup founders, industry experts, and investors.
+  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and learner; profiles may serve people booking sessions for advice OR offering their own expertise.
 
 Expert's name: ${data.nickName}
 Professional domains: ${data.domains.join(", ")}
@@ -154,7 +154,7 @@ export function buildProfilePromptFromResearch(
   searchResults: string,
   resumeSection: string
 ): string {
-  return `You are creating a professional profile on Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia, connecting startup founders, industry experts, and investors.
+  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and learner; profiles may serve people booking sessions for advice OR offering their own expertise.
 
 Expert's name: ${data.nickName}
 Professional domains: ${data.domains.join(", ")}
@@ -179,7 +179,7 @@ export function buildImproveWritingPrompt(
   content: string
 ): string {
   if (type === "intro") {
-    return `You are a professional copywriter for Help&Grow — an AI startup community platform.
+    return `You are a professional copywriter for Help & Grow — the AI Native Expert Network.
 
 Improve this professional's introduction script. Rules:
 - Keep ALL facts, names, and claims unchanged
@@ -193,7 +193,7 @@ Current introduction:
 ${content}`;
   }
 
-  return `You are a professional copywriter for Help&Grow — an AI startup community platform.
+  return `You are a professional copywriter for Help & Grow — the AI Native Expert Network.
 
 Improve these service offerings. Rules:
 - Keep the same meaning and number of services
@@ -219,20 +219,20 @@ export function buildMatchExpertsPrompt(
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
-  return `You are the AI matchmaking assistant for Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia. Users include AI startup founders seeking advice, industry experts sharing knowledge, and investors doing due diligence.
+  return `You are the AI matchmaking assistant for Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Members are both experts and learners: users may be seeking help, offering expertise, or both. The pool below lists people who publish sessions as experts.
 
 Here is the pool of available experts:
 ${expertSummaries}
 
 ${historyContext ? `Previous conversation:\n${historyContext}\n` : ""}
 
-The founder's latest query: "${query}"
+The user's latest query: "${query}"
 
-Based on your deep analysis of the founder's needs and the expert pool, recommend the top 2-3 most relevant experts. For each recommendation, provide:
+Based on your deep analysis of the user's needs and the expert pool, recommend the top 2-3 most relevant experts. For each recommendation, provide:
 
 1. "expertId": The expert's ID
 2. "name": The expert's name
-3. "reason": A highly specific 2-3 sentence explanation of why this expert's background perfectly matches the founder's need.
+3. "reason": A highly specific 2-3 sentence explanation of why this expert's background perfectly matches the user's need.
 4. "sessionTypes": Available session types
 
 If no expert matches well, return empty "recommendations" array with a "noMatchMessage" string.

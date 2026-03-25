@@ -83,10 +83,13 @@ function SignInForm() {
     <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
       <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
-          Help&amp;Grow
+          Help &amp; Grow
         </CardTitle>
-        <CardDescription className="text-base">
-          {isExpert ? "Join the Community" : "Sign In"}
+        <CardDescription className="text-base space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            AI Native Expert Network
+          </span>
+          <span className="block">{isExpert ? "Join the community" : "Sign in"}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -167,9 +170,9 @@ function SignInFallback() {
     <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
       <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
-          Help&amp;Grow
+          Help &amp; Grow
         </CardTitle>
-        <CardDescription className="text-base">Sign In</CardDescription>
+        <CardDescription className="text-base">AI Native Expert Network · Sign in</CardDescription>
       </CardHeader>
       <CardContent className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

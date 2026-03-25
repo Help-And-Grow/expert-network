@@ -89,7 +89,8 @@ export default function ReputationPage() {
       <div className="mx-auto max-w-4xl px-4 py-12">
         <h1 className="mb-2 text-3xl font-bold">Reputation Dashboard</h1>
         <p className="mb-8 text-slate-400">
-          Meet attestations (EAS on Base) and Help & Grow token balance.
+          On-chain meet attestations (EAS on Base) and your Help &amp; Grow token balance—proof of
+          helping and learning on the network.
         </p>
 
         <div className="mb-8 flex gap-2">
