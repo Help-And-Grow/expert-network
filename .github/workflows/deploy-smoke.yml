@@ -8,12 +8,9 @@ on:
 
 jobs:
   smoke:
-    # Only run on successful production deploys; skip previews and other environments.
-    # Vercel typically sends "Production"; GitHub's API default name is "production".
-    if: >-
-      github.event.deployment_status.state == 'success' &&
-      (github.event.deployment.environment == 'Production' ||
-       github.event.deployment.environment == 'production')
+    # Only run on successful deploys. Vercel often labels previews as "Production" in GitHub too,
+    # so we additionally require the production hostname below (not *.vercel.app preview URLs).
+    if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Resolve deployment URL
@@ -25,6 +22,15 @@ jobs:
           BASE="${ENV_URL:-${TARGET_URL}}"
           if [ -z "$BASE" ]; then
             echo "No environment_url or target_url on deployment_status; skipping smoke."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Production alias for this project (not preview URLs like *-hash-team.vercel.app).
+          HOST="${BASE#*://}"
+          HOST="${HOST%%/*}"
+          PROD_HOST="expert-network.vercel.app"
+          if [ "$HOST" != "$PROD_HOST" ]; then
+            echo "Host is $HOST (expected $PROD_HOST for smoke); skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
