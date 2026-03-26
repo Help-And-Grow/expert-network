@@ -18,6 +18,7 @@ Design docs capture significant architectural and product decisions. Each doc sh
 | [Payment Architecture](payment-architecture.md) | Accepted | 2026-03 | Stripe + TON + WeChat Pay with double-write pattern |
 | [AI Provider Abstraction](ai-provider-abstraction.md) | Accepted | 2026-03 | Swappable AI providers via factory pattern |
 | [HiClaw harness + DB9](hiclaw-agent-harness-db9.md) | Accepted (phased) | 2026-03 | Generator/evaluator loop, handoffs, Postgres store option; Anthropic harness patterns |
+| [Tech Stack Improvements](tech-stack-improvements.md) | Draft | 2026-03 | Prioritized suggestions: NextAuth v5, DB9 consolidation, env validation, job queue, pgvector, tRPC |
 
 ## Adding a New Design Doc
 
