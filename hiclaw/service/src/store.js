@@ -1,29 +1,15 @@
-import mysql from "mysql2/promise";
 import pg from "pg";
 import { v4 as uuidv4 } from "uuid";
 
-const pgUrl = process.env.HICLAW_POSTGRES_URL || process.env.DB9_DATABASE_URL;
-const mysqlUrl = process.env.TIDB_DATABASE_URL;
+const pgUrl = process.env.DB9_DATABASE_URL || process.env.HICLAW_POSTGRES_URL;
 
-let isPostgres = false;
-let mysqlPool = null;
-let pgPool = null;
-
-if (pgUrl) {
-  isPostgres = true;
-  pgPool = new pg.Pool({ connectionString: pgUrl });
-} else if (mysqlUrl) {
-  mysqlPool = mysql.createPool({
-    uri: mysqlUrl,
-    waitForConnections: true,
-    connectionLimit: 10,
-    ssl: { rejectUnauthorized: true },
-  });
-} else {
+if (!pgUrl) {
   console.warn(
-    "[store] Set TIDB_DATABASE_URL (MySQL) or HICLAW_POSTGRES_URL / DB9_DATABASE_URL (Postgres)."
+    "[store] Set DB9_DATABASE_URL or HICLAW_POSTGRES_URL to run HiClaw against PostgreSQL."
   );
 }
+
+const pgPool = pgUrl ? new pg.Pool({ connectionString: pgUrl }) : null;
 
 function toPgSql(sql, params) {
   let n = 0;
@@ -33,18 +19,14 @@ function toPgSql(sql, params) {
 
 /** @param {string} sql @param {unknown[]} [params] */
 export async function execute(sql, params = []) {
-  if (isPostgres) {
-    const { text, values } = toPgSql(sql, params);
-    const r = await pgPool.query(text, values);
-    return r.rows;
-  }
-  if (!mysqlPool) throw new Error("No database configured");
-  const [rows] = await mysqlPool.execute(sql, params);
-  return rows;
+  if (!pgPool) throw new Error("No database configured. Set DB9_DATABASE_URL.");
+  const { text, values } = toPgSql(sql, params);
+  const r = await pgPool.query(text, values);
+  return r.rows;
 }
 
 export function usingPostgres() {
-  return isPostgres;
+  return true;
 }
 
 export async function checkExpertStatus(expertId) {
@@ -61,21 +43,12 @@ export async function checkExpertStatus(expertId) {
 }
 
 export async function updateExpertStatus(expertId, isOnline) {
-  if (isPostgres) {
-    await execute(
-      `INSERT INTO expert_status (expert_id, is_online, last_seen)
-       VALUES (?, ?, NOW())
-       ON CONFLICT (expert_id) DO UPDATE SET
-         is_online = EXCLUDED.is_online,
-         last_seen = NOW()`,
-      [expertId, isOnline]
-    );
-    return;
-  }
   await execute(
     `INSERT INTO expert_status (expert_id, is_online, last_seen)
      VALUES (?, ?, NOW())
-     ON DUPLICATE KEY UPDATE is_online = VALUES(is_online), last_seen = NOW()`,
+     ON CONFLICT (expert_id) DO UPDATE SET
+       is_online = EXCLUDED.is_online,
+       last_seen = NOW()`,
     [expertId, isOnline]
   );
 }
