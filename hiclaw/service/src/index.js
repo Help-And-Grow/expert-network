@@ -1,18 +1,38 @@
 import express from "express";
 import { routeQuery } from "./manager.js";
 import { getQueue, reviewDraft } from "./waitingRoom.js";
-import { updateExpertStatus } from "./tidb.js";
+import { updateExpertStatus } from "./store.js";
 
 const app = express();
 app.use(express.json());
 
 app.post("/query", async (req, res) => {
   try {
-    const { menteeId, expertId, mem9SpaceId, expertName, query } = req.body;
+    const {
+      menteeId,
+      expertId,
+      mem9SpaceId,
+      expertName,
+      query,
+      continueSessionId,
+      sprintContract,
+      autoSprintContract,
+      sprintMode,
+    } = req.body;
     if (!menteeId || !expertId || !query) {
       return res.status(400).json({ error: "menteeId, expertId, and query are required" });
     }
-    const result = await routeQuery({ menteeId, expertId, mem9SpaceId, expertName, query });
+    const result = await routeQuery({
+      menteeId,
+      expertId,
+      mem9SpaceId,
+      expertName,
+      query,
+      continueSessionId,
+      sprintContract,
+      autoSprintContract: !!autoSprintContract,
+      sprintMode: sprintMode === "coaching" ? "coaching" : "vetting",
+    });
     res.json(result);
   } catch (err) {
     console.error("[POST /query]", err);

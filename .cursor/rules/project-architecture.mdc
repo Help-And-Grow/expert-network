@@ -50,4 +50,13 @@ src/components/       → Shared React components
 src/hooks/            → Custom React hooks
 prisma/               → Database schema
 scripts/              → Build-time scripts (TiDB setup, etc.)
+hiclaw/service/       → HiClaw shadow service (Express): manager, shadow/evaluator/planner workers, store (MySQL or Postgres)
 ```
+
+## HiClaw shadow service
+
+Separate Node process documented in `hiclaw/README.md`. Session store: `TIDB_DATABASE_URL` (MySQL) or `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` (Postgres via `pg`). Design: `docs/design-docs/hiclaw-agent-harness-db9.md`.
+
+## Documentation
+
+For env, API, schema, or architecture changes, follow `docs/references/documentation-maintenance.md` and `.cursor/rules/documentation-maintenance.mdc`.

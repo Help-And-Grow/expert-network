@@ -52,7 +52,7 @@ See `docs/` for full details:
 | Design docs | [docs/design-docs/](docs/design-docs/) | Indexed design decisions |
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
-| References | [docs/references/](docs/references/) | LLM-friendly external references |
+| References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 
@@ -68,9 +68,13 @@ See `docs/` for full details:
 8. **POMP (Proof of Meet Protocol)**: Every completed booking creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
 9. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. Learners earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
 10. **Smart Contracts**: Foundry-based (`contracts/`). Deploy via `forge script script/Deploy.s.sol` (HelpGrowToken on Base Sepolia/Mainnet).
-11. **HiClaw Agent System**: Manager-Worker multi-agent OS (e.g. home laptop or ECS; see `hiclaw/README.md`). Session store: **[TiDB Cloud Zero](https://zero.tidbcloud.com/)** — provision then **claim** for production (unclaimed instances expire ~30 days). Shadow workers use mem9 + DashScope Qwen-Max.
+11. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (MySQL via `TIDB_DATABASE_URL` **or** Postgres via `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`), **waitingRoom**. Shadow stack uses **mem9** + **DashScope Qwen-Max**; session handoffs and `evaluator_critiques` on `sessions` / dedicated table. Details: [`hiclaw/README.md`](hiclaw/README.md). Design: [`docs/design-docs/hiclaw-agent-harness-db9.md`](docs/design-docs/hiclaw-agent-harness-db9.md).
 12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates TiDB `sessions` (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from TiDB.
 13. **Reputation Dashboard**: `/reputation` — expert stats from TiDB + EASScan links; mentee H&G balance via wagmi + ledger API.
+
+## Documentation (key changes)
+
+When you ship **user-visible behavior**, **new env vars**, **API contracts**, **schema/DDL**, or **architecture** changes, update docs in the same effort: `.env.example` / domain READMEs / `AGENTS.md` pointers / `ARCHITECTURE.md` / relevant `docs/design-docs/` status. Full checklist: [docs/references/documentation-maintenance.md](docs/references/documentation-maintenance.md). Cursor: `.cursor/rules/documentation-maintenance.mdc`.
 
 ## Coding Standards
 
@@ -92,7 +96,7 @@ See `docs/` for full details:
 | Fix a payment issue | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
 | Work on POMP/token features | `src/lib/pomp-credential.ts`, `src/lib/pomp-eas-schema.ts`, `src/lib/hg-token.ts`, `contracts/src/` |
 | Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |
-| Work on HiClaw agents | `hiclaw/service/src/` (manager, shadowWorker, waitingRoom) |
+| Work on HiClaw agents | `hiclaw/README.md`, `hiclaw/service/src/` (manager, shadowWorker, evaluatorWorker, plannerWorker, store, waitingRoom) |
 | On-chain sync/reputation | `src/lib/tidb.ts`, `src/app/api/webhook/onchain/`, `src/app/api/reputation/` |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | Update product specs | `docs/product-specs/` |

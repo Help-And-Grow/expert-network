@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const [rows] = await conn.query<mysql.RowDataPacket[]>(
       `SELECT TABLE_NAME FROM information_schema.TABLES
        WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME IN ('expert_status','sessions','waiting_room')
+       AND TABLE_NAME IN ('expert_status','sessions','waiting_room','evaluator_critiques')
        ORDER BY TABLE_NAME`
     );
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       message: "TiDB connection successful",
       hiclawTablesFound: tables,
-      expectedTables: ["expert_status", "sessions", "waiting_room"],
+      expectedTables: ["expert_status", "sessions", "waiting_room", "evaluator_critiques"],
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

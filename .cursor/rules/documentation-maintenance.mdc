@@ -1,0 +1,18 @@
+---
+description: Update documentation when making user-visible, API, schema, or architectural changes
+alwaysApply: true
+---
+
+# Documentation maintenance
+
+When a change is **key** (not a trivial refactor), update docs in the same effort:
+
+1. **Env vars or ops** — Touch the relevant `.env.example` and any domain README (e.g. `hiclaw/README.md`).
+2. **API / HTTP contract** — Document in the owning README or product spec; if agents use it, add a pointer in `AGENTS.md` “Where to look”.
+3. **Schema / DDL** — Update authoritative SQL or Prisma notes; for HiClaw TiDB admin apply list, keep `src/lib/tidb-hiclaw-schema.ts` aligned.
+4. **Architecture or new services** — Update `ARCHITECTURE.md` and a short line in `AGENTS.md` if navigation changes.
+5. **Design decisions** — Update the relevant `docs/design-docs/*.md` with **Status** (e.g. Implemented) and **Implemented in** (paths).
+
+Full checklist: [docs/references/documentation-maintenance.md](docs/references/documentation-maintenance.md).
+
+Prefer **progressive disclosure**: keep `AGENTS.md` as a map; put detail in `docs/` or package READMEs.

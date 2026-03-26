@@ -100,6 +100,13 @@ Provider selection: `AI_PROVIDER=qwen|gemini|openai` (defaults to Gemini).
 - **ORM**: Prisma 7 with driver adapters (`@prisma/adapter-pg`, `@prisma/adapter-mariadb`)
 - **Schema**: `prisma/schema.prisma` — provider line patched by `scripts/switch-db.mjs`
 
+### HiClaw shadow service (sidecar)
+
+- **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
+- **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
+- **Data store:** **`store.js`** — PostgreSQL if `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL` is set, else MySQL/TiDB via `TIDB_DATABASE_URL`. Can differ from the URL the Next.js app uses for webhook/reputation until you consolidate.
+- **Doc:** [hiclaw/README.md](hiclaw/README.md) · [docs/design-docs/hiclaw-agent-harness-db9.md](docs/design-docs/hiclaw-agent-harness-db9.md)
+
 ### Key Models
 
 | Model | Purpose |

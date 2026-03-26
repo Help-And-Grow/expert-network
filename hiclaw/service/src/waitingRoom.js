@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { pool } from "./tidb.js";
+import { pool } from "./store.js";
 
 export async function enqueue({ expertId, menteeId, sessionId, draft }) {
   const id = uuidv4();

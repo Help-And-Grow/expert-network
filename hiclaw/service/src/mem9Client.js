@@ -21,7 +21,29 @@ export async function storeMemory(spaceId, { content, tags, source }) {
  * Retrieve expert context for shadow generation.
  * Returns concatenated memory content as a single context string.
  */
+function asMemoryList(memories) {
+  if (Array.isArray(memories)) return memories;
+  if (memories && Array.isArray(memories.memories)) return memories.memories;
+  if (memories && Array.isArray(memories.items)) return memories.items;
+  return [];
+}
+
 export async function getExpertContext(spaceId, query) {
-  const memories = await searchMemories(spaceId, query, 15);
+  const raw = await searchMemories(spaceId, query, 15);
+  const memories = asMemoryList(raw);
   return memories.map((m) => m.content).join("\n\n");
+}
+
+/**
+ * Short persona summary for handoff / rehydration (fixed retrieval query).
+ */
+export async function getProfileSummary(spaceId) {
+  const raw = await searchMemories(
+    spaceId,
+    "expert voice tone biography background communication style values",
+    8
+  );
+  const memories = asMemoryList(raw);
+  if (!memories.length) return "";
+  return memories.map((m) => m.content).join("\n\n").slice(0, 4000);
 }
