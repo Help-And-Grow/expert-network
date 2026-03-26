@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 5000 -H 0.0.0.0",
     "build": "node scripts/switch-db.mjs && prisma generate && next build",
     "db:switch": "node scripts/switch-db.mjs && prisma generate",
     "db:push": "prisma db push --accept-data-loss",
-    "start": "next start",
+    "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
     "postinstall": "node scripts/switch-db.mjs && prisma generate"
   },
