@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import * as fs from "fs";
 
 import { GoogleGenAI } from "@google/genai";
@@ -26,8 +27,8 @@ function setupServiceAccountAuth() {
 }
 
 function createClient(): GoogleGenAI {
-  const project = process.env.GOOGLE_CLOUD_PROJECT;
-  const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1";
+  const project = env.GOOGLE_CLOUD_PROJECT;
+  const location = env.GOOGLE_CLOUD_LOCATION || "us-central1";
 
   if (project) {
     setupServiceAccountAuth();
@@ -38,7 +39,7 @@ function createClient(): GoogleGenAI {
   }
 
   console.log("[Gemini] Using AI Studio API key");
-  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
 }
 
 export class GeminiProvider extends BaseAIProvider {
@@ -96,7 +97,7 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   protected async generateImageRaw(prompt: string): Promise<string | null> {
-    if (!process.env.GOOGLE_CLOUD_PROJECT && !process.env.GEMINI_API_KEY) {
+    if (!env.GOOGLE_CLOUD_PROJECT && !env.GEMINI_API_KEY) {
       console.error(
         "[Gemini] Neither GOOGLE_CLOUD_PROJECT nor GEMINI_API_KEY is set"
       );

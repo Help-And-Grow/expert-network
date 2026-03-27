@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import OpenAI from "openai";
 
 import { BaseAIProvider } from "./base-provider";
@@ -10,7 +11,7 @@ export class OpenAIProvider extends BaseAIProvider {
 
   constructor() {
     super();
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = env.OPENAI_API_KEY;
     if (!apiKey) console.warn("[OpenAI] OPENAI_API_KEY not set");
     this.client = new OpenAI({ apiKey: apiKey || "" });
     console.log("[AI] Using OpenAI provider");

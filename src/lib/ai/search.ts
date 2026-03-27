@@ -6,6 +6,7 @@
  * providers whose models don't support PDF input natively.
  */
 
+import { env } from "@/lib/env";
 import { GoogleGenAI } from "@google/genai";
 
 import {
@@ -22,7 +23,7 @@ let _client: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI | null {
   if (_client) return _client;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) return null;
   _client = new GoogleGenAI({ apiKey });
   return _client;

@@ -1,8 +1,10 @@
+import { env } from "@/lib/env";
+
 const APP_URL =
-  process.env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+  env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 
 async function callBotApi(method: string, body: Record<string, unknown>) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = env.TELEGRAM_BOT_TOKEN;
   if (!botToken) throw new Error("TELEGRAM_BOT_TOKEN not set");
 
   const res = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {

@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import {
   EAS,
   NO_EXPIRATION,
@@ -20,7 +21,7 @@ function getChainId(): number {
 }
 
 function getEasAddress(): `0x${string}` {
-  const fromEnv = process.env.EAS_CONTRACT_ADDRESS?.trim();
+  const fromEnv = env.EAS_CONTRACT_ADDRESS?.trim();
   if (fromEnv?.startsWith("0x") && fromEnv.length === 42) {
     return fromEnv as `0x${string}`;
   }
@@ -33,9 +34,9 @@ function normalizePrivateKey(pk: string): `0x${string}` {
 }
 
 export async function issuePOMPCredentials(bookingId: string) {
-  const schemaUID = process.env.POMP_EAS_SCHEMA_UID?.trim() as `0x${string}` | undefined;
-  const rpcUrl = process.env.BASE_RPC_URL;
-  const pkRaw = process.env.POMP_ISSUER_PRIVATE_KEY;
+  const schemaUID = env.POMP_EAS_SCHEMA_UID?.trim() as `0x${string}` | undefined;
+  const rpcUrl = env.BASE_RPC_URL;
+  const pkRaw = env.POMP_ISSUER_PRIVATE_KEY;
 
   if (!schemaUID || !rpcUrl || !pkRaw) {
     console.warn(

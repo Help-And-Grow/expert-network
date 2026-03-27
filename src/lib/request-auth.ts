@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { type NextRequest } from "next/server";
 
 import { jwtVerify } from "jose";
@@ -12,7 +13,7 @@ import {
 } from "@/lib/telegram-server";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || "wechat-fallback-secret"
+  env.NEXTAUTH_SECRET || "wechat-fallback-secret"
 );
 
 /**
@@ -45,7 +46,7 @@ export async function resolveUserId(request?: NextRequest): Promise<string | nul
   // 2. Telegram Mini App initData
   const initData = request?.headers.get("x-telegram-init-data");
   if (initData) {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = env.TELEGRAM_BOT_TOKEN;
 
     if (botToken) {
       try {
@@ -76,7 +77,7 @@ export async function resolveUserId(request?: NextRequest): Promise<string | nul
 
   // 4. NextAuth JWT in cookie (works in App Router API routes)
   if (request) {
-    const secret = process.env.NEXTAUTH_SECRET;
+    const secret = env.NEXTAUTH_SECRET;
     if (secret) {
       try {
         const token = await getToken({

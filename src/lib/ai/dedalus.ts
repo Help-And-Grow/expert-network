@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import type {
   AIProvider,
   ImageInput,
@@ -18,7 +19,7 @@ async function chat(
   messages: ChatMessage[],
   model?: string
 ): Promise<string> {
-  const apiKey = process.env.DEDALUS_API_KEY;
+  const apiKey = env.DEDALUS_API_KEY;
   if (!apiKey) throw new Error("DEDALUS_API_KEY is not set");
 
   const res = await fetch(`${API_BASE}/chat/completions`, {
@@ -28,7 +29,7 @@ async function chat(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: model || process.env.DEDALUS_MODEL || "google/gemini-2.5-flash",
+      model: model || env.DEDALUS_MODEL || "google/gemini-2.5-flash",
       messages,
       temperature: 0.7,
     }),
@@ -83,7 +84,7 @@ ${sources || "No external sources provided."}`,
 
   async generateProfileImage(data: ImageInput): Promise<string | null> {
     try {
-      const apiKey = process.env.DEDALUS_API_KEY;
+      const apiKey = env.DEDALUS_API_KEY;
       if (!apiKey) return null;
 
       const res = await fetch(`${API_BASE}/images/generations`, {
@@ -156,13 +157,13 @@ Return ONLY a valid JSON object:
 
     const text = await chat(
       messages,
-      process.env.DEDALUS_MATCH_MODEL || "anthropic/claude-sonnet-4-5-20250929"
+      env.DEDALUS_MATCH_MODEL || "anthropic/claude-sonnet-4-5-20250929"
     );
     return parseMatchResponse(text);
   }
 
   async extractTextFromPdf(buffer: Buffer): Promise<string> {
-    const apiKey = process.env.DEDALUS_API_KEY;
+    const apiKey = env.DEDALUS_API_KEY;
     if (!apiKey) throw new Error("DEDALUS_API_KEY is not set");
 
     try {

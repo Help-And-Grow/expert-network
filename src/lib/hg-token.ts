@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
@@ -12,8 +13,8 @@ const HG_TOKEN_ABI = parseAbi([
 const chain = process.env.NODE_ENV === "production" ? base : baseSepolia;
 
 function getClients() {
-  const rpcUrl = process.env.BASE_RPC_URL;
-  const pk = process.env.POMP_ISSUER_PRIVATE_KEY as `0x${string}`;
+  const rpcUrl = env.BASE_RPC_URL;
+  const pk = env.POMP_ISSUER_PRIVATE_KEY as `0x${string}`;
   if (!rpcUrl || !pk) return null;
 
   const account = privateKeyToAccount(pk);
@@ -39,7 +40,7 @@ export async function creditTokens(
   const tokenAmount = Math.floor(amountCents / 100);
   if (tokenAmount <= 0) return null;
 
-  const contractAddress = process.env.HG_TOKEN_CONTRACT_ADDRESS as `0x${string}` | undefined;
+  const contractAddress = env.HG_TOKEN_CONTRACT_ADDRESS as `0x${string}` | undefined;
   const clients = getClients();
 
   if (contractAddress && clients) {
@@ -119,7 +120,7 @@ export async function redeemTokens(
  * Burn tokens on-chain for a discount. Called after DB ledger debit.
  */
 export async function burnForDiscount(amount: number) {
-  const contractAddress = process.env.HG_TOKEN_CONTRACT_ADDRESS as `0x${string}` | undefined;
+  const contractAddress = env.HG_TOKEN_CONTRACT_ADDRESS as `0x${string}` | undefined;
   const clients = getClients();
   if (!contractAddress || !clients) return null;
 

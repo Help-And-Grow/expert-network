@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
+import { env } from "@/lib/env";
 import type { AIProvider } from "./types";
 
 export type {
@@ -44,7 +45,7 @@ let _provider: AIProvider | null = null;
 
 function provider(): AIProvider {
   if (!_provider) {
-    const name = process.env.AI_PROVIDER || "gemini";
+    const name = env.AI_PROVIDER || "gemini";
     const factory = PROVIDERS[name];
     if (!factory) {
       throw new Error(

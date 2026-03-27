@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import type {
   VoiceSynthesisProvider,
   VoiceSynthesisInput,
@@ -20,11 +21,11 @@ export class FishAudioProvider implements VoiceSynthesisProvider {
   private defaultVoiceFemale: string | undefined;
 
   constructor() {
-    const key = process.env.FISH_AUDIO_API_KEY;
+    const key = env.FISH_AUDIO_API_KEY;
     if (!key) throw new Error("FISH_AUDIO_API_KEY is not set");
     this.apiKey = key;
-    this.defaultVoiceMale = process.env.FISH_AUDIO_VOICE_ID_MALE || undefined;
-    this.defaultVoiceFemale = process.env.FISH_AUDIO_VOICE_ID_FEMALE || undefined;
+    this.defaultVoiceMale = env.FISH_AUDIO_VOICE_ID_MALE || undefined;
+    this.defaultVoiceFemale = env.FISH_AUDIO_VOICE_ID_FEMALE || undefined;
   }
 
   getDefaultVoiceId(gender?: string | null): string | undefined {

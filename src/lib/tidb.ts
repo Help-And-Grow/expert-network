@@ -1,10 +1,11 @@
+import { env } from "@/lib/env";
 import mysql from "mysql2/promise";
 
 let pool: mysql.Pool | null = null;
 
 function getPool(): mysql.Pool {
   if (!pool) {
-    const url = process.env.TIDB_DATABASE_URL;
+    const url = env.TIDB_DATABASE_URL;
     if (!url) throw new Error("TIDB_DATABASE_URL is not set");
     pool = mysql.createPool({
       uri: url,

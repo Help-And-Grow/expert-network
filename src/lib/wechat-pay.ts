@@ -1,12 +1,13 @@
+import { env } from "@/lib/env";
 import crypto from "crypto";
 
-const MCH_ID = process.env.WECHAT_PAY_MCH_ID || "";
-const API_V3_KEY = process.env.WECHAT_PAY_API_V3_KEY || "";
-const CERT_SERIAL_NO = process.env.WECHAT_PAY_CERT_SERIAL_NO || "";
-const PRIVATE_KEY = process.env.WECHAT_PAY_PRIVATE_KEY || "";
-const APP_ID = process.env.WECHAT_APP_ID || "";
+const MCH_ID = env.WECHAT_PAY_MCH_ID || "";
+const API_V3_KEY = env.WECHAT_PAY_API_V3_KEY || "";
+const CERT_SERIAL_NO = env.WECHAT_PAY_CERT_SERIAL_NO || "";
+const PRIVATE_KEY = env.WECHAT_PAY_PRIVATE_KEY || "";
+const APP_ID = env.WECHAT_APP_ID || "";
 const NOTIFY_URL =
-  process.env.WECHAT_PAY_NOTIFY_URL ||
+  env.WECHAT_PAY_NOTIFY_URL ||
   "https://expert-network.vercel.app/api/webhooks/wechat-pay";
 
 function getPrivateKey(): string {

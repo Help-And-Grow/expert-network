@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import type {
   VoiceSynthesisProvider,
   VoiceSynthesisInput,
@@ -31,7 +32,7 @@ export class QwenTTSProvider implements VoiceSynthesisProvider {
   private apiKey: string;
 
   constructor() {
-    const key = process.env.DASHSCOPE_API_KEY;
+    const key = env.DASHSCOPE_API_KEY;
     if (!key) throw new Error("DASHSCOPE_API_KEY is not set");
     this.apiKey = key;
   }

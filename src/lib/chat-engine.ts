@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { matchExperts } from "@/lib/ai";
 import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
@@ -24,7 +25,7 @@ export interface ChatResponse {
 }
 
 const APP_BASE_URL =
-  process.env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+  env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 
 /**
  * Platform-agnostic chat engine.

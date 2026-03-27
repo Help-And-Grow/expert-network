@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import OpenAI from "openai";
 
 import { BaseAIProvider } from "./base-provider";
@@ -15,7 +16,7 @@ export class QwenProvider extends BaseAIProvider {
 
   constructor() {
     super();
-    const apiKey = process.env.DASHSCOPE_API_KEY;
+    const apiKey = env.DASHSCOPE_API_KEY;
     if (!apiKey) console.warn("[Qwen] DASHSCOPE_API_KEY not set");
     this.qwen = new OpenAI({ apiKey: apiKey || "", baseURL: DASHSCOPE_BASE_URL });
     console.log("[AI] Using Qwen provider (DashScope)");
@@ -30,7 +31,7 @@ export class QwenProvider extends BaseAIProvider {
   }
 
   protected async generateImageRaw(prompt: string): Promise<string | null> {
-    const apiKey = process.env.DASHSCOPE_API_KEY;
+    const apiKey = env.DASHSCOPE_API_KEY;
     if (!apiKey) {
       console.error("[Qwen] DASHSCOPE_API_KEY not set");
       return null;
