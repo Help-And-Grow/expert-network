@@ -1,5 +1,9 @@
 import { PrismaClient } from "@/generated/prisma/client";
 
+import { assertProductionEnv } from "@/lib/env";
+
+assertProductionEnv();
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

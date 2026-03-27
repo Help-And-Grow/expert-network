@@ -2,7 +2,9 @@
 
 **Scope:** Help & Grow — AI Native Expert Network  
 **Date:** 2026-03  
-**Status:** Open for review
+**Status:** Open for review  
+
+**PM-friendly tracker:** [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) — what’s done vs next, in plain language.
 
 ---
 
@@ -66,7 +68,9 @@ The driver wiring is already done in `store.js` — it's an environment variable
 
 ## 3. Add Startup Environment Validation  ★ High Priority
 
-**Current state:** Missing environment variables surface as cryptic runtime errors mid-request (a database query fails with a connection error, an AI call 500s, a Stripe webhook silently drops). There is no fail-fast mechanism.
+**Status (2026-03):** **Implemented** for production — `src/lib/env.ts` + `assertProductionEnv()` from `src/lib/prisma.ts`. Validates `DATABASE_URL` (rejects mock URL), `NEXTAUTH_URL`, `NEXTAUTH_SECRET` (min 32). Bypass: `SKIP_ENV_VALIDATION=1` (emergency only). See [task tracker](../exec-plans/active/tech-stack-improvements-tasks.md).
+
+**Current state (before change):** Missing environment variables surface as cryptic runtime errors mid-request (a database query fails with a connection error, an AI call 500s, a Stripe webhook silently drops). There is no fail-fast mechanism.
 
 **Recommendation:** Add a `src/lib/env.ts` module that validates all required environment variables at startup using Zod:
 
@@ -222,7 +226,7 @@ The service layer (`src/lib/`) is already framework-agnostic (as per the archite
 |---|---|---|---|
 | 1 | NextAuth v4 → v5 | High | Medium |
 | 2 | Consolidate to single PostgreSQL (DB9 for agent layer) | High | Medium |
-| 3 | Startup env validation (Zod) | High | Low |
+| 3 | Startup env validation (Zod) | High | Low — **done** (production only) |
 | 4 | Job queue for async work (Inngest / Trigger.dev) | Medium | Medium |
 | 5 | DB9 HTTP SQL API for stateless agent queries | Medium | Low |
 | 6 | React Query: go all-in or remove | Medium | Low–Medium |
