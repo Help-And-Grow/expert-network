@@ -1,5 +1,10 @@
-const ci = require("miniprogram-ci");
+const { createRequire } = require("module");
 const path = require("path");
+
+const requireWechat = createRequire(
+  path.join(__dirname, "../wechat/package.json"),
+);
+const ci = requireWechat("miniprogram-ci");
 
 const APPID = "wx09d0eb079596060d";
 const PROJECT_PATH = path.resolve(__dirname, "../wechat/dist");
@@ -31,14 +36,14 @@ async function upload() {
       project,
       version: VERSION,
       desc: DESC,
-    setting: {
-      es6: true,
-      es7: true,
-      minifyJS: true,
-      minifyWXML: true,
-      minifyWXSS: true,
-      autoPrefixWXSS: true,
-    },
+      setting: {
+        es6: true,
+        es7: true,
+        minifyJS: true,
+        minifyWXML: true,
+        minifyWXSS: true,
+        autoPrefixWXSS: true,
+      },
       onProgressUpdate: console.log,
     });
     console.log("\nUpload successful!");

@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import type { CreateBookingBody } from "@expert-network/shared-api";
+
 import type { SessionType } from "@/generated/prisma/client";
 import { findOverlappingBooking } from "@/lib/booking-utils";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
+/** Keep field names aligned with `CreateBookingBody` for the WeChat client. */
 const SESSION_TYPES: SessionType[] = ["ONLINE", "OFFLINE", "BOTH"];
 
 function parseSessionType(value: unknown): SessionType | null {
@@ -21,7 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as Partial<CreateBookingBody> &
+      Record<string, unknown>;
     if (typeof body !== "object" || body === null) {
       return NextResponse.json(
         { error: "Invalid request body" },

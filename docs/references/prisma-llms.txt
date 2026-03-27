@@ -5,7 +5,7 @@
 - Schema: prisma/schema.prisma
 - Config: prisma.config.ts (sets datasource URL)
 - Generated client: src/generated/prisma/
-- Driver adapters: @prisma/adapter-pg (Supabase) or @prisma/adapter-mariadb (TiDB)
+- Driver adapter: @prisma/adapter-pg (PostgreSQL only in this repo)
 
 ## Database Switching
 

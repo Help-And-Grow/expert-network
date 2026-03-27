@@ -19,8 +19,8 @@ Design docs capture significant architectural and product decisions. Each doc sh
 | [AI Provider Abstraction](ai-provider-abstraction.md) | Accepted | 2026-03 | Swappable AI providers via factory pattern |
 | [HiClaw harness + DB9](hiclaw-agent-harness-db9.md) | Accepted (phased) | 2026-03 | Generator/evaluator loop, handoffs, Postgres store option; Anthropic harness patterns |
 | [Agentic methodology (best practices)](agentic-methodology-best-practices.md) | Accepted | 2026-03 | How HiClaw applies harness ideas (handoffs, evaluator, sprint contracts); companion to harness doc |
-| [Tech Stack Improvements](tech-stack-improvements.md) | Draft | 2026-03 | Prioritized suggestions: NextAuth v5, DB9 consolidation, env validation, job queue, pgvector, tRPC |
-| [Tech stack tasks (PM tracker)](../exec-plans/active/tech-stack-improvements-tasks.md) | Active | 2026-03 | Plain-language checklist for the improvements doc — what’s done, what’s next |
+| [Tech Stack Improvements](tech-stack-improvements.md) | Accepted (phased) | 2026-03 | **Remaining** roadmap: mem9 vs DB9/pgvector, Inngest vs Alibaba FC, tRPC/audit follow-ups; completed backlog archived in-task-tracker log |
+| [Tech stack tasks (PM tracker)](../exec-plans/active/tech-stack-improvements-tasks.md) | Active | 2026-03 | **Open tasks only** — links to main doc for strategy |
 
 ## Adding a New Design Doc
 

@@ -1,51 +1,65 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import mysql from "mysql2/promise";
+import { Pool } from "pg";
 
 import { isErrorResponse, requireAdmin } from "@/lib/admin-auth";
-import { HICLAW_TIDB_STATEMENTS } from "@/lib/tidb-hiclaw-schema";
+import { HICLAW_PG_SCHEMA_STATEMENTS } from "@/lib/hiclaw-pg-schema-statements";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function getConnectionConfig() {
-  const url = process.env.TIDB_DATABASE_URL;
-  if (!url) return { error: "TIDB_DATABASE_URL is not set" as const };
-  return { uri: url };
+function getPool(): { pool: Pool } | { error: string } {
+  const raw =
+    process.env.HICLAW_POSTGRES_URL ||
+    process.env.DB9_DATABASE_URL ||
+    process.env.TIDB_DATABASE_URL;
+  if (!raw?.trim()) {
+    return { error: "Set HICLAW_POSTGRES_URL or DB9_DATABASE_URL (PostgreSQL)" };
+  }
+  const url = raw.trim();
+  if (url.startsWith("mysql://")) {
+    return { error: "MySQL URLs are no longer supported — use PostgreSQL for HiClaw." };
+  }
+  if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
+    return { error: "HiClaw database URL must be PostgreSQL." };
+  }
+  return {
+    pool: new Pool({
+      connectionString: url,
+      max: 2,
+      connectionTimeoutMillis: 10_000,
+    }),
+  };
 }
 
 /**
- * GET /api/admin/tidb — ping TiDB and list HiClaw-related tables (admin only).
+ * GET /api/admin/tidb — ping HiClaw Postgres and list core tables (admin only).
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 
-  const cfg = getConnectionConfig();
+  const cfg = getPool();
   if ("error" in cfg) {
     return NextResponse.json({ ok: false, error: cfg.error }, { status: 503 });
   }
 
-  let conn: mysql.Connection | null = null;
   try {
-    conn = await mysql.createConnection({
-      uri: cfg.uri,
-      ssl: { rejectUnauthorized: true },
-    });
-    await conn.query("SELECT 1 AS ok");
+    await cfg.pool.query("SELECT 1 AS ok");
 
-    const [rows] = await conn.query<mysql.RowDataPacket[]>(
-      `SELECT TABLE_NAME FROM information_schema.TABLES
-       WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME IN ('expert_status','sessions','waiting_room','evaluator_critiques')
-       ORDER BY TABLE_NAME`
+    const { rows } = await cfg.pool.query<{ tablename: string }>(
+      `SELECT tablename FROM pg_tables
+       WHERE schemaname = 'public'
+       AND tablename = ANY($1::text[])
+       ORDER BY tablename`,
+      [["expert_status", "sessions", "waiting_room", "evaluator_critiques"]],
     );
 
-    const tables = rows.map((r) => r.TABLE_NAME as string);
+    const tables = rows.map((r) => r.tablename);
 
     return NextResponse.json({
       ok: true,
-      message: "TiDB connection successful",
+      message: "HiClaw PostgreSQL connection OK",
       hiclawTablesFound: tables,
       expectedTables: ["expert_status", "sessions", "waiting_room", "evaluator_critiques"],
     });
@@ -54,12 +68,12 @@ export async function GET(request: NextRequest) {
     console.error("[admin/tidb GET]", msg);
     return NextResponse.json({ ok: false, error: msg }, { status: 502 });
   } finally {
-    if (conn) await conn.end().catch(() => {});
+    await cfg.pool.end().catch(() => {});
   }
 }
 
 /**
- * POST /api/admin/tidb — apply HiClaw schema (idempotent CREATE IF NOT EXISTS).
+ * POST /api/admin/tidb — apply HiClaw Postgres schema (idempotent).
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
@@ -69,27 +83,21 @@ export async function POST(request: NextRequest) {
   if (body.action !== "apply_hiclaw_schema") {
     return NextResponse.json(
       { error: 'Body must be JSON: { "action": "apply_hiclaw_schema" }' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const cfg = getConnectionConfig();
+  const cfg = getPool();
   if ("error" in cfg) {
     return NextResponse.json({ ok: false, error: cfg.error }, { status: 503 });
   }
 
-  let conn: mysql.Connection | null = null;
   const results: string[] = [];
 
   try {
-    conn = await mysql.createConnection({
-      uri: cfg.uri,
-      ssl: { rejectUnauthorized: true },
-    });
-
-    for (const sql of HICLAW_TIDB_STATEMENTS) {
+    for (const sql of HICLAW_PG_SCHEMA_STATEMENTS) {
       try {
-        await conn.query(sql);
+        await cfg.pool.query(sql);
         results.push(`OK: ${sql.slice(0, 60).replace(/\s+/g, " ")}...`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -103,6 +111,6 @@ export async function POST(request: NextRequest) {
     console.error("[admin/tidb POST]", msg);
     return NextResponse.json({ ok: false, error: msg, results }, { status: 502 });
   } finally {
-    if (conn) await conn.end().catch(() => {});
+    await cfg.pool.end().catch(() => {});
   }
 }

@@ -26,6 +26,11 @@ fish-audio.ts     → Legacy Fish Audio provider (kept for reference, not import
 3. Add feature flag + lazy loader in `config.ts`
 4. Wire lifecycle events in the relevant API routes
 
+## Optional pgvector mirror (`USE_PGVECTOR_MEMORY=1`)
+
+- Dual-writes alongside mem9 from `mem9-lifecycle.ts`; search prefers pgvector hits when enabled
+- Requires Postgres + `expert_memory_embeddings` (see admin migrate SQL); `OPENAI_API_KEY` for embeddings (else text fallback)
+
 ## mem9 (Persistent Memory)
 
 - Free tier, no API key — space IDs are the only credential

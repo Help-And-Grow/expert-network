@@ -1,16 +1,45 @@
-import mysql from "mysql2/promise";
+/**
+ * HiClaw **agent session** store for on-chain sync + reputation (was TiDB/MySQL).
+ * Requires a **PostgreSQL** URL — same database HiClaw `store.js` uses when deployed.
+ *
+ * Env (first match wins): `HICLAW_POSTGRES_URL`, `DB9_DATABASE_URL`, or legacy
+ * `TIDB_DATABASE_URL` **only if** it is a `postgres://` / `postgresql://` URL.
+ */
+import { Pool } from "pg";
 
-let pool: mysql.Pool | null = null;
+let pool: Pool | null = null;
 
-function getPool(): mysql.Pool {
+function getHiClawPostgresUrl(): string {
+  const raw =
+    process.env.HICLAW_POSTGRES_URL ||
+    process.env.DB9_DATABASE_URL ||
+    process.env.TIDB_DATABASE_URL;
+
+  if (!raw?.trim()) {
+    throw new Error(
+      "Set HICLAW_POSTGRES_URL or DB9_DATABASE_URL (PostgreSQL) for HiClaw sessions — used by on-chain webhook and /api/reputation.",
+    );
+  }
+  const url = raw.trim();
+  if (url.startsWith("mysql://")) {
+    throw new Error(
+      "MySQL/TiDB URLs are no longer supported. Point HICLAW_POSTGRES_URL (or DB9_DATABASE_URL) at the same Postgres HiClaw uses.",
+    );
+  }
+  if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
+    throw new Error(
+      "HiClaw session database must be PostgreSQL (postgresql:// or postgres://).",
+    );
+  }
+  return url;
+}
+
+function getPool(): Pool {
   if (!pool) {
-    const url = process.env.TIDB_DATABASE_URL;
-    if (!url) throw new Error("TIDB_DATABASE_URL is not set");
-    pool = mysql.createPool({
-      uri: url,
-      waitForConnections: true,
-      connectionLimit: 5,
-      ssl: { rejectUnauthorized: true },
+    pool = new Pool({
+      connectionString: getHiClawPostgresUrl(),
+      max: 5,
+      connectionTimeoutMillis: 10_000,
     });
   }
   return pool;
@@ -21,13 +50,16 @@ export type OnChainSessionUpdate = {
   easAttestationUid: string;
 };
 
-export async function updateSessionOnChain(sessionHash: string, opts: OnChainSessionUpdate) {
+export async function updateSessionOnChain(
+  sessionHash: string,
+  opts: OnChainSessionUpdate,
+) {
   const p = getPool();
   const hashNorm = sessionHash.trim().toLowerCase();
-  await p.execute(
-    `UPDATE sessions SET on_chain_verified = TRUE, tx_hash = ?, eas_attestation_uid = ?
-     WHERE LOWER(session_hash) = ?`,
-    [opts.txHash, opts.easAttestationUid, hashNorm]
+  await p.query(
+    `UPDATE sessions SET on_chain_verified = TRUE, tx_hash = $1, eas_attestation_uid = $2
+     WHERE LOWER(session_hash) = $3`,
+    [opts.txHash, opts.easAttestationUid, hashNorm],
   );
 }
 
@@ -38,33 +70,37 @@ export interface ReputationData {
   attestationUidList: string[];
 }
 
-export async function getExpertReputation(expertId: string): Promise<ReputationData> {
+export async function getExpertReputation(
+  expertId: string,
+): Promise<ReputationData> {
   const p = getPool();
 
-  const [countRows] = (await p.execute(
-    `SELECT COUNT(*) as total FROM sessions WHERE expert_id = ? AND on_chain_verified = TRUE`,
-    [expertId]
-  )) as [Array<{ total: number }>, unknown];
+  const countRows = await p.query<{ total: string }>(
+    `SELECT COUNT(*)::text as total FROM sessions WHERE expert_id = $1 AND on_chain_verified = TRUE`,
+    [expertId],
+  );
 
-  const [menteeRows] = (await p.execute(
-    `SELECT COUNT(DISTINCT mentee_id) as cnt FROM sessions WHERE expert_id = ? AND on_chain_verified = TRUE`,
-    [expertId]
-  )) as [Array<{ cnt: number }>, unknown];
+  const menteeRows = await p.query<{ cnt: string }>(
+    `SELECT COUNT(DISTINCT mentee_id)::text as cnt FROM sessions WHERE expert_id = $1 AND on_chain_verified = TRUE`,
+    [expertId],
+  );
 
-  const [topicRows] = (await p.execute(
-    `SELECT DISTINCT query as topic FROM sessions WHERE expert_id = ? AND on_chain_verified = TRUE AND query IS NOT NULL LIMIT 20`,
-    [expertId]
-  )) as [Array<{ topic: string }>, unknown];
+  const topicRows = await p.query<{ topic: string }>(
+    `SELECT DISTINCT query as topic FROM sessions WHERE expert_id = $1 AND on_chain_verified = TRUE AND query IS NOT NULL LIMIT 20`,
+    [expertId],
+  );
 
-  const [uidRows] = (await p.execute(
-    `SELECT eas_attestation_uid FROM sessions WHERE expert_id = ? AND on_chain_verified = TRUE AND eas_attestation_uid IS NOT NULL ORDER BY created_at DESC`,
-    [expertId]
-  )) as [Array<{ eas_attestation_uid: string }>, unknown];
+  const uidRows = await p.query<{ eas_attestation_uid: string }>(
+    `SELECT eas_attestation_uid FROM sessions WHERE expert_id = $1 AND on_chain_verified = TRUE AND eas_attestation_uid IS NOT NULL ORDER BY created_at DESC`,
+    [expertId],
+  );
 
   return {
-    totalSBTs: Number(countRows[0]?.total ?? 0),
-    menteeCount: Number(menteeRows[0]?.cnt ?? 0),
-    topics: topicRows.map((r) => r.topic).filter(Boolean),
-    attestationUidList: uidRows.map((r) => r.eas_attestation_uid).filter(Boolean),
+    totalSBTs: Number(countRows.rows[0]?.total ?? 0),
+    menteeCount: Number(menteeRows.rows[0]?.cnt ?? 0),
+    topics: topicRows.rows.map((r) => r.topic).filter(Boolean),
+    attestationUidList: uidRows.rows
+      .map((r) => r.eas_attestation_uid)
+      .filter(Boolean),
   };
 }

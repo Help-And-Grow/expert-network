@@ -61,6 +61,18 @@ const MIGRATIONS = [
   )`,
   `CREATE INDEX IF NOT EXISTS "TokenLedger_userId_idx" ON "TokenLedger"("userId")`,
   `CREATE INDEX IF NOT EXISTS "TokenLedger_bookingId_idx" ON "TokenLedger"("bookingId")`,
+  // Postgres / Supabase only (TiDB will ERR — safe to ignore in migrate output)
+  `CREATE EXTENSION IF NOT EXISTS vector`,
+  `CREATE TABLE IF NOT EXISTS expert_memory_embeddings (
+    id TEXT NOT NULL PRIMARY KEY,
+    expert_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tags TEXT,
+    source TEXT,
+    embedding vector(1536),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_expert_memory_expert ON expert_memory_embeddings (expert_id)`,
 ];
 
 /**

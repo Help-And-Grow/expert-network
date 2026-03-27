@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { encode } from "next-auth/jwt";
 
+import { getAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
 import {
   validateAndParseTelegramInitData,
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const secret = process.env.NEXTAUTH_SECRET;
+    const secret = getAuthSecret();
     if (!secret) {
       return NextResponse.json(
         { error: "Auth secret not configured" },
@@ -102,8 +103,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const useSecureCookie = process.env.NODE_ENV === "production";
+    const cookieName = useSecureCookie
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+
     const token = await encode({
       secret,
+      salt: cookieName,
       token: {
         sub: user.id,
         name: user.name ?? undefined,
@@ -125,11 +132,6 @@ export async function POST(request: Request) {
         hasExpert: !!user.expert,
       },
     });
-
-    const cookieName =
-      process.env.NODE_ENV === "production"
-        ? "__Secure-next-auth.session-token"
-        : "next-auth.session-token";
 
     response.cookies.set(cookieName, token, {
       httpOnly: true,

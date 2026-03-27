@@ -1,0 +1,10 @@
+{
+  "name": "@expert-network/shared-api",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared API request/response shapes for the Next.js app and WeChat mini program",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

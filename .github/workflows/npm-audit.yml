@@ -1,0 +1,26 @@
+# Reports production dependency advisories for the root Next.js app (does not fail the build).
+# WeChat tooling and its transitive tree live under wechat/ — run `cd wechat && npm audit` separately.
+name: npm audit (report)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Production audit (informational)
+        run: |
+          npm audit --omit=dev || true
+          echo "Tip: npm run audit:omit-dev locally; tighten this workflow once the backlog is cleared."

@@ -15,4 +15,4 @@ The developer uses a **company Mac Pro with Zscaler** (corporate proxy/SSL inspe
 
 ### Workarounds
 1. For Supabase, user will use dashboard;
-2. For TiDB Cloud Zero, an admin page is to do some operation: https://expert-network.vercel.app/admin/tidb
+2. HiClaw Postgres schema / health: use **Admin → HiClaw DB** (`/admin/tidb`) on the deployed app when local DB is unreachable.

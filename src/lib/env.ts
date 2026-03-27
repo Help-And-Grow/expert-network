@@ -9,19 +9,30 @@
 
 import { z } from "zod";
 
-const productionSchema = z.object({
-  DATABASE_URL: z
-    .string()
-    .min(1, "DATABASE_URL is required")
-    .refine(
-      (u) => !u.includes("mock:mock@localhost"),
-      "DATABASE_URL must be a real connection string in production",
-    ),
-  NEXTAUTH_URL: z.string().url("NEXTAUTH_URL must be a valid URL"),
-  NEXTAUTH_SECRET: z
-    .string()
-    .min(32, "NEXTAUTH_SECRET must be at least 32 characters"),
-});
+const productionSchema = z
+  .object({
+    DATABASE_URL: z
+      .string()
+      .min(1, "DATABASE_URL is required")
+      .refine(
+        (u) => !u.includes("mock:mock@localhost"),
+        "DATABASE_URL must be a real connection string in production",
+      ),
+    NEXTAUTH_URL: z.string().url("NEXTAUTH_URL must be a valid URL"),
+    NEXTAUTH_SECRET: z.string().optional(),
+    AUTH_SECRET: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const s = data.AUTH_SECRET ?? data.NEXTAUTH_SECRET;
+    if (!s || s.length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Set AUTH_SECRET or NEXTAUTH_SECRET (min 32 characters). Auth.js v5 prefers AUTH_SECRET.",
+        path: ["AUTH_SECRET"],
+      });
+    }
+  });
 
 /**
  * Call once when the server process loads (e.g. before Prisma client).
@@ -39,6 +50,7 @@ export function assertProductionEnv(): void {
     DATABASE_URL: process.env.DATABASE_URL,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    AUTH_SECRET: process.env.AUTH_SECRET,
   });
 
   if (!result.success) {

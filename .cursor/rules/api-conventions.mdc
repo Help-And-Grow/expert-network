@@ -8,10 +8,14 @@ alwaysApply: false
 
 ## Authentication
 
-Use `getServerSession(authOptions)` from NextAuth for protected routes:
+Prefer `resolveUserId(request)` from `@/lib/request-auth` so web, Telegram, and WeChat share one path.
+
+For routes that only need the web session, use Auth.js v5 `auth()` from `@/auth`:
 
 ```typescript
-const session = await getServerSession(authOptions);
+import { auth } from "@/auth";
+
+const session = await auth();
 if (!session?.user?.id) {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

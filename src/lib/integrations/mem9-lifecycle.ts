@@ -8,6 +8,10 @@
 import { prisma } from "@/lib/prisma";
 
 import { getMemory } from "./config";
+import {
+  searchExpertMemoryChunks,
+  storeExpertMemoryChunk,
+} from "./pgvector-memory";
 
 // -----------------------------------------------------------------------
 // Space provisioning
@@ -110,6 +114,17 @@ export async function seedExpertProfile(seed: ExpertProfileSeed): Promise<void> 
       )
     );
 
+    await Promise.all(
+      entries.map((e) =>
+        storeExpertMemoryChunk({
+          expertId: seed.expertId,
+          content: e.content,
+          tags: e.tags,
+          source,
+        })
+      )
+    );
+
     console.log(`[mem9] Seeded ${entries.length} profile memories for expert ${seed.expertId}`);
   } catch (err) {
     console.error("[mem9] seedExpertProfile failed:", err);
@@ -140,8 +155,16 @@ export async function storeBookingEvent(event: BookingEvent): Promise<void> {
     if (!expert?.mem9SpaceId) return;
 
     const dateStr = event.startTime.toISOString().split("T")[0];
+    const content = `Booking: ${event.founderName} booked a ${event.sessionType.toLowerCase()} session on ${dateStr}. Status: ${event.status}.`;
     await memory.store(expert.mem9SpaceId, {
-      content: `Booking: ${event.founderName} booked a ${event.sessionType.toLowerCase()} session on ${dateStr}. Status: ${event.status}.`,
+      content,
+      tags: ["booking", event.status.toLowerCase()],
+      source: `expert:${event.expertId}`,
+    });
+
+    await storeExpertMemoryChunk({
+      expertId: event.expertId,
+      content,
       tags: ["booking", event.status.toLowerCase()],
       source: `expert:${event.expertId}`,
     });
@@ -176,8 +199,16 @@ export async function storeReviewEvent(event: ReviewEvent): Promise<void> {
 
     const stars = "★".repeat(event.rating) + "☆".repeat(5 - event.rating);
     const comment = event.comment ? ` Feedback: "${event.comment}"` : "";
+    const content = `Client review from ${event.founderName}: ${stars} (${event.rating}/5).${comment}`;
     await memory.store(expert.mem9SpaceId, {
-      content: `Client review from ${event.founderName}: ${stars} (${event.rating}/5).${comment}`,
+      content,
+      tags: ["review", `rating:${event.rating}`],
+      source: `expert:${event.expertId}`,
+    });
+
+    await storeExpertMemoryChunk({
+      expertId: event.expertId,
+      content,
       tags: ["review", `rating:${event.rating}`],
       source: `expert:${event.expertId}`,
     });
@@ -198,6 +229,11 @@ export async function searchExpertMemories(
   limit = 5
 ): Promise<string[]> {
   try {
+    if (process.env.USE_PGVECTOR_MEMORY === "1") {
+      const fromPg = await searchExpertMemoryChunks(expertId, query, limit);
+      if (fromPg.length > 0) return fromPg;
+    }
+
     const memory = await getMemory();
     if (!memory) return [];
 

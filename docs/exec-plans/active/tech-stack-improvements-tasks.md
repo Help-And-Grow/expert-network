@@ -1,8 +1,10 @@
-# Tech stack improvements — task tracker (for a solo PM)
+# Tech stack — remaining tasks (PM-friendly)
 
-This file turns [tech-stack-improvements.md](../../design-docs/tech-stack-improvements.md) into **small steps** you can approve one at a time. You do **not** need to understand the technology — each row says **what it means for the product** and **status**.
+This file lists **only work that is still open**. Shipped items (Auth.js v5, Postgres cutover, Inngest wiring, DB9 HTTP SQL, pgvector optional path, tRPC bootstrap, WeChat shared-api, audit process, etc.) are recorded in the **Progress log** below — not as active tasks.
 
-**How to use:** Work top to bottom. When a row is “Done”, the risk called out in the design doc is reduced for that area. Larger rows (NextAuth v5, one database) deserve a **dedicated week** or help from a contractor — don’t rush them between launches.
+**Strategy & rationale:** [tech-stack-improvements.md](../../design-docs/tech-stack-improvements.md) (mem9 vs DB9/pgvector, Inngest vs Alibaba FC, long-term roadmap).
+
+**Ops:** [postgres-cutover-runbook.md](./postgres-cutover-runbook.md)
 
 ---
 
@@ -10,41 +12,38 @@ This file turns [tech-stack-improvements.md](../../design-docs/tech-stack-improv
 
 | Status | Meaning |
 |--------|---------|
-| **Done** | Implemented in the repo; still verify on staging when you deploy |
-| **Next** | Recommended next piece of work |
-| **Planned** | Agreed direction; not started |
-| **Optional** | Nice to have; skip if time is tight |
+| **Next** | Do when capacity allows |
+| **Ongoing** | No clear “done” — keep doing |
+| **Optional** | Product decision |
 
 ---
 
-## Tasks
+## Active tasks
 
-| # | Task (technical name) | In plain English | Status |
-|---|------------------------|------------------|--------|
-| 3 | Startup env validation | **If production is missing critical settings** (database URL, auth secret), the app **fails immediately with a clear error** instead of random “500” errors later. Safer deploys for you as the only owner. | **Done** — see `src/lib/env.ts`, wired from `src/lib/prisma.ts` |
-| 9 | npm audit / supply chain | **Reduce known security issues** in dependencies; separate WeChat build tools from the main app if needed so audits are honest. | Planned |
-| 1 | NextAuth v4 → v5 | **Modern login stack** for Next.js; fewer edge cases as the framework evolves. **Medium risk** — needs a focused pass on “sign in with Google / email” after the change. | Planned |
-| 2 | One PostgreSQL database | **One place for data** instead of MySQL (HiClaw) + Postgres (main app). Less confusion, fewer “wrong database” mistakes. **Requires** deciding: Supabase vs DB9 for agent sessions, then migrating HiClaw off TiDB. | Planned |
-| 4 | Job queue (e.g. Inngest) | **Background work** (Stripe remainder charges, emails, minting) gets **retries and a dashboard** instead of “fire and forget” only. Better when something fails overnight. | Planned |
-| 5 | DB9 HTTP SQL (HiClaw) | **Optional advanced path** for agents talking to the database over HTTP instead of a long-lived connection. Only matters once HiClaw runs on DB9 and you want that model. | Planned |
-| 6 | React Query: all-in or remove | **Pick one pattern** for loading data in the browser — either use the tool everywhere it helps, or remove it to shrink the app. Stops “half adopted” complexity. | Planned |
-| 7 | mem9 → pgvector on DB9 | **Long-term:** store expert memory embeddings **inside your own Postgres** instead of only an external service. Big migration; do after DB strategy is stable. | Optional |
-| 8 | tRPC | **Stronger typing** between UI and API — fewer “frontend assumed wrong shape” bugs. Large refactor; low urgency early on. | Optional |
-| 10 | WeChat shared package | **Same types** for web app and WeChat mini program so a backend change doesn’t silently break WeChat. | Optional |
+| # | Task | In plain English | Status |
+|---|------|------------------|--------|
+| A | **tRPC expansion** | Add typed procedures beyond bootstrap; keep REST for external clients. | **Next** |
+| B | **npm audit triage** | Review CI / `npm audit` output; fix or accept transitive issues. | **Ongoing** |
+| C | **Single Postgres (optional)** | Merge marketplace + HiClaw into one physical DB when migration cost is acceptable. | **Optional** |
+| D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid double runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
+| E | **mem9 → pgvector maturity** | If using `USE_PGVECTOR_MEMORY=1`: run admin migrate, set `OPENAI_API_KEY`, backfill via `/api/admin/pgvector-backfill`, then evaluate mem9 read-only / retirement. | **Optional** |
+| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL`; ensure `DATABASE_URL` is `postgresql://`; rotate toward `AUTH_SECRET`. Use `vercel env ls` / `vercel env add` (CLI does not commit secrets). | **Ongoing** |
 
 ---
 
-## Progress log
+## Progress log (completed / shipped)
 
 | Date | Note |
 |------|------|
-| 2026-03-24 | **Task 3:** Added `src/lib/env.ts` — validates `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET` in **production** only; set `SKIP_ENV_VALIDATION=1` only if a host explicitly needs to bypass (not recommended on Vercel). |
-| 2026-03-24 | Listed **agentic-methodology-best-practices.md** in design-docs `index.md`; created this tracker. |
+| 2026-03-24 | Env validation; tracker created. |
+| 2026-03-27 | Auth.js v5, shared-api, cron runner extraction, audit scripts. |
+| 2026-03-27 | Inngest, tRPC bootstrap, pgvector optional path, HiClaw HTTP SQL, WeChat dep, miniprogram-ci under `wechat/`, CI audit workflow, Postgres-canonical path. |
+| 2026-03-24 | Postgres cutover in repo: `@prisma/adapter-pg` only; removed root `mysql2` / mariadb adapter; HiClaw service without mysql2; docs + runbook. |
+| 2026-03-24 | Tech improvement doc trimmed to **remaining** roadmap; mem9/DB9 + Inngest guidance consolidated here. |
 
 ---
 
 ## When you hire a developer or use Cursor
 
-- Point them at **this file** + **tech-stack-improvements.md**.
-- Ask for **one task per PR** when possible.
-- After **Task 1 (NextAuth v5)** or **Task 2 (one DB)**, schedule **manual testing**: sign-in, one booking, one payment path.
+- Start with [tech-stack-improvements.md](../../design-docs/tech-stack-improvements.md) for **why**; use the **Active tasks** table above for **what’s left**.
+- After changing **Inngest**, **pgvector**, or **DB URLs**, smoke-test booking + expert profile on staging.

@@ -1,18 +1,18 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { type NextAuthOptions } from "next-auth";
-import EmailProvider from "next-auth/providers/email";
-import GoogleProvider from "next-auth/providers/google";
+import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
+import Google from "next-auth/providers/google";
+import Nodemailer from "next-auth/providers/nodemailer";
 
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
+const authConfig = {
   providers: [
-    GoogleProvider({
+    Google({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
-    EmailProvider({
+    Nodemailer({
       server: {
         host: process.env.EMAIL_SERVER_HOST,
         port: Number(process.env.EMAIL_SERVER_PORT),
@@ -24,9 +24,6 @@ export const authOptions: NextAuthOptions = {
       from: process.env.EMAIL_FROM,
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -50,4 +47,11 @@ export const authOptions: NextAuthOptions = {
     verifyRequest: "/auth/verify",
     error: "/auth/error",
   },
-};
+} satisfies NextAuthConfig;
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
+  trustHost: true,
+  ...authConfig,
+});

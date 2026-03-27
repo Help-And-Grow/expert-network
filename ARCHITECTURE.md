@@ -32,7 +32,7 @@
 
 | Domain | Responsibility | Key Files |
 |--------|---------------|-----------|
-| **Auth** | Multi-platform authentication (NextAuth, Telegram, WeChat) | `src/lib/auth.ts`, `src/lib/request-auth.ts`, `src/lib/telegram-server.ts` |
+| **Auth** | Multi-platform authentication (Auth.js / NextAuth v5, Telegram, WeChat) | `src/auth.ts`, `src/lib/request-auth.ts`, `src/lib/telegram-server.ts` |
 | **Experts** | Profile management, domains, availability, pricing | `src/app/api/experts/`, `src/app/api/expert/` |
 | **Bookings** | Session scheduling, timezone handling, conflict detection | `src/app/api/bookings/`, `src/lib/booking-utils.ts` |
 | **Payments** | Stripe checkout, TON crypto, WeChat Pay, free sessions | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
@@ -72,7 +72,7 @@ UI          — React pages and components (src/app/, src/components/)
 Request → resolveUserId(request)
               ├─ Check x-wechat-token header → JWT verify → wechatOpenId → User
               ├─ Check x-telegram-init-data header → HMAC verify → telegramId → User
-              └─ Check NextAuth session cookie → getServerSession → User
+              └─ Check Auth.js session cookie → auth() → User
 ```
 
 All API routes use `resolveUserId()` for unified multi-platform auth.
@@ -95,17 +95,16 @@ Provider selection: `AI_PROVIDER=qwen|gemini|openai` (defaults to Gemini).
 
 ## Database
 
-- **Primary**: Supabase (PostgreSQL) in production
-- **Alternative**: TiDB Cloud Zero (MySQL) — switchable via `DB_PROVIDER`
-- **ORM**: Prisma 7 with driver adapters (`@prisma/adapter-pg`, `@prisma/adapter-mariadb`)
-- **Schema**: `prisma/schema.prisma` — provider line patched by `scripts/switch-db.mjs`
+- **Primary**: PostgreSQL (e.g. Supabase) in production
+- **ORM**: Prisma 7 with `@prisma/adapter-pg` only; `DATABASE_URL` must be Postgres (`mysql://` rejected)
+- **Schema**: `prisma/schema.prisma` — `scripts/switch-db.mjs` enforces `provider = "postgresql"`
 
 ### HiClaw shadow service (sidecar)
 
 - **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
 - **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
-- **Data store:** **`store.js`** — PostgreSQL if `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL` is set, else MySQL/TiDB via `TIDB_DATABASE_URL`. Can differ from the URL the Next.js app uses for webhook/reputation until you consolidate.
-- **Doc:** [hiclaw/README.md](hiclaw/README.md) · [docs/design-docs/hiclaw-agent-harness-db9.md](docs/design-docs/hiclaw-agent-harness-db9.md)
+- **Data store:** **`store.js`** — Postgres via HTTP SQL (`DB9_HTTP_SQL_URL` + token) or TCP `pg` (`DB9_DATABASE_URL` / `HICLAW_POSTGRES_URL`). Align the **same** Postgres (or replicate) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
+- **Doc:** [hiclaw/README.md](hiclaw/README.md) · [docs/design-docs/hiclaw-agent-harness-db9.md](docs/design-docs/hiclaw-agent-harness-db9.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
 
 ### Key Models
 
@@ -159,4 +158,4 @@ AI chat          → searchExpertMemories() → context-aware responses
 - **Pages**: Home, Discover, Expert, Book, Dashboard, Onboarding, Profile
 - **Auth**: `wx.login()` → backend `code2session` → JWT stored in Taro storage
 - **API calls**: Same backend via `TARO_APP_API_BASE` with `x-wechat-token` header
-- **Build**: `npm run build:weapp` → uploads via `miniprogram-ci` (see `scripts/wechat-upload.js`)
+- **Build**: `npm run build:weapp` in `wechat/` → `node scripts/wechat-upload.js` (loads `miniprogram-ci` from `wechat/node_modules` — run `npm install` in `wechat/` first)

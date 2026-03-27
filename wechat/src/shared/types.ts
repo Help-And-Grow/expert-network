@@ -1,3 +1,8 @@
+import type { ApiErrorJson, CreateBookingBody } from "@expert-network/shared-api";
+
+/** Re-export API contract types shared with the Next.js app (`packages/shared-api`). */
+export type { ApiErrorJson, CreateBookingBody };
+
 export interface ExpertUser {
   id: string;
   name: string | null;
