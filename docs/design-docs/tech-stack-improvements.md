@@ -1,232 +1,134 @@
-# Tech Stack Improvement Suggestions
+# Tech stack — remaining roadmap & operational guidance
 
-**Scope:** Help & Grow — AI Native Expert Network  
+**Scope:** Help & Grow — Expert Network  
 **Date:** 2026-03  
-**Status:** Open for review
+**Status:** Active — **follow-up only** (large backlog items are already implemented in-repo)
+
+**Completed work (archive):** Auth.js v5, Postgres-only Prisma + HiClaw session access, env validation, Inngest wiring, DB9 HTTP SQL in HiClaw `store.js`, optional pgvector dual-write, tRPC bootstrap, WeChat `shared-api`, npm audit CI/process, `miniprogram-ci` under `wechat/`. See the progress log in [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) and ops notes in [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md).
+
+**PM checklist:** [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) — rows are **remaining** work only.
 
 ---
 
-## Context
+## 1. mem9 and DB9 — best practices for this product
 
-This document captures architectural and tech stack improvement suggestions based on a review of the current codebase. Items are ordered by priority: high-impact / low-risk changes first, then medium-term improvements, then longer-term considerations.
+### Roles today
 
----
+| Layer | Responsibility | Typical technology |
+|-------|----------------|-------------------|
+| **Core marketplace** | Users, experts, bookings, payments, reviews | Postgres via Prisma (`DATABASE_URL`) |
+| **Expert “memory” for AI** | Profile seeds, booking/review snippets, match-time context | **mem9** (hosted spaces per expert, `mem9SpaceId` on `Expert`) |
+| **HiClaw / shadow agent** | Sessions, waiting room, handoffs, evaluator traces | **Postgres** (DB9 or any Postgres — TCP `pg` or **DB9 HTTP SQL**) |
 
-## 1. Upgrade NextAuth v4 → v5 (Auth.js)  ★ High Priority
+mem9 fits **fast iteration** and **product memory** without you operating a vector pipeline: provisioning is already wired (`ensureExpertSpace`, lifecycle writes in `mem9-lifecycle.ts`). It keeps the main app decoupled from embedding models and index tuning.
 
-**Current state:** The app uses `next-auth@4.x`, which is in maintenance mode. It has known friction points with the Next.js App Router (session access in Server Components requires a workaround through `getServerSession`), and it does not support Edge Runtime.
+DB9 (or “DB9-style” Postgres) fits **agent-local state** and **infrastructure you control**: same SQL as HiClaw tables, optional **HTTP SQL** for stateless workers, and **pgvector** if you want embeddings colocated with sessions.
 
-**Recommendation:** Migrate to `next-auth@5` (Auth.js). Benefits:
-- First-class App Router support — `auth()` works in Server Components and Route Handlers without `getServerSession`
-- Edge-compatible sessions (useful for middleware-level auth checks)
-- Cleaner config structure with type-safe providers
+### Recommended near-term stance (default)
 
-**Risk / effort:** Medium. The API surface changes meaningfully — provider config, callbacks, and session typing all shift. The existing `resolveUserId()` multi-platform auth layer in `src/lib/request-auth.ts` is a clean abstraction that will contain the blast radius. Plan a dedicated migration sprint rather than doing it incrementally.
+1. **Keep mem9 as the system of record for expert memory** while you scale matching, HiClaw, and payments. Do not block launches on pgvector migration.
+2. **Use Postgres (DB9 or Supabase) for HiClaw** — align `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` with where you run `schema-postgres.sql`. Prefer **one physical Postgres** for HiClaw + on-chain session rows when ops cost matters; two instances remain valid if you want isolation.
+3. **Enable `USE_PGVECTOR_MEMORY=1` only when** you explicitly want: (a) **dual-write** from the same lifecycle hooks into `expert_memory_embeddings`, (b) **search-first-on-PG** for `searchExpertMemories` (falls back to mem9 if PG returns nothing), (c) a path toward **reducing mem9 dependency** later. Requires Postgres + extension/table (admin migrate) and, for quality embeddings, **`OPENAI_API_KEY`** (see `pgvector-memory.ts`).
+4. **Backfill** historical mem9 text into PG only after dual-write is stable: `POST /api/admin/pgvector-backfill` (admin), optional `expertId` scope.
 
-**References:** [Auth.js v5 migration guide](https://authjs.dev/getting-started/migrating-to-v5)
+### Long-term roadmap (when to shift weight from mem9 to pgvector/DB9)
 
----
+| Stage | Goal | Action |
+|-------|------|--------|
+| **Now** | Reliability + simple ops | mem9 primary; PG optional mirror off |
+| **Growth** | Cost/latency/compliance | Dual-write + `OPENAI_API_KEY`; monitor PG hit rate on search |
+| **Mature** | Single-store story for agents | Make pgvector primary for **search**; mem9 read-only or decommission after migration script + verification |
+| **HiClaw + memory unified** | One dialect, agent SQL + vectors | Prefer DB9 or one Postgres: sessions + optional `expert_memory_embeddings` in the same region as **DashScope** (Alibaba) for HiClaw |
 
-## 2. Consolidate to a Single Database (PostgreSQL)  ★ High Priority
+**Principle:** mem9 optimizes for **speed of product development**; DB9/pgvector optimizes for **control, colocation with agent data, and Alibaba-adjacent deployment**. The codebase supports both; choose based on team capacity, not dogma.
 
-**Current state:** The stack runs two databases that can diverge:
-- **Supabase PostgreSQL** — core marketplace (Users, Experts, Bookings, Reviews, etc.)
-- **TiDB Cloud Zero (MySQL)** — HiClaw agent sessions (`sessions`, `waiting_room`, `evaluator_critiques`, `expert_status`)
-- **DB9 (Postgres)** — supported as an alternative for HiClaw via `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`, but not yet default
-
-This split means:
-- Two SQL dialects (MySQL `ON DUPLICATE KEY UPDATE` vs Postgres `ON CONFLICT ... DO UPDATE`) in `store.js`
-- The `switch-db.mjs` script patches `schema.prisma` at build time — fragile
-- Schema drift risk between the two stores
-- Higher cognitive load for AI agents operating across the stack
-
-**Recommendation:** Standardize everything on PostgreSQL:
-
-1. **HiClaw → DB9 or Supabase:** Set `DB9_DATABASE_URL` or `HICLAW_POSTGRES_URL` and apply `hiclaw/schema-postgres.sql`. The driver selection in `store.js` already supports this.
-2. **Retire TiDB:** Once HiClaw is on Postgres, remove the `mysql2` path from `store.js`, the `switch-db.mjs` script, and the `@prisma/adapter-mariadb` dependency.
-3. **Single Prisma schema:** With one dialect, the runtime adapter switching in `src/lib/prisma.ts` simplifies to a single `@prisma/adapter-pg` path.
-
-### Why DB9 specifically for the agent layer
-
-DB9 is worth evaluating as the dedicated store for the HiClaw / agent subsystem beyond just being "another Postgres":
-
-| Feature | Relevance |
-|---|---|
-| **HTTP SQL API** (`POST /databases/{id}/sql`) | Agents query and mutate data statelessly over HTTP — no TCP connection pool management, works in serverless and edge functions |
-| **Autonomous provisioning** (REST API) | Agents can spin up, branch, and tear down databases programmatically without a browser "claim" step (unlike TiDB Cloud Zero) |
-| **`pgvector` built-in** | Directly replaces or augments mem9 for storing expert memory embeddings natively in the same DB — no external vector store needed |
-| **`fs9` extension** | Agents can query JSONL/CSV files or write structured output from SQL — useful for batch evaluation result storage |
-| **`pg_cron`** | Background tasks (session cleanup, scheduled evaluations) without a separate job runner |
-
-The driver wiring is already done in `store.js` — it's an environment variable away.
-
-**References:** `hiclaw/README.md`, `docs/design-docs/hiclaw-agent-harness-db9.md`, [db9.ai](https://db9.ai/skill.md)
+**References:** `src/lib/integrations/mem9-lifecycle.ts`, `pgvector-memory.ts`, `mem9-pgvector-backfill.ts`, `hiclaw/README.md`, [hiclaw-agent-harness-db9.md](hiclaw-agent-harness-db9.md), [db9.ai skill](https://db9.ai/skill.md).
 
 ---
 
-## 3. Add Startup Environment Validation  ★ High Priority
+## 2. Inngest — situation, trade-offs, and suggestions
 
-**Current state:** Missing environment variables surface as cryptic runtime errors mid-request (a database query fails with a connection error, an AI call 500s, a Stripe webhook silently drops). There is no fail-fast mechanism.
+### What is already wired
 
-**Recommendation:** Add a `src/lib/env.ts` module that validates all required environment variables at startup using Zod:
+- **Endpoint:** `GET/POST/PUT` `/api/inngest` registers **`chargeRemainderScheduled`** (daily cron) and **`pompIssueOnBookingCompleted`** (event `app/booking.completed`).
+- **Shared business logic:** `runChargeRemainderCron()` in `src/lib/jobs/charge-remainder-cron.ts` (also used by Vercel cron).
+- **Event emission:** `emitBookingCompletedPomp()` in `src/lib/inngest/emit.ts` runs only if **`INNGEST_EVENT_KEY`** is set; otherwise booking completion can still issue POMP **inline** (existing fallback).
 
-```ts
-// src/lib/env.ts
-import { z } from "zod";
+### When Inngest is worth enabling
 
-const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  NEXTAUTH_URL: z.string().url(),
-  NEXTAUTH_SECRET: z.string().min(32),
-  // ... other required vars
-});
+- You want a **dashboard**, **retries**, and **step visibility** for scheduled remainder charging or async POMP without building that yourself.
+- You deploy on **Vercel** and are fine with a **third-party** orchestrator (US/EU SaaS — check data residency if that matters).
 
-export const env = envSchema.parse(process.env);
-```
+**Setup:** Create an app in Inngest Cloud, point it at `https://<your-domain>/api/inngest`, set **`INNGEST_SIGNING_KEY`** on Vercel. For events from the server, set **`INNGEST_EVENT_KEY`**. If Inngest owns the daily job, set **`CRON_DELEGATED_TO_INNGEST=1`** so `/api/cron/charge-remainder` **no-ops** and you do not double-charge.
 
-Import `env` from this module everywhere instead of using `process.env` directly. Startup fails immediately with a clear message listing every missing variable rather than a mystery 500 at runtime.
+### When to skip or minimize Inngest
 
-**Effort:** Low. Zod is already transitively available. One module, one import sweep.
+- **Alibaba-first infra:** Prefer **Alibaba Cloud Function Compute** with a **time trigger** (cron) that `GET`s `/api/cron/charge-remainder` with `Authorization: Bearer <CRON_SECRET>` (same as Vercel Cron). No Inngest account required for that path.
+- **Low volume / simplicity:** Vercel Cron alone + inline POMP fallback is sufficient until you feel pain from lack of retries/UI.
+- **Cost / limits:** Inngest offers a **free Hobby** tier with monthly execution caps; verify current limits on [inngest.com/pricing](https://www.inngest.com/pricing). Scale → paid plans.
 
----
+### Suggestion for this codebase
 
-## 4. Replace Ad-hoc Cron with a Proper Job Queue  ★ Medium Priority
-
-**Current state:** Background work is handled in two ways:
-- `/api/cron` — called by Vercel Cron (not called by anything on Replit)
-- Fire-and-forget `.catch(() => {})` calls for mem9 writes, POMP attestations, and email sends
-
-Both approaches lack retries, visibility, and rate limiting.
-
-**Recommendation:** Adopt [Inngest](https://www.inngest.com/) or [Trigger.dev](https://trigger.dev/). Both:
-- Work with Next.js API routes natively (one endpoint, all jobs routed through it)
-- Provide retries, dead-letter queues, and a dashboard
-- Replace Vercel Cron with their own scheduler (works on any host, including Replit)
-- Are free at low volume
-
-Move the following into managed jobs:
-- Stripe remainder charging (currently in `/api/cron`)
-- POMP attestation minting (currently fire-and-forget in booking completion)
-- mem9 lifecycle writes (currently fire-and-forget throughout)
-- Email send retries
-
-**Effort:** Medium. The logic already exists — it's a routing and wrapper change.
+- **Default production path for a China/Alibaba-weighted stack:** **FC timer → existing cron URL** for remainder charging; leave **`INNGEST_EVENT_KEY`** unset unless you specifically want async POMP in Inngest.
+- **Use Inngest** when the team wants **one** hosted job layer for multiple event types and is comfortable with vendor coupling for those workflows.
 
 ---
 
-## 5. Wire the DB9 HTTP SQL API for Stateless Agent Queries  ★ Medium Priority
+## 3. Remaining incremental work
 
-**Current state:** `store.js` uses the standard `pg` connection pool driver even when pointed at DB9. This works, but means agents managing long-running async sessions must hold or re-establish TCP connections.
-
-**Recommendation:** Add an optional HTTP SQL execution path to `store.js`:
-
-```js
-// If DB9_DATABASE_HTTP_URL is set, use the REST API instead of pg pool
-async function executeHttp(sql, params) {
-  const res = await fetch(`${process.env.DB9_DATABASE_HTTP_URL}/sql`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${process.env.DB9_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: sql, params }),
-  });
-  const { rows } = await res.json();
-  return rows;
-}
-```
-
-This is the design described but not yet implemented in `docs/design-docs/hiclaw-agent-harness-db9.md` ("DB9 HTTP SQL API only (stateless) — Not implemented"). It's the correct end state for agents that spawn asynchronously and cannot own a connection pool.
-
-**Effort:** Low. The store abstraction is already there — it's a new execution branch.
+| Item | Priority | Notes |
+|------|----------|--------|
+| **Expand tRPC** | Medium | Bootstrap exists (`src/trpc/`); add procedures domain-by-domain; REST remains valid. |
+| **npm audit triage** | Medium | Root audit improved; keep triaging transitive issues; use `npm run audit` / CI workflow. |
+| **Single physical Postgres** | Lower | Dialect is unified; merging Supabase + HiClaw into one instance is an ops/migration project when ready. |
+| **Vercel env hygiene** | Ongoing | See **§4** for CLI commands and the checklist of variables to set or rotate. |
+| **Smoke tests after toggles** | Ongoing | After enabling pgvector or Inngest, run one booking + one expert profile update on staging. |
 
 ---
 
-## 6. Adopt React Query Consistently or Remove It  ★ Medium Priority
+## 4. Vercel CLI: managing environment variables
 
-**Current state:** `@tanstack/react-query` is installed and `QueryClientProvider` is in the providers tree, but the majority of data fetching uses `fetch` directly in `useEffect` hooks or Server Components. React Query is only used in a few places.
+Use the [Vercel CLI](https://vercel.com/docs/cli/env) from a **linked** project (run `vercel link` in the repo root once; `vercel whoami` checks login). **Secrets are never committed** — they live only in Vercel (or your secret manager); automation/agents typically **inspect** (`vercel env ls`) but **do not** set values without your connection strings and keys.
 
-**Recommendation:** Make a deliberate choice:
+### Commands (reference)
 
-- **Go all-in:** Migrate client-side data fetching to `useQuery` / `useMutation`. You get caching, background refetch, optimistic updates, and loading/error states for free. Particularly valuable for the booking flow and expert discovery page where stale data causes UX bugs.
-- **Remove it:** If Server Components handle most data, remove the package to reduce bundle size and the `QueryClientProvider` wrapper.
+| Action | Example |
+|--------|---------|
+| List names + environments (values hidden) | `vercel env ls` |
+| Pull decrypted copy locally (do not commit) | `vercel env pull .env.vercel.local` |
+| Add interactively | `vercel env add HICLAW_POSTGRES_URL production` |
+| Add non-interactively | `printf '%s' 'postgresql://…' \| vercel env add HICLAW_POSTGRES_URL production` |
+| Same var for Preview / Development | `vercel env add HICLAW_POSTGRES_URL preview` (repeat for `development`) |
+| Remove obsolete name | `vercel env rm TIDB_DATABASE_URL production` |
 
-The hybrid state is the worst of both worlds — the bundle weight without the benefit.
+Use `production`, `preview`, or `development` as the environment argument. Prefer the **dashboard** if you prefer paste-and-save without a shell.
 
----
+### Checklist — what to have on Vercel for this codebase
 
-## 7. Replace `mem9` with Native `pgvector` on DB9  ★ Medium Priority (longer-term)
+**Required for production boot** (see `src/lib/env.ts`):
 
-**Current state:** Expert memory is stored in an external service ([mem9.ai](https://mem9.ai)). All calls are fire-and-forget to avoid blocking primary flows. This introduces:
-- An external dependency with its own uptime, rate limits, and API changes
-- Latency on memory search injected into AI prompts
-- No visibility into what's stored (no query UI)
+- `DATABASE_URL` — **`postgresql://…`** only (MySQL rejected by Prisma).
+- `NEXTAUTH_URL` — canonical site URL.
+- `AUTH_SECRET` or `NEXTAUTH_SECRET` — **≥ 32 characters** (prefer `AUTH_SECRET` for Auth.js v5).
 
-**Recommendation:** Since DB9 ships with `pgvector` natively, expert memory embeddings could live in the same database as the rest of the agent data:
+**HiClaw + on-chain sync + reputation** (see [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md)):
 
-```sql
--- In hiclaw/schema-postgres.sql
-CREATE TABLE expert_memories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  expert_id TEXT NOT NULL,
-  content TEXT NOT NULL,
-  embedding vector(1536),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX ON expert_memories USING ivfflat (embedding vector_cosine_ops);
-```
+- `HICLAW_POSTGRES_URL` **or** `DB9_DATABASE_URL` — Postgres for HiClaw tables.
+- `TIDB_DATABASE_URL` — **only** if you keep the legacy name: value must be **`postgres://` or `postgresql://`**, never `mysql://`.
 
-Memory search becomes a `SELECT ... ORDER BY embedding <-> $1 LIMIT 10` query — no external API, no rate limit, no additional latency hop.
+**Optional:**
 
-This is a meaningful architectural simplification, but requires generating embeddings (Gemini / OpenAI embeddings API) and migrating existing mem9 data. Treat as a follow-up once DB9 is confirmed as the agent store.
-
----
-
-## 8. Add tRPC for the API Layer  ★ Lower Priority
-
-**Current state:** API routes follow a consistent pattern (parse → validate → call service → return JSON), but the shape of responses is inferred by the frontend using manual type casting or implicit assumptions. Type drift between server and client is a recurring source of bugs.
-
-**Recommendation:** Adopt [tRPC](https://trpc.io/). It provides:
-- End-to-end TypeScript type safety between API and UI — no code generation step
-- Input validation via Zod (which the codebase already uses in places)
-- Eliminates the manual `fetch` + type assertion pattern across client components
-
-The service layer (`src/lib/`) is already framework-agnostic (as per the architecture rules), which makes it straightforward to wrap in tRPC procedures without restructuring business logic.
-
-**Effort:** Medium-high. A significant portion of the API surface would need migrating, best done domain by domain.
+- `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` — if using Inngest (§2).
+- `CRON_DELEGATED_TO_INNGEST=1` — only when Inngest runs the daily remainder job (avoid double runs with Vercel Cron).
+- `CRON_SECRET` — Vercel Cron and any external caller (e.g. Alibaba FC) should send `Authorization: Bearer <CRON_SECRET>` to `/api/cron/charge-remainder` when this is set.
+- `USE_PGVECTOR_MEMORY=1`, `OPENAI_API_KEY`, `PGVECTOR_DATABASE_URL` — if using the pgvector mirror (§1).
+- All other keys from **`.env.example`** (Stripe, Google OAuth, email, AI providers, etc.) as your features require.
 
 ---
 
-## 9. Address npm Vulnerability Backlog  ★ Lower Priority (but do soon)
+## Summary
 
-**Current state:** `npm install` reports 108 vulnerabilities (18 low, 20 moderate, 30 high, 40 critical). Many are likely transitive from build tooling (particularly `miniprogram-ci` for WeChat).
-
-**Recommendation:**
-1. Run `npm audit --json > audit.json` and categorize: build-time-only vs runtime-reachable
-2. Fix all runtime-reachable high/critical issues immediately (`npm audit fix`)
-3. For `miniprogram-ci` transitive issues: consider isolating WeChat tooling into a separate `package.json` in the `wechat/` directory so it doesn't pollute the main app's audit surface
-4. Add `npm audit --audit-level=high` to CI to prevent regressions
-
----
-
-## 10. Formalize the WeChat Mini Program as a Proper Sub-package  ★ Lower Priority
-
-**Current state:** The WeChat Mini Program lives in `wechat/` with its own `package.json` but shares types and constants informally with the main app (copy-paste rather than imports).
-
-**Recommendation:** Extract shared types (expert profile shape, booking response, etc.) into a `packages/shared` workspace that both the Next.js app and WeChat build can import. This prevents drift where a backend API change breaks the WeChat client silently because the types were copied rather than shared.
-
-**Effort:** Medium. Requires setting up an npm workspace or turborepo structure.
-
----
-
-## Summary Table
-
-| # | Suggestion | Priority | Effort |
-|---|---|---|---|
-| 1 | NextAuth v4 → v5 | High | Medium |
-| 2 | Consolidate to single PostgreSQL (DB9 for agent layer) | High | Medium |
-| 3 | Startup env validation (Zod) | High | Low |
-| 4 | Job queue for async work (Inngest / Trigger.dev) | Medium | Medium |
-| 5 | DB9 HTTP SQL API for stateless agent queries | Medium | Low |
-| 6 | React Query: go all-in or remove | Medium | Low–Medium |
-| 7 | Replace mem9 with native pgvector on DB9 | Medium | High |
-| 8 | tRPC for end-to-end type safety | Lower | High |
-| 9 | npm vulnerability audit & fix | Lower (urgent) | Low |
-| 10 | WeChat as a proper shared-types sub-package | Lower | Medium |
+- **mem9** = default, low-friction expert memory; **DB9/Postgres + optional pgvector** = control, colocation with HiClaw, and long-term consolidation.
+- **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
+- **Vercel env** = set via dashboard or **`vercel env add`** (§4); cross-check against `.env.example` and the runbook.
+- **Remaining doc-worthy work** is incremental: tRPC surface, audit triage, optional DB consolidation, and smoke-test discipline.

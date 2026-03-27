@@ -56,14 +56,16 @@ function SignInForm() {
       const result = await signIn("email", {
         email: email.trim(),
         callbackUrl,
-        redirect: true,
+        redirect: false,
       });
       if (result?.error) {
         setError("Failed to send magic link. Please try again.");
-        setEmailLoading(false);
+      } else if (result?.ok) {
+        router.push("/auth/verify");
       }
     } catch {
       setError("Something went wrong. Please try again.");
+    } finally {
       setEmailLoading(false);
     }
   };

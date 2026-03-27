@@ -2,18 +2,18 @@ import { env } from "@/lib/env";
 import { type NextRequest } from "next/server";
 
 import { jwtVerify } from "jose";
-import { getToken } from "next-auth/jwt";
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
+import { getAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
 import {
   validateAndParseTelegramInitData,
   parseTelegramInitDataUnsafe,
 } from "@/lib/telegram-server";
 
+const authSecret = getAuthSecret();
 const JWT_SECRET = new TextEncoder().encode(
-  env.NEXTAUTH_SECRET || "wechat-fallback-secret"
+  authSecret || "wechat-fallback-secret"
 );
 
 /**
@@ -21,9 +21,7 @@ const JWT_SECRET = new TextEncoder().encode(
  * 1. x-wechat-token header (JWT from WeChat Mini Program)
  * 2. x-telegram-init-data header (validated, then unsafe-parsed fallback)
  * 3. tg_user_id cookie
- * 4. NextAuth JWT from request cookies (App Router Route Handlers — required because
- *    getServerSession() often does not receive session cookies in this context)
- * 5. NextAuth getServerSession fallback
+ * 4. Auth.js session via auth() (reads session cookie from the incoming request)
  */
 export async function resolveUserId(request?: NextRequest): Promise<string | null> {
   // 1. WeChat Mini Program JWT
@@ -75,40 +73,22 @@ export async function resolveUserId(request?: NextRequest): Promise<string | nul
     if (exists) return tgUserId;
   }
 
-  // 4. NextAuth JWT in cookie (works in App Router API routes)
-  if (request) {
-    const secret = env.NEXTAUTH_SECRET;
-    if (secret) {
-      try {
-        const token = await getToken({
-          req: request,
-          secret,
-        });
-        const sub = typeof token?.sub === "string" ? token.sub : null;
-        if (sub) {
-          const exists = await prisma.user.findUnique({
-            where: { id: sub },
-            select: { id: true },
-          });
-          if (exists) return sub;
-        }
-      } catch (err) {
-        console.warn(
-          "[resolveUserId] getToken failed:",
-          err instanceof Error ? err.message : err
-        );
-      }
+  // 4. Auth.js (NextAuth v5) session
+  try {
+    const session = await auth();
+    const uid = session?.user?.id;
+    if (uid) {
+      const exists = await prisma.user.findUnique({
+        where: { id: uid },
+        select: { id: true },
+      });
+      if (exists) return uid;
     }
-  }
-
-  // 5. NextAuth session (Pages / legacy)
-  const session = await getServerSession(authOptions);
-  if (session?.user?.id) {
-    const exists = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true },
-    });
-    if (exists) return session.user.id;
+  } catch (err) {
+    console.warn(
+      "[resolveUserId] auth() failed:",
+      err instanceof Error ? err.message : err
+    );
   }
 
   return null;

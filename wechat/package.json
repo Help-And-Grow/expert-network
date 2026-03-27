@@ -37,6 +37,7 @@
   ],
   "author": "",
   "dependencies": {
+    "@expert-network/shared-api": "file:../packages/shared-api",
     "@babel/runtime": "^7.24.4",
     "@tarojs/components": "4.1.11",
     "@tarojs/helper": "4.1.11",
@@ -61,8 +62,8 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "lint-staged": "^16.1.2",
-    "miniprogram-ci": "^2.1.31",
     "husky": "^9.1.7",
+    "miniprogram-ci": "^2.1.31",
     "stylelint-config-standard": "^38.0.0",
     "@babel/core": "^7.24.4",
     "@tarojs/cli": "4.1.11",

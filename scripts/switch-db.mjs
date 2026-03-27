@@ -1,15 +1,11 @@
 #!/usr/bin/env node
 /**
- * Switch between Supabase (PostgreSQL) and TiDB (MySQL) database providers.
+ * Ensures prisma/schema.prisma uses PostgreSQL only (TiDB/MySQL Prisma path removed).
  *
  * Usage:
- *   node scripts/switch-db.mjs          # reads DB_PROVIDER from .env
- *   node scripts/switch-db.mjs supabase # explicit override
- *   node scripts/switch-db.mjs tidb     # explicit override
+ *   node scripts/switch-db.mjs
  *
- * What it does:
- *   Patches prisma/schema.prisma provider between "postgresql" and "mysql".
- *   The runtime adapter in src/lib/prisma.ts auto-detects based on DATABASE_URL.
+ * Legacy `DB_PROVIDER=tidb` in .env is ignored — the script always sets provider = "postgresql".
  */
 import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
@@ -18,31 +14,23 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 
-let provider = process.argv[2];
-if (!provider) {
-  try {
-    const envContent = readFileSync(resolve(root, ".env"), "utf-8");
-    const match = envContent.match(/^DB_PROVIDER\s*=\s*"?(\w+)"?/m);
-    provider = match ? match[1] : "supabase";
-  } catch {
-    provider = "supabase";
+try {
+  const envContent = readFileSync(resolve(root, ".env"), "utf-8");
+  const match = envContent.match(/^DB_PROVIDER\s*=\s*"?(\w+)"?/m);
+  if (match && match[1] === "tidb") {
+    console.warn(
+      "[switch-db] DB_PROVIDER=tidb is ignored — Prisma is PostgreSQL-only. Remove tidb from .env and use a postgresql:// DATABASE_URL.",
+    );
   }
+} catch {
+  /* no .env */
 }
 
-if (!["supabase", "tidb"].includes(provider)) {
-  console.error(`[switch-db] Unknown provider "${provider}". Use "supabase" or "tidb".`);
-  process.exit(1);
-}
-
-const isPg = provider === "supabase";
-console.log(`[switch-db] Switching to: ${provider} (${isPg ? "PostgreSQL" : "MySQL"})`);
+console.log("[switch-db] Enforcing Prisma provider: postgresql");
 
 const schemaPath = resolve(root, "prisma/schema.prisma");
 let schema = readFileSync(schemaPath, "utf-8");
-schema = schema.replace(
-  /provider\s*=\s*"(postgresql|mysql)"/,
-  `provider = "${isPg ? "postgresql" : "mysql"}"`
-);
+schema = schema.replace(/provider\s*=\s*"(postgresql|mysql)"/, `provider = "postgresql"`);
 writeFileSync(schemaPath, schema);
-console.log(`[switch-db] schema.prisma -> provider = "${isPg ? "postgresql" : "mysql"}"`);
-console.log(`[switch-db] Done!`);
+console.log("[switch-db] schema.prisma -> provider = \"postgresql\"");
+console.log("[switch-db] Done!");

@@ -1,0 +1,49 @@
+name: Sync HiClaw Upstream
+
+on:
+  schedule:
+    # Run every Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions UI
+
+jobs:
+  sync-hiclaw:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Clone Upstream HiClaw
+        run: |
+          git clone --depth 1 https://github.com/alibaba/hiclaw.git /tmp/hiclaw-upstream
+
+      - name: Sync Files to Local Directory
+        run: |
+          # Remove existing tracked files in the hiclaw directory to catch deletions
+          rm -rf hiclaw/*
+          
+          # Copy everything from upstream (excluding .git folder)
+          rsync -av --exclude='.git' /tmp/hiclaw-upstream/ hiclaw/
+          
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          if [ -n "$(git status --porcelain hiclaw/)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: sync upstream alibaba/hiclaw improvements"
+          title: "chore: sync upstream alibaba/hiclaw improvements"
+          body: |
+            Automated PR to sync the `hiclaw` directory with the latest changes from [alibaba/hiclaw](https://github.com/alibaba/hiclaw).
+            
+            Please review the changes carefully to ensure they do not break any local customizations before merging.
+          branch: "sync/alibaba-hiclaw"
+          delete-branch: true
+          labels: "automated, dependencies"

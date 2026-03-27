@@ -40,7 +40,7 @@ export default function AdminTidbPage() {
             "Not signed in for this request. Try refreshing the page after signing in with Google."
           );
         } else if (res.status === 403) {
-          setError("Your account must have the ADMIN role to use TiDB tools.");
+          setError("Your account must have the ADMIN role to use HiClaw DB tools.");
         } else {
           setError(data.error || res.statusText);
         }
@@ -111,11 +111,13 @@ export default function AdminTidbPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            TiDB Cloud Zero (HiClaw)
+            HiClaw session DB (Postgres)
           </CardTitle>
           <CardDescription>
-            Test the connection and apply HiClaw tables from the deployed app (Vercel can reach TiDB when your laptop
-            cannot). Set <code className="rounded bg-slate-100 px-1">TIDB_DATABASE_URL</code> on Vercel first.
+            Test the connection and apply HiClaw tables from the deployed app. Set{" "}
+            <code className="rounded bg-slate-100 px-1">HICLAW_POSTGRES_URL</code> or{" "}
+            <code className="rounded bg-slate-100 px-1">DB9_DATABASE_URL</code> (or a postgres{" "}
+            <code className="rounded bg-slate-100 px-1">TIDB_DATABASE_URL</code> legacy name) on Vercel.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -140,7 +142,7 @@ export default function AdminTidbPage() {
           {health && (
             <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
               <p className="font-medium">
-                {health.ok ? "TiDB connection OK" : "TiDB connection failed"}
+                {health.ok ? "HiClaw DB connection OK" : "HiClaw DB connection failed"}
               </p>
               {health.message && <p className="mt-1 text-slate-600">{health.message}</p>}
               {health.hiclawTablesFound && (

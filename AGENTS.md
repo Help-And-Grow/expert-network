@@ -12,7 +12,7 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL (Supabase) or MySQL (TiDB), switched via `DB_PROVIDER`
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://`
 - **Hosting**: Vercel (serverless)
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
 
@@ -58,7 +58,7 @@ See `docs/` for full details:
 
 ## Key Conventions
 
-1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports NextAuth, Telegram, and WeChat in one call.
+1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
 2. **AI providers**: Swappable via `AI_PROVIDER` env var (`dedalus`, `gemini`, `qwen`, `openai`). Default when unset: `gemini`. See `src/lib/ai/index.ts`.
 3. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
 4. **Database switching**: Run `node scripts/switch-db.mjs` — reads `DB_PROVIDER` and patches `prisma/schema.prisma`.
@@ -69,8 +69,8 @@ See `docs/` for full details:
 9. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. Learners earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
 10. **Smart Contracts**: Foundry-based (`contracts/`). Deploy via `forge script script/Deploy.s.sol` (HelpGrowToken on Base Sepolia/Mainnet).
 11. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (MySQL via `TIDB_DATABASE_URL` **or** Postgres via `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`), **waitingRoom**. Shadow stack uses **mem9** + **DashScope Qwen-Max**; session handoffs and `evaluator_critiques` on `sessions` / dedicated table. Details: [`hiclaw/README.md`](hiclaw/README.md). Design: [`docs/design-docs/hiclaw-agent-harness-db9.md`](docs/design-docs/hiclaw-agent-harness-db9.md).
-12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates TiDB `sessions` (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from TiDB.
-13. **Reputation Dashboard**: `/reputation` — expert stats from TiDB + EASScan links; mentee H&G balance via wagmi + ledger API.
+12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates HiClaw `sessions` in Postgres (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from the same store.
+13. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; mentee H&G balance via wagmi + ledger API.
 
 ## Documentation (key changes)
 
@@ -94,6 +94,9 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Update WeChat Mini Program | `wechat/src/pages/` |
 | Add a new business domain | See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules |
 | Fix a payment issue | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
+| Background jobs (Inngest) | `src/inngest/`, `src/app/api/inngest/route.ts`, `src/lib/jobs/charge-remainder-cron.ts` |
+| tRPC (typed API) | `src/trpc/root.ts`, `src/app/api/trpc/[trpc]/route.ts`, `src/components/trpc-provider.tsx` |
+| Optional pgvector memory | `USE_PGVECTOR_MEMORY`, `src/lib/integrations/pgvector-memory.ts`, admin `/api/admin/migrate` SQL |
 | Work on POMP/token features | `src/lib/pomp-credential.ts`, `src/lib/pomp-eas-schema.ts`, `src/lib/hg-token.ts`, `contracts/src/` |
 | Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |
 | Work on HiClaw agents | `hiclaw/README.md`, `hiclaw/service/src/` (manager, shadowWorker, evaluatorWorker, plannerWorker, store, waitingRoom) |

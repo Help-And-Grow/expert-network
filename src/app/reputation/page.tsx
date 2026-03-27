@@ -121,7 +121,7 @@ export default function ReputationPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <StatCard
                 icon={<Award className="h-5 w-5 text-amber-400" />}
-                label="Verified sessions (TiDB)"
+                label="Verified sessions (HiClaw DB)"
                 value={reputation?.totalSBTs ?? 0}
               />
               <StatCard

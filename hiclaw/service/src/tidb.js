@@ -1,4 +1,4 @@
 /**
- * Legacy entry — session persistence lives in store.js (MySQL/TiDB or Postgres/DB9).
+ * Legacy re-export — session persistence lives in store.js (PostgreSQL TCP or HTTP SQL).
  */
 export * from "./store.js";

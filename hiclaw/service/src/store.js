@@ -1,29 +1,22 @@
-import mysql from "mysql2/promise";
 import pg from "pg";
 import { v4 as uuidv4 } from "uuid";
 
-const pgUrl = process.env.HICLAW_POSTGRES_URL || process.env.DB9_DATABASE_URL;
-const mysqlUrl = process.env.TIDB_DATABASE_URL;
+const pgUrl = process.env.DB9_DATABASE_URL || process.env.HICLAW_POSTGRES_URL;
 
-let isPostgres = false;
-let mysqlPool = null;
-let pgPool = null;
+/** Full URL for DB9 (or compatible) HTTP SQL endpoint — POST JSON body, Bearer auth. */
+const httpSqlUrl = (process.env.DB9_HTTP_SQL_URL || process.env.DB9_DATABASE_HTTP_URL || "")
+  .trim()
+  .replace(/\/$/, "");
+const httpSqlToken =
+  process.env.DB9_HTTP_SQL_TOKEN || process.env.DB9_API_KEY || "";
 
-if (pgUrl) {
-  isPostgres = true;
-  pgPool = new pg.Pool({ connectionString: pgUrl });
-} else if (mysqlUrl) {
-  mysqlPool = mysql.createPool({
-    uri: mysqlUrl,
-    waitForConnections: true,
-    connectionLimit: 10,
-    ssl: { rejectUnauthorized: true },
-  });
-} else {
+if (!httpSqlUrl && !pgUrl) {
   console.warn(
-    "[store] Set TIDB_DATABASE_URL (MySQL) or HICLAW_POSTGRES_URL / DB9_DATABASE_URL (Postgres)."
+    "[store] Set DB9_HTTP_SQL_URL (HTTP) or DB9_DATABASE_URL / HICLAW_POSTGRES_URL (TCP pg).",
   );
 }
+
+const pgPool = pgUrl && !httpSqlUrl ? new pg.Pool({ connectionString: pgUrl }) : null;
 
 function toPgSql(sql, params) {
   let n = 0;
@@ -31,26 +24,75 @@ function toPgSql(sql, params) {
   return { text, values: params };
 }
 
-/** @param {string} sql @param {unknown[]} [params] */
-export async function execute(sql, params = []) {
-  if (isPostgres) {
-    const { text, values } = toPgSql(sql, params);
-    const r = await pgPool.query(text, values);
-    return r.rows;
+/**
+ * Execute SQL via DB9-style HTTP API when DB9_HTTP_SQL_URL + DB9_HTTP_SQL_TOKEN are set;
+ * otherwise use the pg pool.
+ */
+async function executeHttp(sql, params = []) {
+  const { text, values } = toPgSql(sql, params);
+  const res = await fetch(httpSqlUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${httpSqlToken}`,
+    },
+    body: JSON.stringify({
+      query: text,
+      sql: text,
+      params: values,
+      arguments: values,
+    }),
+  });
+  const rawText = await res.text();
+  if (!res.ok) {
+    throw new Error(`[store] HTTP SQL ${res.status}: ${rawText.slice(0, 500)}`);
   }
-  if (!mysqlPool) throw new Error("No database configured");
-  const [rows] = await mysqlPool.execute(sql, params);
+  let json;
+  try {
+    json = JSON.parse(rawText);
+  } catch {
+    throw new Error("[store] HTTP SQL response was not JSON");
+  }
+  const rows =
+    json.rows ??
+    json.data?.rows ??
+    json.result?.rows ??
+    json.records ??
+    (Array.isArray(json) ? json : []);
+  if (!Array.isArray(rows)) {
+    console.warn("[store] HTTP SQL: unexpected shape, returning []");
+    return [];
+  }
   return rows;
 }
 
+/** @param {string} sql @param {unknown[]} [params] */
+export async function execute(sql, params = []) {
+  if (httpSqlUrl && httpSqlToken) {
+    return executeHttp(sql, params);
+  }
+  if (!pgPool) {
+    throw new Error(
+      "No database configured. Set DB9_HTTP_SQL_URL + DB9_HTTP_SQL_TOKEN, or DB9_DATABASE_URL.",
+    );
+  }
+  const { text, values } = toPgSql(sql, params);
+  const r = await pgPool.query(text, values);
+  return r.rows;
+}
+
 export function usingPostgres() {
-  return isPostgres;
+  return !!pgPool || (!!httpSqlUrl && !!httpSqlToken);
+}
+
+export function usingHttpSql() {
+  return !!(httpSqlUrl && httpSqlToken);
 }
 
 export async function checkExpertStatus(expertId) {
   const rows = await execute(
     "SELECT is_online, last_seen FROM expert_status WHERE expert_id = ?",
-    [expertId]
+    [expertId],
   );
   if (rows.length === 0) return { isOnline: false, lastSeen: null };
   const row = rows[0];
@@ -61,22 +103,13 @@ export async function checkExpertStatus(expertId) {
 }
 
 export async function updateExpertStatus(expertId, isOnline) {
-  if (isPostgres) {
-    await execute(
-      `INSERT INTO expert_status (expert_id, is_online, last_seen)
-       VALUES (?, ?, NOW())
-       ON CONFLICT (expert_id) DO UPDATE SET
-         is_online = EXCLUDED.is_online,
-         last_seen = NOW()`,
-      [expertId, isOnline]
-    );
-    return;
-  }
   await execute(
     `INSERT INTO expert_status (expert_id, is_online, last_seen)
      VALUES (?, ?, NOW())
-     ON DUPLICATE KEY UPDATE is_online = VALUES(is_online), last_seen = NOW()`,
-    [expertId, isOnline]
+     ON CONFLICT (expert_id) DO UPDATE SET
+       is_online = EXCLUDED.is_online,
+       last_seen = NOW()`,
+    [expertId, isOnline],
   );
 }
 
@@ -101,7 +134,7 @@ export async function createSession({
       conversationMessages,
       mem9ProfileSummary,
       handoffArtifact,
-    ]
+    ],
   );
 }
 
@@ -126,7 +159,7 @@ export async function updateSession(sessionId, data) {
 export async function getSessionsByExpert(expertId, status) {
   return execute(
     "SELECT * FROM sessions WHERE expert_id = ? AND status = ? ORDER BY created_at DESC",
-    [expertId, status]
+    [expertId, status],
   );
 }
 
@@ -151,7 +184,7 @@ export async function insertEvaluatorCritique({
       typeof scoresJson === "string" ? scoresJson : JSON.stringify(scoresJson ?? {}),
       critique,
       draftExcerpt,
-    ]
+    ],
   );
 }
 

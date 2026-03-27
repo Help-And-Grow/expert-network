@@ -342,8 +342,12 @@ export async function PATCH(
 
       if (body.status === "COMPLETED") {
         try {
-          const { issuePOMPCredentials } = await import("@/lib/pomp-credential");
-          issuePOMPCredentials(updated.id).catch(console.error);
+          const { emitBookingCompletedPomp } = await import("@/lib/inngest/emit");
+          const queued = await emitBookingCompletedPomp(updated.id);
+          if (!queued) {
+            const { issuePOMPCredentials } = await import("@/lib/pomp-credential");
+            issuePOMPCredentials(updated.id).catch(console.error);
+          }
         } catch (err) {
           console.error("[POMP] Credential issuance failed to load:", err);
         }

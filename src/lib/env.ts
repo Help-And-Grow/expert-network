@@ -3,7 +3,8 @@ import { z } from "zod";
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   NEXTAUTH_URL: z.string().url(),
-  NEXTAUTH_SECRET: z.string().min(32),
+  NEXTAUTH_SECRET: z.string().optional(),
+  AUTH_SECRET: z.string().optional(),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -43,6 +44,7 @@ const envSchema = z.object({
 
   TIDB_DATABASE_URL: z.string().url().optional(),
   HICLAW_POSTGRES_URL: z.string().url().optional(),
+  DB9_DATABASE_URL: z.string().url().optional(),
 
   WECHAT_PAY_MCH_ID: z.string().optional(),
   WECHAT_PAY_API_V3_KEY: z.string().optional(),
@@ -56,8 +58,26 @@ const envSchema = z.object({
   FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 });
 
-const _env = process.env.SKIP_ENV_VALIDATION 
-  ? (process.env as unknown as z.infer<typeof envSchema>)
-  : envSchema.parse(process.env);
+let _env: z.infer<typeof envSchema>;
+
+if (process.env.SKIP_ENV_VALIDATION === "1" || process.env.npm_lifecycle_event === "build") {
+  _env = process.env as unknown as z.infer<typeof envSchema>;
+} else {
+  const result = envSchema.safeParse(process.env);
+  if (!result.success) {
+    console.warn("⚠️ Invalid environment variables:", result.error.flatten().fieldErrors);
+    // In production we should throw, in dev we might just warn
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Invalid environment variables");
+    }
+    _env = process.env as unknown as z.infer<typeof envSchema>;
+  } else {
+    _env = result.data;
+  }
+}
 
 export const env = _env;
+
+export function assertProductionEnv(): void {
+  // Validation is executed at module load time.
+}

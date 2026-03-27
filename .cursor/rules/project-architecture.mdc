@@ -13,8 +13,8 @@ alwaysApply: true
 |-------|-----------|
 | Framework | Next.js 15 (App Router) |
 | Language | TypeScript (strict) |
-| Database | TiDB Cloud Zero (MySQL-compatible) via Prisma 7 |
-| ORM | Prisma with `@prisma/adapter-mariadb` driver adapter |
+| Database | PostgreSQL (e.g. Supabase) via Prisma 7 |
+| ORM | Prisma with `@prisma/adapter-pg` |
 | Auth | NextAuth.js (Google OAuth + Email magic links) |
 | UI | Tailwind CSS + shadcn/ui components |
 | AI | Alibaba DashScope (Qwen) — LLM, image, TTS, ASR |
@@ -25,19 +25,17 @@ alwaysApply: true
 
 | Deployment | URL | AI Provider | Database |
 |-----------|-----|-------------|----------|
-| Origin (production) | expert-network.vercel.app | Qwen (DashScope) | TiDB Cloud Zero |
+| Origin (production) | expert-network.vercel.app | Qwen (DashScope) | PostgreSQL |
 | Hackathon | expert-network-hackathon.vercel.app | Gemini (Vertex AI) | Supabase PostgreSQL |
 
 This codebase targets the **origin** deployment. Changes go to `main` branch → auto-deploy via Vercel.
 
 ## Database
 
-- Provider: `mysql` in `prisma/schema.prisma`
+- Provider: `postgresql` in `prisma/schema.prisma` (enforced by `scripts/switch-db.mjs`)
 - No `url` in datasource block (Prisma 7 reads `DATABASE_URL` automatically)
-- SSL required: `?sslaccept=strict` in connection string
-- `src/lib/prisma.ts` manually parses URL for explicit `ssl: { rejectUnauthorized: true }`
-- Arrays stored as JSON or one-to-many relations (no `String[]` — MySQL limitation)
-- Use `createMany` + `findMany`, not `createManyAndReturn` (MySQL limitation)
+- `DATABASE_URL` must be `postgresql://`; MySQL URLs are rejected in `src/lib/prisma.ts`
+- Arrays: prefer one-to-many relations or JSON as needed for Postgres
 
 ## Key Directories
 
@@ -49,13 +47,13 @@ src/lib/integrations/ → External service integrations (TTS, memory, etc.)
 src/components/       → Shared React components
 src/hooks/            → Custom React hooks
 prisma/               → Database schema
-scripts/              → Build-time scripts (TiDB setup, etc.)
-hiclaw/service/       → HiClaw shadow service (Express): manager, shadow/evaluator/planner workers, store (MySQL or Postgres)
+scripts/              → Build-time scripts (e.g. switch-db)
+hiclaw/service/       → HiClaw shadow service (Express): manager, shadow/evaluator/planner workers, store (Postgres HTTP SQL or pg)
 ```
 
 ## HiClaw shadow service
 
-Separate Node process documented in `hiclaw/README.md`. Session store: `TIDB_DATABASE_URL` (MySQL) or `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` (Postgres via `pg`). Design: `docs/design-docs/hiclaw-agent-harness-db9.md`.
+Separate Node process documented in `hiclaw/README.md`. Session store: Postgres via HTTP SQL or `pg` (`DB9_*` / `HICLAW_POSTGRES_URL`). Next.js uses the same HiClaw tables via `src/lib/tidb.ts` (Postgres). Design: `docs/design-docs/hiclaw-agent-harness-db9.md`.
 
 ## Documentation
 

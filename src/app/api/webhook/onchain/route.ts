@@ -61,7 +61,7 @@ function verifyAlchemySignature(body: string, sig: string, secret: string): bool
 /**
  * POST /api/webhook/onchain
  * Alchemy (or compatible) webhooks: EAS `Attested` events on Base.
- * Resolves attestation payload and syncs TiDB sessions by sessionHash.
+ * Resolves attestation payload and syncs HiClaw session rows (Postgres) by sessionHash.
  */
 export async function POST(request: NextRequest) {
   try {

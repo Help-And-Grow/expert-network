@@ -6,18 +6,21 @@ Separate **Node service** (`hiclaw/service/`) that runs the offline-expert **sha
 
 ---
 
-## Session store: MySQL (TiDB) **or** PostgreSQL (DB9 / any Postgres)
+## Session store: PostgreSQL (HTTP SQL or TCP `pg`)
 
-The service uses **`store.js`**: if **`HICLAW_POSTGRES_URL`** or **`DB9_DATABASE_URL`** is set, it connects with **`pg`** (PostgreSQL). Otherwise it uses **`TIDB_DATABASE_URL`** with **mysql2**.
+The service uses **`store.js`**:
 
-| Backend | Env var(s) | Schema file |
-|--------|------------|-------------|
-| PostgreSQL | `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL` | Apply [`schema-postgres.sql`](schema-postgres.sql) once on an empty DB |
-| MySQL / TiDB | `TIDB_DATABASE_URL` | [`schema.sql`](schema.sql) and/or Vercel admin **Apply HiClaw schema** ([`src/lib/tidb-hiclaw-schema.ts`](../src/lib/tidb-hiclaw-schema.ts)) |
+1. If **`DB9_HTTP_SQL_URL`** and a bearer token (**`DB9_HTTP_SQL_TOKEN`**, or `DB9_API_KEY`) are set, all queries go through that HTTP SQL API.
+2. Otherwise it uses a **`pg`** pool with **`DB9_DATABASE_URL`** or **`HICLAW_POSTGRES_URL`**.
 
-**TiDB Cloud Zero** (legacy path): instant MySQL-compatible DBs — [zero.tidbcloud.com](https://zero.tidbcloud.com/). Unclaimed instances expire (~30 days); **claim** for production. Same URL can feed this service and Vercel routes that touch HiClaw tables (`/admin/tidb`, `/api/webhook/onchain`, `/api/reputation/:expertId`) when you standardize on TiDB for those paths.
+There is **no MySQL / mysql2** path in this service.
 
-**DB9 / Postgres:** Prefer a Postgres URL from [db9.ai](https://db9.ai/) (or Supabase) for HiClaw-only storage to align with the core stack; provision DB9 via CLI/API without a browser claim step. The service uses the **standard Postgres driver**, not DB9’s HTTP SQL API (that remains an option for fully stateless agents).
+| Mode | Env var(s) | Schema |
+|------|------------|--------|
+| HTTP SQL | `DB9_HTTP_SQL_URL` + `DB9_HTTP_SQL_TOKEN` (or `DB9_API_KEY`) | Apply [`schema-postgres.sql`](schema-postgres.sql) on the backing Postgres |
+| TCP Postgres | `DB9_DATABASE_URL` or `HICLAW_POSTGRES_URL` | Same |
+
+**Next.js (Vercel)** uses the same logical database for HiClaw tables when syncing on-chain data and reputation: set **`HICLAW_POSTGRES_URL`** or **`DB9_DATABASE_URL`** (or a postgres-shaped **`TIDB_DATABASE_URL`** legacy name). Admin **HiClaw DB** is at `/admin/tidb`. See [postgres-cutover-runbook.md](../docs/exec-plans/active/postgres-cutover-runbook.md).
 
 **Tables:** `expert_status`, `sessions`, `waiting_room`, **`evaluator_critiques`**. Session rows support **`conversation_messages`**, **`handoff_artifact`**, **`mem9_profile_summary`** for multi-turn and context reset.
 
@@ -29,14 +32,11 @@ Copy [`.env.example`](.env.example) to `hiclaw/service/.env` (or use repo root e
 
 | Variable | Purpose |
 |----------|---------|
-| `TIDB_DATABASE_URL` | MySQL URL when Postgres vars are unset |
-| `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` | Postgres URL (either name; Postgres wins if set) |
-| `DASHSCOPE_API_KEY` | Qwen-Max (shadow, evaluator, planner, handoff) |
-| `MEM9_ENABLED` | Set `false` to skip mem9 fetches |
-| `EVALUATOR_ENABLED` | Default on; `false` for single-pass drafts |
-| `EVALUATOR_MIN_SCORE`, `EVALUATOR_MAX_ROUNDS` | Evaluator loop thresholds |
-| `SHADOW_CONTEXT_WINDOW_TOKENS`, `SHADOW_CONTEXT_RESET_RATIO` | Token estimate and ~70% reset trigger |
-| `HICLAW_EVALUATOR_TOOL_URL` | Optional POST `{ draft }` → `{ hint }` for evaluator context (e.g. MCP-style checks) |
+| `DB9_HTTP_SQL_URL` | Optional; HTTP SQL endpoint (with token) |
+| `DB9_HTTP_SQL_TOKEN` / `DB9_API_KEY` | Bearer token for HTTP SQL |
+| `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` | TCP Postgres when not using HTTP SQL |
+
+Plus: `DASHSCOPE_API_KEY`, `MEM9_ENABLED`, evaluator and shadow tuning vars as in `.env.example`.
 
 ---
 
@@ -66,23 +66,8 @@ Docker: [`docker-compose.yml`](docker-compose.yml) attaches to external network 
 
 ---
 
-## Why on-chain reputation data may still use TiDB from Vercel
-
-The **Next.js** app can keep using **`TIDB_DATABASE_URL`** for webhook/reputation paths while the **shadow service** uses **Postgres**—they are separate processes. For a **single** store, migrate both to the same DSN or consolidate tables into Supabase (product tradeoff). See original rationale below.
-
-This is an **architecture choice**, not a requirement of TiDB or Postgres.
-
-**Reasons the split existed:**
-
-- **Separation of concerns** — Core marketplace in **Supabase**; agent sessions and chain-adjacent rows could evolve on MySQL.
-- **Same engine as early HiClaw** — One SQL dialect for shadow + webhook updates.
-- **Operational flexibility** — Move reputation sync to Postgres later if you want one DB.
-
----
-
 ## Links
 
-- [TiDB Cloud Zero](https://zero.tidbcloud.com/)
 - [HiClaw](https://hiclaw.io/)
 - [db9.ai skill / API](https://db9.ai/skill.md)
 - Design: [Harness + DB9 evaluation](../docs/design-docs/hiclaw-agent-harness-db9.md)

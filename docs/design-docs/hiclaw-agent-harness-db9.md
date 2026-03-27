@@ -10,7 +10,7 @@
 | Sprint / vetting contracts | **Implemented (phased)** | Optional `sprintContract` / `autoSprintContract` + `sprintMode`; `plannerWorker.js` |
 | Evaluator tools (e.g. MCP availability) | **Partial** | Optional `HICLAW_EVALUATOR_TOOL_URL` hint injection in `evaluatorWorker.js`; no in-repo MCP caller yet |
 | HiClaw store on Postgres / DB9 | **Implemented (driver)** | `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` + `pg`; `hiclaw/schema-postgres.sql` |
-| DB9 HTTP SQL API only (stateless) | **Not implemented** | Service uses Postgres connection string; HTTP API remains optional for future agents |
+| DB9 HTTP SQL API only (stateless) | **Implemented (optional)** | When `DB9_HTTP_SQL_URL` + `DB9_HTTP_SQL_TOKEN` are set, `hiclaw/service/src/store.js` uses HTTPS instead of `pg` |
 
 ## Overview
 The [recent Anthropic engineering article](https://www.anthropic.com/engineering/harness-design-long-running-apps) discusses building a "harness design for long-running application development." It specifically looks at effective multi-agent patterns, combating LLM context degradation, and objectively grading subjective AI outputs.
@@ -69,9 +69,9 @@ Based on the [db9.ai API and feature set](https://db9.ai/skill.md), DB9 is signi
 3. **Agent-Native Extensions:** DB9 comes with `pgvector` (crucial for powering the `mem9` memory spaces natively), `fs9` (allowing agents to query CSV/JSONL files or read/write local files directly from SQL), and `pg_cron` for autonomous background tasks.
 4. **PostgreSQL Compatibility:** Migrating HiClaw to DB9 aligns the entire Help & Grow stack on PostgreSQL (matching the primary Supabase DB), reducing the cognitive load on coding agents and allowing shared Prisma schemas.
 
-* **Implementation (done for Postgres URL):**
-  * **`store.js`** selects **`pg`** when `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL` is set, else **`mysql2`** + `TIDB_DATABASE_URL`.
-  * **`hiclaw/schema-postgres.sql`** for greenfield Postgres/DB9. **DB9 HTTP SQL API** is not wired in this service yet (optional follow-up for stateless agents).
+* **Implementation (done for Postgres URL + optional HTTP):**
+  * **`store.js`** uses **`pg`** when a Postgres URL is set, or **HTTP SQL** when `DB9_HTTP_SQL_URL` + `DB9_HTTP_SQL_TOKEN` are set (body shape is best-effort: `query`/`sql` + `params`/`arguments`).
+  * **`hiclaw/schema-postgres.sql`** for greenfield Postgres/DB9 (includes optional `expert_memory_embeddings` + `vector`).
 
 ---
 

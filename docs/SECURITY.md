@@ -8,7 +8,7 @@
 | Telegram | initData HMAC verification | Signed cookie (`tg_user_id`) |
 | WeChat | code2session → custom JWT | Taro local storage |
 
-All API routes authenticate via `resolveUserId(request)` which checks all three methods.
+All API routes authenticate via `resolveUserId(request)` which checks WeChat JWT, Telegram initData/cookie, and Auth.js (`auth()`) for the web session cookie.
 
 ## Authorization
 

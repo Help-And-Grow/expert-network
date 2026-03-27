@@ -24,9 +24,10 @@ API routes need to authenticate users from any platform without per-route platfo
 Option 2 — `resolveUserId(request)` in `src/lib/request-auth.ts`.
 
 The function checks headers in order:
-1. `x-wechat-token` → JWT verify → lookup by wechatOpenId
+1. `x-wechat-token` → JWT verify → lookup by user id
 2. `x-telegram-init-data` → HMAC verify → lookup by telegramId
-3. NextAuth session cookie → `getServerSession()` → session.user.id
+3. `tg_user_id` cookie → user id lookup
+4. Auth.js (NextAuth v5) → `auth()` reads the `authjs.session-token` cookie → `session.user.id`
 
 ## Consequences
 
