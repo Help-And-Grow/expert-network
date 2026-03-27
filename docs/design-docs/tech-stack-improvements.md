@@ -81,8 +81,48 @@ DB9 (or “DB9-style” Postgres) fits **agent-local state** and **infrastructur
 | **Expand tRPC** | Medium | Bootstrap exists (`src/trpc/`); add procedures domain-by-domain; REST remains valid. |
 | **npm audit triage** | Medium | Root audit improved; keep triaging transitive issues; use `npm run audit` / CI workflow. |
 | **Single physical Postgres** | Lower | Dialect is unified; merging Supabase + HiClaw into one instance is an ops/migration project when ready. |
-| **Vercel env hygiene** | Ongoing | Ensure `DATABASE_URL` + `HICLAW_POSTGRES_URL` (or `DB9_DATABASE_URL`); add **`AUTH_SECRET`** when rotating from `NEXTAUTH_SECRET`; optional Inngest keys per §2. CLI: `vercel env ls` / `vercel env add` (values are not committed). |
+| **Vercel env hygiene** | Ongoing | See **§4** for CLI commands and the checklist of variables to set or rotate. |
 | **Smoke tests after toggles** | Ongoing | After enabling pgvector or Inngest, run one booking + one expert profile update on staging. |
+
+---
+
+## 4. Vercel CLI: managing environment variables
+
+Use the [Vercel CLI](https://vercel.com/docs/cli/env) from a **linked** project (run `vercel link` in the repo root once; `vercel whoami` checks login). **Secrets are never committed** — they live only in Vercel (or your secret manager); automation/agents typically **inspect** (`vercel env ls`) but **do not** set values without your connection strings and keys.
+
+### Commands (reference)
+
+| Action | Example |
+|--------|---------|
+| List names + environments (values hidden) | `vercel env ls` |
+| Pull decrypted copy locally (do not commit) | `vercel env pull .env.vercel.local` |
+| Add interactively | `vercel env add HICLAW_POSTGRES_URL production` |
+| Add non-interactively | `printf '%s' 'postgresql://…' \| vercel env add HICLAW_POSTGRES_URL production` |
+| Same var for Preview / Development | `vercel env add HICLAW_POSTGRES_URL preview` (repeat for `development`) |
+| Remove obsolete name | `vercel env rm TIDB_DATABASE_URL production` |
+
+Use `production`, `preview`, or `development` as the environment argument. Prefer the **dashboard** if you prefer paste-and-save without a shell.
+
+### Checklist — what to have on Vercel for this codebase
+
+**Required for production boot** (see `src/lib/env.ts`):
+
+- `DATABASE_URL` — **`postgresql://…`** only (MySQL rejected by Prisma).
+- `NEXTAUTH_URL` — canonical site URL.
+- `AUTH_SECRET` or `NEXTAUTH_SECRET` — **≥ 32 characters** (prefer `AUTH_SECRET` for Auth.js v5).
+
+**HiClaw + on-chain sync + reputation** (see [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md)):
+
+- `HICLAW_POSTGRES_URL` **or** `DB9_DATABASE_URL` — Postgres for HiClaw tables.
+- `TIDB_DATABASE_URL` — **only** if you keep the legacy name: value must be **`postgres://` or `postgresql://`**, never `mysql://`.
+
+**Optional:**
+
+- `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` — if using Inngest (§2).
+- `CRON_DELEGATED_TO_INNGEST=1` — only when Inngest runs the daily remainder job (avoid double runs with Vercel Cron).
+- `CRON_SECRET` — Vercel Cron and any external caller (e.g. Alibaba FC) should send `Authorization: Bearer <CRON_SECRET>` to `/api/cron/charge-remainder` when this is set.
+- `USE_PGVECTOR_MEMORY=1`, `OPENAI_API_KEY`, `PGVECTOR_DATABASE_URL` — if using the pgvector mirror (§1).
+- All other keys from **`.env.example`** (Stripe, Google OAuth, email, AI providers, etc.) as your features require.
 
 ---
 
@@ -90,4 +130,5 @@ DB9 (or “DB9-style” Postgres) fits **agent-local state** and **infrastructur
 
 - **mem9** = default, low-friction expert memory; **DB9/Postgres + optional pgvector** = control, colocation with HiClaw, and long-term consolidation.
 - **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
-- **Remaining doc-worthy work** is incremental: tRPC surface, audit triage, optional DB consolidation, env and smoke-test discipline.
+- **Vercel env** = set via dashboard or **`vercel env add`** (§4); cross-check against `.env.example` and the runbook.
+- **Remaining doc-worthy work** is incremental: tRPC surface, audit triage, optional DB consolidation, and smoke-test discipline.

@@ -27,7 +27,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 | C | **Single Postgres (optional)** | Merge marketplace + HiClaw into one physical DB when migration cost is acceptable. | **Optional** |
 | D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid double runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
 | E | **mem9 → pgvector maturity** | If using `USE_PGVECTOR_MEMORY=1`: run admin migrate, set `OPENAI_API_KEY`, backfill via `/api/admin/pgvector-backfill`, then evaluate mem9 read-only / retirement. | **Optional** |
-| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL`; ensure `DATABASE_URL` is `postgresql://`; rotate toward `AUTH_SECRET`. Use `vercel env ls` / `vercel env add` (CLI does not commit secrets). | **Ongoing** |
+| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL`; ensure `DATABASE_URL` is `postgresql://`; rotate toward `AUTH_SECRET`. **How:** [tech-stack-improvements.md §4](../../design-docs/tech-stack-improvements.md#4-vercel-cli-managing-environment-variables) (CLI commands + full checklist). | **Ongoing** |
 
 ---
 
