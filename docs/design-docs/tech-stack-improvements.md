@@ -12,6 +12,28 @@
 
 ## 1. mem9 and DB9 — best practices for this product
 
+### For PMs (minimal database jargon)
+
+Think of **three different “places data lives”** — they solve different problems:
+
+| If the product needs… | What we use | Plain English |
+|----------------------|-------------|----------------|
+| **Accounts, bookings, payments, the catalog** | One Postgres (`DATABASE_URL`) | The main app database — “source of truth” for the marketplace. |
+| **AI-ready memory about each expert** (snippets from profile, sessions, reviews for matching and answers) | **mem9** (plus `mem9SpaceId` on the expert) | A **managed memory service**: we don’t run vector search or tune embeddings ourselves; the app sends text and reads context back. Best when you want **speed of shipping** and **less ops**. |
+| **HiClaw agent runs** (sessions, waiting room, handoffs, traces) and optionally **vectors next to agent data** | **Postgres** — often **DB9** or any Postgres you operate (`HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`) | **Your** database for agents: SQL you control, same schema as HiClaw, optional **HTTP SQL** for workers without a long-lived DB connection, optional **pgvector** if you want embeddings **in the same place** as session rows. |
+
+**When to emphasize mem9:** default path for **expert memory** used by product AI (matching, context) — especially early and mid-stage, when the team should not own embedding pipelines. **Product stance:** the **primary user is the expert**; **expert-centric mem9** (one space per expert) is the intended scope — not a separate long-term memory space per learner.
+
+**When to emphasize DB9 / “HiClaw Postgres”:** anything that is **agent infrastructure** (HiClaw tables, shadow/evaluator state, on-chain session sync rows in our design). If the org wants **one region, one bill, full SQL control** next to Alibaba/DashScope workloads, DB9-style Postgres is the natural home.
+
+**Not either-or for the main app:** the marketplace still uses Prisma + `DATABASE_URL` in all scenarios; mem9 vs DB9 here is **not** about replacing the marketplace DB — it is about **expert memory** (mem9) vs **agent + optional vector colocation** (Postgres/DB9).
+
+### Expert-centric mem9, reflections, and post-service notes
+
+**Can mem9 hold memos or reflections about a booking or the experience after delivery?** Yes: mem9 stores **text** with **tags** and **source** (`mem9.ts`). For this product, those chunks belong in the **expert’s** space — the expert is the primary user, and memory is scoped so their AI counterpart stays grounded in **their** clients, sessions, and feedback.
+
+**What is wired today:** **per-expert** spaces (`Expert.mem9SpaceId`). Lifecycle hooks write **booking summaries** and **review text** (rating + comment) into that space (`mem9-lifecycle.ts`). Additional expert-authored reflections (e.g. post-session notes, style preferences about a client) can use the same `store` API with tags such as `reflection` or `session` when you add UX and hooks — still **expert-centric**, not a separate learner memory product.
+
 ### Roles today
 
 | Layer | Responsibility | Typical technology |
@@ -76,13 +98,13 @@ DB9 (or “DB9-style” Postgres) fits **agent-local state** and **infrastructur
 
 ## 3. Remaining incremental work
 
-| Item | Priority | Notes |
-|------|----------|--------|
-| **Expand tRPC** | Medium | Bootstrap exists (`src/trpc/`); add procedures domain-by-domain; REST remains valid. |
-| **npm audit triage** | Medium | Root audit improved; keep triaging transitive issues; use `npm run audit` / CI workflow. |
-| **Single physical Postgres** | Lower | Dialect is unified; merging Supabase + HiClaw into one instance is an ops/migration project when ready. |
+| Item | Priority | Status / how |
+|------|----------|----------------|
+| **Expand tRPC** | Medium | **In progress:** procedures under `src/trpc/procedures/` include `health`, `expert` (`expertPreview`, `expertsPublished`, **`expertMine`**), `booking` (**`bookingById`**, `bookingsMine`), `user` (`me`). |
+| **npm audit triage** | Medium | **Ongoing:** `npm run audit:triage` / `npm run audit:fix`; CI uploads `audit-production.json` from [.github/workflows/npm-audit.yml](../../.github/workflows/npm-audit.yml). Some advisories are transitive (e.g. EAS SDK / Hardhat) until upstream. |
+| **Single physical Postgres** | Lower | **Optional ops project** when cost/isolation tradeoffs justify it: (1) provision one Postgres; (2) create DBs or schemas for Prisma + HiClaw as needed; (3) migrate data with downtime window or logical replication (per DBA); (4) point `DATABASE_URL` and `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` at the same instance; (5) run smoke checks (below). See [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md). |
 | **Vercel env hygiene** | Ongoing | See **§4** for CLI commands and the checklist of variables to set or rotate. |
-| **Smoke tests after toggles** | Ongoing | After enabling pgvector or Inngest, run one booking + one expert profile update on staging. |
+| **Smoke tests after toggles** | Ongoing | **Automated (public):** `npm run smoke:public` or `BASE_URL=… ./scripts/smoke-public-endpoints.sh` (`/api/health`, tRPC `health`, tRPC `expertsPublished`); deploy smoke in [.github/workflows/deploy-smoke.yml](../../.github/workflows/deploy-smoke.yml) runs the same. **Manual:** after pgvector/Inngest/DB URL changes, still complete **one booking** + **one expert profile save** on staging. |
 
 ---
 
@@ -94,11 +116,13 @@ Use the [Vercel CLI](https://vercel.com/docs/cli/env) from a **linked** project 
 
 | Action | Example |
 |--------|---------|
-| List names + environments (values hidden) | `vercel env ls` |
-| Pull decrypted copy locally (do not commit) | `vercel env pull .env.vercel.local` |
+| List names + environments (values hidden) | `npm run vercel:env:ls` (or `vercel env ls`) |
+| Pull decrypted copy locally (do not commit) | `npm run vercel:env:pull` |
+| Bulk add/update from a local file (gitignored) | `npm run vercel:env:apply -- production ./.env.vercel.sync` — runs `vercel env add KEY <env> --force` per line via [`scripts/vercel-env-from-file.mjs`](../../scripts/vercel-env-from-file.mjs) |
 | Add interactively | `vercel env add HICLAW_POSTGRES_URL production` |
-| Add non-interactively | `printf '%s' 'postgresql://…' \| vercel env add HICLAW_POSTGRES_URL production` |
-| Same var for Preview / Development | `vercel env add HICLAW_POSTGRES_URL preview` (repeat for `development`) |
+| Add non-interactively | `printf '%s' 'postgresql://…' \| vercel env add HICLAW_POSTGRES_URL production --force` |
+| Update existing value (stdin) | `printf '%s' 'new-value' \| vercel env update HICLAW_POSTGRES_URL production --yes` |
+| Same var for Preview / Development | repeat `vercel env add` (or bulk file) for `preview` / `development` |
 | Remove obsolete name | `vercel env rm TIDB_DATABASE_URL production` |
 
 Use `production`, `preview`, or `development` as the environment argument. Prefer the **dashboard** if you prefer paste-and-save without a shell.
@@ -126,9 +150,16 @@ Use `production`, `preview`, or `development` as the environment argument. Prefe
 
 ---
 
+## 5. Vercel platform practices (full list)
+
+Platform-wide guidance (stateless functions, regions, Cron, Blob, AI Gateway, Workflow/Sandbox, etc.) lives in a dedicated doc so this file stays scannable: **[vercel-best-practices.md](vercel-best-practices.md)**. Env var CLI and project checklist remain in **§4** above.
+
+---
+
 ## Summary
 
 - **mem9** = default, low-friction expert memory; **DB9/Postgres + optional pgvector** = control, colocation with HiClaw, and long-term consolidation.
 - **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
 - **Vercel env** = set via dashboard or **`vercel env add`** (§4); cross-check against `.env.example` and the runbook.
-- **Remaining doc-worthy work** is incremental: tRPC surface, audit triage, optional DB consolidation, and smoke-test discipline.
+- **Vercel platform habits** = §5 above links to [vercel-best-practices.md](vercel-best-practices.md).
+- **Remaining work** is incremental: more tRPC procedures as needed, audit triage, optional single-Postgres merge, and smoke discipline after toggles.

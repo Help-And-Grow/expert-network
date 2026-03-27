@@ -22,5 +22,13 @@ jobs:
         run: npm ci
       - name: Production audit (informational)
         run: |
-          npm audit --omit=dev || true
-          echo "Tip: npm run audit:omit-dev locally; tighten this workflow once the backlog is cleared."
+          npm run audit:triage || true
+          echo "Tip: npm run audit:fix locally when safe; eas-sdk/hardhat chain may stay open until upstream releases."
+      - name: Upload production audit JSON
+        if: always()
+        run: npm audit --omit=dev --json > audit-production.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-production-json
+          path: audit-production.json

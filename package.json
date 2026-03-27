@@ -11,6 +11,12 @@
     "lint": "next lint",
     "audit": "npm audit",
     "audit:omit-dev": "npm audit --omit=dev",
+    "audit:triage": "node scripts/audit-triage.mjs",
+    "audit:fix": "npm audit fix",
+    "smoke:public": "bash scripts/smoke-public-endpoints.sh",
+    "vercel:env:ls": "npx vercel@latest env ls",
+    "vercel:env:pull": "npx vercel@latest env pull .env.vercel.local",
+    "vercel:env:apply": "node scripts/vercel-env-from-file.mjs",
     "postinstall": "node scripts/switch-db.mjs && prisma generate"
   },
   "dependencies": {
@@ -53,7 +59,7 @@
     "mammoth": "^1.11.0",
     "next": "^15.5.14",
     "next-auth": "^5.0.0-beta.30",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^8.0.4",
     "openai": "^6.27.0",
     "pg": "^8.20.0",
     "prisma": "^7.4.2",

@@ -44,4 +44,23 @@ jobs:
           curl -fsSL "${{ steps.url.outputs.base }}/api/health" | tee /tmp/health.json
           grep -q '"ok"' /tmp/health.json
 
-      # This workflow only checks liveness (no OAuth / E2E).
+      - name: GET /api/trpc health (public query)
+        if: steps.url.outputs.skip != 'true'
+        run: |
+          set -e
+          curl -fsSL -G "${{ steps.url.outputs.base }}/api/trpc/health" \
+            --data-urlencode "batch=1" \
+            --data-urlencode 'input={"0":{"json":null}}' | tee /tmp/trpc-health.json
+          grep -q '"ok"' /tmp/trpc-health.json
+
+      - name: GET /api/trpc expertsPublished (public query)
+        if: steps.url.outputs.skip != 'true'
+        run: |
+          set -e
+          curl -fsSL -G "${{ steps.url.outputs.base }}/api/trpc/expertsPublished" \
+            --data-urlencode "batch=1" \
+            --data-urlencode 'input={"0":{"json":{"take":1,"skip":0}}}' | tee /tmp/trpc-experts.json
+          grep -q '"experts"' /tmp/trpc-experts.json
+
+      # Liveness only (no OAuth). After infra toggles, run scripts/smoke-public-endpoints.sh on staging
+      # and complete one booking + expert profile update manually — see tech-stack-improvements §3.
