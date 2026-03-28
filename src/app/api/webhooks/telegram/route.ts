@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
         ``,
         `*Commands:*`,
         `/find <description> — Find people matching your needs`,
-        `/browse — Open the community directory`,
+        `/browse — Open chat discovery in the app`,
         `/help — Show this message`,
         ``,
         `You can also type any question naturally!`,
@@ -210,16 +210,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // /browse command
+    // /browse command — opens web app chat discovery (no directory list)
     if (text === "/browse" || text.startsWith("/browse@")) {
       await sendMessage(
         botToken,
         chatId,
-        `Open the full app to browse all experts:`,
+        `Open the app to chat with our AI and get matched to experts:`,
         {
           reply_markup: {
             inline_keyboard: [
-              [webAppButton("🔍 Discover Community")],
+              [webAppButton("🔍 Chat to discover")],
             ],
           },
         }

@@ -83,7 +83,7 @@ export function HomeContent() {
                   className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 font-semibold"
                 >
                   <Link href="/discover" className="flex items-center gap-2">
-                    Explore &amp; Learn
+                    Chat &amp; match
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -127,7 +127,7 @@ export function HomeContent() {
                   className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
                 >
                   <Link href="/discover" className="flex items-center gap-2">
-                    Explore Community
+                    Chat to match
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -213,11 +213,11 @@ export function HomeContent() {
             <div>
               <h3 className="font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                 <Users className="h-4 w-4 text-indigo-500" />
-                Explore the Community
+                Chat to find the right expert
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                Browse people offering and seeking expertise across Singapore and Southeast Asia—
-                as learners, experts, or both.
+                Describe what you need; our AI matches you with people offering relevant expertise
+                across Singapore and Southeast Asia—learners and experts in one network.
               </p>
             </div>
           </div>
@@ -255,7 +255,7 @@ export function HomeContent() {
         <div className="mt-10 text-center">
           <Button asChild size="lg" className="font-semibold">
             <Link href="/discover" className="flex items-center gap-2">
-              Explore Now
+              Start matching
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>

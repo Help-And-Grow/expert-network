@@ -199,7 +199,7 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 <p className="mb-4">No upcoming bookings</p>
-                <Button asChild><Link href="/discover">Explore &amp; Learn</Link></Button>
+                <Button asChild><Link href="/discover">Chat &amp; match</Link></Button>
               </CardContent>
             </Card>
           ) : (

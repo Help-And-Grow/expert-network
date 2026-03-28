@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 
 import Link from "next/link";
 
-import { CalendarDays, LogOut, User, Search } from "lucide-react";
+import { CalendarDays, LogOut, User, Sparkles } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -73,7 +73,7 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
             onClick={() => setOpen(false)}
           >
-            <Search className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" />
             Discover
           </Link>
           <Link
