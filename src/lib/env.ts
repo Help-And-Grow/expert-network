@@ -64,7 +64,9 @@ const envSchema = z
     EMAIL_SERVER_PASSWORD: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
 
-    AI_PROVIDER: z.enum(["gemini", "qwen", "openai"]).default("gemini"),
+    AI_PROVIDER: z
+      .enum(["dedalus", "gemini", "qwen", "openai"])
+      .default("gemini"),
 
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLOUD_PROJECT: z.string().optional(),
