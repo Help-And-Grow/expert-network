@@ -18,8 +18,12 @@ function createPrismaClient() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Pool } = require("pg");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { PrismaPg } = require("@prisma/adapter-pg");
-  const adapter = new PrismaPg({ connectionString: url });
+  
+  const pool = new Pool({ connectionString: url });
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
 
