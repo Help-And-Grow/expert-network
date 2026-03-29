@@ -7,12 +7,19 @@ import Nodemailer from "next-auth/providers/nodemailer";
 
 import { prisma } from "@/lib/prisma";
 
-const authConfig = {
-  providers: [
+const providers: NextAuthConfig["providers"] = [];
+
+if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     Google({
-      clientId: env.GOOGLE_CLIENT_ID || "",
-      clientSecret: env.GOOGLE_CLIENT_SECRET || "",
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
     }),
+  );
+}
+
+if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
+  providers.push(
     Nodemailer({
       server: {
         host: env.EMAIL_SERVER_HOST,
@@ -24,7 +31,11 @@ const authConfig = {
       },
       from: env.EMAIL_FROM,
     }),
-  ],
+  );
+}
+
+const authConfig = {
+  providers,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
