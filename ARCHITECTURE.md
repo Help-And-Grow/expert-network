@@ -91,7 +91,7 @@ src/lib/ai/
 └── search.ts         — Search grounding utilities
 ```
 
-Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai` (defaults to Gemini when unset in schema; runtime registry in `src/lib/ai/index.ts`).
+Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai` (defaults to **qwen** when unset; runtime registry in `src/lib/ai/index.ts`).
 
 ## Database
 

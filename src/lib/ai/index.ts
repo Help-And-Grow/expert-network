@@ -45,7 +45,7 @@ let _provider: AIProvider | null = null;
 
 function provider(): AIProvider {
   if (!_provider) {
-    const name = env.AI_PROVIDER || "gemini";
+    const name = env.AI_PROVIDER || "qwen";
     const factory = PROVIDERS[name];
     if (!factory) {
       throw new Error(

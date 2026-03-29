@@ -9,7 +9,7 @@ alwaysApply: false
 `src/lib/ai/` uses a Strategy pattern so the LLM backend can be swapped via a
 single env var: `AI_PROVIDER` = `dedalus` | `gemini` | `qwen` | `openai`.
 
-**Current default: `dedalus`** — model-agnostic gateway via Dedalus Labs.
+**Current default: `qwen`** — Alibaba DashScope (origin / production on Vercel).
 
 ## File Layout
 
@@ -25,7 +25,15 @@ single env var: `AI_PROVIDER` = `dedalus` | `gemini` | `qwen` | `openai`.
 | `openai.ts` | OpenAI provider — extends base, DALL-E 3 image generation |
 | `index.ts` | Registry-based factory + public API re-exports |
 
-## Dedalus Provider (Recommended)
+## Qwen / DashScope (default)
+
+- `AI_PROVIDER=qwen` (default in `src/lib/env.ts` and factory fallback)
+- `DASHSCOPE_API_KEY` — from [DashScope console](https://dashscope.console.aliyun.com/)
+- Multimodal + image APIs via `src/lib/ai/qwen.ts`
+
+For Google Search grounding and PDF extraction in qwen mode, configure `GEMINI_API_KEY` or Vertex (`GOOGLE_CLOUD_*`) per `search.ts`.
+
+## Dedalus Provider (optional gateway)
 
 The Dedalus provider uses the [Dedalus Labs](https://dedaluslabs.ai) gateway which provides:
 - **Any model via one API**: OpenAI, Anthropic, Google, xAI, DeepSeek, Mistral

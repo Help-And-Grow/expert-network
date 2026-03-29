@@ -66,7 +66,7 @@ const envSchema = z
 
     AI_PROVIDER: z
       .enum(["dedalus", "gemini", "qwen", "openai"])
-      .default("gemini"),
+      .default("qwen"),
 
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLOUD_PROJECT: z.string().optional(),

@@ -1,8 +1,9 @@
 # Design Doc: AI Provider Abstraction
 
-**Status**: Accepted
+**Status**: Accepted (default provider: Qwen — see `src/lib/env.ts`, `src/lib/ai/index.ts`)
 **Date**: 2026-03
 **Author**: Tony Wang
+**Implemented in**: `src/lib/ai/`, `src/lib/env.ts`
 
 ## Context
 
@@ -17,15 +18,7 @@ Need to switch providers without changing business logic.
 
 Factory pattern in `src/lib/ai/index.ts`:
 
-```typescript
-function createProvider(): AIProvider {
-  switch (process.env.AI_PROVIDER) {
-    case "qwen": return new QwenProvider();
-    case "openai": return new OpenAIProvider();
-    default: return new GeminiProvider();
-  }
-}
-```
+Registry + factory in `src/lib/ai/index.ts` (not a raw switch). Default when unset: **`qwen`**. Supported: `dedalus`, `gemini`, `qwen`, `openai`.
 
 All providers implement the `AIProvider` interface defined in `src/lib/ai/types.ts`.
 
