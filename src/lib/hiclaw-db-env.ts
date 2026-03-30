@@ -53,7 +53,7 @@ export type HiClawDbCandidate = {
 };
 
 export type HiClawDbResolution =
-  | { ok: true; url: string; source: HiClawDbEnvKey; candidates: HiClawDbCandidate[] }
+  | { ok: true; url: string; rawPostgresUrl: string; source: HiClawDbEnvKey; candidates: HiClawDbCandidate[] }
   | {
       ok: false;
       source: HiClawDbEnvKey | null;
@@ -124,7 +124,13 @@ export function resolveHiClawDatabaseUrl(): HiClawDbResolution {
     if (!raw) continue;
     const u = raw.trim();
     if (u.startsWith("postgresql://") || u.startsWith("postgres://")) {
-      return { ok: true, url: encodePostgresUrlUserinfo(u), source: key, candidates };
+      return {
+        ok: true,
+        rawPostgresUrl: u,
+        url: encodePostgresUrlUserinfo(u),
+        source: key,
+        candidates,
+      };
     }
   }
 
