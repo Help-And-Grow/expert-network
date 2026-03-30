@@ -3,6 +3,16 @@
  */
 export function hiClawPgConnectionErrorHint(message: string): string | undefined {
   const m = message.toLowerCase();
+  if (
+    m.includes("expiredsignature") ||
+    m.includes("jwt validation failed") ||
+    (m.includes("token authentication failed") && m.includes("jwt"))
+  ) {
+    return (
+      "The password in your URL is a **short-lived DB9 connect JWT** and it has expired. Run `db9 db connect <database-name>` for a fresh URL and update **DB9_DATABASE_URL** on Vercel, then redeploy. " +
+      "For production, prefer a stable admin DSN: `DB9_API_KEY=\"$(db9 token show)\" npm run db9:reset-password-vercel` (see https://db9.ai/skill.md)."
+    );
+  }
   if (m.includes("password authentication failed") || m.includes("28p01")) {
     return (
       "Postgres rejected the password in your connection string. DB9 admin passwords can change, or the URL on Vercel may be outdated. " +
