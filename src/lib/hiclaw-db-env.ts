@@ -1,5 +1,37 @@
 import { env } from "@/lib/env";
 
+/**
+ * Percent-encode `user` and `password` in `postgres(ql)://user:password@host/...`.
+ * DB9 `db9 db connect` uses a JWT as the password; unencoded `=` / other chars break URI parsing
+ * so `pg` sends the wrong secret and Postgres returns 28P01.
+ */
+export function encodePostgresUrlUserinfo(raw: string): string {
+  const s = raw.trim();
+  const proto = s.match(/^(postgres(?:ql)?:\/\/)(.*)$/i);
+  if (!proto) return s;
+  const prefix = proto[1];
+  let remainder = proto[2];
+  let query = "";
+  const qIdx = remainder.indexOf("?");
+  if (qIdx >= 0) {
+    query = remainder.slice(qIdx);
+    remainder = remainder.slice(0, qIdx);
+  }
+  const slashIdx = remainder.indexOf("/");
+  const beforeSlash = slashIdx >= 0 ? remainder.slice(0, slashIdx) : remainder;
+  const pathPart = slashIdx >= 0 ? remainder.slice(slashIdx) : "";
+  const at = beforeSlash.lastIndexOf("@");
+  if (at < 0) return s;
+  const userpass = beforeSlash.slice(0, at);
+  const hostport = beforeSlash.slice(at + 1);
+  const colon = userpass.indexOf(":");
+  if (colon < 0) return s;
+  const user = userpass.slice(0, colon);
+  const password = userpass.slice(colon + 1);
+  if (!password) return s;
+  return `${prefix}${encodeURIComponent(user)}:${encodeURIComponent(password)}@${hostport}${pathPart}${query}`;
+}
+
 export type HiClawDbEnvKey = "HICLAW_POSTGRES_URL" | "DB9_DATABASE_URL" | "TIDB_DATABASE_URL";
 
 export type HiClawUrlScheme = "postgres" | "mysql" | "other" | "missing";
@@ -83,7 +115,7 @@ export function resolveHiClawDatabaseUrl(): HiClawDbResolution {
     if (!raw) continue;
     const u = raw.trim();
     if (u.startsWith("postgresql://") || u.startsWith("postgres://")) {
-      return { ok: true, url: u, source: key, candidates };
+      return { ok: true, url: encodePostgresUrlUserinfo(u), source: key, candidates };
     }
   }
 
