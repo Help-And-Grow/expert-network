@@ -260,6 +260,19 @@ export default function AdminTidbPage() {
             </div>
           )}
 
+          {connectionProbe && !connectionProbe.password.present && (
+            <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-950">
+              <p className="font-medium">Missing password in URL</p>
+              <p className="mt-1 text-xs leading-relaxed">
+                Your <code className="rounded bg-red-100 px-1">DB9_DATABASE_URL</code> is parsed as{" "}
+                <code className="rounded bg-red-100 px-1">postgresql://{connectionProbe.user}@…</code> with{" "}
+                <strong>no</strong> <code className="rounded bg-red-100 px-1">:password@</code> segment.
+                Postgres cannot authenticate. Set a full DSN from DB9 (role + password + host), e.g. via{" "}
+                <code className="rounded bg-red-100 px-1">npm run db9:reset-password-vercel</code>.
+              </p>
+            </div>
+          )}
+
           {connectionProbe && (
             <div className="rounded-md border border-slate-300 bg-slate-50 p-3 text-sm">
               <p className="font-medium text-slate-900">Systematic debug (safe — no password)</p>
@@ -333,9 +346,10 @@ export default function AdminTidbPage() {
                     </tbody>
                   </table>
                   <p className="mt-2 text-xs text-slate-600">
-                    If <strong>raw</strong> works but <strong>normalized</strong> fails, report a bug with this
-                    table. If both fail with 28P01, the credential in Vercel is wrong or expired — use DB9 reset
-                    or a fresh DSN.
+                    If only one row appears, raw and normalized URLs are identical. If <strong>raw</strong>{" "}
+                    works but <strong>normalized</strong> fails, report a bug. If you see 28P01 with a missing
+                    password in the probe above, fix the URL shape first — experiments cannot succeed until{" "}
+                    <code className="rounded bg-slate-200 px-0.5">:password@</code> is present.
                   </p>
                 </div>
               )}
