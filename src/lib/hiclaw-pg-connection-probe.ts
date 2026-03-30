@@ -136,7 +136,12 @@ export function buildHiClawConnectionProbe(
 
   const checks: string[] = [];
   if (!pwd) {
-    checks.push("Password segment is empty — Postgres will reject SCRAM auth for user admin.");
+    checks.push(
+      "The URL has no password: use postgresql://ROLE:PASSWORD@HOST:PORT/db — for DB9 the role is often tenant.admin; there must be a colon after the role name, then the password, then @ (the role name alone is not the password).",
+    );
+    checks.push(
+      "Fix: run DB9_API_KEY=\"$(db9 token show)\" npm run db9:reset-password-vercel (writes a full URL to Vercel), or paste the full string from DB9. If the dashboard ate the password, use `echo 'URL' | npx vercel env add DB9_DATABASE_URL production --force`.",
+    );
   }
   if (heuristic.looksLikeJwt) {
     checks.push(
