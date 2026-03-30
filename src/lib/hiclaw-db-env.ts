@@ -21,9 +21,10 @@ export type HiClawDbResolution =
       hint: string;
     };
 
+/** DB9 first so `npm run db9:*` / provision scripts win over a stale `HICLAW_POSTGRES_URL`. */
 const ORDER: HiClawDbEnvKey[] = [
-  "HICLAW_POSTGRES_URL",
   "DB9_DATABASE_URL",
+  "HICLAW_POSTGRES_URL",
   "TIDB_DATABASE_URL",
 ];
 
@@ -66,8 +67,8 @@ function valueForKey(key: HiClawDbEnvKey): string | undefined {
 }
 
 /**
- * First **postgresql://** or **postgres://** URL in list order wins. Non-Postgres values (e.g. legacy
- * `mysql://` on `HICLAW_POSTGRES_URL`) are skipped so `DB9_DATABASE_URL` can still be used.
+ * First **postgresql://** or **postgres://** URL in list order wins: **DB9_DATABASE_URL** →
+ * **HICLAW_POSTGRES_URL** → **TIDB_DATABASE_URL**. Non-Postgres values (e.g. legacy `mysql://`) are skipped.
  */
 export function resolveHiClawDatabaseUrl(): HiClawDbResolution {
   const candidates: HiClawDbCandidate[] = ORDER.map((key) => {

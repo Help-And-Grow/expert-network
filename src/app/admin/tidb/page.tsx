@@ -190,8 +190,8 @@ export default function AdminTidbPage() {
           <CardDescription>
             Test the connection and apply HiClaw tables from this deployment. The server uses the first{" "}
             <strong>valid PostgreSQL</strong> URL in order:{" "}
-            <code className="rounded bg-slate-100 px-1">HICLAW_POSTGRES_URL</code> →{" "}
             <code className="rounded bg-slate-100 px-1">DB9_DATABASE_URL</code> →{" "}
+            <code className="rounded bg-slate-100 px-1">HICLAW_POSTGRES_URL</code> →{" "}
             <code className="rounded bg-slate-100 px-1">TIDB_DATABASE_URL</code>. Legacy{" "}
             <code className="rounded bg-slate-100 px-1">mysql://</code> values are skipped so DB9 can win.
           </CardDescription>

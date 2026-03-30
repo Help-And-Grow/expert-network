@@ -71,7 +71,7 @@ If any step errors, screenshot the message and ask a developer — often it is �
 
 | Layer | Mechanism |
 |-------|-----------|
-| **Next.js (Vercel)** | TCP Postgres via `pg` in [`src/lib/tidb.ts`](../../src/lib/tidb.ts): reads **`HICLAW_POSTGRES_URL`**, then **`DB9_DATABASE_URL`**, then legacy **`TIDB_DATABASE_URL`** (only if `postgres://`). Used for HiClaw **`sessions`**, on-chain sync ([`/api/webhook/onchain`](../../src/app/api/webhook/onchain/route.ts)), reputation queries. |
+| **Next.js (Vercel)** | TCP Postgres via `pg` in [`src/lib/tidb.ts`](../../src/lib/tidb.ts): reads **`DB9_DATABASE_URL`**, then **`HICLAW_POSTGRES_URL`**, then legacy **`TIDB_DATABASE_URL`** (only if `postgres://`). Used for HiClaw **`sessions`**, on-chain sync ([`/api/webhook/onchain`](../../src/app/api/webhook/onchain/route.ts)), reputation queries. |
 | **HiClaw Node service** | [`hiclaw/service` store](../../hiclaw/README.md): optional **HTTP SQL** (`DB9_HTTP_SQL_URL` + token) **or** TCP **`DB9_DATABASE_URL` / `HICLAW_POSTGRES_URL`**. |
 
 There is **no separate “DB9 SDK”** inside Next.js — you point **`DB9_DATABASE_URL`** (or **`HICLAW_POSTGRES_URL`**) at the **same Postgres** where HiClaw tables live (`schema-postgres.sql`).
