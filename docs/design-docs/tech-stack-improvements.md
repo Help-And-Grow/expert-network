@@ -96,15 +96,35 @@ DB9 (or “DB9-style” Postgres) fits **agent-local state** and **infrastructur
 
 ---
 
-## 3. Remaining incremental work
+## 3. Incremental work status
 
-| Item | Priority | Status / how |
-|------|----------|----------------|
-| **Expand tRPC** | Medium | **In progress:** procedures under `src/trpc/procedures/` include `health`, `expert` (`expertPreview`, `expertsPublished`, **`expertMine`**), `booking` (**`bookingById`**, `bookingsMine`), `user` (`me`). |
-| **npm audit triage** | Medium | **Ongoing:** `npm run audit:triage` / `npm run audit:fix`; CI uploads `audit-production.json` from [.github/workflows/npm-audit.yml](../../.github/workflows/npm-audit.yml). Some advisories are transitive (e.g. EAS SDK / Hardhat) until upstream. |
-| **Single physical Postgres** | Lower | **Optional ops project** when cost/isolation tradeoffs justify it: (1) provision one Postgres; (2) create DBs or schemas for Prisma + HiClaw as needed; (3) migrate data with downtime window or logical replication (per DBA); (4) point `DATABASE_URL` and `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` at the same instance; (5) run smoke checks (below). See [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md). |
-| **Vercel env hygiene** | Ongoing | See **§4** for CLI commands and the checklist of variables to set or rotate. |
-| **Smoke tests after toggles** | Ongoing | **Automated (public):** `npm run smoke:public` or `BASE_URL=… ./scripts/smoke-public-endpoints.sh` (`/api/health`, tRPC `health`, tRPC `expertsPublished`); deploy smoke in [.github/workflows/deploy-smoke.yml](../../.github/workflows/deploy-smoke.yml) runs the same. **Manual:** after pgvector/Inngest/DB URL changes, still complete **one booking** + **one expert profile save** on staging. |
+### 3.1 tRPC — implemented surface (aligned with repo)
+
+Router: [`src/trpc/root.ts`](../../src/trpc/root.ts). Procedures live in [`src/trpc/procedures/`](../../src/trpc/procedures/).
+
+| File | Procedures |
+|------|------------|
+| `health.ts` | `health` |
+| `expert.ts` | `expertMine`, `expertPreview`, `expertsPublished` |
+| `booking.ts` | `bookingById`, `bookingsMine` |
+| `user.ts` | `me` |
+| `profile.ts` | `getProfile`, `updateProfile`, `updateExpertProfile` |
+| `review.ts` | `createReview`, `getReviewsForExpert` |
+| `onboarding.ts` | `getOnboardingExpert`, `updateOnboarding` |
+
+**New domains:** add `src/trpc/procedures/<domain>.ts`, export a `*Procedures` object, merge in `root.ts`. External clients may keep using REST; no requirement to mirror every route in tRPC.
+
+### 3.2 npm audit — triaged (production deps)
+
+Posture and remaining transitive risk (EAS SDK → Hardhat) are documented in **[npm-audit-production.md](npm-audit-production.md)**. Root **`overrides.serialize-javascript`** (`^7.0.5`) addresses the **mocha → serialize-javascript** chain. Routine commands: `npm run audit:triage`, `npm run audit:fix`; CI uploads **`audit-production.json`** from [.github/workflows/npm-audit.yml](../../.github/workflows/npm-audit.yml).
+
+### 3.3 Still open (ops / hygiene)
+
+| Item | Priority | Notes |
+|------|----------|--------|
+| **Single physical Postgres** | Lower | **Optional:** merge marketplace + HiClaw DBs when migration cost is acceptable. See [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md). |
+| **Vercel env hygiene** | Ongoing | **§4** — CLI, bulk apply, checklist. |
+| **Smoke after infra toggles** | Ongoing | `npm run smoke:public`; deploy smoke in [.github/workflows/deploy-smoke.yml](../../.github/workflows/deploy-smoke.yml); **manual** booking + expert profile on staging after pgvector/Inngest/DB URL changes. |
 
 ---
 
@@ -160,6 +180,8 @@ Platform-wide guidance (stateless functions, regions, Cron, Blob, AI Gateway, Wo
 
 - **mem9** = default, low-friction expert memory; **DB9/Postgres + optional pgvector** = control, colocation with HiClaw, and long-term consolidation.
 - **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
+- **tRPC** = §3.1 inventory matches `src/trpc/procedures/`; extend by adding files + merging in `root.ts`.
+- **npm audit (prod)** = §3.2 + [npm-audit-production.md](npm-audit-production.md); EAS/Hardhat transitive advisories tracked until upstream.
 - **Vercel env** = set via dashboard or **`vercel env add`** (§4); cross-check against `.env.example` and the runbook.
 - **Vercel platform habits** = §5 above links to [vercel-best-practices.md](vercel-best-practices.md).
-- **Remaining work** is incremental: more tRPC procedures as needed, audit triage, optional single-Postgres merge, and smoke discipline after toggles.
+- **Remaining ops work** = §3.3 (optional single Postgres, env hygiene, smoke discipline).

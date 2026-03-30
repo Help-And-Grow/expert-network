@@ -22,13 +22,13 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 
 | # | Task | In plain English | Status |
 |---|------|------------------|--------|
-| A | **tRPC expansion** | Procedures live under `src/trpc/procedures/`; `user.me` added — extend domain-by-domain; REST unchanged. | **Ongoing** |
-| B | **npm audit triage** | `npm run audit:triage` (prod deps); CI [.github/workflows/npm-audit.yml](../../.github/workflows/npm-audit.yml). | **Ongoing** |
 | C | **Single Postgres (optional)** | Merge marketplace + HiClaw into one physical DB when migration cost is acceptable. | **Optional** |
 | D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid double runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
 | E | **mem9 → pgvector maturity** | If using `USE_PGVECTOR_MEMORY=1`: run admin migrate, set `OPENAI_API_KEY`, backfill via `/api/admin/pgvector-backfill`, then evaluate mem9 read-only / retirement. | **Optional** |
 | F | **Vercel env** | Set `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL`; ensure `DATABASE_URL` is `postgresql://`; rotate toward `AUTH_SECRET`. **How:** [tech-stack-improvements.md §4](../../design-docs/tech-stack-improvements.md#4-vercel-cli-managing-environment-variables) (CLI commands + full checklist). Platform habits: [vercel-best-practices.md](../../design-docs/vercel-best-practices.md). | **Ongoing** |
 | G | **Post-deploy / toggle smoke** | **Public:** `npm run smoke:public` (or `scripts/smoke-public-endpoints.sh`) + deploy workflow. **Manual:** one booking + expert profile on staging after infra toggles. | **Ongoing** |
+
+**Done (documented elsewhere):** tRPC procedure inventory (tech-stack **§3.1**); npm production audit triage (tech-stack **§3.2**, [npm-audit-production.md](../../design-docs/npm-audit-production.md)).
 
 ---
 
@@ -36,6 +36,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 
 | Date | Note |
 |------|------|
+| 2026-03-28 | tRPC surface documented in tech-stack §3.1; npm audit triage + `serialize-javascript` override + [npm-audit-production.md](../../design-docs/npm-audit-production.md); tasks A/B closed. |
 | 2026-03-24 | Env validation; tracker created. |
 | 2026-03-27 | Auth.js v5, shared-api, cron runner extraction, audit scripts. |
 | 2026-03-27 | Inngest, tRPC bootstrap, pgvector optional path, HiClaw HTTP SQL, WeChat dep, miniprogram-ci under `wechat/`, CI audit workflow, Postgres-canonical path. |

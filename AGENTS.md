@@ -95,7 +95,7 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Add a new business domain | See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules |
 | Fix a payment issue | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
 | Background jobs (Inngest) | `src/inngest/`, `src/app/api/inngest/route.ts`, `src/lib/jobs/charge-remainder-cron.ts` |
-| tRPC (typed API) | `src/trpc/root.ts`, `src/app/api/trpc/[trpc]/route.ts`, `src/components/trpc-provider.tsx` |
+| tRPC (typed API) | `src/trpc/root.ts`, `src/trpc/procedures/*.ts`, `src/app/api/trpc/[trpc]/route.ts`, `src/components/trpc-provider.tsx` — procedure table in [tech-stack-improvements.md §3](docs/design-docs/tech-stack-improvements.md#3-incremental-work-status) |
 | Optional pgvector memory | `USE_PGVECTOR_MEMORY`, `src/lib/integrations/pgvector-memory.ts`, admin `/api/admin/migrate` SQL |
 | Work on POMP/token features | `src/lib/pomp-credential.ts`, `src/lib/pomp-eas-schema.ts`, `src/lib/hg-token.ts`, `contracts/src/` |
 | Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |

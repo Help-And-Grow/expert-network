@@ -92,6 +92,7 @@
     "typescript": "^5"
   },
   "overrides": {
-    "valibot": "^1.1.1"
+    "valibot": "^1.1.1",
+    "serialize-javascript": "^7.0.5"
   }
 }

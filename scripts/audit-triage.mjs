@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Production dependency audit (same as `npm run audit:omit-dev`).
- * Use in CI or locally when triaging advisories; fix with `npm audit fix` where safe,
- * or document accepted risk for transitive issues.
+ * Use in CI or locally when triaging advisories; fix with `npm audit fix` where safe.
+ * Posture: docs/design-docs/npm-audit-production.md
  */
 import { spawnSync } from "node:child_process";
 
