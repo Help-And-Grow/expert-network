@@ -1,39 +1,22 @@
-import { env } from "@/lib/env";
-
 /**
  * HiClaw **agent session** store for on-chain sync + reputation (was TiDB/MySQL).
  * Requires a **PostgreSQL** URL — same database HiClaw `store.js` uses when deployed.
  *
- * Env (first match wins): `HICLAW_POSTGRES_URL`, `DB9_DATABASE_URL`, or legacy
- * `TIDB_DATABASE_URL` **only if** it is a `postgres://` / `postgresql://` URL.
+ * Env: first **valid** `postgres://` / `postgresql://` among `HICLAW_POSTGRES_URL`,
+ * `DB9_DATABASE_URL`, `TIDB_DATABASE_URL` (skips `mysql://` so DB9 can win).
  */
 import { Pool } from "pg";
+
+import { resolveHiClawDatabaseUrl } from "@/lib/hiclaw-db-env";
 
 let pool: Pool | null = null;
 
 function getHiClawPostgresUrl(): string {
-  const raw =
-    env.HICLAW_POSTGRES_URL ||
-    env.DB9_DATABASE_URL ||
-    env.TIDB_DATABASE_URL;
-
-  if (!raw?.trim()) {
-    throw new Error(
-      "Set HICLAW_POSTGRES_URL or DB9_DATABASE_URL (PostgreSQL) for HiClaw sessions — used by on-chain webhook and /api/reputation.",
-    );
+  const r = resolveHiClawDatabaseUrl();
+  if (!r.ok) {
+    throw new Error(`${r.error} ${r.hint}`);
   }
-  const url = raw.trim();
-  if (url.startsWith("mysql://")) {
-    throw new Error(
-      "MySQL/TiDB URLs are no longer supported. Point HICLAW_POSTGRES_URL (or DB9_DATABASE_URL) at the same Postgres HiClaw uses.",
-    );
-  }
-  if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
-    throw new Error(
-      "HiClaw session database must be PostgreSQL (postgresql:// or postgres://).",
-    );
-  }
-  return url;
+  return r.url;
 }
 
 function getPool(): Pool {

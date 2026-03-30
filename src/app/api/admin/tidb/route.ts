@@ -4,31 +4,33 @@ import { Pool } from "pg";
 
 import { isErrorResponse, requireAdmin } from "@/lib/admin-auth";
 import { HICLAW_PG_SCHEMA_STATEMENTS } from "@/lib/hiclaw-pg-schema-statements";
+import {
+  type HiClawDbCandidate,
+  type HiClawDbEnvKey,
+  type HiClawDbResolution,
+  resolveHiClawDatabaseUrl,
+} from "@/lib/hiclaw-db-env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function getPool(): { pool: Pool } | { error: string } {
-  const raw =
-    process.env.HICLAW_POSTGRES_URL ||
-    process.env.DB9_DATABASE_URL ||
-    process.env.TIDB_DATABASE_URL;
-  if (!raw?.trim()) {
-    return { error: "Set HICLAW_POSTGRES_URL or DB9_DATABASE_URL (PostgreSQL)" };
-  }
-  const url = raw.trim();
-  if (url.startsWith("mysql://")) {
-    return { error: "MySQL URLs are no longer supported — use PostgreSQL for HiClaw." };
-  }
-  if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
-    return { error: "HiClaw database URL must be PostgreSQL." };
+type HiClawDbFailure = Extract<HiClawDbResolution, { ok: false }>;
+
+function getPool():
+  | { pool: Pool; source: HiClawDbEnvKey; candidates: HiClawDbCandidate[] }
+  | { error: string; diagnosis: HiClawDbFailure } {
+  const r = resolveHiClawDatabaseUrl();
+  if (!r.ok) {
+    return { error: r.error, diagnosis: r };
   }
   return {
     pool: new Pool({
-      connectionString: url,
+      connectionString: r.url,
       max: 2,
       connectionTimeoutMillis: 10_000,
     }),
+    source: r.source,
+    candidates: r.candidates,
   };
 }
 
@@ -41,7 +43,18 @@ export async function GET(request: NextRequest) {
 
   const cfg = getPool();
   if ("error" in cfg) {
-    return NextResponse.json({ ok: false, error: cfg.error }, { status: 503 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: cfg.error,
+        hint: cfg.diagnosis.hint,
+        diagnosis: {
+          winningSource: cfg.diagnosis.source,
+          candidates: cfg.diagnosis.candidates,
+        },
+      },
+      { status: 503 },
+    );
   }
 
   try {
@@ -62,11 +75,22 @@ export async function GET(request: NextRequest) {
       message: "HiClaw PostgreSQL connection OK",
       hiclawTablesFound: tables,
       expectedTables: ["expert_status", "sessions", "waiting_room", "evaluator_critiques"],
+      diagnosis: {
+        resolvedSource: cfg.source,
+        candidates: cfg.candidates,
+      },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[admin/tidb GET]", msg);
-    return NextResponse.json({ ok: false, error: msg }, { status: 502 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: msg,
+        diagnosis: { resolvedSource: cfg.source, candidates: cfg.candidates },
+      },
+      { status: 502 },
+    );
   } finally {
     await cfg.pool.end().catch(() => {});
   }
@@ -89,7 +113,18 @@ export async function POST(request: NextRequest) {
 
   const cfg = getPool();
   if ("error" in cfg) {
-    return NextResponse.json({ ok: false, error: cfg.error }, { status: 503 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: cfg.error,
+        hint: cfg.diagnosis.hint,
+        diagnosis: {
+          winningSource: cfg.diagnosis.source,
+          candidates: cfg.diagnosis.candidates,
+        },
+      },
+      { status: 503 },
+    );
   }
 
   const results: string[] = [];
@@ -105,7 +140,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, results });
+    return NextResponse.json({
+      ok: true,
+      results,
+      diagnosis: { resolvedSource: cfg.source, candidates: cfg.candidates },
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[admin/tidb POST]", msg);

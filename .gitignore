@@ -30,6 +30,7 @@ yarn-error.log*
 .env*.local
 # Local file for `npm run vercel:env:apply` (never commit secrets)
 .env.vercel.sync
+.env.vercel*.tmp
 
 # vercel
 .vercel

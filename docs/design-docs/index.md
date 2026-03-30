@@ -18,6 +18,7 @@ Design docs capture significant architectural and product decisions. Each doc sh
 | [Payment Architecture](payment-architecture.md) | Accepted | 2026-03 | Stripe + TON + WeChat Pay with double-write pattern |
 | [AI Provider Abstraction](ai-provider-abstraction.md) | Accepted | 2026-03 | Swappable AI providers via factory pattern |
 | [HiClaw harness + DB9](hiclaw-agent-harness-db9.md) | Accepted (phased) | 2026-03 | Generator/evaluator loop, handoffs, Postgres store option; Anthropic harness patterns |
+| [DB9 integration (Vercel + HiClaw URL)](db9-integration.md) | Draft | 2026-03 | Serverless Postgres via `DB9_DATABASE_URL`; PM-friendly setup + legacy `TIDB_DATABASE_URL` removal |
 | [Agentic methodology (best practices)](agentic-methodology-best-practices.md) | Accepted | 2026-03 | How HiClaw applies harness ideas (handoffs, evaluator, sprint contracts); companion to harness doc |
 | [Tech Stack Improvements](tech-stack-improvements.md) | Accepted (phased) | 2026-03 | mem9 vs DB9/pgvector, Inngest vs FC; **§3** tRPC procedure inventory + npm audit posture + open ops items |
 | [npm audit (production)](npm-audit-production.md) | Accepted | 2026-03 | Triaged prod deps: overrides, EAS/Hardhat transitive risk, CI artifact — companion to tech-stack §3.2 |
