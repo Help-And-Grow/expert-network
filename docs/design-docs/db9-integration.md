@@ -134,6 +134,10 @@ The host (e.g. `pg.db9.io`) is correct, but **Postgres rejected the password** i
 
 Then **Redeploy** production so functions pick up the new env value.
 
+### Admin UI (no CLI on your laptop)
+
+On **`/admin/tidb`**, the **DB9 API helper** card lets an **ADMIN** user paste a DB9 Bearer token (`db9 token show` from any machine where login works). This deployment calls **`https://api.db9.ai`** and shows a **`postgresql://`** URL to copy into Vercel. The token is **not** stored. Endpoints: `POST /api/admin/tidb/db9` with `action`: `get_connection_string` or `reset_admin_password`.
+
 ## Env var naming
 
 | Variable | Use |
