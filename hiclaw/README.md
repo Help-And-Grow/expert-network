@@ -20,7 +20,7 @@ There is **no MySQL / mysql2** path in this service.
 | HTTP SQL | `DB9_HTTP_SQL_URL` + `DB9_HTTP_SQL_TOKEN` (or `DB9_API_KEY`) | Apply [`schema-postgres.sql`](schema-postgres.sql) on the backing Postgres |
 | TCP Postgres | `DB9_DATABASE_URL` or `HICLAW_POSTGRES_URL` | Same |
 
-**Next.js (Vercel)** uses the same logical database for HiClaw tables when syncing on-chain data and reputation: set **`HICLAW_POSTGRES_URL`** or **`DB9_DATABASE_URL`** (or a postgres-shaped **`TIDB_DATABASE_URL`** legacy name). Admin **HiClaw DB** is at `/admin/tidb`. See [postgres-cutover-runbook.md](../docs/exec-plans/active/postgres-cutover-runbook.md).
+**Next.js (Vercel)** uses the same logical database for HiClaw tables when syncing on-chain data and reputation: set **`DB9_DATABASE_URL`** or **`HICLAW_POSTGRES_URL`** (or a postgres-shaped **`TIDB_DATABASE_URL`** legacy name; resolution order in `src/lib/hiclaw-db-env.ts`). Admin **HiClaw DB** is at `/admin/tidb`. See [postgres-cutover-runbook.md](../docs/exec-plans/active/postgres-cutover-runbook.md).
 
 **Tables:** `expert_status`, `sessions`, `waiting_room`, **`evaluator_critiques`**. Session rows support **`conversation_messages`**, **`handoff_artifact`**, **`mem9_profile_summary`** for multi-turn and context reset.
 

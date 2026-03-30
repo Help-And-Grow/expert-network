@@ -12,8 +12,8 @@ The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma
 
 Resolution order in `src/lib/tidb.ts`:
 
-1. **`HICLAW_POSTGRES_URL`**
-2. **`DB9_DATABASE_URL`**
+1. **`DB9_DATABASE_URL`**
+2. **`HICLAW_POSTGRES_URL`**
 3. **`TIDB_DATABASE_URL`** — **only** if the value starts with `postgres://` or `postgresql://` (legacy name for the same Postgres instance).
 
 If none resolve to Postgres, routes that call `tidb` helpers will throw with a clear error.

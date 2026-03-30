@@ -6,9 +6,9 @@ export function hiClawPgConnectionErrorHint(message: string): string | undefined
   if (m.includes("password authentication failed") || m.includes("28p01")) {
     return (
       "Postgres rejected the password in your connection string. DB9 admin passwords can change, or the URL on Vercel may be outdated. " +
-      "Get a current DSN from DB9 (e.g. `db9 db connect <database-name>` or `db9 db reset-password <database-name>` on a machine where the CLI works — see https://db9.ai/skill.md), " +
-      "then replace **DB9_DATABASE_URL** on Vercel Production and redeploy. " +
-      "You can also run `npm run db9:provision` with `DB9_API_KEY` from `db9 token show` to refresh the project URL."
+      "This app prefers **DB9_DATABASE_URL** over **HICLAW_POSTGRES_URL**; remove or update a stale HICLAW URL if both are set. " +
+      "Get a current DSN from DB9 (e.g. `db9 db connect <database-name>` or `npm run db9:reset-password-vercel` with `DB9_API_KEY` — see https://db9.ai/skill.md), " +
+      "then set **DB9_DATABASE_URL** on Vercel Production and redeploy."
     );
   }
   if (m.includes("certificate") || m.includes("ssl") || m.includes("tls")) {
