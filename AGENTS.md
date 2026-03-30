@@ -101,6 +101,6 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |
 | Work on HiClaw agents | `hiclaw/README.md`, `hiclaw/service/src/` (manager, shadowWorker, evaluatorWorker, plannerWorker, store, waitingRoom) |
 | On-chain sync/reputation | `src/lib/tidb.ts`, `src/app/api/webhook/onchain/`, `src/app/api/reputation/` |
-| DB9 / HiClaw Postgres URL (Vercel) | `docs/design-docs/db9-integration.md` (PM setup); `npm run db9:provision` when CLI TLS fails |
+| DB9 / HiClaw Postgres URL (Vercel) | `docs/design-docs/db9-integration.md`; `/admin/tidb` DB9 API helper (`POST /api/admin/tidb/db9`); `npm run db9:provision` when CLI TLS fails |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | Update product specs | `docs/product-specs/` |
