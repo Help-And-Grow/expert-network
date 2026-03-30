@@ -17,6 +17,9 @@
     "vercel:env:ls": "npx vercel@latest env ls",
     "vercel:env:pull": "npx vercel@latest env pull .env.vercel.local",
     "vercel:env:apply": "node scripts/vercel-env-from-file.mjs",
+    "vercel:env:migrate-auth-secret": "node scripts/vercel-migrate-auth-secret.mjs",
+    "vercel:env:remove-tidb-legacy": "node scripts/vercel-remove-tidb-legacy.mjs",
+    "db9:provision": "node scripts/db9-provision.mjs",
     "postinstall": "node scripts/switch-db.mjs && prisma generate"
   },
   "dependencies": {
