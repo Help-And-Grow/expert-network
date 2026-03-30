@@ -8,8 +8,10 @@
  *   DB9_API_KEY=... node scripts/db9-provision.mjs           # recommended (after `db9 login` + `db9 token show`)
  *   node scripts/db9-provision.mjs                           # anonymous trial (see stderr warning)
  *   node scripts/db9-provision.mjs --skip-vercel
+ *   DB9_API_KEY=... node scripts/db9-provision.mjs --reset-password   # new admin password + update Vercel
  *
  * Requires: Node 18+, linked Vercel project + `npx vercel` auth (unless --skip-vercel).
+ * --reset-password requires DB9_API_KEY (no anonymous).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -24,9 +26,10 @@ const SCHEMA_REL = "hiclaw/schema-postgres.sql";
 
 function parseArgs(argv) {
   const skipVercel = argv.includes("--skip-vercel");
+  const resetPassword = argv.includes("--reset-password");
   const nameArg = argv.find((a) => a.startsWith("--name="));
   const name = nameArg ? nameArg.slice("--name=".length).trim() : DEFAULT_NAME;
-  return { skipVercel, name };
+  return { skipVercel, resetPassword, name };
 }
 
 async function anonymousToken() {
@@ -59,9 +62,13 @@ async function apiJson(token, method, pathname, body) {
   return j;
 }
 
-async function ensureDatabase(token, name) {
+async function listDatabases(token) {
   const list = await apiJson(token, "GET", "/customer/databases");
-  const rows = Array.isArray(list) ? list : list?.databases ?? [];
+  return Array.isArray(list) ? list : list?.databases ?? [];
+}
+
+async function ensureDatabase(token, name) {
+  const rows = await listDatabases(token);
   const existing = rows.find((d) => d.name === name);
   if (existing?.id) {
     const detail = await apiJson(token, "GET", `/customer/databases/${existing.id}`);
@@ -69,6 +76,23 @@ async function ensureDatabase(token, name) {
   }
   const created = await apiJson(token, "POST", "/customer/databases", { name });
   return { id: created.id, connectionString: created.connection_string };
+}
+
+/** New admin password + connection string (410 if DB9 passwordless — use `db9 db connect`). */
+async function resetAdminPassword(token, name) {
+  const rows = await listDatabases(token);
+  const existing = rows.find((d) => d.name === name);
+  if (!existing?.id) {
+    throw new Error(
+      `No database named "${name}" for this DB9 account. Create it first (without --reset-password) or fix --name=.`,
+    );
+  }
+  const data = await apiJson(token, "POST", `/customer/databases/${existing.id}/reset-password`, {});
+  const connectionString = data.connection_string;
+  if (!connectionString?.trim()) {
+    throw new Error("reset-password response missing connection_string");
+  }
+  return { id: existing.id, connectionString: connectionString.trim() };
 }
 
 async function applySchema(token, dbId, sqlText) {
@@ -85,8 +109,12 @@ function vercelEnvAdd(name, environment, value) {
 }
 
 async function main() {
-  const { skipVercel, name } = parseArgs(process.argv.slice(2));
+  const { skipVercel, resetPassword, name } = parseArgs(process.argv.slice(2));
   let token = process.env.DB9_API_KEY?.trim();
+  if (resetPassword && !token) {
+    console.error("[db9-provision] --reset-password requires DB9_API_KEY (db9 login → db9 token show).");
+    process.exit(1);
+  }
   if (!token) {
     console.error(
       "[db9-provision] No DB9_API_KEY — using anonymous register. For production, prefer: db9 login → db9 token show → DB9_API_KEY=... node scripts/db9-provision.mjs",
@@ -94,8 +122,19 @@ async function main() {
     token = await anonymousToken();
   }
 
-  console.error(`[db9-provision] Ensuring database "${name}"…`);
-  const { id, connectionString } = await ensureDatabase(token, name);
+  let id;
+  let connectionString;
+  if (resetPassword) {
+    console.error(`[db9-provision] Resetting admin password for "${name}"…`);
+    const r = await resetAdminPassword(token, name);
+    id = r.id;
+    connectionString = r.connectionString;
+  } else {
+    console.error(`[db9-provision] Ensuring database "${name}"…`);
+    const r = await ensureDatabase(token, name);
+    id = r.id;
+    connectionString = r.connectionString;
+  }
   if (!connectionString?.trim()) {
     throw new Error("No connection_string from DB9 API");
   }

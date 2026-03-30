@@ -118,8 +118,19 @@ The host (e.g. `pg.db9.io`) is correct, but **Postgres rejected the password** i
 
 **Fix:** Mint a **current** connection string from DB9 and overwrite Vercel:
 
-- CLI (where it works): `db9 db connect <database-name>` or `db9 db reset-password <database-name>` — see [db9.ai/skill.md](https://db9.ai/skill.md).
-- Or run `npm run db9:provision` with `DB9_API_KEY` from `db9 token show` after `db9 login` (refreshes the DB URL on Vercel for that project).
+1. **Refresh URL from DB9 (same password):** on any machine with Node + Vercel CLI linked to this project:
+   ```bash
+   DB9_API_KEY="$(db9 token show)" npm run db9:provision
+   ```
+   (`db9 token show` needs `db9 login` first — use another computer if your laptop blocks the CLI.)
+
+2. **Force a new admin password** (if refresh still fails):
+   ```bash
+   DB9_API_KEY="$(db9 token show)" npm run db9:reset-password-vercel
+   ```
+   This calls DB9’s reset-password API, then updates `DB9_DATABASE_URL` on Vercel Production. If you get **410 Gone**, your project may be passwordless — use `db9 db connect <db>` for a short-lived DSN per [db9.ai/skill.md](https://db9.ai/skill.md).
+
+3. **Manual:** Vercel → Environment Variables → edit `DB9_DATABASE_URL` with the full `postgresql://…` string from DB9.
 
 Then **Redeploy** production so functions pick up the new env value.
 
