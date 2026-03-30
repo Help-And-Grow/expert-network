@@ -1,9 +1,18 @@
 import { env } from "@/lib/env";
 
+/** Decode once (if valid) then encode — avoids breaking DB9 DSNs that already ship %-encoded passwords. */
+function normalizeUserinfoComponent(part: string): string {
+  try {
+    return encodeURIComponent(decodeURIComponent(part));
+  } catch {
+    return encodeURIComponent(part);
+  }
+}
+
 /**
  * Percent-encode `user` and `password` in `postgres(ql)://user:password@host/...`.
- * DB9 `db9 db connect` uses a JWT as the password; unencoded `=` / other chars break URI parsing
- * so `pg` sends the wrong secret and Postgres returns 28P01.
+ * - DB9 `db9 db connect` uses a raw JWT as the password; unencoded `=` breaks URI parsing (28P01).
+ * - DB9 reset-password / API may return an already-encoded password; encoding again would corrupt it.
  */
 export function encodePostgresUrlUserinfo(raw: string): string {
   const s = raw.trim();
@@ -29,7 +38,7 @@ export function encodePostgresUrlUserinfo(raw: string): string {
   const user = userpass.slice(0, colon);
   const password = userpass.slice(colon + 1);
   if (!password) return s;
-  return `${prefix}${encodeURIComponent(user)}:${encodeURIComponent(password)}@${hostport}${pathPart}${query}`;
+  return `${prefix}${normalizeUserinfoComponent(user)}:${normalizeUserinfoComponent(password)}@${hostport}${pathPart}${query}`;
 }
 
 export type HiClawDbEnvKey = "HICLAW_POSTGRES_URL" | "DB9_DATABASE_URL" | "TIDB_DATABASE_URL";
