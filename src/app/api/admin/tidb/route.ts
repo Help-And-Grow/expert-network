@@ -10,6 +10,10 @@ import {
   type HiClawDbResolution,
   resolveHiClawDatabaseUrl,
 } from "@/lib/hiclaw-db-env";
+import {
+  buildHiClawConnectionProbe,
+  runHiClawConnectionExperiments,
+} from "@/lib/hiclaw-pg-connection-probe";
 import { hiClawPgConnectionErrorHint } from "@/lib/hiclaw-pg-error-hint";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +22,13 @@ export const maxDuration = 60;
 type HiClawDbFailure = Extract<HiClawDbResolution, { ok: false }>;
 
 function getPool():
-  | { pool: Pool; source: HiClawDbEnvKey; candidates: HiClawDbCandidate[] }
+  | {
+      pool: Pool;
+      source: HiClawDbEnvKey;
+      candidates: HiClawDbCandidate[];
+      rawPostgresUrl: string;
+      normalizedUrl: string;
+    }
   | { error: string; diagnosis: HiClawDbFailure } {
   const r = resolveHiClawDatabaseUrl();
   if (!r.ok) {
@@ -32,6 +42,8 @@ function getPool():
     }),
     source: r.source,
     candidates: r.candidates,
+    rawPostgresUrl: r.rawPostgresUrl,
+    normalizedUrl: r.url,
   };
 }
 
@@ -71,6 +83,12 @@ export async function GET(request: NextRequest) {
 
     const tables = rows.map((r) => r.tablename);
 
+    const connectionProbe = buildHiClawConnectionProbe(
+      cfg.source,
+      cfg.rawPostgresUrl,
+      cfg.normalizedUrl,
+    );
+
     return NextResponse.json({
       ok: true,
       message: "HiClaw PostgreSQL connection OK",
@@ -80,17 +98,29 @@ export async function GET(request: NextRequest) {
         resolvedSource: cfg.source,
         candidates: cfg.candidates,
       },
+      connectionProbe,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[admin/tidb GET]", msg);
     const hint = hiClawPgConnectionErrorHint(msg);
+    const connectionProbe = buildHiClawConnectionProbe(
+      cfg.source,
+      cfg.rawPostgresUrl,
+      cfg.normalizedUrl,
+    );
+    const connectionExperiments = await runHiClawConnectionExperiments(
+      cfg.normalizedUrl,
+      cfg.rawPostgresUrl,
+    );
     return NextResponse.json(
       {
         ok: false,
         error: msg,
         hint,
         diagnosis: { resolvedSource: cfg.source, candidates: cfg.candidates },
+        connectionProbe,
+        connectionExperiments,
       },
       { status: 502 },
     );

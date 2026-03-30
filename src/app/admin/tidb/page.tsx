@@ -16,6 +16,31 @@ type DiagnosisCandidate = {
   host: string | null;
 };
 
+type ConnectionProbe = {
+  resolvedSource: string;
+  userinfoNormalizationChanged: boolean;
+  host: string | null;
+  port: string | null;
+  database: string;
+  user: string;
+  password: {
+    present: boolean;
+    length: number;
+    looksLikeJwt: boolean;
+    hasPercentEncoding: boolean;
+    hasUnencodedEquals: boolean;
+  };
+  queryKeys: string[];
+  checks: string[];
+};
+
+type ConnectionExperiment = {
+  label: string;
+  ok: boolean;
+  error?: string;
+  postgresCode?: string;
+};
+
 interface HealthResponse {
   ok: boolean;
   message?: string;
@@ -28,6 +53,8 @@ interface HealthResponse {
     winningSource?: string | null;
     candidates?: DiagnosisCandidate[];
   };
+  connectionProbe?: ConnectionProbe | null;
+  connectionExperiments?: ConnectionExperiment[];
 }
 
 export default function AdminTidbPage() {
@@ -39,6 +66,10 @@ export default function AdminTidbPage() {
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [diagnosis, setDiagnosis] = useState<HealthResponse["diagnosis"] | null>(null);
+  const [connectionProbe, setConnectionProbe] = useState<ConnectionProbe | null>(null);
+  const [connectionExperiments, setConnectionExperiments] = useState<ConnectionExperiment[] | null>(
+    null,
+  );
 
   const [db9ApiKey, setDb9ApiKey] = useState("");
   const [db9DbName, setDb9DbName] = useState("expert-network-hiclaw");
@@ -93,6 +124,8 @@ export default function AdminTidbPage() {
     setError(null);
     setHint(null);
     setDiagnosis(null);
+    setConnectionProbe(null);
+    setConnectionExperiments(null);
     try {
       const res = await fetch("/api/admin/tidb", {
         method: "GET",
@@ -111,11 +144,16 @@ export default function AdminTidbPage() {
           setError(data.error || res.statusText);
           if (data.hint) setHint(data.hint);
           if (data.diagnosis) setDiagnosis(data.diagnosis);
+          if (data.connectionProbe !== undefined) setConnectionProbe(data.connectionProbe ?? null);
+          if (data.connectionExperiments)
+            setConnectionExperiments(data.connectionExperiments);
         }
         return;
       }
       setHealth(data);
       if (data.diagnosis) setDiagnosis(data.diagnosis);
+      if (data.connectionProbe !== undefined) setConnectionProbe(data.connectionProbe ?? null);
+      setConnectionExperiments(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -219,6 +257,88 @@ export default function AdminTidbPage() {
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
               <p className="font-medium">What to do</p>
               <p className="mt-1 whitespace-pre-wrap">{hint}</p>
+            </div>
+          )}
+
+          {connectionProbe && (
+            <div className="rounded-md border border-slate-300 bg-slate-50 p-3 text-sm">
+              <p className="font-medium text-slate-900">Systematic debug (safe — no password)</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Parsed from the winning env URL. Use this to verify host, role name, and whether the password
+                looks like a short-lived JWT vs a stable admin secret. On failure, the API also tries{" "}
+                <strong>raw</strong> vs <strong>normalized</strong> userinfo.
+              </p>
+              <dl className="mt-3 grid gap-1 text-xs sm:grid-cols-2">
+                <dt className="text-slate-500">Winner</dt>
+                <dd className="font-mono">{connectionProbe.resolvedSource}</dd>
+                <dt className="text-slate-500">Host / port</dt>
+                <dd className="font-mono">
+                  {connectionProbe.host ?? "—"}
+                  {connectionProbe.port ? `:${connectionProbe.port}` : ""}
+                </dd>
+                <dt className="text-slate-500">Database</dt>
+                <dd className="font-mono">{connectionProbe.database}</dd>
+                <dt className="text-slate-500">User (role)</dt>
+                <dd className="font-mono">{connectionProbe.user}</dd>
+                <dt className="text-slate-500">Password segment</dt>
+                <dd className="font-mono">
+                  {connectionProbe.password.present
+                    ? `present, length ${connectionProbe.password.length}`
+                    : "missing"}
+                  {connectionProbe.password.looksLikeJwt ? " · JWT-like" : ""}
+                  {connectionProbe.password.hasPercentEncoding ? " · %encoded" : ""}
+                  {connectionProbe.password.hasUnencodedEquals ? " · raw =" : ""}
+                </dd>
+                <dt className="text-slate-500">Userinfo normalized?</dt>
+                <dd>{connectionProbe.userinfoNormalizationChanged ? "yes (differs from raw env)" : "no"}</dd>
+                <dt className="text-slate-500">URL query keys</dt>
+                <dd className="font-mono">
+                  {connectionProbe.queryKeys.length > 0 ? connectionProbe.queryKeys.join(", ") : "—"}
+                </dd>
+              </dl>
+              {connectionProbe.checks.length > 0 && (
+                <ul className="mt-3 list-inside list-disc text-xs text-slate-700">
+                  {connectionProbe.checks.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              )}
+              {connectionExperiments && connectionExperiments.length > 0 && (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  <p className="text-xs font-medium text-slate-800">Connect experiments</p>
+                  <table className="mt-2 w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500">
+                        <th className="py-1 pr-2 font-medium">Variant</th>
+                        <th className="py-1 pr-2 font-medium">Result</th>
+                        <th className="py-1 font-medium">Postgres code</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {connectionExperiments.map((row, i) => (
+                        <tr key={i} className="border-b border-slate-100">
+                          <td className="py-1.5 pr-2 align-top">{row.label}</td>
+                          <td className="py-1.5 pr-2 align-top">
+                            {row.ok ? (
+                              <span className="text-green-700">OK</span>
+                            ) : (
+                              <span className="text-red-800">{row.error ?? "failed"}</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 align-top font-mono text-slate-600">
+                            {row.postgresCode ?? "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="mt-2 text-xs text-slate-600">
+                    If <strong>raw</strong> works but <strong>normalized</strong> fails, report a bug with this
+                    table. If both fail with 28P01, the credential in Vercel is wrong or expired — use DB9 reset
+                    or a fresh DSN.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

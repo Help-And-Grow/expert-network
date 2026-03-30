@@ -138,6 +138,10 @@ Then **Redeploy** production so functions pick up the new env value.
 
 On **`/admin/tidb`**, the **DB9 API helper** card lets an **ADMIN** user paste a DB9 Bearer token (`db9 token show` from any machine where login works). This deployment calls **`https://api.db9.ai`** and shows a **`postgresql://`** URL to copy into Vercel. The token is **not** stored. Endpoints: `POST /api/admin/tidb/db9` with `action`: `get_connection_string` or `reset_admin_password`.
 
+### Systematic debug (admin GET)
+
+`GET /api/admin/tidb` returns **`connectionProbe`**: parsed **host**, **port**, **database**, **user**, password **metadata** only (length, JWT-like / percent-encoded hints), and suggested **checks**. On connection failure it also runs **`connectionExperiments`**: **normalized** (app default) vs **raw env** URL when they differ — if raw succeeds and normalized fails, suspect userinfo normalization; if both fail with `28P01`, refresh the DSN on Vercel / DB9.
+
 ## Env var naming
 
 | Variable | Use |
