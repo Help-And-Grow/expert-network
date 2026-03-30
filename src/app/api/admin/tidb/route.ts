@@ -10,6 +10,7 @@ import {
   type HiClawDbResolution,
   resolveHiClawDatabaseUrl,
 } from "@/lib/hiclaw-db-env";
+import { hiClawPgConnectionErrorHint } from "@/lib/hiclaw-pg-error-hint";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -83,10 +84,12 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[admin/tidb GET]", msg);
+    const hint = hiClawPgConnectionErrorHint(msg);
     return NextResponse.json(
       {
         ok: false,
         error: msg,
+        hint,
         diagnosis: { resolvedSource: cfg.source, candidates: cfg.candidates },
       },
       { status: 502 },
@@ -148,7 +151,8 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[admin/tidb POST]", msg);
-    return NextResponse.json({ ok: false, error: msg, results }, { status: 502 });
+    const hint = hiClawPgConnectionErrorHint(msg);
+    return NextResponse.json({ ok: false, error: msg, hint, results }, { status: 502 });
   } finally {
     await cfg.pool.end().catch(() => {});
   }

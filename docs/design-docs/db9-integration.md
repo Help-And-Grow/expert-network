@@ -108,6 +108,21 @@ There is **no separate “DB9 SDK”** inside Next.js — you point **`DB9_DATAB
 
 If HiClaw workers cannot hold a long-lived TCP pool, configure **`DB9_HTTP_SQL_URL`** + **`DB9_HTTP_SQL_TOKEN`** per [`hiclaw/README.md`](../../hiclaw/README.md). That is **independent** of whether the DB is hosted on DB9 or elsewhere; the API shape must match what `store.js` expects.
 
+## When the URL is right but you see “password authentication failed for user …”
+
+The host (e.g. `pg.db9.io`) is correct, but **Postgres rejected the password** in `DB9_DATABASE_URL`. Common causes:
+
+1. **Rotated or reset password** on the DB9 side — the string in Vercel is old.
+2. **Anonymous / trial DB** created elsewhere — the password you copied no longer matches.
+3. **Wrong paste** — truncated URL or wrong special-character encoding.
+
+**Fix:** Mint a **current** connection string from DB9 and overwrite Vercel:
+
+- CLI (where it works): `db9 db connect <database-name>` or `db9 db reset-password <database-name>` — see [db9.ai/skill.md](https://db9.ai/skill.md).
+- Or run `npm run db9:provision` with `DB9_API_KEY` from `db9 token show` after `db9 login` (refreshes the DB URL on Vercel for that project).
+
+Then **Redeploy** production so functions pick up the new env value.
+
 ## Env var naming
 
 | Variable | Use |
