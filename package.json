@@ -20,6 +20,7 @@
     "vercel:env:migrate-auth-secret": "node scripts/vercel-migrate-auth-secret.mjs",
     "vercel:env:remove-tidb-legacy": "node scripts/vercel-remove-tidb-legacy.mjs",
     "db9:provision": "node scripts/db9-provision.mjs",
+    "db9:reset-password-vercel": "node scripts/db9-provision.mjs --reset-password",
     "postinstall": "node scripts/switch-db.mjs && prisma generate"
   },
   "dependencies": {
