@@ -118,13 +118,15 @@ Router: [`src/trpc/root.ts`](../../src/trpc/root.ts). Procedures live in [`src/t
 
 Posture and remaining transitive risk (EAS SDK → Hardhat) are documented in **[npm-audit-production.md](npm-audit-production.md)**. Root **`overrides.serialize-javascript`** (`^7.0.5`) addresses the **mocha → serialize-javascript** chain. Routine commands: `npm run audit:triage`, `npm run audit:fix`; CI uploads **`audit-production.json`** from [.github/workflows/npm-audit.yml](../../.github/workflows/npm-audit.yml).
 
-### 3.3 Still open (ops / hygiene)
+### 3.3 Decisions closed (PM, 2026-03)
 
-**Architecture (current, PM-confirmed):** **Supabase** = marketplace (`DATABASE_URL`). **DB9** = HiClaw (`DB9_DATABASE_URL`). Merging into one physical Postgres remains optional.
+- **Data stores:** **Supabase** = marketplace (`DATABASE_URL` / Prisma). **DB9** = HiClaw agent store (`DB9_DATABASE_URL`). No plan to merge into one physical Postgres unless strategy changes ([tasks tracker](../exec-plans/active/tech-stack-improvements-tasks.md) task **C** — done).
+- **Expert memory:** **mem9** is the primary product path (PingCAP / mem9 partnership). **pgvector** in Postgres remains an **optional** dual-write experiment (`USE_PGVECTOR_MEMORY=1`) — not the default roadmap ([tasks tracker](../exec-plans/active/tech-stack-improvements-tasks.md) task **E** — done).
+
+### 3.4 Still open (ops / hygiene)
 
 | Item | Priority | Notes |
 |------|----------|--------|
-| **Single physical Postgres** | Lower | **Optional:** merge marketplace + HiClaw DBs when migration cost is acceptable. See [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md). **Deferred** while Supabase + DB9 split is intentional. |
 | **Vercel env hygiene** | Ongoing | **§4** — CLI, bulk apply, checklist. |
 | **Smoke after infra toggles** | Ongoing | `npm run smoke:public`; deploy smoke in [.github/workflows/deploy-smoke.yml](../../.github/workflows/deploy-smoke.yml); **manual** booking + expert profile on staging after pgvector/Inngest/DB URL changes. |
 
@@ -180,10 +182,11 @@ Platform-wide guidance (stateless functions, regions, Cron, Blob, AI Gateway, Wo
 
 ## Summary
 
-- **mem9** = default, low-friction expert memory; **DB9/Postgres + optional pgvector** = control, colocation with HiClaw, and long-term consolidation.
+- **mem9** = primary expert memory (PingCAP / mem9 partner); **pgvector** = optional dual-write in Postgres if enabled; **DB9** = HiClaw agent data (separate from marketplace Supabase).
 - **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
 - **tRPC** = §3.1 inventory matches `src/trpc/procedures/`; extend by adding files + merging in `root.ts`.
 - **npm audit (prod)** = §3.2 + [npm-audit-production.md](npm-audit-production.md); EAS/Hardhat transitive advisories tracked until upstream.
 - **Vercel env** = set via dashboard or **`vercel env add`** (§4); cross-check against `.env.example` and the runbook.
 - **Vercel platform habits** = §5 above links to [vercel-best-practices.md](vercel-best-practices.md).
-- **Remaining ops work** = §3.3 (optional single Postgres, env hygiene, smoke discipline).
+- **Closed PM decisions** = §3.3 (Supabase + DB9 split; mem9 primary for expert memory).
+- **Remaining ops work** = §3.4 (Vercel env hygiene, smoke discipline).
