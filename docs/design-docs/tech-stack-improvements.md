@@ -120,9 +120,11 @@ Posture and remaining transitive risk (EAS SDK → Hardhat) are documented in **
 
 ### 3.3 Still open (ops / hygiene)
 
+**Architecture (current, PM-confirmed):** **Supabase** = marketplace (`DATABASE_URL`). **DB9** = HiClaw (`DB9_DATABASE_URL`). Merging into one physical Postgres remains optional.
+
 | Item | Priority | Notes |
 |------|----------|--------|
-| **Single physical Postgres** | Lower | **Optional:** merge marketplace + HiClaw DBs when migration cost is acceptable. See [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md). |
+| **Single physical Postgres** | Lower | **Optional:** merge marketplace + HiClaw DBs when migration cost is acceptable. See [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md). **Deferred** while Supabase + DB9 split is intentional. |
 | **Vercel env hygiene** | Ongoing | **§4** — CLI, bulk apply, checklist. |
 | **Smoke after infra toggles** | Ongoing | `npm run smoke:public`; deploy smoke in [.github/workflows/deploy-smoke.yml](../../.github/workflows/deploy-smoke.yml); **manual** booking + expert profile on staging after pgvector/Inngest/DB URL changes. |
 
