@@ -8,7 +8,7 @@
  *   DB9_API_KEY=... node scripts/db9-provision.mjs           # recommended (after `db9 login` + `db9 token show`)
  *   node scripts/db9-provision.mjs                           # anonymous trial (see stderr warning)
  *   node scripts/db9-provision.mjs --skip-vercel
- *   DB9_API_KEY=... node scripts/db9-provision.mjs --reset-password   # new admin password + update Vercel
+ *   DB9_API_KEY=... node scripts/db9-provision.mjs --reset-password   # new admin password + update Vercel (merges split DB9 fields + GET /credentials if needed)
  *
  * Requires: Node 18+, linked Vercel project + `npx vercel` auth (unless --skip-vercel).
  * --reset-password requires DB9_API_KEY (no anonymous).
@@ -17,6 +17,11 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  postgresUserinfoHasPassword,
+  resolvePasswordBearingDb9Url,
+} from "./db9-merge-connection-string.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -88,11 +93,9 @@ async function resetAdminPassword(token, name) {
     );
   }
   const data = await apiJson(token, "POST", `/customer/databases/${existing.id}/reset-password`, {});
-  const connectionString = data.connection_string;
-  if (!connectionString?.trim()) {
-    throw new Error("reset-password response missing connection_string");
-  }
-  return { id: existing.id, connectionString: connectionString.trim() };
+  const fetcher = (method, pathname, body) => apiJson(token, method, pathname, body);
+  const connectionString = await resolvePasswordBearingDb9Url(existing.id, data, fetcher);
+  return { id: existing.id, connectionString };
 }
 
 async function applySchema(token, dbId, sqlText) {
@@ -100,10 +103,10 @@ async function applySchema(token, dbId, sqlText) {
 }
 
 function vercelEnvAdd(name, environment, value) {
+  const line = value.endsWith("\n") ? value : `${value}\n`;
   return spawnSync("npx", ["vercel@latest", "env", "add", name, environment, "--force"], {
     cwd: root,
-    input: value.endsWith("\n") ? value : `${value}\n`,
-    encoding: "utf8",
+    input: Buffer.from(line, "utf8"),
     stdio: ["pipe", "inherit", "inherit"],
   });
 }
@@ -139,6 +142,16 @@ async function main() {
     throw new Error("No connection_string from DB9 API");
   }
 
+  connectionString = connectionString.trim();
+  if (!skipVercel && !postgresUserinfoHasPassword(connectionString)) {
+    const fetcher = (method, pathname, body) => apiJson(token, method, pathname, body);
+    connectionString = await resolvePasswordBearingDb9Url(
+      id,
+      { connection_string: connectionString },
+      fetcher,
+    );
+  }
+
   const schemaPath = path.join(root, SCHEMA_REL);
   const sqlText = fs.readFileSync(schemaPath, "utf8");
   console.error(`[db9-provision] Applying ${SCHEMA_REL}…`);
@@ -157,6 +170,9 @@ async function main() {
     console.error("[db9-provision] vercel env add failed — set DB9_DATABASE_URL manually in the dashboard.");
     process.exit(1);
   }
+  console.error(
+    "[db9-provision] Vercel DB9_DATABASE_URL updated (includes :password@ — verify in dashboard if needed).",
+  );
 
   console.error("[db9-provision] Removing legacy TIDB_DATABASE_URL if a replacement exists…");
   const rmLegacy = spawnSync("node", [path.join(__dirname, "vercel-remove-tidb-legacy.mjs")], {
