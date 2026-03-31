@@ -2,6 +2,11 @@
  * DB9 Customer HTTP API (https://api.db9.ai) — same surface as `scripts/db9-provision.mjs`.
  * Only call from trusted server code; never expose tokens to clients except via one-shot admin flows.
  */
+import {
+  postgresUserinfoHasPassword,
+  resolvePasswordBearingDb9Url,
+} from "@/lib/db9-resolve-password-url";
+
 const DB9_API = "https://api.db9.ai";
 
 export type Db9DatabaseSummary = { id: string; name: string; state?: string };
@@ -63,14 +68,6 @@ export async function db9GetDatabaseDetail(token: string, databaseId: string): P
   return detail as { id: string; connection_string?: string };
 }
 
-export async function db9ResetAdminPassword(token: string, databaseId: string): Promise<{
-  connection_string?: string;
-}> {
-  return db9FetchJson(token, "POST", `/customer/databases/${databaseId}/reset-password`, {}) as Promise<{
-    connection_string?: string;
-  }>;
-}
-
 export async function db9FetchConnectionStringForDatabase(
   token: string,
   databaseName: string,
@@ -83,11 +80,19 @@ export async function db9FetchConnectionStringForDatabase(
   }
   if (mode === "reset_password") {
     try {
-      const reset = await db9ResetAdminPassword(token, existing.id);
-      const connectionString = reset.connection_string?.trim();
-      if (!connectionString) {
-        throw new Db9ApiError("DB9 reset-password response had no connection_string.", 502);
-      }
+      const raw = await db9FetchJson(
+        token,
+        "POST",
+        `/customer/databases/${existing.id}/reset-password`,
+        {},
+      );
+      const payload =
+        raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const fetcher = (method: string, pathname: string, body?: unknown) =>
+        db9FetchJson(token, method, pathname, body).then((j) =>
+          j && typeof j === "object" && j !== null ? (j as Record<string, unknown>) : {},
+        );
+      const connectionString = await resolvePasswordBearingDb9Url(existing.id, payload, fetcher);
       return { databaseId: existing.id, connectionString };
     } catch (e) {
       if (e instanceof Db9ApiError && e.status === 410) {
@@ -100,9 +105,20 @@ export async function db9FetchConnectionStringForDatabase(
     }
   }
   const detail = await db9GetDatabaseDetail(token, existing.id);
-  const connectionString = detail.connection_string?.trim();
+  let connectionString = detail.connection_string?.trim();
   if (!connectionString) {
     throw new Db9ApiError("DB9 database detail had no connection_string.", 502);
+  }
+  if (!postgresUserinfoHasPassword(connectionString)) {
+    const fetcher = (method: string, pathname: string, body?: unknown) =>
+      db9FetchJson(token, method, pathname, body).then((j) =>
+        j && typeof j === "object" && j !== null ? (j as Record<string, unknown>) : {},
+      );
+    connectionString = await resolvePasswordBearingDb9Url(
+      existing.id,
+      { connection_string: connectionString },
+      fetcher,
+    );
   }
   return { databaseId: detail.id, connectionString };
 }
