@@ -148,6 +148,11 @@ export function buildHiClawConnectionProbe(
       "Password looks like a DB9 connect JWT — it expires quickly; use reset-password DSN or refresh connect URL.",
     );
   }
+  if (pwd && normParts.user === "admin" && (host?.includes("db9.io") ?? false)) {
+    checks.push(
+      'User is exactly "admin" on DB9 — the wire role is usually "something.admin". If auth fails with 28P01, re-run `npm run db9:reset-password-vercel` (fixed merge prefers the role from connection_string over JSON admin_user).',
+    );
+  }
   if (heuristic.hasUnencodedEquals && !heuristic.hasPercentEncoding) {
     checks.push(
       "Password contains raw `=` — app normalizes userinfo (decode→encode); if auth still fails, try `npm run db9:reset-password-vercel` for a fresh admin password.",

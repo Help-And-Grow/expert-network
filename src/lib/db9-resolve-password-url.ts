@@ -34,7 +34,7 @@ export function extractUserFromPasswordlessPostgresUrl(url: string): string {
 export function mergePasswordIntoPostgresUrl(
   url: string,
   password: string,
-  explicitUser?: string,
+  explicitUserFallback?: string,
 ): string {
   const p = String(password).trim();
   if (!p) return String(url).trim();
@@ -44,7 +44,11 @@ export function mergePasswordIntoPostgresUrl(
   const userpart = m[2];
   const rest = m[3];
   if (userpart.includes(":")) return s;
-  const user = (explicitUser && String(explicitUser).trim()) || userpart;
+  const user =
+    String(userpart).trim() ||
+    (explicitUserFallback && String(explicitUserFallback).trim()) ||
+    "";
+  if (!user) return s;
   return `${m[1]}${encodeURIComponent(user)}:${encodeURIComponent(p)}@${rest}`;
 }
 
@@ -76,14 +80,14 @@ export async function resolvePasswordBearingDb9Url(
   const adminUser = pickString(data, ["admin_user", "adminUser", "username"]);
 
   if (!postgresUserinfoHasPassword(cs) && adminPass) {
-    const user = adminUser || extractUserFromPasswordlessPostgresUrl(cs);
-    if (!user) {
+    const urlUser = extractUserFromPasswordlessPostgresUrl(cs);
+    if (!urlUser && !adminUser) {
       throw new Error(
         "DB9 returned a separate password but no user — cannot build URL. Keys: " +
           Object.keys(data).join(", "),
       );
     }
-    cs = mergePasswordIntoPostgresUrl(cs, adminPass, user);
+    cs = mergePasswordIntoPostgresUrl(cs, adminPass, adminUser);
   }
 
   if (!postgresUserinfoHasPassword(cs)) {
@@ -96,7 +100,7 @@ export async function resolvePasswordBearingDb9Url(
         cs = cs2;
       } else if (p2) {
         const base = cs2 || cs;
-        const user = u2 || extractUserFromPasswordlessPostgresUrl(base);
+        const user = extractUserFromPasswordlessPostgresUrl(base) || u2;
         if (user) {
           cs = mergePasswordIntoPostgresUrl(base, p2, user);
         }

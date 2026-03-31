@@ -128,7 +128,7 @@ The host (e.g. `pg.db9.io`) is correct, but **Postgres rejected the password** i
    ```bash
    DB9_API_KEY="$(db9 token show)" npm run db9:reset-password-vercel
    ```
-   This calls DB9’s reset-password API, then updates `DB9_DATABASE_URL` on Vercel Production. The script (`scripts/db9-merge-connection-string.mjs`) builds a **password-bearing** URL if DB9 returns `admin_password` / `admin_user` separately from `connection_string`, or falls back to **GET `/customer/databases/{id}/credentials`**. If you get **410 Gone**, your project may be passwordless — use `db9 db connect <db>` for a short-lived DSN per [db9.ai/skill.md](https://db9.ai/skill.md).
+   This calls DB9’s reset-password API, then updates `DB9_DATABASE_URL` on Vercel Production. The script (`scripts/db9-merge-connection-string.mjs`) merges `admin_password` into `connection_string` and **keeps the Postgres role from the URL** (e.g. `tenant.admin`), not bare `admin_user` from JSON (which would cause 28P01). It can fall back to **GET `/customer/databases/{id}/credentials`**. If you get **410 Gone**, your project may be passwordless — use `db9 db connect <db>` for a short-lived DSN per [db9.ai/skill.md](https://db9.ai/skill.md).
 
 3. **Manual:** Vercel → Environment Variables → edit `DB9_DATABASE_URL` with the full `postgresql://…` string from DB9.
 

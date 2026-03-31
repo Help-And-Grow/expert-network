@@ -31,7 +31,7 @@ export function extractUserFromPasswordlessPostgresUrl(url) {
 }
 
 /** Insert :password into postgresql://user@host/... (user part must not already contain :). */
-export function mergePasswordIntoPostgresUrl(url, password, explicitUser) {
+export function mergePasswordIntoPostgresUrl(url, password, explicitUserFallback) {
   const p = String(password).trim();
   if (!p) return String(url).trim();
   const s = String(url).trim();
@@ -40,7 +40,12 @@ export function mergePasswordIntoPostgresUrl(url, password, explicitUser) {
   const userpart = m[2];
   const rest = m[3];
   if (userpart.includes(":")) return s;
-  const user = (explicitUser && String(explicitUser).trim()) || userpart;
+  // DB9 connection_string uses full pg role (e.g. tenant.admin); admin_user in JSON is often "admin" only — wrong for SCRAM.
+  const user =
+    String(userpart).trim() ||
+    (explicitUserFallback && String(explicitUserFallback).trim()) ||
+    "";
+  if (!user) return s;
   return `${m[1]}${encodeURIComponent(user)}:${encodeURIComponent(p)}@${rest}`;
 }
 
@@ -67,14 +72,14 @@ export async function resolvePasswordBearingDb9Url(dbId, data, apiJson) {
   const adminUser = pickString(data, ["admin_user", "adminUser", "username"]);
 
   if (!postgresUserinfoHasPassword(cs) && adminPass) {
-    const user = adminUser || extractUserFromPasswordlessPostgresUrl(cs);
-    if (!user) {
+    const urlUser = extractUserFromPasswordlessPostgresUrl(cs);
+    if (!urlUser && !adminUser) {
       throw new Error(
         "DB9 returned a separate password but no user — cannot build URL. Keys: " +
           Object.keys(data).join(", "),
       );
     }
-    cs = mergePasswordIntoPostgresUrl(cs, adminPass, user);
+    cs = mergePasswordIntoPostgresUrl(cs, adminPass, adminUser);
     console.error("[db9-provision] Built password-bearing URL from DB9 password fields + connection_string.");
   }
 
@@ -89,7 +94,7 @@ export async function resolvePasswordBearingDb9Url(dbId, data, apiJson) {
         console.error("[db9-provision] Using password-bearing connection_string from GET /credentials.");
       } else if (p2) {
         const base = cs2 || cs;
-        const user = u2 || extractUserFromPasswordlessPostgresUrl(base);
+        const user = extractUserFromPasswordlessPostgresUrl(base) || u2;
         if (user) {
           cs = mergePasswordIntoPostgresUrl(base, p2, user);
           console.error("[db9-provision] Built URL from GET /credentials admin fields.");
