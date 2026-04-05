@@ -24,7 +24,7 @@ export default function IndexPage() {
         <View className="landing__logo-wrap">
           <View className="landing__logo">H&G</View>
         </View>
-        <Text className="landing__title">Help & Grow</Text>
+        <Text className="landing__title">帮助与成长</Text>
         <Text className="landing__subtitle">AI 原生专家网络</Text>
         <Text className="landing__desc">
           人人既是专家，也是学习者。预约真实咨询、分享专业经验，在互相帮助中持续成长。

@@ -69,7 +69,7 @@ function useInviteGuard() {
   function promptInviteCode() {
     Taro.showModal({
       title: "需要邀请码",
-      content: "Help & Grow 当前为邀请制，请输入邀请码继续。",
+      content: "帮助与成长当前为邀请制，请输入邀请码继续。",
       editable: true,
       placeholderText: "请输入邀请码",
       confirmText: "提交",
