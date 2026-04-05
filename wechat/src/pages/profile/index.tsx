@@ -42,14 +42,14 @@ export default function ProfilePage() {
 
   useShareAppMessage(() => {
     if (isExpert && expert) {
-      const name = user?.nickName || user?.name || "Member";
+      const name = user?.nickName || user?.name || "成员";
       return {
-        title: `${name} on Help & Grow`,
+        title: `${name} 在 Help & Grow`,
         path: `/pages/expert/index?id=${expert.id}`,
       };
     }
     return {
-      title: "Help & Grow — AI Native Expert Network",
+      title: "Help & Grow · AI 原生专家网络",
       path: "/pages/index/index",
     };
   });
@@ -68,7 +68,7 @@ export default function ProfilePage() {
     );
   }
 
-  const displayName = user && (user.nickName || user.name) ? (user.nickName || user.name) : "User";
+  const displayName = user && (user.nickName || user.name) ? (user.nickName || user.name) : "用户";
 
   return (
     <View className="profile">
@@ -81,7 +81,7 @@ export default function ProfilePage() {
           />
         ) : (
           <View className="profile__avatar-placeholder">
-            {(displayName || "U").charAt(0).toUpperCase()}
+            {(displayName || "用").charAt(0).toUpperCase()}
           </View>
         )}
         <Text className="profile__name">{displayName}</Text>
@@ -89,7 +89,7 @@ export default function ProfilePage() {
           <Text className="profile__email">{user.email}</Text>
         )}
         {isExpert && (
-          <View className="profile__role-badge">Community Member</View>
+          <View className="profile__role-badge">社区成员</View>
         )}
       </View>
 
@@ -97,15 +97,15 @@ export default function ProfilePage() {
         <View className="profile__stats">
           <View className="profile__stat">
             <Text className="profile__stat-value">{expert.avgRating.toFixed(1)}</Text>
-            <Text className="profile__stat-label">Rating</Text>
+            <Text className="profile__stat-label">评分</Text>
           </View>
           <View className="profile__stat profile__stat--border">
             <Text className="profile__stat-value">{expert.reviewCount}</Text>
-            <Text className="profile__stat-label">Reviews</Text>
+            <Text className="profile__stat-label">评价</Text>
           </View>
           <View className="profile__stat">
             <Text className="profile__stat-value">{expert.domains.length}</Text>
-            <Text className="profile__stat-label">Domains</Text>
+            <Text className="profile__stat-label">领域</Text>
           </View>
         </View>
       )}
@@ -126,8 +126,8 @@ export default function ProfilePage() {
                 <Text className="profile__menu-icon">👤</Text>
               </View>
               <View className="profile__menu-content">
-                <Text className="profile__menu-label">My Public Profile</Text>
-                <Text className="profile__menu-hint">View how others see you</Text>
+                <Text className="profile__menu-label">我的公开主页</Text>
+                <Text className="profile__menu-hint">查看他人看到的展示效果</Text>
               </View>
               <Text className="profile__menu-arrow">›</Text>
             </View>
@@ -135,15 +135,15 @@ export default function ProfilePage() {
               className="profile__menu-item"
               hoverClass="profile__menu-item--hover"
               onClick={() => {
-                Taro.showToast({ title: "Coming soon", icon: "none" });
+                Taro.showToast({ title: "功能即将上线", icon: "none" });
               }}
             >
               <View className="profile__menu-icon-wrap profile__menu-icon-wrap--purple">
                 <Text className="profile__menu-icon">✏️</Text>
               </View>
               <View className="profile__menu-content">
-                <Text className="profile__menu-label">Edit Profile</Text>
-                <Text className="profile__menu-hint">Update bio, pricing & links</Text>
+                <Text className="profile__menu-label">编辑主页</Text>
+                <Text className="profile__menu-hint">更新介绍、价格与外部链接</Text>
               </View>
               <Text className="profile__menu-arrow">›</Text>
             </View>
@@ -151,15 +151,15 @@ export default function ProfilePage() {
               className="profile__menu-item"
               hoverClass="profile__menu-item--hover"
               onClick={() => {
-                Taro.showToast({ title: "Coming soon", icon: "none" });
+                Taro.showToast({ title: "功能即将上线", icon: "none" });
               }}
             >
               <View className="profile__menu-icon-wrap profile__menu-icon-wrap--green">
                 <Text className="profile__menu-icon">📅</Text>
               </View>
               <View className="profile__menu-content">
-                <Text className="profile__menu-label">Manage Availability</Text>
-                <Text className="profile__menu-hint">Set your available time slots</Text>
+                <Text className="profile__menu-label">管理可预约时间</Text>
+                <Text className="profile__menu-hint">设置可开放的咨询时段</Text>
               </View>
               <Text className="profile__menu-arrow">›</Text>
             </View>
@@ -178,8 +178,8 @@ export default function ProfilePage() {
               <Text className="profile__menu-icon">🌟</Text>
             </View>
             <View className="profile__menu-content">
-              <Text className="profile__menu-label">Join the Community</Text>
-              <Text className="profile__menu-hint">Create your profile & start sharing</Text>
+              <Text className="profile__menu-label">成为专家</Text>
+              <Text className="profile__menu-hint">创建主页并开始分享你的经验</Text>
             </View>
             <Text className="profile__menu-arrow">›</Text>
           </View>
@@ -190,15 +190,15 @@ export default function ProfilePage() {
           hoverClass="profile__menu-item--hover"
           onClick={() => {
             Taro.showShareMenu({ withShareTicket: true });
-            Taro.showToast({ title: "Use share button ↗", icon: "none" });
+            Taro.showToast({ title: "请使用右上角分享", icon: "none" });
           }}
         >
           <View className="profile__menu-icon-wrap profile__menu-icon-wrap--teal">
             <Text className="profile__menu-icon">📤</Text>
           </View>
           <View className="profile__menu-content">
-            <Text className="profile__menu-label">Share Help & Grow</Text>
-            <Text className="profile__menu-hint">Invite friends to the community</Text>
+            <Text className="profile__menu-label">分享给朋友</Text>
+            <Text className="profile__menu-hint">邀请朋友加入专家社区</Text>
           </View>
           <Text className="profile__menu-arrow">›</Text>
         </View>
@@ -208,10 +208,10 @@ export default function ProfilePage() {
           hoverClass="profile__menu-item--hover"
           onClick={() => {
             Taro.showModal({
-              title: "About Help & Grow",
-              content: "Help & Grow is the AI Native Expert Network: everyone is both expert and learner—offer sessions, book help, learn by doing and grow by helping. Strong roots in Singapore & Southeast Asia.",
+              title: "关于 Help & Grow",
+              content: "Help & Grow 是 AI 原生专家网络：人人既是专家，也是学习者。你可以提供咨询服务，也可以预约他人，在实战中学习，在帮助中成长。",
               showCancel: false,
-              confirmText: "OK",
+              confirmText: "我知道了",
             });
           }}
         >
@@ -219,15 +219,15 @@ export default function ProfilePage() {
             <Text className="profile__menu-icon">ℹ️</Text>
           </View>
           <View className="profile__menu-content">
-            <Text className="profile__menu-label">About</Text>
-            <Text className="profile__menu-hint">Learn more about Help & Grow</Text>
+            <Text className="profile__menu-label">关于我们</Text>
+            <Text className="profile__menu-hint">了解 Help & Grow 品牌与理念</Text>
           </View>
           <Text className="profile__menu-arrow">›</Text>
         </View>
       </View>
 
       <View className="profile__footer">
-        <Text className="profile__footer-text">Help & Grow · AI Native Expert Network</Text>
+        <Text className="profile__footer-text">Help & Grow · AI 原生专家网络</Text>
       </View>
     </View>
   );

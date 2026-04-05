@@ -14,7 +14,7 @@ import type {
   MatchRecommendation,
   MatchResponse,
 } from "../../shared/types";
-import { DOMAINS } from "../../shared/types";
+import { DOMAINS, getDomainLabel } from "../../shared/types";
 import "./index.scss";
 
 type SessionFilter = "all" | "ONLINE" | "OFFLINE";
@@ -26,6 +26,22 @@ interface ChatMessage {
   content?: string;
   recommendations?: MatchRecommendation[];
   noMatchMessage?: string;
+}
+
+function hasChineseText(value?: string): boolean {
+  return Boolean(value && /[\u4e00-\u9fa5]/.test(value));
+}
+
+function normalizeNoMatchMessage(message?: string): string {
+  if (!message) return "暂时没有找到完全匹配的专家，请补充更具体的需求。";
+  return hasChineseText(message)
+    ? message
+    : "暂时没有找到完全匹配的专家，请补充更具体的需求。";
+}
+
+function normalizeRecommendationReason(reason?: string): string {
+  if (!reason) return "匹配到与你需求相关的经验背景。";
+  return hasChineseText(reason) ? reason : "匹配到与你需求相关的经验背景。";
 }
 
 function useInviteGuard() {
@@ -52,12 +68,12 @@ function useInviteGuard() {
 
   function promptInviteCode() {
     Taro.showModal({
-      title: "Invitation Code Required",
-      content: "Help & Grow is invite-only. Please enter your invitation code.",
+      title: "需要邀请码",
+      content: "Help & Grow 当前为邀请制，请输入邀请码继续。",
       editable: true,
-      placeholderText: "Enter code",
-      confirmText: "Submit",
-      cancelText: "Back",
+      placeholderText: "请输入邀请码",
+      confirmText: "提交",
+      cancelText: "返回",
       success: (res) => {
         if (res.confirm && res.content) {
           const code = res.content.trim().toUpperCase();
@@ -66,14 +82,14 @@ function useInviteGuard() {
               if (r.statusCode === 200 && r.data?.success) {
                 Taro.setStorageSync("hasInvite", "true");
                 setHasInvite(true);
-                Taro.showToast({ title: "Welcome!", icon: "success" });
+                Taro.showToast({ title: "欢迎加入", icon: "success" });
               } else {
-                Taro.showToast({ title: r.data?.error || "Invalid code", icon: "none" });
+                Taro.showToast({ title: r.data?.error || "邀请码无效", icon: "none" });
                 setTimeout(() => promptInviteCode(), 1500);
               }
             })
             .catch(() => {
-              Taro.showToast({ title: "Network error", icon: "none" });
+              Taro.showToast({ title: "网络异常，请重试", icon: "none" });
               setTimeout(() => promptInviteCode(), 1500);
             });
         } else {
@@ -198,7 +214,7 @@ export default function DiscoverPage() {
           m.role === "user"
             ? m.content!
             : m.recommendations
-            ? `Recommended: ${m.recommendations.map((r) => r.name).join(", ")}`
+            ? `推荐专家：${m.recommendations.map((r) => r.name).join("、")}`
             : m.noMatchMessage ?? "",
       }));
 
@@ -218,14 +234,14 @@ export default function DiscoverPage() {
         ]);
         chatScrollId.current = `chat-msg-${msgIdx + 1}`;
       } else {
-        throw new Error("Match failed");
+        throw new Error("匹配失败");
       }
     } catch {
       setChatMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          noMatchMessage: "Sorry, something went wrong. Please try again.",
+          noMatchMessage: "抱歉，匹配时出现问题，请稍后重试。",
         },
       ]);
     } finally {
@@ -245,7 +261,7 @@ export default function DiscoverPage() {
     return (
       <View className="discover" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
         <Text style={{ color: "#94a3b8", fontSize: "14px" }}>
-          {hasInvite === null ? "Loading..." : "Invitation code required"}
+          {hasInvite === null ? "加载中..." : "需要邀请码"}
         </Text>
       </View>
     );
@@ -264,7 +280,7 @@ export default function DiscoverPage() {
             hoverClass="discover__domain-chip--hover"
             onClick={() => toggleDomain(d)}
           >
-            {d}
+            {getDomainLabel(d)}
           </View>
         ))}
       </ScrollView>
@@ -281,7 +297,7 @@ export default function DiscoverPage() {
               hoverClass="discover__session-btn--hover"
               onClick={() => setSessionFilter(st)}
             >
-              {st === "all" ? "All" : st === "ONLINE" ? "Online" : "Offline"}
+              {st === "all" ? "全部" : st === "ONLINE" ? "线上" : "线下"}
             </View>
           ))}
         </View>
@@ -290,7 +306,7 @@ export default function DiscoverPage() {
           hoverClass="discover__sort--hover"
           onClick={() => setSortBy(sortBy === "reviews" ? "newest" : "reviews")}
         >
-          {sortBy === "reviews" ? "Most Reviews ↓" : "Newest ↓"}
+          {sortBy === "reviews" ? "按评价数排序 ↓" : "按最新排序 ↓"}
         </View>
       </View>
 
@@ -301,14 +317,14 @@ export default function DiscoverPage() {
           hoverClass="discover__tab--hover"
           onClick={() => setTab("browse")}
         >
-          Browse
+          浏览专家
         </View>
         <View
           className={`discover__tab ${tab === "match" ? "discover__tab--active" : ""}`}
           hoverClass="discover__tab--hover"
           onClick={() => setTab("match")}
         >
-          AI Match
+          AI 智能匹配
         </View>
       </View>
 
@@ -331,13 +347,13 @@ export default function DiscoverPage() {
           ) : experts.length === 0 ? (
             <View className="discover__empty">
               <Text className="discover__empty-icon">🔍</Text>
-              <Text className="discover__empty-text">No results found</Text>
-              <Text className="discover__empty-hint">Try adjusting your filters</Text>
+              <Text className="discover__empty-text">暂无匹配结果</Text>
+              <Text className="discover__empty-hint">可以尝试调整筛选条件</Text>
             </View>
           ) : (
             <>
               <View className="discover__count">
-                <Text>{total} expert{total !== 1 ? "s" : ""} found</Text>
+                <Text>共找到 {total} 位专家</Text>
               </View>
               {experts.map((expert) => (
                 <ExpertCard key={expert.id} expert={expert} />
@@ -351,7 +367,7 @@ export default function DiscoverPage() {
               )}
               {!loadingMore && experts.length >= total && experts.length > 0 && (
                 <View className="discover__end-mark">
-                  <Text>— All loaded —</Text>
+                  <Text>— 已全部加载 —</Text>
                 </View>
               )}
             </>
@@ -372,10 +388,10 @@ export default function DiscoverPage() {
               <View className="discover__chat-empty">
                 <Text className="discover__chat-empty-icon">✨</Text>
                 <Text className="discover__chat-empty-text">
-                  Describe what you're looking for and we'll find the right people for you
+                  描述你的目标或问题，我们会帮你匹配合适的专家
                 </Text>
                 <Text className="discover__chat-empty-hint">
-                  e.g. "I need help with AI product strategy in SEA"
+                  例如：「我想找熟悉 AI 产品增长策略的导师」
                 </Text>
               </View>
             )}
@@ -409,21 +425,23 @@ export default function DiscoverPage() {
                             </View>
                             <View className="discover__rec-info">
                               <Text className="discover__rec-name">{rec.name}</Text>
-                              <Text className="discover__rec-reason">{rec.reason}</Text>
+                              <Text className="discover__rec-reason">
+                                {normalizeRecommendationReason(rec.reason)}
+                              </Text>
                               <View className="discover__rec-actions">
                                 <View
                                   className="discover__rec-btn discover__rec-btn--primary"
                                   hoverClass="discover__rec-btn--hover"
                                   onClick={() => goToBook(rec.expertId)}
                                 >
-                                  Book
+                                  预约
                                 </View>
                                 <View
                                   className="discover__rec-btn discover__rec-btn--outline"
                                   hoverClass="discover__rec-btn--hover"
                                   onClick={() => goToExpert(rec.expertId)}
                                 >
-                                  View
+                                  查看
                                 </View>
                               </View>
                             </View>
@@ -431,7 +449,7 @@ export default function DiscoverPage() {
                         ))
                       : m.noMatchMessage && (
                           <View className="discover__chat-bubble discover__chat-bubble--system">
-                            {m.noMatchMessage}
+                            {normalizeNoMatchMessage(m.noMatchMessage)}
                           </View>
                         )}
                   </View>
@@ -451,7 +469,7 @@ export default function DiscoverPage() {
           <View className="discover__input-bar">
             <Input
               className="discover__input"
-              placeholder="Describe your challenge..."
+              placeholder="请输入你的需求，例如：需要融资顾问..."
               value={chatInput}
               onInput={(e) => setChatInput(e.detail.value)}
               confirmType="send"

@@ -20,7 +20,7 @@ interface GeneratedSlot {
 }
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_SHORT = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function startOfDay(date: Date): Date {
   const d = new Date(date);
@@ -211,7 +211,7 @@ export default function BookPage() {
 
       if (res.statusCode !== 200 || !(res.data as Record<string, unknown>)["bookingId"]) {
         throw new Error(
-          (res.data as unknown as Record<string, string>)["error"] || "Booking failed"
+          (res.data as unknown as Record<string, string>)["error"] || "预约失败"
         );
       }
 
@@ -223,9 +223,9 @@ export default function BookPage() {
           signType: res.data.paymentParams.signType as "MD5" | "HMAC-SHA256" | "RSA",
           paySign: res.data.paymentParams.paySign,
         });
-        Taro.showToast({ title: "Payment successful!", icon: "success" });
+        Taro.showToast({ title: "支付成功", icon: "success" });
       } else {
-        Taro.showToast({ title: "Booking created!", icon: "success" });
+        Taro.showToast({ title: "预约已创建", icon: "success" });
       }
 
       setTimeout(() => {
@@ -234,12 +234,12 @@ export default function BookPage() {
     } catch (err: unknown) {
       const errObj = err as Record<string, unknown>;
       if (errObj && errObj["errMsg"] === "requestPayment:fail cancel") {
-        Taro.showToast({ title: "Payment cancelled", icon: "none" });
+        Taro.showToast({ title: "已取消支付", icon: "none" });
       } else {
         Taro.showToast({
           title:
             (errObj && (errObj["message"] as string)) ||
-            "Booking failed. Please try again.",
+            "预约失败，请稍后重试",
           icon: "none",
         });
       }
@@ -271,35 +271,35 @@ export default function BookPage() {
       <View className="book-page">
         <View className="book-page__error">
           <Text className="book-page__error-icon">😔</Text>
-          <Text className="book-page__error-text">Profile not found</Text>
+          <Text className="book-page__error-text">未找到该专家主页</Text>
           <View
             className="book-page__error-btn"
             hoverClass="book-page__error-btn--hover"
             onClick={() => Taro.navigateBack()}
           >
-            Go Back
+            返回
           </View>
         </View>
       </View>
     );
   }
 
-  const name = expert.user.nickName || expert.user.name || "Member";
+  const name = expert.user.nickName || expert.user.name || "成员";
   const priceCents =
     sessionType === "OFFLINE"
       ? expert.priceOfflineCents
       : expert.priceOnlineCents;
   const priceLabel = priceCents
-    ? `${expert.currency} ${Math.round(priceCents / 100)}/session`
-    : "Free";
+    ? `${expert.currency} ${Math.round(priceCents / 100)}/场`
+    : "免费";
 
   return (
     <View className="book-page">
       <View className="book-page__header">
-        <Text className="book-page__expert-name">Book with {name}</Text>
+        <Text className="book-page__expert-name">预约 {name}</Text>
         <View className="book-page__meta">
           <Text className="book-page__session-type">
-            {sessionType === "OFFLINE" ? "📍 Offline" : "🖥 Online"}
+            {sessionType === "OFFLINE" ? "📍 线下" : "🖥 线上"}
           </Text>
           {priceLabel && (
             <Text className="book-page__price">{priceLabel}</Text>
@@ -309,7 +309,7 @@ export default function BookPage() {
 
       {/* Date selector */}
       <View className="book-page__section">
-        <Text className="book-page__section-title">Select a Date</Text>
+        <Text className="book-page__section-title">选择日期</Text>
         <ScrollView scrollX className="book-page__dates" enhanced showScrollbar={false}>
           {nextDays.map((day) => {
             const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -325,7 +325,7 @@ export default function BookPage() {
                 }}
               >
                 <Text className="book-page__date-day">
-                  {isToday ? "Today" : DAY_NAMES_SHORT[day.getDay()]}
+                  {isToday ? "今天" : DAY_NAMES_SHORT[day.getDay()]}
                 </Text>
                 <Text className="book-page__date-num">{day.getDate()}</Text>
               </View>
@@ -336,29 +336,29 @@ export default function BookPage() {
 
       {/* Time slots */}
       <View className="book-page__section">
-        <Text className="book-page__section-title">Choose Time Slots</Text>
-        <Text className="book-page__hint">30 min per slot · select multiple for longer sessions</Text>
+        <Text className="book-page__section-title">选择时间段</Text>
+        <Text className="book-page__hint">每个时段 30 分钟，可多选拼接更长咨询</Text>
         {!selectedDate ? (
           <View className="book-page__no-slots-wrap">
             <Text className="book-page__no-slots-icon">📅</Text>
-            <Text className="book-page__no-slots">Select a date above to see available times</Text>
+            <Text className="book-page__no-slots">请先选择日期以查看可预约时间</Text>
           </View>
         ) : slotsForDate.length === 0 ? (
           <View className="book-page__no-slots-wrap">
             <Text className="book-page__no-slots-icon">🕐</Text>
-            <Text className="book-page__no-slots">No available slots for this date</Text>
-            <Text className="book-page__no-slots-hint">Try another date</Text>
+            <Text className="book-page__no-slots">当天暂无可预约时段</Text>
+            <Text className="book-page__no-slots-hint">请尝试其他日期</Text>
           </View>
         ) : (
           <View className="book-page__slots">
             {slotsForDate.map((slot) => {
               const isSelected = selectedSlotIds.includes(slot.id);
-              const startStr = new Date(slot.startTime).toLocaleTimeString("en-SG", {
+              const startStr = new Date(slot.startTime).toLocaleTimeString("zh-CN", {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: false,
               });
-              const endStr = new Date(slot.endTime).toLocaleTimeString("en-SG", {
+              const endStr = new Date(slot.endTime).toLocaleTimeString("zh-CN", {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: false,
@@ -382,8 +382,8 @@ export default function BookPage() {
       <View className="book-page__bottom-bar">
         {selectedSlotIds.length > 0 && (
           <Text className="book-page__deposit">
-            {selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? "s" : ""} selected
-            {priceCents ? ` · ${expert.currency} ${((priceCents * selectedSlotIds.length) / 200).toFixed(2)} deposit` : ""}
+            已选择 {selectedSlotIds.length} 个时段
+            {priceCents ? ` · 订金 ${expert.currency} ${((priceCents * selectedSlotIds.length) / 200).toFixed(2)}` : ""}
           </Text>
         )}
         <View
@@ -393,7 +393,7 @@ export default function BookPage() {
           hoverClass={selectedSlotIds.length > 0 && !booking ? "book-page__confirm-btn--hover" : "none"}
           onClick={handleBook}
         >
-          {booking ? "Processing..." : selectedSlotIds.length === 0 ? "Select a slot to continue" : "Confirm & Pay"}
+          {booking ? "处理中..." : selectedSlotIds.length === 0 ? "请选择时段后继续" : "确认并支付"}
         </View>
       </View>
     </View>

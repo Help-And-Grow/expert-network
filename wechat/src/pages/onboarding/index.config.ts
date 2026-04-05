@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: "Create Your Profile",
+  navigationBarTitleText: "创建专家主页",
 });
