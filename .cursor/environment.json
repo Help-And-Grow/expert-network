@@ -1,0 +1,3 @@
+{
+  "install": "bash -lc 'ROOT=\"$(git rev-parse --show-toplevel)\" && cd \"$ROOT\" && npm install && cd \"$ROOT/wechat\" && npm install'"
+}
