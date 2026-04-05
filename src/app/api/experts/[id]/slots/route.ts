@@ -15,13 +15,16 @@ export async function GET(
 
     const now = new Date();
 
-    // Auto-cancel PENDING TON bookings older than 30 minutes
+    // Auto-cancel payment holds older than 30 minutes.
     const expiryThreshold = new Date(now.getTime() - 30 * 60 * 1000);
     await prisma.booking.updateMany({
       where: {
         expertId,
         status: "PENDING",
-        paymentMethod: "ton",
+        OR: [
+          { paymentMethod: "ton", paymentStatus: "pending" },
+          { paymentMethod: "paynow", paymentStatus: "pending_paynow" },
+        ],
         createdAt: { lt: expiryThreshold },
       },
       data: { status: "CANCELLED", cancelReason: "Payment not confirmed within 30 minutes" },

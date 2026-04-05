@@ -86,7 +86,7 @@ export async function POST(
 
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
-      payment_method_types: ["paynow", "grabpay", "card"],
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
