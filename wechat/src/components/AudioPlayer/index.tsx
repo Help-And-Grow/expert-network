@@ -38,7 +38,7 @@ export default function AudioPlayer({ src, label }: Props) {
       audio.onError((err) => {
         console.error("[AudioPlayer] error:", err);
         setPlaying(false);
-        Taro.showToast({ title: "Audio playback failed", icon: "none" });
+        Taro.showToast({ title: "音频播放失败", icon: "none" });
       });
 
       audioRef.current = audio;

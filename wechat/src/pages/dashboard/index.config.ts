@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: "My Bookings",
+  navigationBarTitleText: "我的预约",
   enablePullDownRefresh: true,
 });

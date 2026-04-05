@@ -65,36 +65,36 @@ export default function DashboardPage() {
 
   const handleCancel = async (bookingId: string) => {
     const res = await Taro.showModal({
-      title: "Cancel Booking",
-      content: "Are you sure you want to cancel this booking?",
+      title: "取消预约",
+      content: "确认取消这笔预约吗？",
       confirmColor: "#dc2626",
     });
     if (!res.confirm) return;
 
     try {
-      Taro.showLoading({ title: "Cancelling..." });
+      Taro.showLoading({ title: "取消中..." });
       const apiRes = await post(`/api/bookings/${bookingId}`, {
         action: "cancel",
-        reason: "Cancelled by user",
+        reason: "用户取消预约",
       });
       Taro.hideLoading();
       if (apiRes.statusCode === 200) {
-        Taro.showToast({ title: "Cancelled", icon: "success" });
+        Taro.showToast({ title: "已取消", icon: "success" });
         fetchBookings();
       } else {
-        Taro.showToast({ title: "Cancel failed", icon: "none" });
+        Taro.showToast({ title: "取消失败", icon: "none" });
       }
     } catch {
       Taro.hideLoading();
-      Taro.showToast({ title: "Cancel failed", icon: "none" });
+      Taro.showToast({ title: "取消失败", icon: "none" });
     }
   };
 
   const formatDateTime = (dateStr: string, timezone?: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleString("en-SG", {
+    return date.toLocaleString("zh-CN", {
       weekday: "short",
-      month: "short",
+      month: "numeric",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
@@ -104,10 +104,10 @@ export default function DashboardPage() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "CONFIRMED": return "Confirmed";
-      case "PENDING": return "Pending";
-      case "COMPLETED": return "Completed";
-      case "CANCELLED": return "Cancelled";
+      case "CONFIRMED": return "已确认";
+      case "PENDING": return "待确认";
+      case "COMPLETED": return "已完成";
+      case "CANCELLED": return "已取消";
       default: return status;
     }
   };
@@ -130,14 +130,14 @@ export default function DashboardPage() {
           hoverClass="dashboard__tab--hover"
           onClick={() => setTab("upcoming")}
         >
-          Upcoming ({upcomingBookings.length})
+          即将开始（{upcomingBookings.length}）
         </View>
         <View
           className={`dashboard__tab ${tab === "past" ? "dashboard__tab--active" : ""}`}
           hoverClass="dashboard__tab--hover"
           onClick={() => setTab("past")}
         >
-          Past ({pastBookings.length})
+          历史记录（{pastBookings.length}）
         </View>
       </View>
 
@@ -154,13 +154,13 @@ export default function DashboardPage() {
           </Text>
           <Text className="dashboard__empty-text">
             {tab === "upcoming"
-              ? "No upcoming bookings"
-              : "No past bookings"}
+              ? "暂无即将开始的预约"
+              : "暂无历史预约"}
           </Text>
           <Text className="dashboard__empty-hint">
             {tab === "upcoming"
-              ? "Book a session to get started"
-              : "Your completed sessions will appear here"}
+              ? "去发现专家并预约第一场咨询"
+              : "已完成的咨询会显示在这里"}
           </Text>
           {tab === "upcoming" && (
             <View
@@ -168,7 +168,7 @@ export default function DashboardPage() {
               hoverClass="dashboard__discover-btn--hover"
               onClick={() => Taro.switchTab({ url: "/pages/discover/index" })}
             >
-              Explore & Learn
+              去发现专家
             </View>
           )}
         </View>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
             const expertName =
               booking.expert.user.nickName ??
               booking.expert.user.name ??
-              "Expert";
+              "专家";
             return (
               <View
                 key={booking.id}
@@ -207,11 +207,11 @@ export default function DashboardPage() {
 
                 <View className="dashboard__card-details">
                   <Text className="dashboard__card-type">
-                    {booking.sessionType === "OFFLINE" ? "📍 Offline" : "🖥 Online"}
+                    {booking.sessionType === "OFFLINE" ? "📍 线下" : "🖥 线上"}
                   </Text>
                   {booking.depositAmountCents && (
                     <Text className="dashboard__card-deposit">
-                      {booking.currency} {(booking.depositAmountCents / 100).toFixed(2)} deposit
+                      订金 {booking.currency} {(booking.depositAmountCents / 100).toFixed(2)}
                     </Text>
                   )}
                 </View>
@@ -224,12 +224,12 @@ export default function DashboardPage() {
                       Taro.setClipboardData({
                         data: booking.meetingLink!,
                         success: () =>
-                          Taro.showToast({ title: "Link copied", icon: "success" }),
+                          Taro.showToast({ title: "链接已复制", icon: "success" }),
                       });
                     }}
                   >
-                    <Text className="dashboard__card-link-label">Meeting Link</Text>
-                    <Text className="dashboard__card-link-action">Copy</Text>
+                    <Text className="dashboard__card-link-label">会议链接</Text>
+                    <Text className="dashboard__card-link-action">复制</Text>
                   </View>
                 )}
 
@@ -244,7 +244,7 @@ export default function DashboardPage() {
                   const canRescheduleCancel = msUntil >= 2 * 60 * 60 * 1000;
                   if (!canRescheduleCancel) return (
                     <View className="dashboard__card-hint">
-                      <Text>Cannot modify — starts within 2 hours</Text>
+                      <Text>距离开始不足 2 小时，暂不可修改</Text>
                     </View>
                   );
                   return (
@@ -260,7 +260,7 @@ export default function DashboardPage() {
                             });
                           }}
                         >
-                          Reschedule
+                          改期
                         </View>
                       )}
                       <View
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                           handleCancel(booking.id);
                         }}
                       >
-                        Cancel
+                        取消
                       </View>
                     </View>
                   );

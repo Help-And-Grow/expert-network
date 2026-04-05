@@ -38,7 +38,7 @@ export default function VoiceRecorder({
         console.error("[VoiceRecorder] error:", err);
         setRecording(false);
         if (timerRef.current) clearInterval(timerRef.current);
-        Taro.showToast({ title: "Recording failed", icon: "none" });
+        Taro.showToast({ title: "录音失败", icon: "none" });
       });
       recorderRef.current = recorder;
     }
@@ -57,8 +57,8 @@ export default function VoiceRecorder({
       const setting = await Taro.authorize({ scope: "scope.record" });
     } catch {
       Taro.showModal({
-        title: "Permission Required",
-        content: "Please allow microphone access to record voice.",
+        title: "需要麦克风权限",
+        content: "请允许使用麦克风后再录音。",
         showCancel: false,
       });
       return;
@@ -124,7 +124,7 @@ export default function VoiceRecorder({
   const confirmRecording = () => {
     if (duration < minDuration) {
       Taro.showToast({
-        title: `Recording too short (min ${minDuration}s)`,
+        title: `录音太短（至少 ${minDuration} 秒）`,
         icon: "none",
       });
       return;
@@ -149,7 +149,7 @@ export default function VoiceRecorder({
           {recording && (
             <View className="voice-recorder__indicator">
               <View className="voice-recorder__dot" />
-              <Text className="voice-recorder__recording-text">Recording...</Text>
+              <Text className="voice-recorder__recording-text">录音中...</Text>
             </View>
           )}
           <View
@@ -160,11 +160,11 @@ export default function VoiceRecorder({
             }`}
             onClick={recording ? stopRecording : startRecording}
           >
-            {recording ? "⏹ Stop" : "🎙 Start Recording"}
+            {recording ? "⏹ 停止录音" : "🎙 开始录音"}
           </View>
           {duration > 0 && !recording && (
             <Text className="voice-recorder__hint">
-              Min {minDuration}s required
+              至少录制 {minDuration} 秒
             </Text>
           )}
         </View>
@@ -178,19 +178,19 @@ export default function VoiceRecorder({
               className="voice-recorder__btn voice-recorder__btn--outline"
               onClick={playing ? stopPlaying : playRecording}
             >
-              {playing ? "⏸ Pause" : "▶ Play"}
+              {playing ? "⏸ 暂停" : "▶ 播放"}
             </View>
             <View
               className="voice-recorder__btn voice-recorder__btn--outline"
               onClick={reRecord}
             >
-              🔄 Re-record
+              🔄 重新录制
             </View>
             <View
               className="voice-recorder__btn voice-recorder__btn--confirm"
               onClick={confirmRecording}
             >
-              ✓ Use This Recording
+              ✓ 使用这段录音
             </View>
           </View>
         </View>

@@ -10,15 +10,16 @@ import type {
   Review,
   ReviewsResponse,
 } from "../../shared/types";
+import { getDomainLabel } from "../../shared/types";
 import "./index.scss";
 
 const socialConfig = [
   { key: "linkedIn" as const, label: "LinkedIn" },
-  { key: "website" as const, label: "Website" },
+  { key: "website" as const, label: "官网" },
   { key: "twitter" as const, label: "X" },
   { key: "substack" as const, label: "Substack" },
   { key: "instagram" as const, label: "Instagram" },
-  { key: "xiaohongshu" as const, label: "XiaoHongShu" },
+  { key: "xiaohongshu" as const, label: "小红书" },
 ];
 
 export default function ExpertPage() {
@@ -42,12 +43,12 @@ export default function ExpertPage() {
       if (res.statusCode === 200) {
         setExpert(res.data);
       } else if (res.statusCode === 404) {
-        setError("Profile not found");
+        setError("未找到该专家主页");
       } else {
-        setError("Failed to load profile");
+        setError("加载专家主页失败");
       }
     } catch {
-      setError("Failed to load profile");
+      setError("加载专家主页失败");
     } finally {
       setLoading(false);
     }
@@ -87,17 +88,17 @@ export default function ExpertPage() {
   });
 
   useShareAppMessage(() => {
-    const name = expert?.user.nickName ?? expert?.user.name ?? "Expert";
+    const name = expert?.user.nickName ?? expert?.user.name ?? "专家";
     return {
-      title: `${name} on Help & Grow`,
+      title: `${name} 在 Help & Grow`,
       path: `/pages/expert/index?id=${expertId}`,
     };
   });
 
   useShareTimeline(() => {
-    const name = expert?.user.nickName ?? expert?.user.name ?? "Expert";
+    const name = expert?.user.nickName ?? expert?.user.name ?? "专家";
     return {
-      title: `${name} on Help & Grow`,
+      title: `${name} 在 Help & Grow`,
       query: `id=${expertId}`,
     };
   });
@@ -126,20 +127,20 @@ export default function ExpertPage() {
       <View className="expert-profile">
         <View className="expert-profile__error">
           <Text className="expert-profile__error-icon">😔</Text>
-          <Text className="expert-profile__error-text">{error || "Profile not found"}</Text>
+          <Text className="expert-profile__error-text">{error || "未找到该专家主页"}</Text>
           <View
             className="expert-profile__error-btn"
             hoverClass="expert-profile__error-btn--hover"
             onClick={() => Taro.navigateBack()}
           >
-            Go Back
+            返回
           </View>
         </View>
       </View>
     );
   }
 
-  const name = expert.user.nickName || expert.user.name || "Member";
+  const name = expert.user.nickName || expert.user.name || "成员";
   const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
   const socialLinks = socialConfig.filter((c) => {
     const url = expert[c.key];
@@ -176,11 +177,11 @@ export default function ExpertPage() {
       <View className="expert-profile__info">
         <Text className="expert-profile__name">{name}</Text>
         {expert.isVerified && (
-          <View className="expert-profile__verified">✓ Verified</View>
+          <View className="expert-profile__verified">✓ 已认证</View>
         )}
         <View className="expert-profile__domains">
           {expert.domains.map((d) => (
-            <View key={d} className="expert-profile__domain-chip">{d}</View>
+            <View key={d} className="expert-profile__domain-chip">{getDomainLabel(d)}</View>
           ))}
         </View>
         <View className="expert-profile__rating">
@@ -197,7 +198,7 @@ export default function ExpertPage() {
             ))}
           </View>
           <Text className="expert-profile__review-count">
-            {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
+            {expert.reviewCount} 条评价
           </Text>
         </View>
       </View>
@@ -207,23 +208,23 @@ export default function ExpertPage() {
         <View className="expert-profile__section">
           <AudioPlayer
             src={`/api/experts/${expertId}/audio`}
-            label={`${name}'s voice introduction`}
+            label={`${name}的语音介绍`}
           />
         </View>
       )}
 
       {/* About */}
       <View className="expert-profile__section">
-        <Text className="expert-profile__section-title">About</Text>
+        <Text className="expert-profile__section-title">个人介绍</Text>
         <Text className="expert-profile__text">
-          {expert.avatarScript || "No introduction available."}
+          {expert.avatarScript || "暂未填写介绍"}
         </Text>
       </View>
 
       {/* Services */}
       {services.length > 0 && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">Services Offered</Text>
+          <Text className="expert-profile__section-title">可提供服务</Text>
           {services.map((s, i) => (
             <View key={i} className="expert-profile__service-card">
               <Text className="expert-profile__service-title">{s.title}</Text>
@@ -236,7 +237,7 @@ export default function ExpertPage() {
       {/* Social Links */}
       {socialLinks.length > 0 && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">Connect</Text>
+          <Text className="expert-profile__section-title">联系方式</Text>
           <View className="expert-profile__social-links">
             {socialLinks.map(({ key, label }) => {
               const url = String(expert[key]);
@@ -250,7 +251,7 @@ export default function ExpertPage() {
                     Taro.setClipboardData({
                       data: href,
                       success: () =>
-                        Taro.showToast({ title: "Link copied", icon: "success" }),
+                        Taro.showToast({ title: "链接已复制", icon: "success" }),
                     });
                   }}
                 >
@@ -265,12 +266,12 @@ export default function ExpertPage() {
       {/* Document */}
       {expert.documentName && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">Document</Text>
+          <Text className="expert-profile__section-title">资料文档</Text>
           <View
             className="expert-profile__document"
             hoverClass="expert-profile__document--hover"
             onClick={() => {
-              Taro.showLoading({ title: "Downloading..." });
+              Taro.showLoading({ title: "下载中..." });
               Taro.downloadFile({
                 url: `${API_BASE}/api/experts/${expertId}/document`,
                 success: (res) => {
@@ -278,12 +279,12 @@ export default function ExpertPage() {
                   if (res.statusCode === 200) {
                     Taro.openDocument({ filePath: res.tempFilePath });
                   } else {
-                    Taro.showToast({ title: "Download failed", icon: "none" });
+                    Taro.showToast({ title: "下载失败", icon: "none" });
                   }
                 },
                 fail: () => {
                   Taro.hideLoading();
-                  Taro.showToast({ title: "Download failed", icon: "none" });
+                  Taro.showToast({ title: "下载失败", icon: "none" });
                 },
               });
             }}
@@ -291,7 +292,7 @@ export default function ExpertPage() {
             <Text className="expert-profile__document-name">
               📄 {expert.documentName}
             </Text>
-            <Text className="expert-profile__document-action">Open</Text>
+            <Text className="expert-profile__document-action">打开</Text>
           </View>
         </View>
       )}
@@ -299,27 +300,27 @@ export default function ExpertPage() {
       {/* Session Pricing */}
       {(expert.priceOnlineCents || expert.priceOfflineCents) && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">Session Rates</Text>
+          <Text className="expert-profile__section-title">咨询价格</Text>
           <View className="expert-profile__prices">
             {expert.priceOnlineCents && expert.sessionType !== "OFFLINE" && (
               <View className="expert-profile__price-card">
-                <Text className="expert-profile__price-label">🖥 Online</Text>
+                <Text className="expert-profile__price-label">🖥 线上</Text>
                 <Text className="expert-profile__price-value">
-                  {expert.currency} {Math.round(expert.priceOnlineCents / 100)}/hr
+                  {expert.currency} {Math.round(expert.priceOnlineCents / 100)}/小时
                 </Text>
               </View>
             )}
             {expert.priceOfflineCents && expert.sessionType !== "ONLINE" && (
               <View className="expert-profile__price-card">
-                <Text className="expert-profile__price-label">📍 Offline</Text>
+                <Text className="expert-profile__price-label">📍 线下</Text>
                 <Text className="expert-profile__price-value">
-                  {expert.currency} {Math.round(expert.priceOfflineCents / 100)}/hr
+                  {expert.currency} {Math.round(expert.priceOfflineCents / 100)}/小时
                 </Text>
               </View>
             )}
           </View>
           <Text className="expert-profile__price-note">
-            50% deposit due at booking. Remainder charged 24h after the session.
+            预约时支付 50% 订金，剩余费用在咨询结束 24 小时后扣款。
           </Text>
         </View>
       )}
@@ -327,26 +328,26 @@ export default function ExpertPage() {
       {/* Reviews */}
       <View className="expert-profile__section">
         <Text className="expert-profile__section-title">
-          Reviews ({reviewsTotal})
+          评价（{reviewsTotal}）
         </Text>
         {reviews.length === 0 ? (
-          <Text className="expert-profile__text-muted">No reviews yet</Text>
+          <Text className="expert-profile__text-muted">暂无评价</Text>
         ) : (
           <>
             {reviews.map((r) => (
               <View key={r.id} className="expert-profile__review">
                 <View className="expert-profile__review-header">
                   <View className="expert-profile__review-avatar">
-                    {(r.founder.nickName ?? r.founder.name ?? "F")
+                    {(r.founder.nickName ?? r.founder.name ?? "访")
                       .charAt(0)
                       .toUpperCase()}
                   </View>
                   <View className="expert-profile__review-meta">
                     <Text className="expert-profile__review-name">
-                      {r.founder.nickName ?? r.founder.name ?? "Anonymous"}
+                      {r.founder.nickName ?? r.founder.name ?? "匿名用户"}
                     </Text>
                     <Text className="expert-profile__review-date">
-                      {new Date(r.createdAt).toLocaleDateString()}
+                      {new Date(r.createdAt).toLocaleDateString("zh-CN")}
                     </Text>
                   </View>
                 </View>
@@ -375,7 +376,7 @@ export default function ExpertPage() {
                 hoverClass="expert-profile__load-more--hover"
                 onClick={() => fetchReviews(true)}
               >
-                {reviewsLoading ? "Loading..." : "Load more reviews"}
+                {reviewsLoading ? "加载中..." : "加载更多评价"}
               </View>
             )}
           </>
@@ -392,7 +393,7 @@ export default function ExpertPage() {
             hoverClass="expert-profile__book-btn--hover"
             onClick={() => goToBook("ONLINE")}
           >
-            🖥 Book Online
+            🖥 预约线上咨询
           </View>
         )}
         {expert.sessionType !== "ONLINE" && (
@@ -401,7 +402,7 @@ export default function ExpertPage() {
             hoverClass="expert-profile__book-btn--hover"
             onClick={() => goToBook("OFFLINE")}
           >
-            📍 Book Offline
+            📍 预约线下咨询
           </View>
         )}
       </View>

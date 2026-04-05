@@ -25,10 +25,9 @@ export default function IndexPage() {
           <View className="landing__logo">H&G</View>
         </View>
         <Text className="landing__title">Help & Grow</Text>
-        <Text className="landing__subtitle">AI Native Expert Network</Text>
+        <Text className="landing__subtitle">AI 原生专家网络</Text>
         <Text className="landing__desc">
-          Everyone is both expert and learner—book sessions, share what you know, and grow
-          together. Rooted in Singapore & Southeast Asia.
+          人人既是专家，也是学习者。预约真实咨询、分享专业经验，在互相帮助中持续成长。
         </Text>
       </View>
 
@@ -38,14 +37,14 @@ export default function IndexPage() {
           hoverClass="landing__btn--hover"
           onClick={goDiscover}
         >
-          Explore & Learn
+          去发现专家
         </View>
         <View
           className="landing__btn landing__btn--outline"
           hoverClass="landing__btn--hover"
           onClick={goOnboarding}
         >
-          Join the Community
+          成为专家
         </View>
       </View>
 
@@ -55,9 +54,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">🚀</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">Learn & get help</Text>
+            <Text className="landing__feature-title">学习与求助</Text>
             <Text className="landing__feature-desc">
-              Book people who’ve done it—localisation, BD, talent, fundraising in SEA
+              一键预约实战专家，覆盖增长、招聘、法务与融资等关键问题
             </Text>
           </View>
         </View>
@@ -66,9 +65,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">💡</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">Share expertise</Text>
+            <Text className="landing__feature-title">分享专业能力</Text>
             <Text className="landing__feature-desc">
-              Offer what you know as a service; learn from the community too
+              把你的经验变成服务，同时也能向其他专家学习成长
             </Text>
           </View>
         </View>
@@ -77,9 +76,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">📊</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">AI-native network</Text>
+            <Text className="landing__feature-title">AI 原生匹配</Text>
             <Text className="landing__feature-desc">
-              Natural-language matching; building toward always-on digital experts beside you
+              用自然语言描述需求，智能匹配最合适的专家，走向常在线数字专家
             </Text>
           </View>
         </View>

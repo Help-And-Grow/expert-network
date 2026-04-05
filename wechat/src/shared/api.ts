@@ -68,7 +68,7 @@ export async function request<T = unknown>(
       });
       return { data: retryRes.data as T, statusCode: retryRes.statusCode };
     } catch {
-      Taro.showToast({ title: "Please login again", icon: "none" });
+      Taro.showToast({ title: "登录状态失效，请重新登录", icon: "none" });
     }
   }
 
