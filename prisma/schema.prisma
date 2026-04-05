@@ -224,6 +224,10 @@ model Booking {
   stripeCustomerId        String?
   stripePaymentMethodId   String?
   stripeRemainderPIId     String?
+  paynowReference         String?
+  paynowPayerReference    String?
+  paynowSubmittedAt       DateTime?
+  paynowConfirmedAt       DateTime?
   tonDepositTxHash        String?
   tonRemainderTxHash      String?
   remainderChargedAt      DateTime?

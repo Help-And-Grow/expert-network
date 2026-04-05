@@ -311,6 +311,12 @@ const BookingCard = memo(function BookingCard({
     booking.paymentMethod === "ton" &&
     booking.paymentStatus === "pending";
 
+  const isPendingPayNow =
+    booking.status === "PENDING" &&
+    booking.paymentMethod === "paynow" &&
+    (booking.paymentStatus === "pending_paynow" ||
+      booking.paymentStatus === "submitted_paynow");
+
   const isRemainderDue = booking.paymentStatus === "remainder_due" && booking.founderId === currentUserId;
 
   const handlePayRemainder = async () => {
@@ -605,6 +611,28 @@ const BookingCard = memo(function BookingCard({
           </div>
         </div>
 
+        {isPendingPayNow && (
+          <>
+            <Separator className="my-3" />
+            <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-sm">
+              <p className="font-medium text-amber-800">PayNow payment pending confirmation</p>
+              <p className="mt-1 text-amber-700">
+                We are verifying your transfer. Your slot is temporarily held.
+              </p>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:text-red-700"
+                onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />Cancel
+              </Button>
+            </div>
+          </>
+        )}
+
         {isPendingTON && (
           <>
             <Separator className="my-3" />
@@ -678,7 +706,7 @@ const BookingCard = memo(function BookingCard({
           </>
         )}
 
-        {canModify && !isPendingTON && (canRescheduleOrCancel || canChangeLocation) && (
+        {canModify && !isPendingTON && !isPendingPayNow && (canRescheduleOrCancel || canChangeLocation) && (
           <>
             <Separator className="my-3" />
             <div className="flex flex-wrap gap-2">

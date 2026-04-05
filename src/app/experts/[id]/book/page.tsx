@@ -19,6 +19,7 @@ import {
 import { useTelegram } from "@/components/telegram-provider";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/user-menu";
 import { getTelegramInitData } from "@/lib/telegram";
@@ -130,6 +131,16 @@ export default function BookSessionPage() {
     depositTON: string;
     depositSGD: string;
   } | null>(null);
+  const [payNowPending, setPayNowPending] = useState<{
+    bookingId: string;
+    paynowReference: string;
+    amountLabel: string;
+    qrDataUrl: string;
+    receiver: { companyName: string; uen: string };
+    holdExpiresAt: string;
+  } | null>(null);
+  const [payNowPayerReference, setPayNowPayerReference] = useState("");
+  const [payNowSubmitting, setPayNowSubmitting] = useState(false);
 
   const timezone =
     typeof Intl !== "undefined"
@@ -285,6 +296,83 @@ export default function BookSessionPage() {
     }
   };
 
+  const handlePayNowCheckout = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const tgHeaders = getTelegramInitData();
+      const res = await fetch("/api/bookings/paynow", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+        },
+        body: JSON.stringify(bookingPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.error || "Failed to create PayNow payment");
+      setPayNowPending({
+        bookingId: data.bookingId,
+        paynowReference: data.paynowReference,
+        amountLabel: data.amountLabel,
+        qrDataUrl: data.qrDataUrl,
+        receiver: data.receiver,
+        holdExpiresAt: data.holdExpiresAt,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePayNowSubmit = async () => {
+    if (!payNowPending) return;
+    setPayNowSubmitting(true);
+    setError(null);
+    try {
+      const tgHeaders = getTelegramInitData();
+      const res = await fetch(`/api/bookings/${payNowPending.bookingId}/paynow-submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+        },
+        body: JSON.stringify({
+          payerReference: payNowPayerReference.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.error || "Failed to submit PayNow payment");
+      setPayNowPending(null);
+      setPayNowPayerReference("");
+      router.push("/booking?paynow_submitted=1");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setPayNowSubmitting(false);
+    }
+  };
+
+  const handlePayNowCancel = async () => {
+    if (!payNowPending) return;
+    try {
+      const tgHeaders = getTelegramInitData();
+      await fetch(`/api/bookings/${payNowPending.bookingId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+        },
+        body: JSON.stringify({ action: "cancel", reason: "PayNow flow cancelled by founder" }),
+      });
+    } catch {
+      // best effort
+    }
+    setPayNowPending(null);
+    setPayNowPayerReference("");
+  };
+
   const handleTONPayment = async () => {
     setSubmitting(true);
     setError(null);
@@ -430,7 +518,7 @@ export default function BookSessionPage() {
       return;
     }
     if (!isTelegram) {
-      handleStripeCheckout();
+      handlePayNowCheckout();
     }
   };
 
@@ -640,7 +728,60 @@ export default function BookSessionPage() {
           </p>
         )}
 
-        {tonPending && !submitting ? (
+        {payNowPending && !submitting ? (
+          <Card className="border-2 border-emerald-200 bg-emerald-50/50">
+            <CardContent className="p-4 space-y-3">
+              <div className="space-y-1 text-center">
+                <h3 className="font-semibold text-base">Pay with PayNow (Singapore)</h3>
+                <p className="text-sm text-muted-foreground">
+                  Amount: <span className="font-semibold text-foreground">{payNowPending.amountLabel}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Receiver: {payNowPending.receiver.companyName} · UEN {payNowPending.receiver.uen}
+                </p>
+              </div>
+              <div className="mx-auto w-fit rounded-lg bg-white p-2 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={payNowPending.qrDataUrl}
+                  alt="PayNow QR code"
+                  className="h-56 w-56"
+                />
+              </div>
+              <div className="rounded-md bg-muted/60 p-2 text-xs">
+                <p className="font-medium">Reference to include:</p>
+                <p className="font-mono">{payNowPending.paynowReference}</p>
+              </div>
+              <Input
+                value={payNowPayerReference}
+                onChange={(e) => setPayNowPayerReference(e.target.value)}
+                placeholder="Your payer reference / bank transfer note (optional)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Once transferred, submit so our team can verify and confirm your booking.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={handlePayNowSubmit}
+                  disabled={payNowSubmitting}
+                >
+                  {payNowSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "I have paid via PayNow"
+                  )}
+                </Button>
+                <Button variant="ghost" onClick={handlePayNowCancel}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : tonPending && !submitting ? (
           <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
             <div className="text-center space-y-1">
               <Loader2 className="h-8 w-8 mx-auto text-indigo-600 animate-spin" />
@@ -683,23 +824,35 @@ export default function BookSessionPage() {
             </Button>
           </div>
         ) : (
-          <Button
-            size="lg"
-            className="w-full min-h-[52px] text-base font-semibold"
-            disabled={!canConfirm}
-            onClick={handleConfirm}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Redirecting to payment...
-              </>
-            ) : totalCents > 0 ? (
-              `Pay Deposit — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
-            ) : (
-              "Confirm Booking"
+          <div className="space-y-2">
+            <Button
+              size="lg"
+              className="w-full min-h-[52px] text-base font-semibold"
+              disabled={!canConfirm}
+              onClick={handleConfirm}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Preparing PayNow QR...
+                </>
+              ) : totalCents > 0 ? (
+                `Pay with PayNow — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+              ) : (
+                "Confirm Booking"
+              )}
+            </Button>
+            {!isTelegram && totalCents > 0 && (
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={!canConfirm || submitting}
+                onClick={handleStripeCheckout}
+              >
+                Use Stripe Checkout instead
+              </Button>
             )}
-          </Button>
+          </div>
         )}
       </main>
     </div>

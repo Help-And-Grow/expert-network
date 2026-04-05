@@ -60,9 +60,14 @@ interface AdminBooking {
   startTime: string;
   endTime: string;
   status: string;
+  paymentMethod: string | null;
   paymentStatus: string;
   totalAmountCents: number | null;
   depositAmountCents: number | null;
+  paynowReference: string | null;
+  paynowPayerReference: string | null;
+  paynowSubmittedAt: string | null;
+  paynowConfirmedAt: string | null;
   currency: string;
   createdAt: string;
   expert: { user: { name: string | null; nickName: string | null; email: string | null } };
@@ -176,6 +181,7 @@ function AdminContent() {
   const [newCodeCount, setNewCodeCount] = useState("1");
   const [activeTab, setActiveTab] = useState("overview");
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmingPayNowId, setConfirmingPayNowId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -271,6 +277,35 @@ function AdminContent() {
       }
     } catch {
       // ignore
+    }
+  };
+
+  const handleConfirmPayNow = async (bookingId: string) => {
+    setConfirmingPayNowId(bookingId);
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/paynow-confirm`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === bookingId
+              ? {
+                  ...b,
+                  status: updated.bookingStatus,
+                  paymentStatus: updated.paymentStatus,
+                  paymentMethod: updated.paymentMethod,
+                  paynowConfirmedAt: updated.paynowConfirmedAt,
+                }
+              : b
+          )
+        );
+      }
+    } catch {
+      // ignore
+    } finally {
+      setConfirmingPayNowId(null);
     }
   };
 
@@ -473,8 +508,32 @@ function AdminContent() {
                                 {b.currency} {(b.totalAmountCents / 100).toFixed(2)}
                               </span>
                             )}
+                            {b.paymentMethod && (
+                              <span>Method: {b.paymentMethod}</span>
+                            )}
                             <span>Payment: {b.paymentStatus}</span>
+                            {b.paymentMethod === "paynow" && b.paynowReference && (
+                              <span>PayNow Ref: {b.paynowReference}</span>
+                            )}
+                            {b.paymentMethod === "paynow" && b.paynowPayerReference && (
+                              <span>Payer Ref: {b.paynowPayerReference}</span>
+                            )}
                           </div>
+                          {b.paymentMethod === "paynow" && b.paymentStatus === "submitted_paynow" && (
+                            <div className="mt-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleConfirmPayNow(b.id)}
+                                disabled={confirmingPayNowId === b.id}
+                                className="gap-1"
+                              >
+                                {confirmingPayNowId === b.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : null}
+                                Confirm PayNow Receipt
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
