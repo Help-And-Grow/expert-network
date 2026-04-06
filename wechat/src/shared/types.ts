@@ -137,3 +137,14 @@ export const DOMAINS = [
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];
+
+export const DOMAIN_LABELS: Record<string, string> = {
+  "Marketing & BD": "市场与商务拓展",
+  Headhunter: "招聘与猎头",
+  Law: "法律与合规",
+  Funding: "融资与资本",
+};
+
+export function getDomainLabel(domain: string): string {
+  return DOMAIN_LABELS[domain] || domain;
+}

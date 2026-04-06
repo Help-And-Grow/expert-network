@@ -1,6 +1,7 @@
 import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import type { Expert } from "../../shared/types";
+import { getDomainLabel } from "../../shared/types";
 import "./index.scss";
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 }
 
 export default function ExpertCard({ expert }: Props) {
-  const name = expert.user.nickName || expert.user.name || "Member";
+  const name = expert.user.nickName || expert.user.name || "成员";
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -45,14 +46,14 @@ export default function ExpertCard({ expert }: Props) {
             </View>
             {minPrice !== Infinity && (
               <Text className="expert-card__price">
-                SGD {Math.round(minPrice / 100)}/hr
+                SGD {Math.round(minPrice / 100)}/小时
               </Text>
             )}
           </View>
           <View className="expert-card__domains">
             {expert.domains.map((d) => (
               <View key={d} className="expert-card__domain-chip">
-                {d}
+                {getDomainLabel(d)}
               </View>
             ))}
           </View>
@@ -72,8 +73,7 @@ export default function ExpertCard({ expert }: Props) {
               ))}
             </View>
             <Text className="expert-card__review-count">
-              {expert.reviewCount} review
-              {expert.reviewCount !== 1 ? "s" : ""}
+              {expert.reviewCount} 条评价
             </Text>
           </View>
         </View>
@@ -84,14 +84,14 @@ export default function ExpertCard({ expert }: Props) {
           hoverClass="expert-card__btn--hover"
           onClick={(e) => { e.stopPropagation(); goToBook(); }}
         >
-          Book Session
+          预约咨询
         </View>
         <View
           className="expert-card__btn expert-card__btn--outline"
           hoverClass="expert-card__btn--hover"
           onClick={(e) => { e.stopPropagation(); goToProfile(); }}
         >
-          View Profile
+          查看主页
         </View>
       </View>
     </View>

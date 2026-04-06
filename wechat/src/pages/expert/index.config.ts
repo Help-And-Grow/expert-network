@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: "Profile",
+  navigationBarTitleText: "专家主页",
 });

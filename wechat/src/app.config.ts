@@ -16,25 +16,25 @@ export default defineAppConfig({
     list: [
       {
         pagePath: "pages/index/index",
-        text: "Home",
+        text: "首页",
         iconPath: "assets/tab-home.png",
         selectedIconPath: "assets/tab-home-active.png",
       },
       {
         pagePath: "pages/discover/index",
-        text: "Discover",
+        text: "发现",
         iconPath: "assets/tab-discover.png",
         selectedIconPath: "assets/tab-discover-active.png",
       },
       {
         pagePath: "pages/dashboard/index",
-        text: "Bookings",
+        text: "预约",
         iconPath: "assets/tab-bookings.png",
         selectedIconPath: "assets/tab-bookings-active.png",
       },
       {
         pagePath: "pages/profile/index",
-        text: "Me",
+        text: "我的",
         iconPath: "assets/tab-profile.png",
         selectedIconPath: "assets/tab-profile-active.png",
       },
@@ -43,7 +43,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: "light",
     navigationBarBackgroundColor: "#ffffff",
-    navigationBarTitleText: "Help & Grow",
+    navigationBarTitleText: "帮助与成长",
     navigationBarTextStyle: "black",
   },
 });

@@ -45,7 +45,7 @@ export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
     const setting = await Taro.getSetting();
     if (setting.authSetting["scope.userInfo"]) {
       const profile = await Taro.getUserProfile({
-        desc: "Used to personalize your profile",
+        desc: "用于完善你的个人主页信息",
       });
       nickName = profile.userInfo.nickName;
       avatarUrl = profile.userInfo.avatarUrl;
@@ -63,7 +63,7 @@ export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
   });
 
   if (res.statusCode !== 200 || !(res.data as Record<string, unknown>)["token"]) {
-    throw new Error((res.data as Record<string, string>)["error"] || "Login failed");
+    throw new Error((res.data as Record<string, string>)["error"] || "登录失败");
   }
 
   const data = res.data as { token: string; user: AuthUser };
