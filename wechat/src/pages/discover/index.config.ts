@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: "Discover",
+  navigationBarTitleText: "发现专家",
   enablePullDownRefresh: true,
   onReachBottomDistance: 100,
 });

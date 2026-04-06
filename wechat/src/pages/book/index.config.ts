@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: "Book a Session",
+  navigationBarTitleText: "预约咨询",
 });
