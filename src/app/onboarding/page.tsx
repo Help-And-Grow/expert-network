@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -170,9 +170,13 @@ export default function OnboardingPage() {
   const addedQuestionsRef = useRef<Set<string>>(new Set());
 
   const tgInitData = getTelegramInitData();
-  const tgHeaders: Record<string, string> = tgInitData
-    ? { "x-telegram-init-data": tgInitData }
-    : {};
+  const tgHeaders = useMemo<Record<string, string>>(() => {
+    const headers: Record<string, string> = {};
+    if (tgInitData) {
+      headers["x-telegram-init-data"] = tgInitData;
+    }
+    return headers;
+  }, [tgInitData]);
 
   const nickName =
     userNickName ||
@@ -211,7 +215,7 @@ export default function OnboardingPage() {
         }).catch(console.error);
       }
     }
-  }, [status, session, router, isTelegram]);
+  }, [status, session, router, isTelegram, tgHeaders]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
