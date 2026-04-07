@@ -115,6 +115,8 @@ const envSchema = z
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
     VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
+    /** Local dev only: enables one-click "Dev login" on /auth/signin (`next dev` only). */
+    DEV_AUTH_EMAIL: z.string().min(1).optional(),
     AGORA_APP_ID: z.string().optional(),
     AGORA_APP_CERTIFICATE: z.string().optional(),
     TEN_AGENT_URL: z.string().url().optional(),

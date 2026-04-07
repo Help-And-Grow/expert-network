@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 
 import { useSearchParams, useRouter } from "next/navigation";
 
-import { Mail, Chrome, Loader2 } from "lucide-react";
+import { Chrome, Laptop, Loader2, Mail } from "lucide-react";
 import { getProviders, signIn, useSession } from "next-auth/react";
 
 import { useTelegram } from "@/components/telegram-provider";
@@ -32,7 +32,13 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [devLoading, setDevLoading] = useState(false);
+  const [devAvailable, setDevAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getProviders().then((p) => setDevAvailable(Boolean(p?.["dev-login"])));
+  }, []);
 
   useEffect(() => {
     if (isTelegram) {
@@ -81,6 +87,17 @@ function SignInForm() {
     }
   };
 
+  const handleDevSignIn = async () => {
+    setError(null);
+    setDevLoading(true);
+    try {
+      await signIn("dev-login", { callbackUrl });
+    } catch {
+      setError("Dev sign-in failed.");
+      setDevLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setError(null);
     setGoogleLoading(true);
@@ -112,6 +129,43 @@ function SignInForm() {
             role="alert"
           >
             {error}
+          </div>
+        )}
+
+        {devAvailable && (
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={handleDevSignIn}
+              disabled={devLoading || emailLoading || googleLoading}
+            >
+              {devLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  <Laptop className="h-4 w-4" />
+                  Continue as local dev
+                </>
+              )}
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Uses <code className="rounded bg-muted px-1 py-0.5">DEV_AUTH_EMAIL</code> from{" "}
+              <code className="rounded bg-muted px-1 py-0.5">.env.local</code>. Not available in production.
+            </p>
+          </div>
+        )}
+
+        {devAvailable && (
+          <div className="relative">
+            <Separator className="my-4" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              or
+            </span>
           </div>
         )}
 
