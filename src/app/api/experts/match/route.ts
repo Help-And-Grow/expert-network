@@ -15,17 +15,29 @@ const QUERY_EXPANSIONS: Record<string, string> = {
   data: "data science analytics machine learning sql python bi engineering",
   bd: "business development marketing partnerships sales growth",
   growth: "growth marketing product strategy gtm revenue",
-  legal: "law legal compliance contract incorporation lawyer",
+  legal: "law legal compliance contract incorporation lawyer litigation attorney 法律 法学",
   funding: "fundraising venture capital investment pitch deck startup",
   hr: "hiring recruitment talent headhunter people ops",
+  // Chinese (WeChat): map to English tokens that appear in domains/bios
+  法律: "law legal lawyer compliance contract litigation attorney incorporation 法学",
+  法学: "law legal lawyer jurisprudence litigation compliance",
+  人工智能: "artificial intelligence machine learning ml llm data science ai",
+  投资: "investment venture capital fundraising funding startup",
+  招聘: "hiring recruitment talent hr headhunter",
+  合规: "compliance legal regulatory risk",
 };
 
 function expandQueryForKeyword(query: string): string {
   const t = query.trim();
   if (!t) return "";
   const lower = t.toLowerCase();
-  const extra = QUERY_EXPANSIONS[lower];
+  const extra = QUERY_EXPANSIONS[lower] ?? QUERY_EXPANSIONS[t];
   return extra ? `${t} ${extra}` : t;
+}
+
+/** CJK in the query usually means a specific topic — do not substitute unrelated “popular” experts. */
+function hasCjkScript(s: string): boolean {
+  return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(s);
 }
 
 type MatchExpertRow = {
@@ -193,12 +205,29 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      if (hasCjkScript(query)) {
+        return NextResponse.json({
+          recommendations: [],
+          noMatchMessage:
+            keyword.noMatchMessage ??
+            "暂无匹配该主题的已发布专家。可尝试英文关键词（如 legal、contract）或从首页浏览。No published expert matched this topic — try English keywords (e.g. legal) or browse from home.",
+        });
+      }
+
       return NextResponse.json(exploratoryFallback(experts));
     } catch (aiError) {
       console.error("[experts/match] AI matching failed, falling back to keyword:", aiError);
       const fallback = keywordMatch(query, experts);
       if (fallback.recommendations.length > 0) {
         return NextResponse.json(fallback);
+      }
+      if (hasCjkScript(query)) {
+        return NextResponse.json({
+          recommendations: [],
+          noMatchMessage:
+            fallback.noMatchMessage ??
+            "暂无匹配该主题的已发布专家。可尝试英文关键词或从首页浏览。No published expert matched — try English keywords or browse from home.",
+        });
       }
       return NextResponse.json(exploratoryFallback(experts));
     }
