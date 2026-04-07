@@ -17,6 +17,7 @@
     "smoke:public": "bash scripts/smoke-public-endpoints.sh",
     "vercel:env:ls": "npx vercel@latest env ls",
     "vercel:env:pull": "npx vercel@latest env pull .env.vercel.local",
+    "vercel:env:pull:production": "npx vercel@latest env pull .env.vercel.production.local --environment production --yes",
     "vercel:env:apply": "node scripts/vercel-env-from-file.mjs",
     "vercel:env:migrate-auth-secret": "node scripts/vercel-migrate-auth-secret.mjs",
     "vercel:env:remove-tidb-legacy": "node scripts/vercel-remove-tidb-legacy.mjs",

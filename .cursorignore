@@ -1,0 +1,4 @@
+# Do not index pulled Vercel secrets
+.env.vercel.production.local
+.env.local
+.env.vercel.sync
