@@ -63,11 +63,38 @@ export interface ExpertVoiceChatProfile {
   name: string;
   bio: string | null;
   domains: string[];
+  /** Long-form intro script from onboarding — strong factual anchor for the persona. */
+  avatarScript: string | null;
+  /** Human-readable lines derived from servicesOffered JSON. */
+  servicesOfferedSummary: string | null;
   /** Fish clone / VC model id, or a built-in Qwen voice name (e.g. Ethan). */
   voiceModelId: string;
   /** True when using expert's DashScope voice clone; false = system default voice. */
   usesClonedVoice: boolean;
-  mem9Context: string[];
+}
+
+function formatServicesOfferedJson(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    const lines = raw.map((item) => {
+      if (item && typeof item === "object" && "title" in item) {
+        const o = item as { title?: string; description?: string };
+        const t = (o.title ?? "").trim();
+        const d = (o.description ?? "").trim();
+        if (t && d) return `- ${t}: ${d}`;
+        if (t) return `- ${t}`;
+      }
+      return `- ${JSON.stringify(item)}`;
+    });
+    const joined = lines.filter(Boolean).join("\n");
+    return joined.length > 0 ? joined : null;
+  }
+  if (typeof raw === "string") return raw.trim() || null;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return null;
+  }
 }
 
 function resolveVoiceModelId(
@@ -96,6 +123,8 @@ export async function loadExpertVoiceChatProfile(
       id: true,
       bio: true,
       gender: true,
+      avatarScript: true,
+      servicesOffered: true,
       domains: { select: { domain: true } },
       fishAudioModelId: true,
       user: { select: { name: true, nickName: true } },
@@ -109,39 +138,36 @@ export async function loadExpertVoiceChatProfile(
     expert.gender,
   );
 
-  const mem9Context = await searchExpertMemories(
-    expertId,
-    "What do you specialize in? What is your background and expertise?",
-    5,
-  ).catch(() => [] as string[]);
+  const servicesOfferedSummary = formatServicesOfferedJson(expert.servicesOffered);
 
   return {
     id: expert.id,
     name: expert.user.nickName ?? expert.user.name ?? "Expert",
     bio: expert.bio,
     domains: domainStrings(expert.domains),
+    avatarScript: expert.avatarScript,
+    servicesOfferedSummary,
     voiceModelId,
     usesClonedVoice,
-    mem9Context,
   };
 }
 
 function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
-  const memoryBlock =
-    profile.mem9Context.length > 0
-      ? `\n\nRelevant context from your memory:\n${profile.mem9Context.map((m) => `- ${m}`).join("\n")}`
-      : "";
-
   return [
     `You are ${profile.name}, an expert in ${profile.domains.join(", ")}.`,
     profile.bio ? `Your background: ${profile.bio}` : "",
-    "Answer questions as this expert would.",
-    "Keep responses concise — 2-3 sentences max, since they will be spoken aloud.",
-    "Be warm and helpful. If the question needs a deep dive, suggest booking a full session.",
-    memoryBlock,
+    profile.avatarScript
+      ? `Your public introduction script (match this voice and factual claims):\n${profile.avatarScript}`
+      : "",
+    profile.servicesOfferedSummary
+      ? `Services you list on your profile:\n${profile.servicesOfferedSummary}`
+      : "",
+    "Ground answers in the introduction, bio, and services above when relevant.",
+    "This is a short voice preview: keep each reply concise enough for text-to-speech (aim under ~45 seconds spoken), but when the user asks for examples, client work, or specifics, give concrete details from your background or from the context attached to their message — avoid generic filler.",
+    "Suggest booking a full paid session only when they need bespoke consulting, private data, or depth that clearly exceeds a fair preview — not for every question.",
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
 }
 
 function ensureConversation(
@@ -204,11 +230,34 @@ export async function transcribeAudio(
   ).trim();
 }
 
-async function generateReply(conv: ConversationState, userText: string): Promise<string> {
+const VOICE_CHAT_MEMORY_SNIPPETS = 6;
+const VOICE_CHAT_MEMORY_MAX_CHARS = 1_400;
+
+async function generateReply(
+  conv: ConversationState,
+  expertId: string,
+  userText: string,
+): Promise<string> {
   const apiKey = env.DASHSCOPE_API_KEY;
   if (!apiKey) throw new Error("DASHSCOPE_API_KEY is not set");
 
-  conv.history.push({ role: "user", content: userText });
+  const snippets = await searchExpertMemories(
+    expertId,
+    userText,
+    VOICE_CHAT_MEMORY_SNIPPETS,
+  ).catch(() => [] as string[]);
+
+  let memoryBlock = snippets.join("\n---\n");
+  if (memoryBlock.length > VOICE_CHAT_MEMORY_MAX_CHARS) {
+    memoryBlock = `${memoryBlock.slice(0, VOICE_CHAT_MEMORY_MAX_CHARS)}\n…`;
+  }
+
+  const userContent =
+    snippets.length > 0
+      ? `[Retrieved from your mem9 / knowledge store — use concrete facts when relevant; do not invent details not supported below:]\n${memoryBlock}\n\n[User message]\n${userText}`
+      : userText;
+
+  conv.history.push({ role: "user", content: userContent });
 
   const qwen = new OpenAI({ apiKey, baseURL: DASHSCOPE_BASE_URL });
   const response = await qwen.chat.completions.create({
@@ -260,7 +309,7 @@ export async function processVoiceMessage(
     throw new Error("Could not understand the audio. Please try again.");
   }
 
-  const replyText = await generateReply(conv, userText);
+  const replyText = await generateReply(conv, expertId, userText);
   const { audioBase64: replyAudio, format } = await synthesizeVoice(
     replyText,
     conv.voiceModelId,
@@ -290,7 +339,7 @@ export async function processTextMessage(
     throw new Error("Turn limit reached. Start a new conversation or book a full session.");
   }
 
-  const replyText = await generateReply(conv, text);
+  const replyText = await generateReply(conv, expertId, text);
   const { audioBase64: replyAudio, format } = await synthesizeVoice(
     replyText,
     conv.voiceModelId,
