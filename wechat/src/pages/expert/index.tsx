@@ -2,7 +2,7 @@ import { View, Text, Image } from "@tarojs/components";
 import Taro, { useLoad, useRouter, useShareAppMessage, useShareTimeline } from "@tarojs/taro";
 import { useState, useCallback, useRef } from "react";
 import { get } from "../../shared/api";
-import { getApiBase } from "../../shared/auth";
+import { getApiBase, getToken } from "../../shared/auth";
 import AudioPlayer from "../../components/AudioPlayer";
 import VoiceChat from "../../components/VoiceChat";
 import type {
@@ -302,20 +302,35 @@ export default function ExpertPage() {
             className="expert-profile__document"
             hoverClass="expert-profile__document--hover"
             onClick={() => {
+              const docUrl = `${API_BASE}/api/experts/${expertId}/document`;
+              const token = getToken();
               Taro.showLoading({ title: "下载中..." });
               Taro.downloadFile({
-                url: `${API_BASE}/api/experts/${expertId}/document`,
+                url: docUrl,
+                header: token ? { "x-wechat-token": token } : {},
                 success: (res) => {
                   Taro.hideLoading();
-                  if (res.statusCode === 200) {
-                    Taro.openDocument({ filePath: res.tempFilePath });
-                  } else {
-                    Taro.showToast({ title: "下载失败", icon: "none" });
+                  if (!res.tempFilePath) {
+                    Taro.showToast({
+                      title: "下载失败（请配置 downloadFile 合法域名）",
+                      icon: "none",
+                      duration: 3200,
+                    });
+                    return;
                   }
+                  Taro.openDocument({
+                    filePath: res.tempFilePath,
+                    fileType: "pdf",
+                    showMenu: true,
+                  });
                 },
-                fail: () => {
+                fail: (err) => {
                   Taro.hideLoading();
-                  Taro.showToast({ title: "下载失败", icon: "none" });
+                  console.error("[expert] document download", err);
+                  Taro.showToast({
+                    title: "下载失败，请检查网络与域名配置",
+                    icon: "none",
+                  });
                 },
               });
             }}

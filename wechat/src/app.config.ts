@@ -22,7 +22,7 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/discover/index",
-        text: "发现",
+        text: "匹配",
         iconPath: "assets/tab-discover.png",
         selectedIconPath: "assets/tab-discover-active.png",
       },
