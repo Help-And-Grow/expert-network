@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
 import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
+import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
@@ -395,7 +396,11 @@ export default function ExpertProfilePage() {
       {expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
         <section className="mt-5">
           <div
-            onClick={() => vcConfig.asyncEnabled ? setShowVoiceChat(true) : setShowRealtimeChat(true)}
+            onClick={() => {
+              resumeSharedAudioContext();
+              if (vcConfig.asyncEnabled) setShowVoiceChat(true);
+              else setShowRealtimeChat(true);
+            }}
             className="group relative w-full cursor-pointer rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-[1px] transition-shadow hover:shadow-lg hover:shadow-indigo-200"
           >
             <div className="flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5">
