@@ -413,4 +413,40 @@
       opacity: 0.8;
     }
   }
+
+  &__voice-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    padding: 24rpx 32rpx;
+    border-radius: 20rpx;
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    border: 2rpx solid #c7d2fe;
+  }
+
+  &__voice-chat-btn--hover {
+    opacity: 0.8;
+  }
+
+  &__voice-chat-icon {
+    font-size: 40rpx;
+  }
+
+  &__voice-chat-text {
+    flex: 1;
+  }
+
+  &__voice-chat-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #4f46e5;
+    display: block;
+  }
+
+  &__voice-chat-desc {
+    font-size: 22rpx;
+    color: #9ca3af;
+    display: block;
+    margin-top: 4rpx;
+  }
 }

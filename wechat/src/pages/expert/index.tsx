@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { get } from "../../shared/api";
 import { getApiBase } from "../../shared/auth";
 import AudioPlayer from "../../components/AudioPlayer";
+import VoiceChat from "../../components/VoiceChat";
 import type {
   ExpertDetail,
   ServiceItem,
@@ -31,6 +32,7 @@ export default function ExpertPage() {
   const [loading, setLoading] = useState(true);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showVoiceChat, setShowVoiceChat] = useState(false);
   const reviewsRef = useRef<Review[]>([]);
   reviewsRef.current = reviews;
 
@@ -212,6 +214,35 @@ export default function ExpertPage() {
           />
         </View>
       )}
+
+      {/* AI Voice Chat */}
+      {expert.hasClonedVoice && (
+        <View className="expert-profile__section">
+          <View
+            className="expert-profile__voice-chat-btn"
+            hoverClass="expert-profile__voice-chat-btn--hover"
+            onClick={() => setShowVoiceChat(true)}
+          >
+            <Text className="expert-profile__voice-chat-icon">📞</Text>
+            <View className="expert-profile__voice-chat-text">
+              <Text className="expert-profile__voice-chat-title">
+                与 AI {name} 语音聊天
+              </Text>
+              <Text className="expert-profile__voice-chat-desc">
+                免费 5 分钟 · AI 专家语音克隆
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Voice Chat Modal */}
+      <VoiceChat
+        expertId={expertId}
+        expertName={name}
+        visible={showVoiceChat}
+        onClose={() => setShowVoiceChat(false)}
+      />
 
       {/* About */}
       <View className="expert-profile__section">

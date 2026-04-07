@@ -1,5 +1,19 @@
 const { createRequire } = require("module");
+const fs = require("fs");
 const path = require("path");
+
+// miniprogram-ci breaks on Node 23+ (TypeError: r.getItem is not a function). Use Node 20 LTS:
+//   cd wechat && nvm use
+//   cd .. && node scripts/wechat-upload.js "1.0.0" "release notes"
+const nodeMajor = parseInt(process.versions.node.split(".")[0], 10);
+if (nodeMajor > 22) {
+  console.error(
+    `WeChat upload requires Node.js 18–22 (you have ${process.version}).\n` +
+      `Run: cd wechat && nvm use   (see wechat/.nvmrc), then from repo root:\n` +
+      `  node scripts/wechat-upload.js "1.0.0" "description"\n`,
+  );
+  process.exit(1);
+}
 
 const requireWechat = createRequire(
   path.join(__dirname, "../wechat/package.json"),
@@ -8,9 +22,16 @@ const ci = requireWechat("miniprogram-ci");
 
 const APPID = "wx09d0eb079596060d";
 const PROJECT_PATH = path.resolve(__dirname, "../wechat/dist");
+const KEY_NAME = "private.wx09d0eb079596060d.key";
 const PRIVATE_KEY_PATH =
   process.env.WECHAT_CI_KEY_PATH ||
-  path.resolve(__dirname, "../private.wx09d0eb079596060d.key");
+  (() => {
+    const inWechat = path.resolve(__dirname, "../wechat", KEY_NAME);
+    const inRoot = path.resolve(__dirname, "..", KEY_NAME);
+    if (fs.existsSync(inWechat)) return inWechat;
+    if (fs.existsSync(inRoot)) return inRoot;
+    return inRoot;
+  })();
 
 const VERSION = process.argv[2] || "1.0.0";
 const DESC = process.argv[3] || `Help & Grow v${VERSION}`;

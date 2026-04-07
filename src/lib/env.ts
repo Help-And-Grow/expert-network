@@ -107,6 +107,10 @@ const envSchema = z
     FISH_AUDIO_API_KEY: z.string().optional(),
     FISH_AUDIO_VOICE_ID_MALE: z.string().optional(),
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
+
+    AGORA_APP_ID: z.string().optional(),
+    AGORA_APP_CERTIFICATE: z.string().optional(),
+    TEN_AGENT_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     if (process.env.NODE_ENV !== "production") return;

@@ -64,6 +64,7 @@ export async function GET(
       domains: domainStrings(domainRows),
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
+      hasClonedVoice: !!expert.fishAudioModelId,
     });
   } catch (error) {
     console.error("[experts/[id] GET]", error);

@@ -1,0 +1,128 @@
+.voice-chat-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-chat-modal {
+  width: 600rpx;
+  background: #fff;
+  border-radius: 32rpx;
+  overflow: hidden;
+}
+
+.voice-chat-header {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  padding: 48rpx 32rpx;
+  text-align: center;
+  color: #fff;
+}
+
+.voice-chat-header__title {
+  font-size: 36rpx;
+  font-weight: 600;
+  display: block;
+}
+
+.voice-chat-header__subtitle {
+  font-size: 24rpx;
+  opacity: 0.8;
+  display: block;
+  margin-top: 8rpx;
+}
+
+.voice-chat-timer {
+  padding: 40rpx;
+  text-align: center;
+}
+
+.voice-chat-timer__text {
+  font-size: 64rpx;
+  font-weight: 700;
+  font-family: "Menlo", monospace;
+  display: block;
+  color: #1f2937;
+}
+
+.voice-chat-timer__text--warning {
+  color: #ef4444;
+}
+
+.voice-chat-timer__label {
+  font-size: 22rpx;
+  color: #9ca3af;
+  display: block;
+  margin-top: 4rpx;
+}
+
+.voice-chat-loading {
+  padding: 48rpx;
+  text-align: center;
+}
+
+.voice-chat-loading__icon {
+  font-size: 56rpx;
+}
+
+.voice-chat-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32rpx;
+  padding: 32rpx 32rpx 48rpx;
+}
+
+.voice-chat-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 20rpx 40rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #e5e7eb;
+}
+
+.voice-chat-btn--hover {
+  opacity: 0.7;
+}
+
+.voice-chat-btn--muted {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.voice-chat-btn--end {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.voice-chat-btn--end .voice-chat-btn__icon,
+.voice-chat-btn--end .voice-chat-btn__label {
+  color: #fff;
+}
+
+.voice-chat-btn--close {
+  flex: 1;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #f3f4f6;
+  border: none;
+  text-align: center;
+}
+
+.voice-chat-btn__icon {
+  font-size: 36rpx;
+}
+
+.voice-chat-btn__label {
+  font-size: 22rpx;
+  color: #6b7280;
+}
