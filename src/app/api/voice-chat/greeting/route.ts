@@ -1,0 +1,57 @@
+import { type NextRequest, NextResponse } from "next/server";
+
+import { resolveUserId } from "@/lib/request-auth";
+import { isAsyncEnabled } from "@/lib/voice-chat-config";
+import { getVoiceChatGreeting } from "@/lib/voice-chat-session";
+
+export const maxDuration = 30;
+
+/**
+ * POST /api/voice-chat/greeting
+ * Body: { expertId }
+ * Returns synthesized welcome audio (same voice as chat) + text. Does not use a turn.
+ */
+export async function POST(request: NextRequest) {
+  if (!isAsyncEnabled()) {
+    return NextResponse.json(
+      { error: "Async voice chat is not enabled." },
+      { status: 503 },
+    );
+  }
+
+  const userId = await resolveUserId(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: { expertId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { expertId } = body;
+  if (!expertId) {
+    return NextResponse.json({ error: "expertId is required" }, { status: 400 });
+  }
+
+  try {
+    const result = await getVoiceChatGreeting(expertId);
+    if (!result) {
+      return NextResponse.json({ error: "Expert not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      replyText: result.text,
+      replyAudio: `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[voice-chat/greeting]", msg);
+    return NextResponse.json(
+      { error: msg || "Failed to generate greeting" },
+      { status: 500 },
+    );
+  }
+}
