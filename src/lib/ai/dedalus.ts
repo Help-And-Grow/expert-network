@@ -1,12 +1,14 @@
 import { env } from "@/lib/env";
+import { buildNormalizeQueryPrompt } from "./prompts";
 import type {
   AIProvider,
   ImageInput,
   MatchResult,
+  NormalizedQuery,
   ProfileInput,
   ProfileOutput,
 } from "./types";
-import { parseMatchResponse, parseProfileResponse } from "./types";
+import { cleanJsonResponse, parseMatchResponse, parseProfileResponse } from "./types";
 
 const API_BASE = "https://api.dedaluslabs.ai/v1";
 
@@ -127,15 +129,39 @@ ${sources || "No external sources provided."}`,
     return text;
   }
 
+  async normalizeQuery(query: string): Promise<NormalizedQuery> {
+    const prompt = buildNormalizeQueryPrompt(query);
+    const text = await chat([{ role: "user", content: prompt }]);
+    try {
+      const parsed = JSON.parse(cleanJsonResponse(text));
+      return {
+        english: typeof parsed.english === "string" ? parsed.english : query,
+        keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+        intent: ["specific_topic", "broad_exploration", "greeting"].includes(parsed.intent)
+          ? parsed.intent
+          : "specific_topic",
+        original: query,
+      };
+    } catch {
+      console.warn("[dedalus] normalizeQuery parse failed, using raw query");
+      return { english: query, keywords: [], intent: "specific_topic", original: query };
+    }
+  }
+
   async matchExperts(
     query: string,
     expertSummaries: string,
-    conversationHistory: { role: string; content: string }[]
+    conversationHistory: { role: string; content: string }[],
+    normalizedQuery?: NormalizedQuery
   ): Promise<MatchResult> {
+    const queryContext = normalizedQuery
+      ? `${query}\n(Interpreted: ${normalizedQuery.english}; keywords: ${normalizedQuery.keywords.join(", ")})`
+      : query;
+
     const messages: ChatMessage[] = [
       {
         role: "system",
-        content: `You are an expert matching assistant. Given the user's query and available experts, recommend the best matches.
+        content: `You are an expert matching assistant. Given the user's query and available experts, recommend the best matches. Only recommend experts whose domains, bio, or services clearly relate to the query topic. If no expert matches, return empty recommendations with a helpful noMatchMessage.
 
 Available experts:
 ${expertSummaries}
@@ -152,7 +178,7 @@ Return ONLY a valid JSON object:
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
-      { role: "user" as const, content: query },
+      { role: "user" as const, content: queryContext },
     ];
 
     const text = await chat(

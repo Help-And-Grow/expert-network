@@ -3,9 +3,14 @@ import {
   buildImagePrompt,
   buildImproveWritingPrompt,
   buildMatchExpertsPrompt,
+  buildNormalizeQueryPrompt,
 } from "./prompts";
 import { searchSocialProfiles, extractPdfWithGemini } from "./search";
-import { parseProfileResponse, parseMatchResponse } from "./types";
+import {
+  parseProfileResponse,
+  parseMatchResponse,
+  cleanJsonResponse,
+} from "./types";
 
 import type {
   AIProvider,
@@ -13,6 +18,7 @@ import type {
   ProfileOutput,
   ImageInput,
   MatchResult,
+  NormalizedQuery,
 } from "./types";
 
 /**
@@ -69,15 +75,36 @@ export abstract class BaseAIProvider implements AIProvider {
     return (await this.chat(prompt)).trim();
   }
 
+  async normalizeQuery(query: string): Promise<NormalizedQuery> {
+    const prompt = buildNormalizeQueryPrompt(query);
+    const text = await this.chat(prompt);
+    try {
+      const parsed = JSON.parse(cleanJsonResponse(text));
+      return {
+        english: typeof parsed.english === "string" ? parsed.english : query,
+        keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+        intent: ["specific_topic", "broad_exploration", "greeting"].includes(parsed.intent)
+          ? parsed.intent
+          : "specific_topic",
+        original: query,
+      };
+    } catch {
+      console.warn("[AI] normalizeQuery parse failed, using raw query");
+      return { english: query, keywords: [], intent: "specific_topic", original: query };
+    }
+  }
+
   async matchExperts(
     query: string,
     expertSummaries: string,
-    conversationHistory: { role: string; content: string }[]
+    conversationHistory: { role: string; content: string }[],
+    normalizedQuery?: NormalizedQuery
   ): Promise<MatchResult> {
     const prompt = buildMatchExpertsPrompt(
       query,
       expertSummaries,
-      conversationHistory
+      conversationHistory,
+      normalizedQuery
     );
     const text = await this.chat(prompt);
     return parseMatchResponse(text);

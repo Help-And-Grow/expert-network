@@ -7,6 +7,7 @@ export type {
   ProfileOutput,
   ImageInput,
   MatchResult,
+  NormalizedQuery,
   ServiceItem,
 } from "./types";
 
@@ -77,6 +78,12 @@ export function improveWriting(
   ...args: Parameters<AIProvider["improveWriting"]>
 ) {
   return provider().improveWriting(...args);
+}
+
+export function normalizeQuery(
+  ...args: Parameters<AIProvider["normalizeQuery"]>
+) {
+  return provider().normalizeQuery(...args);
 }
 
 export function matchExperts(

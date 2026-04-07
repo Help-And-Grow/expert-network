@@ -1,44 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { matchExperts } from "@/lib/ai";
+import { matchExperts, normalizeQuery } from "@/lib/ai";
+import type { NormalizedQuery } from "@/lib/ai";
 import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
-
-/** Whole-query synonyms so short inputs like "AI" still match bios/domains (substring "ai" rarely appears in domain labels). */
-const QUERY_EXPANSIONS: Record<string, string> = {
-  ai: "artificial intelligence machine learning ml llm data science software technology product engineering neural deep learning nlp computer vision gpt genai llm automation 人工智能",
-  ml: "machine learning artificial intelligence data deep learning neural llm",
-  nlp: "natural language processing machine learning artificial intelligence llm text",
-  llm: "large language model artificial intelligence machine learning gpt genai",
-  gpt: "openai llm generative artificial intelligence machine learning",
-  data: "data science analytics machine learning sql python bi engineering",
-  bd: "business development marketing partnerships sales growth",
-  growth: "growth marketing product strategy gtm revenue",
-  legal: "law legal compliance contract incorporation lawyer litigation attorney 法律 法学",
-  funding: "fundraising venture capital investment pitch deck startup",
-  hr: "hiring recruitment talent headhunter people ops",
-  // Chinese (WeChat): map to English tokens that appear in domains/bios
-  法律: "law legal lawyer compliance contract litigation attorney incorporation 法学",
-  法学: "law legal lawyer jurisprudence litigation compliance",
-  人工智能: "artificial intelligence machine learning ml llm data science ai",
-  投资: "investment venture capital fundraising funding startup",
-  招聘: "hiring recruitment talent hr headhunter",
-  合规: "compliance legal regulatory risk",
-};
-
-function expandQueryForKeyword(query: string): string {
-  const t = query.trim();
-  if (!t) return "";
-  const lower = t.toLowerCase();
-  const extra = QUERY_EXPANSIONS[lower] ?? QUERY_EXPANSIONS[t];
-  return extra ? `${t} ${extra}` : t;
-}
-
-/** CJK in the query usually means a specific topic — do not substitute unrelated “popular” experts. */
-function hasCjkScript(s: string): boolean {
-  return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(s);
-}
 
 type MatchExpertRow = {
   id: string;
@@ -51,10 +17,16 @@ type MatchExpertRow = {
   avgRating: number;
 };
 
-function keywordMatch(query: string, experts: MatchExpertRow[]) {
-  const expanded = expandQueryForKeyword(query);
-  const q = expanded.toLowerCase();
-  const words = q.split(/\s+/).filter((w) => w.length >= 2);
+function keywordMatch(
+  nq: NormalizedQuery,
+  experts: MatchExpertRow[]
+) {
+  const allTerms = [
+    nq.english.toLowerCase(),
+    ...nq.keywords.map((k) => k.toLowerCase()),
+    nq.original.toLowerCase(),
+  ];
+  const words = [...new Set(allTerms.flatMap((t) => t.split(/\s+/)).filter((w) => w.length >= 2))];
 
   const scored = experts
     .map((e) => {
@@ -64,19 +36,14 @@ function keywordMatch(query: string, experts: MatchExpertRow[]) {
       const name = (e.user.nickName ?? e.user.name ?? "").toLowerCase();
       const services = JSON.stringify(e.servicesOffered ?? []).toLowerCase();
 
-      if (domainStr.includes(q) || words.some((w) => domainStr.includes(w))) score += 3;
-      if (
-        bio.includes(q) ||
-        words.some((w) => w.length >= 2 && bio.includes(w))
-      )
-        score += 2;
-      if (
-        services.includes(q) ||
-        words.some((w) => w.length >= 2 && services.includes(w))
-      )
-        score += 1;
-      if (name.includes(q) || words.some((w) => w.length >= 2 && name.includes(w)))
-        score += 1;
+      const haystack = `${domainStr} ${bio} ${services} ${name}`;
+      for (const w of words) {
+        if (domainStr.includes(w)) score += 3;
+        if (bio.includes(w)) score += 2;
+        if (services.includes(w)) score += 1;
+        if (name.includes(w)) score += 1;
+      }
+      if (haystack.includes(nq.original.toLowerCase())) score += 2;
 
       return { expert: e, score };
     })
@@ -85,11 +52,7 @@ function keywordMatch(query: string, experts: MatchExpertRow[]) {
     .slice(0, 3);
 
   if (scored.length === 0) {
-    return {
-      recommendations: [],
-      noMatchMessage:
-        "I couldn't find a perfect match for your query. Try describing your specific challenge — e.g. 'I need help with BD in Southeast Asia' or 'Looking for legal advice on incorporation'.",
-    };
+    return { recommendations: [] as { expertId: string; name: string; reason: string; sessionTypes: string[] }[] };
   }
 
   return {
@@ -102,7 +65,6 @@ function keywordMatch(query: string, experts: MatchExpertRow[]) {
   };
 }
 
-/** When the model returns no rows but we have a published pool, show top experts by engagement. */
 function exploratoryFallback(experts: MatchExpertRow[]) {
   const top = [...experts]
     .sort(
@@ -116,11 +78,11 @@ function exploratoryFallback(experts: MatchExpertRow[]) {
     recommendations: top.map((e) => ({
       expertId: e.id,
       name: e.user.nickName ?? e.user.name ?? "Expert",
-      reason: `Active expert on Help & Grow (${domainStrings(e.domains).join(", ") || "multiple areas"}). Add more detail to your search (e.g. industry or goal) for a tighter match.`,
+      reason: `Active expert on Help & Grow (${domainStrings(e.domains).join(", ") || "multiple areas"}). Add more detail to your search for a tighter match.`,
       sessionTypes: [e.sessionType],
     })),
     noMatchMessage:
-      "That search was very broad. Here are experts you can explore — try adding a specific goal (e.g. “AI recruiting tools” or “LLM product strategy”).",
+      "Your search was very broad. Here are some active experts \u2014 try adding a specific goal for a better match.",
   };
 }
 
@@ -152,16 +114,22 @@ export async function POST(request: NextRequest) {
         )
       : [];
 
+    // Step 1: Normalize query (translate, expand, classify intent) via LLM
+    let nq: NormalizedQuery;
+    try {
+      nq = await normalizeQuery(query);
+      console.log("[experts/match] normalized:", JSON.stringify(nq));
+    } catch (err) {
+      console.warn("[experts/match] normalizeQuery failed, using raw:", err);
+      nq = { english: query, keywords: [], intent: "specific_topic", original: query };
+    }
+
+    // Step 2: Fetch expert pool
     const experts = await prisma.expert.findMany({
       where: { isPublished: true },
       include: {
         domains: true,
-        user: {
-          select: {
-            nickName: true,
-            name: true,
-          },
-        },
+        user: { select: { nickName: true, name: true } },
       },
     });
 
@@ -172,10 +140,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Enrich each expert summary with relevant memories (in parallel)
+    // Step 3: Enrich summaries with mem9
     const memoryResults = await Promise.all(
       experts.map((e) =>
-        searchExpertMemories(e.id, query, 3).catch(() => [] as string[])
+        searchExpertMemories(e.id, nq.english || query, 3).catch(() => [] as string[])
       )
     );
 
@@ -190,46 +158,46 @@ export async function POST(request: NextRequest) {
       })
       .join("\n\n---\n\n");
 
+    // Step 4: LLM match (with normalized context)
     try {
-      const result = await matchExperts(query, expertSummaries, history);
-      const aiRecs = result.recommendations?.length ?? 0;
-      if (aiRecs > 0) {
+      const result = await matchExperts(query, expertSummaries, history, nq);
+      if ((result.recommendations?.length ?? 0) > 0) {
         return NextResponse.json(result);
       }
 
-      const keyword = keywordMatch(query, experts);
+      // Step 5: Keyword fallback using LLM-generated keywords
+      const keyword = keywordMatch(nq, experts);
       if (keyword.recommendations.length > 0) {
         return NextResponse.json({
           recommendations: keyword.recommendations,
-          noMatchMessage: result.noMatchMessage ?? keyword.noMatchMessage,
+          noMatchMessage: result.noMatchMessage,
         });
       }
 
-      if (hasCjkScript(query)) {
-        return NextResponse.json({
-          recommendations: [],
-          noMatchMessage:
-            keyword.noMatchMessage ??
-            "暂无匹配该主题的已发布专家。可尝试英文关键词（如 legal、contract）或从首页浏览。No published expert matched this topic — try English keywords (e.g. legal) or browse from home.",
-        });
+      // Step 6: Only show exploratory fallback for greetings/broad queries, not specific unmatched topics
+      if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
+        return NextResponse.json(exploratoryFallback(experts));
       }
 
-      return NextResponse.json(exploratoryFallback(experts));
+      return NextResponse.json({
+        recommendations: [],
+        noMatchMessage:
+          result.noMatchMessage ??
+          `No published expert currently matches "${nq.english}". Try a different topic or browse from the home page.`,
+      });
     } catch (aiError) {
-      console.error("[experts/match] AI matching failed, falling back to keyword:", aiError);
-      const fallback = keywordMatch(query, experts);
+      console.error("[experts/match] AI matching failed, keyword fallback:", aiError);
+      const fallback = keywordMatch(nq, experts);
       if (fallback.recommendations.length > 0) {
         return NextResponse.json(fallback);
       }
-      if (hasCjkScript(query)) {
-        return NextResponse.json({
-          recommendations: [],
-          noMatchMessage:
-            fallback.noMatchMessage ??
-            "暂无匹配该主题的已发布专家。可尝试英文关键词或从首页浏览。No published expert matched — try English keywords or browse from home.",
-        });
+      if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
+        return NextResponse.json(exploratoryFallback(experts));
       }
-      return NextResponse.json(exploratoryFallback(experts));
+      return NextResponse.json({
+        recommendations: [],
+        noMatchMessage: `No published expert currently matches "${nq.english}". Try a different topic or browse from the home page.`,
+      });
     }
   } catch (error) {
     console.error("[experts/match POST]", error);
