@@ -4,12 +4,14 @@ export const dynamic = "force-dynamic";
 
 import { SignJWT } from "jose";
 
+import { getAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
 
 const WECHAT_APP_ID = process.env.WECHAT_APP_ID;
 const WECHAT_APP_SECRET = process.env.WECHAT_APP_SECRET;
+const authSecret = getAuthSecret();
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || "wechat-fallback-secret"
+  authSecret || "wechat-fallback-secret"
 );
 
 interface Code2SessionResponse {

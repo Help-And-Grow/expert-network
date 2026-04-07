@@ -166,5 +166,8 @@ export function isWechatPayConfigured(): boolean {
 const SGD_TO_CNY_RATE = 5.3;
 
 export function convertSGDToCNY(sgdCents: number): number {
-  return Math.ceil((sgdCents * SGD_TO_CNY_RATE) / 100);
+  // Input is SGD cents; output must be CNY fen.
+  // sgdCents / 100 -> SGD yuan, * rate -> CNY yuan, * 100 -> CNY fen
+  // => effectively sgdCents * rate.
+  return Math.ceil(sgdCents * SGD_TO_CNY_RATE);
 }
