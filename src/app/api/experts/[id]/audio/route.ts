@@ -19,14 +19,16 @@ export async function GET(
       return NextResponse.json({ error: "No audio intro" }, { status: 404 });
     }
 
+    // Support audio/mp3, audio/mpeg, audio/mp4, etc. (base64 may wrap)
     const match = expert.audioIntroUrl.match(
-      /^data:(audio\/\w+);base64,(.+)$/
+      /^data:(audio\/[^;]+);base64,([\s\S]+)$/
     );
     if (!match) {
       return NextResponse.json({ error: "Invalid audio data" }, { status: 500 });
     }
 
-    const [, mime, b64] = match;
+    const [, mime, b64Raw] = match;
+    const b64 = b64Raw.replace(/\s+/g, "");
     const buffer = Buffer.from(b64, "base64");
 
     const etag = `"${createHash("md5").update(b64.slice(0, 200)).digest("hex")}"`;
