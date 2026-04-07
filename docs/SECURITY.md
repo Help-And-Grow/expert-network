@@ -22,7 +22,8 @@ All API routes authenticate via `resolveUserId(request)` which checks WeChat JWT
 - All secrets stored in Vercel environment variables (production)
 - Local development uses `.env` (gitignored)
 - `.env.example` documents required variables without values
-- **Never commit**: `.env`, `*.pem`, credentials, API keys
+- **Never commit**: `.env`, `.env*.local`, `.env.vercel.production.local` (pulled production secrets), `*.pem`, credentials, API keys
+- Pulled production env: see [vercel-env-and-secret-rotation.md](references/vercel-env-and-secret-rotation.md) for pull commands and **rotation** if secrets were exposed
 
 ### Critical Secrets
 
