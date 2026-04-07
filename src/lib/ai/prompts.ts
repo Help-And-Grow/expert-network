@@ -235,7 +235,9 @@ Based on your deep analysis of the user's needs and the expert pool, recommend t
 3. "reason": A highly specific 2-3 sentence explanation of why this expert's background perfectly matches the user's need.
 4. "sessionTypes": Available session types
 
-If no expert matches well, return empty "recommendations" array with a "noMatchMessage" string.
+Short or broad queries (e.g. a single word like "AI", "legal", "growth") are common: still pick the 2-3 best-fitting experts from the pool by relating domains, bio, and services to that theme. Prefer suggesting someone over returning an empty list unless the pool is truly irrelevant.
+
+If you truly cannot justify any match, return empty "recommendations" with a helpful "noMatchMessage".
 
 Return ONLY a JSON object, no markdown code fences.`;
 }

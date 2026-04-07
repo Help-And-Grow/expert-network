@@ -5,18 +5,45 @@ import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 
-function keywordMatch(
-  query: string,
-  experts: {
-    id: string;
-    bio: string | null;
-    sessionType: string;
-    servicesOffered: unknown;
-    domains: { domain: string }[];
-    user: { nickName: string | null; name: string | null };
-  }[]
-) {
-  const q = query.toLowerCase();
+/** Whole-query synonyms so short inputs like "AI" still match bios/domains (substring "ai" rarely appears in domain labels). */
+const QUERY_EXPANSIONS: Record<string, string> = {
+  ai: "artificial intelligence machine learning ml llm data science software technology product engineering neural deep learning nlp computer vision gpt genai llm automation 人工智能",
+  ml: "machine learning artificial intelligence data deep learning neural llm",
+  nlp: "natural language processing machine learning artificial intelligence llm text",
+  llm: "large language model artificial intelligence machine learning gpt genai",
+  gpt: "openai llm generative artificial intelligence machine learning",
+  data: "data science analytics machine learning sql python bi engineering",
+  bd: "business development marketing partnerships sales growth",
+  growth: "growth marketing product strategy gtm revenue",
+  legal: "law legal compliance contract incorporation lawyer",
+  funding: "fundraising venture capital investment pitch deck startup",
+  hr: "hiring recruitment talent headhunter people ops",
+};
+
+function expandQueryForKeyword(query: string): string {
+  const t = query.trim();
+  if (!t) return "";
+  const lower = t.toLowerCase();
+  const extra = QUERY_EXPANSIONS[lower];
+  return extra ? `${t} ${extra}` : t;
+}
+
+type MatchExpertRow = {
+  id: string;
+  bio: string | null;
+  sessionType: string;
+  servicesOffered: unknown;
+  domains: { domain: string }[];
+  user: { nickName: string | null; name: string | null };
+  reviewCount: number;
+  avgRating: number;
+};
+
+function keywordMatch(query: string, experts: MatchExpertRow[]) {
+  const expanded = expandQueryForKeyword(query);
+  const q = expanded.toLowerCase();
+  const words = q.split(/\s+/).filter((w) => w.length >= 2);
+
   const scored = experts
     .map((e) => {
       let score = 0;
@@ -25,10 +52,19 @@ function keywordMatch(
       const name = (e.user.nickName ?? e.user.name ?? "").toLowerCase();
       const services = JSON.stringify(e.servicesOffered ?? []).toLowerCase();
 
-      if (domainStr.includes(q) || q.split(/\s+/).some((w) => domainStr.includes(w))) score += 3;
-      if (bio.includes(q) || q.split(/\s+/).some((w) => w.length > 2 && bio.includes(w))) score += 2;
-      if (services.includes(q) || q.split(/\s+/).some((w) => w.length > 2 && services.includes(w))) score += 1;
-      if (name.includes(q)) score += 1;
+      if (domainStr.includes(q) || words.some((w) => domainStr.includes(w))) score += 3;
+      if (
+        bio.includes(q) ||
+        words.some((w) => w.length >= 2 && bio.includes(w))
+      )
+        score += 2;
+      if (
+        services.includes(q) ||
+        words.some((w) => w.length >= 2 && services.includes(w))
+      )
+        score += 1;
+      if (name.includes(q) || words.some((w) => w.length >= 2 && name.includes(w)))
+        score += 1;
 
       return { expert: e, score };
     })
@@ -51,6 +87,28 @@ function keywordMatch(
       reason: `Matches your search based on their expertise in ${domainStrings(r.expert.domains).join(", ")}.`,
       sessionTypes: [r.expert.sessionType],
     })),
+  };
+}
+
+/** When the model returns no rows but we have a published pool, show top experts by engagement. */
+function exploratoryFallback(experts: MatchExpertRow[]) {
+  const top = [...experts]
+    .sort(
+      (a, b) =>
+        b.reviewCount - a.reviewCount ||
+        (b.avgRating ?? 0) - (a.avgRating ?? 0)
+    )
+    .slice(0, 3);
+
+  return {
+    recommendations: top.map((e) => ({
+      expertId: e.id,
+      name: e.user.nickName ?? e.user.name ?? "Expert",
+      reason: `Active expert on Help & Grow (${domainStrings(e.domains).join(", ") || "multiple areas"}). Add more detail to your search (e.g. industry or goal) for a tighter match.`,
+      sessionTypes: [e.sessionType],
+    })),
+    noMatchMessage:
+      "That search was very broad. Here are experts you can explore — try adding a specific goal (e.g. “AI recruiting tools” or “LLM product strategy”).",
   };
 }
 
@@ -122,11 +180,27 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await matchExperts(query, expertSummaries, history);
-      return NextResponse.json(result);
+      const aiRecs = result.recommendations?.length ?? 0;
+      if (aiRecs > 0) {
+        return NextResponse.json(result);
+      }
+
+      const keyword = keywordMatch(query, experts);
+      if (keyword.recommendations.length > 0) {
+        return NextResponse.json({
+          recommendations: keyword.recommendations,
+          noMatchMessage: result.noMatchMessage ?? keyword.noMatchMessage,
+        });
+      }
+
+      return NextResponse.json(exploratoryFallback(experts));
     } catch (aiError) {
       console.error("[experts/match] AI matching failed, falling back to keyword:", aiError);
       const fallback = keywordMatch(query, experts);
-      return NextResponse.json(fallback);
+      if (fallback.recommendations.length > 0) {
+        return NextResponse.json(fallback);
+      }
+      return NextResponse.json(exploratoryFallback(experts));
     }
   } catch (error) {
     console.error("[experts/match POST]", error);
