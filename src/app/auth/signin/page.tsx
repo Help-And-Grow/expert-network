@@ -53,7 +53,7 @@ function SignInForm() {
     }
     setEmailLoading(true);
     try {
-      const result = await signIn("email", {
+      const result = await signIn("nodemailer", {
         email: email.trim(),
         callbackUrl,
         redirect: false,
