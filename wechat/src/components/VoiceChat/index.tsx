@@ -1,7 +1,8 @@
-import { View, Text, LivePusher, LivePlayer } from "@tarojs/components";
+import { View, Text, ScrollView, Input } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { post } from "../../shared/api";
+import { getApiBase } from "../../shared/auth";
 import "./index.scss";
 
 interface VoiceChatProps {
@@ -11,21 +12,24 @@ interface VoiceChatProps {
   onClose: () => void;
 }
 
-type CallState = "connecting" | "connected" | "ending" | "ended" | "error";
-
-interface StartResponse {
-  channelName: string;
-  token: string;
-  uid: number;
-  appId: string;
-  maxDurationSeconds: number;
-  expertName: string;
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  audioUrl?: string;
 }
 
-function formatTimer(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+interface ChatResponse {
+  userText: string;
+  replyText: string;
+  replyAudio: string;
+  turnCount: number;
+  maxTurns: number;
+}
+
+let msgCounter = 0;
+function nextId(): string {
+  return `wc-msg-${++msgCounter}`;
 }
 
 export default function VoiceChat({
@@ -34,218 +38,309 @@ export default function VoiceChat({
   visible,
   onClose,
 }: VoiceChatProps) {
-  const [callState, setCallState] = useState<CallState>("connecting");
-  const [error, setError] = useState("");
-  const [muted, setMuted] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [maxDuration, setMaxDuration] = useState(300);
-  const [pushUrl, setPushUrl] = useState("");
-  const [pullUrl, setPullUrl] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
-  const channelRef = useRef("");
+  const recorderRef = useRef<Taro.RecorderManager | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const cleanup = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const endCall = useCallback(async () => {
-    if (!channelRef.current) return;
-    setCallState("ending");
-    cleanup();
-
-    await post("/api/voice-chat/stop", {
-      channelName: channelRef.current,
-    }).catch(() => {});
-
-    setCallState("ended");
-    setPushUrl("");
-    setPullUrl("");
-  }, [cleanup]);
+  const audioCtxRef = useRef<Taro.InnerAudioContext | null>(null);
 
   useEffect(() => {
-    if (!visible) return;
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (audioCtxRef.current) {
+        audioCtxRef.current.stop();
+        audioCtxRef.current.destroy();
+      }
+    };
+  }, []);
 
-    let cancelled = false;
+  const scrollToBottom = useCallback(() => {
+    setScrollTop((prev) => prev + 9999);
+  }, []);
 
-    async function startCall() {
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const getRecorder = useCallback(() => {
+    if (!recorderRef.current) {
+      const recorder = Taro.getRecorderManager();
+      recorder.onStop((res) => {
+        setRecording(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (res.tempFilePath) {
+          sendVoice(res.tempFilePath);
+        }
+      });
+      recorder.onError(() => {
+        setRecording(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        Taro.showToast({ title: "录音失败", icon: "none" });
+      });
+      recorderRef.current = recorder;
+    }
+    return recorderRef.current;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startRecording = useCallback(() => {
+    const recorder = getRecorder();
+    recorder.start({ duration: 30000, format: "mp3" });
+    setRecording(true);
+    setElapsed(0);
+    timerRef.current = setInterval(() => {
+      setElapsed((p) => p + 1);
+    }, 1000);
+  }, [getRecorder]);
+
+  const stopRecording = useCallback(() => {
+    const recorder = getRecorder();
+    recorder.stop();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setRecording(false);
+  }, [getRecorder]);
+
+  const sendVoice = useCallback(
+    async (filePath: string) => {
+      setProcessing(true);
+      const userMsg: Message = { id: nextId(), role: "user", text: "..." };
+      setMessages((prev) => [...prev, userMsg]);
+
       try {
-        const res = await post<StartResponse>("/api/voice-chat/start", {
-          expertId,
+        const API_BASE = getApiBase();
+        const token = Taro.getStorageSync("token") as string;
+        const uploadRes = await Taro.uploadFile({
+          url: `${API_BASE}/api/voice-chat/message`,
+          filePath,
+          name: "audio",
+          formData: { expertId },
+          header: {
+            "x-wechat-token": token || "",
+          },
         });
 
-        if (res.statusCode !== 200 || !res.data.channelName) {
-          throw new Error(
-            (res.data as unknown as { error?: string }).error || "连接失败"
-          );
+        if (uploadRes.statusCode !== 200) {
+          const errData = JSON.parse(uploadRes.data || "{}");
+          throw new Error(errData.error || "发送失败");
         }
 
-        if (cancelled) return;
+        const data: ChatResponse = JSON.parse(uploadRes.data);
 
-        const { channelName, token, uid, appId, maxDurationSeconds } = res.data;
-        channelRef.current = channelName;
-        if (maxDurationSeconds) setMaxDuration(maxDurationSeconds);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === userMsg.id ? { ...m, text: data.userText } : m,
+          ),
+        );
 
-        const rtmpPush = `rtmp://vl.cdn.agora.io/live/${appId}/${channelName}/${uid}?token=${encodeURIComponent(token)}`;
-        const rtmpPull = `rtmp://vl.cdn.agora.io/live/${appId}/${channelName}/0`;
+        const aiMsg: Message = {
+          id: nextId(),
+          role: "assistant",
+          text: data.replyText,
+          audioUrl: data.replyAudio,
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        setTurnInfo({ count: data.turnCount, max: data.maxTurns });
 
-        setPushUrl(rtmpPush);
-        setPullUrl(rtmpPull);
-        setCallState("connected");
-
-        const startTime = Date.now();
-        timerRef.current = setInterval(() => {
-          const secs = Math.floor((Date.now() - startTime) / 1000);
-          setElapsed(secs);
-          if (secs >= (maxDurationSeconds || 300)) {
-            endCall();
-          }
-        }, 1000);
+        playAudio(data.replyAudio, aiMsg.id);
       } catch (err) {
-        if (cancelled) return;
-        const msg = err instanceof Error ? err.message : "连接失败";
-        setError(msg);
-        setCallState("error");
+        const msg = err instanceof Error ? err.message : "发送失败";
+        Taro.showToast({ title: msg, icon: "none" });
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      } finally {
+        setProcessing(false);
       }
+    },
+    [expertId],
+  );
+
+  const sendText = useCallback(async () => {
+    const text = textInput.trim();
+    if (!text || processing) return;
+    setTextInput("");
+    setProcessing(true);
+
+    const userMsg: Message = { id: nextId(), role: "user", text };
+    setMessages((prev) => [...prev, userMsg]);
+
+    try {
+      const res = await post<ChatResponse>("/api/voice-chat/message", {
+        expertId,
+        text,
+      });
+
+      if (res.statusCode !== 200) {
+        const errData = res.data as unknown as { error?: string };
+        throw new Error(errData?.error || "发送失败");
+      }
+
+      const aiMsg: Message = {
+        id: nextId(),
+        role: "assistant",
+        text: res.data.replyText,
+        audioUrl: res.data.replyAudio,
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      setTurnInfo({ count: res.data.turnCount, max: res.data.maxTurns });
+
+      playAudio(res.data.replyAudio, aiMsg.id);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "发送失败";
+      Taro.showToast({ title: msg, icon: "none" });
+    } finally {
+      setProcessing(false);
     }
+  }, [expertId, textInput, processing]);
 
-    startCall();
+  const playAudio = useCallback((src: string, msgId: string) => {
+    if (audioCtxRef.current) {
+      audioCtxRef.current.stop();
+      audioCtxRef.current.destroy();
+    }
+    const ctx = Taro.createInnerAudioContext();
+    ctx.src = src;
+    ctx.onEnded(() => setPlayingId(null));
+    ctx.onError(() => setPlayingId(null));
+    ctx.play();
+    audioCtxRef.current = ctx;
+    setPlayingId(msgId);
+  }, []);
 
-    return () => {
-      cancelled = true;
-      cleanup();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  const togglePlay = useCallback(
+    (msg: Message) => {
+      if (!msg.audioUrl) return;
+      if (playingId === msg.id) {
+        audioCtxRef.current?.stop();
+        setPlayingId(null);
+      } else {
+        playAudio(msg.audioUrl, msg.id);
+      }
+    },
+    [playingId, playAudio],
+  );
+
+  const formatTime = (s: number) =>
+    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
   if (!visible) return null;
 
-  const remaining = Math.max(0, maxDuration - elapsed);
+  const turnsRemaining = turnInfo.max - turnInfo.count;
 
   return (
-    <View className="voice-chat-overlay">
-      <View className="voice-chat-modal">
+    <View className="vc-overlay">
+      <View className="vc-container">
         {/* Header */}
-        <View className="voice-chat-header">
-          <Text className="voice-chat-header__title">
-            {callState === "connecting"
-              ? "连接中..."
-              : callState === "error"
-                ? "连接失败"
-                : callState === "ended" || callState === "ending"
-                  ? "通话结束"
-                  : `AI ${expertName}`}
-          </Text>
-          <Text className="voice-chat-header__subtitle">
-            {callState === "connected"
-              ? "语音聊天 · 免费体验"
-              : callState === "connecting"
-                ? "正在建立 AI 语音连接..."
-                : callState === "error"
-                  ? error
-                  : "感谢您的体验"}
-          </Text>
+        <View className="vc-header">
+          <View className="vc-header__info">
+            <Text className="vc-header__title">AI {expertName}</Text>
+            <Text className="vc-header__subtitle">
+              {turnsRemaining > 0
+                ? `还可发送 ${turnsRemaining} 条消息`
+                : "已达上限"}
+            </Text>
+          </View>
+          <View
+            className="vc-header__close"
+            hoverClass="vc-header__close--hover"
+            onClick={onClose}
+          >
+            ✕
+          </View>
         </View>
 
-        {/* Timer */}
-        {callState === "connected" && (
-          <View className="voice-chat-timer">
-            <Text
-              className={`voice-chat-timer__text ${remaining <= 30 ? "voice-chat-timer__text--warning" : ""}`}
+        {/* Messages */}
+        <ScrollView
+          className="vc-messages"
+          scrollY
+          scrollTop={scrollTop}
+          scrollWithAnimation
+        >
+          {messages.length === 0 && (
+            <View className="vc-empty">
+              <Text className="vc-empty__icon">💬</Text>
+              <Text className="vc-empty__text">
+                发送语音或文字，AI 将以{expertName}的声音回复
+              </Text>
+            </View>
+          )}
+
+          {messages.map((msg) => (
+            <View
+              key={msg.id}
+              className={`vc-bubble ${msg.role === "user" ? "vc-bubble--user" : "vc-bubble--ai"}`}
             >
-              {formatTimer(remaining)}
-            </Text>
-            <Text className="voice-chat-timer__label">剩余时间</Text>
-          </View>
-        )}
+              <Text className="vc-bubble__text">{msg.text}</Text>
+              {msg.audioUrl && (
+                <View
+                  className="vc-bubble__play"
+                  hoverClass="vc-bubble__play--hover"
+                  onClick={() => togglePlay(msg)}
+                >
+                  <Text>{playingId === msg.id ? "⏸" : "▶"}</Text>
+                  <Text className="vc-bubble__play-label">
+                    {playingId === msg.id ? "暂停" : "播放语音"}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))}
 
-        {/* Connecting spinner */}
-        {callState === "connecting" && (
-          <View className="voice-chat-loading">
-            <Text className="voice-chat-loading__icon">⏳</Text>
-          </View>
-        )}
+          {processing && (
+            <View className="vc-bubble vc-bubble--ai">
+              <Text className="vc-bubble__text">思考中...</Text>
+            </View>
+          )}
+        </ScrollView>
 
-        {/* Hidden live-pusher/live-player for audio */}
-        {callState === "connected" && pushUrl && (
-          <LivePusher
-            url={pushUrl}
-            mode="RTC"
-            autopush
-            muted={muted}
-            enableCamera={false}
-            enableMic={!muted}
-            style={{ width: 0, height: 0 }}
-          />
-        )}
-        {callState === "connected" && pullUrl && (
-          <LivePlayer
-            src={pullUrl}
-            mode="RTC"
-            autoplay
-            style={{ width: 0, height: 0 }}
-          />
-        )}
-
-        {/* Controls */}
-        <View className="voice-chat-controls">
-          {callState === "connected" && (
+        {/* Input */}
+        <View className="vc-input-bar">
+          {turnsRemaining <= 0 ? (
+            <Text className="vc-input-bar__limit">已达消息上限，请预约完整咨询</Text>
+          ) : (
             <>
-              <View
-                className={`voice-chat-btn ${muted ? "voice-chat-btn--muted" : ""}`}
-                hoverClass="voice-chat-btn--hover"
-                onClick={() => setMuted(!muted)}
-              >
-                <Text className="voice-chat-btn__icon">{muted ? "🔇" : "🎤"}</Text>
-                <Text className="voice-chat-btn__label">{muted ? "已静音" : "静音"}</Text>
-              </View>
-              <View
-                className="voice-chat-btn voice-chat-btn--end"
-                hoverClass="voice-chat-btn--hover"
-                onClick={endCall}
-              >
-                <Text className="voice-chat-btn__icon">📞</Text>
-                <Text className="voice-chat-btn__label">结束</Text>
-              </View>
+              <Input
+                className="vc-input-bar__text"
+                value={textInput}
+                onInput={(e) => setTextInput(e.detail.value)}
+                onConfirm={() => sendText()}
+                confirmType="send"
+                placeholder="输入文字..."
+                disabled={processing || recording}
+              />
+              {textInput.trim() ? (
+                <View
+                  className="vc-input-bar__btn vc-input-bar__btn--send"
+                  hoverClass="vc-input-bar__btn--hover"
+                  onClick={() => sendText()}
+                >
+                  发送
+                </View>
+              ) : (
+                <View
+                  className={`vc-input-bar__btn ${recording ? "vc-input-bar__btn--recording" : "vc-input-bar__btn--mic"}`}
+                  hoverClass="vc-input-bar__btn--hover"
+                  onClick={recording ? stopRecording : startRecording}
+                >
+                  {recording ? "⏹" : "🎤"}
+                </View>
+              )}
             </>
           )}
-
-          {(callState === "ended" || callState === "ending") && (
-            <View
-              className="voice-chat-btn voice-chat-btn--close"
-              hoverClass="voice-chat-btn--hover"
-              onClick={onClose}
-            >
-              <Text className="voice-chat-btn__label">关闭</Text>
-            </View>
-          )}
-
-          {callState === "error" && (
-            <View
-              className="voice-chat-btn voice-chat-btn--close"
-              hoverClass="voice-chat-btn--hover"
-              onClick={onClose}
-            >
-              <Text className="voice-chat-btn__label">关闭</Text>
-            </View>
-          )}
-
-          {callState === "connecting" && (
-            <View
-              className="voice-chat-btn voice-chat-btn--close"
-              hoverClass="voice-chat-btn--hover"
-              onClick={() => {
-                cleanup();
-                setCallState("ended");
-              }}
-            >
-              <Text className="voice-chat-btn__label">取消</Text>
-            </View>
-          )}
         </View>
+
+        {recording && (
+          <View className="vc-recording-hint">
+            <Text className="vc-recording-hint__text">
+              录音中 {formatTime(elapsed)}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );

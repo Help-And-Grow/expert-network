@@ -223,13 +223,13 @@ export default function ExpertPage() {
             hoverClass="expert-profile__voice-chat-btn--hover"
             onClick={() => setShowVoiceChat(true)}
           >
-            <Text className="expert-profile__voice-chat-icon">📞</Text>
+            <Text className="expert-profile__voice-chat-icon">💬</Text>
             <View className="expert-profile__voice-chat-text">
               <Text className="expert-profile__voice-chat-title">
-                与 AI {name} 语音聊天
+                与 AI {name} 对话
               </Text>
               <Text className="expert-profile__voice-chat-desc">
-                免费 5 分钟 · AI 专家语音克隆
+                免费语音对话 · AI 以专家声音回复
               </Text>
             </View>
           </View>

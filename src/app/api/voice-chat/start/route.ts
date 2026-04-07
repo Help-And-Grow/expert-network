@@ -2,32 +2,41 @@ import { type NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 
 import { resolveUserId } from "@/lib/request-auth";
+import { isRealtimeEnabled, isRealtimeReady } from "@/lib/voice-chat-config";
 import { generateRtcToken } from "@/lib/agora-token";
 import {
-  hasActiveSession,
-  registerSession,
-  removeSession,
+  hasRealtimeSession,
+  registerRealtimeSession,
+  removeRealtimeSession,
   loadExpertVoiceChatProfile,
   startTenAgent,
   stopTenAgent,
-  MAX_DURATION_SECONDS,
+  RT_MAX_DURATION_SECONDS,
 } from "@/lib/voice-chat-session";
 
 export const maxDuration = 15;
 
 export async function POST(request: NextRequest) {
+  if (!isRealtimeEnabled()) {
+    return NextResponse.json(
+      { error: "Real-time voice chat is not enabled. Set VOICE_CHAT_MODE=realtime or both." },
+      { status: 503 },
+    );
+  }
+
+  if (!isRealtimeReady()) {
+    return NextResponse.json(
+      { error: "Real-time voice chat is enabled but not yet configured. AGORA_APP_ID, AGORA_APP_CERTIFICATE, and TEN_AGENT_URL are required." },
+      { status: 503 },
+    );
+  }
+
   const userId = await resolveUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const appId = process.env.AGORA_APP_ID;
-  if (!appId) {
-    return NextResponse.json(
-      { error: "Voice chat is not configured" },
-      { status: 503 },
-    );
-  }
+  const appId = process.env.AGORA_APP_ID!;
 
   let body: { expertId?: string };
   try {
@@ -41,7 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "expertId is required" }, { status: 400 });
   }
 
-  if (hasActiveSession(userId)) {
+  if (hasRealtimeSession(userId)) {
     return NextResponse.json(
       { error: "You already have an active voice chat session" },
       { status: 429 },
@@ -51,7 +60,7 @@ export async function POST(request: NextRequest) {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) {
     return NextResponse.json(
-      { error: "Expert does not have a cloned voice. Voice chat is unavailable." },
+      { error: "Expert does not have a cloned voice." },
       { status: 404 },
     );
   }
@@ -72,16 +81,16 @@ export async function POST(request: NextRequest) {
   }
 
   const onTimeout = async (ch: string) => {
-    console.log(`[voice-chat] Session timed out: ${ch}`);
-    removeSession(ch);
+    console.log(`[voice-chat] Realtime session timed out: ${ch}`);
+    removeRealtimeSession(ch);
     await stopTenAgent(ch);
   };
 
-  registerSession(channelName, expertId, userId, onTimeout);
+  registerRealtimeSession(channelName, expertId, userId, onTimeout);
 
   const agentResult = await startTenAgent(channelName, agentUid, profile);
   if (!agentResult.ok) {
-    console.warn("[voice-chat/start] TEN agent failed to start:", agentResult.error);
+    console.warn("[voice-chat/start] TEN agent failed:", agentResult.error);
   }
 
   return NextResponse.json({
@@ -89,7 +98,7 @@ export async function POST(request: NextRequest) {
     token,
     uid: userUid,
     appId,
-    maxDurationSeconds: MAX_DURATION_SECONDS,
+    maxDurationSeconds: RT_MAX_DURATION_SECONDS,
     expertName: profile.name,
     expertDomains: profile.domains,
   });

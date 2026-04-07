@@ -1,13 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
+import { isRealtimeEnabled } from "@/lib/voice-chat-config";
 import {
-  getActiveSession,
-  removeSession,
+  getRealtimeSession,
+  removeRealtimeSession,
   stopTenAgent,
 } from "@/lib/voice-chat-session";
 
 export async function POST(request: NextRequest) {
+  if (!isRealtimeEnabled()) {
+    return NextResponse.json(
+      { error: "Real-time voice chat is not enabled" },
+      { status: 503 },
+    );
+  }
+
   const userId = await resolveUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "channelName is required" }, { status: 400 });
   }
 
-  const session = getActiveSession(channelName);
+  const session = getRealtimeSession(channelName);
   if (!session) {
     return NextResponse.json({ error: "No active session found" }, { status: 404 });
   }
@@ -34,7 +42,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not your session" }, { status: 403 });
   }
 
-  removeSession(channelName);
+  removeRealtimeSession(channelName);
   await stopTenAgent(channelName).catch(() => {});
 
   const durationMs = Date.now() - session.startedAt;
