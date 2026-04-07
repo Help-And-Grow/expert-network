@@ -1,0 +1,58 @@
+# Build the Taro WeChat mini program and upload to WeChat via miniprogram-ci.
+# You must still assign 体验版 or submit 审核 in the 微信公众平台 — WeChat does not auto-publish to all users.
+#
+# Setup (once):
+#   Repository → Settings → Secrets → Actions:
+#     WECHAT_CI_PRIVATE_KEY = full contents of private.wx09d0eb079596060d.key (PEM)
+#
+name: WeChat mini program upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version label shown in WeChat (e.g. 1.0.8)"
+        required: true
+        type: string
+      description:
+        description: "Release notes for this upload"
+        required: false
+        default: "CI upload"
+        type: string
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: wechat/package-lock.json
+
+      - name: Install deps (wechat)
+        working-directory: wechat
+        run: npm ci
+
+      - name: Build weapp
+        working-directory: wechat
+        run: npm run build:weapp
+
+      - name: Write CI key
+        env:
+          WECHAT_CI_PRIVATE_KEY: ${{ secrets.WECHAT_CI_PRIVATE_KEY }}
+        run: |
+          if [ -z "$WECHAT_CI_PRIVATE_KEY" ]; then
+            echo "Missing secret WECHAT_CI_PRIVATE_KEY"
+            exit 1
+          fi
+          printf '%s\n' "$WECHAT_CI_PRIVATE_KEY" > "${{ runner.temp }}/wechat-ci.key"
+          chmod 600 "${{ runner.temp }}/wechat-ci.key"
+
+      - name: Upload to WeChat
+        env:
+          WECHAT_CI_KEY_PATH: ${{ runner.temp }}/wechat-ci.key
+        run: |
+          node scripts/wechat-upload.js "${{ inputs.version }}" "${{ inputs.description }}"

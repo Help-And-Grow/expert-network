@@ -5,6 +5,7 @@ import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Nodemailer from "next-auth/providers/nodemailer";
 
+import { maskEmailForLog } from "@/lib/auth-log";
 import { prisma } from "@/lib/prisma";
 
 const providers: NextAuthConfig["providers"] = [];
@@ -19,19 +20,35 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
 }
 
 if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
-  providers.push(
-    Nodemailer({
-      server: {
-        host: env.EMAIL_SERVER_HOST,
-        port: parseInt(env.EMAIL_SERVER_PORT || "587", 10),
-        auth: {
-          user: env.EMAIL_SERVER_USER,
-          pass: env.EMAIL_SERVER_PASSWORD,
-        },
+  const nodemailerProvider = Nodemailer({
+    server: {
+      host: env.EMAIL_SERVER_HOST,
+      port: parseInt(env.EMAIL_SERVER_PORT || "587", 10),
+      auth: {
+        user: env.EMAIL_SERVER_USER,
+        pass: env.EMAIL_SERVER_PASSWORD,
       },
-      from: env.EMAIL_FROM,
-    }),
-  );
+    },
+    from: env.EMAIL_FROM,
+  });
+  providers.push({
+    ...nodemailerProvider,
+    async sendVerificationRequest(params) {
+      const hint = maskEmailForLog(params.identifier);
+      console.log("[auth] Magic link: sendVerificationRequest start", {
+        to: hint,
+        host: env.EMAIL_SERVER_HOST,
+      });
+      try {
+        await nodemailerProvider.sendVerificationRequest!(params);
+        console.log("[auth] Magic link: SMTP send finished OK", { to: hint });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[auth] Magic link send failed:", { to: hint, message: msg });
+        throw err;
+      }
+    },
+  });
 }
 
 const authConfig = {
