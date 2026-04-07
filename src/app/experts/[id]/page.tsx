@@ -28,7 +28,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
-import { VoiceChatButton } from "@/components/voice-chat-button";
+import { VoiceChatModal } from "@/components/voice-chat-modal";
+import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
@@ -141,6 +142,13 @@ export default function ExpertProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [showVoiceChat, setShowVoiceChat] = useState(false);
+  const [showRealtimeChat, setShowRealtimeChat] = useState(false);
+  const [vcConfig, setVcConfig] = useState<{
+    asyncEnabled: boolean;
+    realtimeEnabled: boolean;
+    realtimeReady: boolean;
+  }>({ asyncEnabled: true, realtimeEnabled: false, realtimeReady: false });
   const reviewsRef = useRef<Review[]>([]);
   reviewsRef.current = reviews;
 
@@ -194,6 +202,10 @@ export default function ExpertProfilePage() {
 
   useEffect(() => {
     fetchExpert();
+    fetch("/api/voice-chat/config")
+      .then((r) => r.json())
+      .then((data) => setVcConfig(data))
+      .catch(() => {});
   }, [fetchExpert]);
 
   useEffect(() => {
@@ -379,18 +391,53 @@ export default function ExpertProfilePage() {
       )}
 
       {/* AI Voice Chat */}
-      {expert.hasClonedVoice && (
-        <section className="mt-4">
-          <VoiceChatButton
-            expertId={expert.id}
-            expertName={name}
-            hasClonedVoice={expert.hasClonedVoice}
-            className="w-full h-11 text-sm font-medium bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 hover:from-indigo-100 hover:to-purple-100"
-          />
-          <p className="mt-1.5 text-xs text-muted-foreground text-center">
-            Free 5-min voice chat with AI-powered expert clone
+      {expert.hasClonedVoice && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
+        <section className="mt-4 space-y-2">
+          {vcConfig.asyncEnabled && (
+            <Button
+              variant="outline"
+              className="w-full h-11 text-sm font-medium bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 hover:from-indigo-100 hover:to-purple-100"
+              onClick={() => setShowVoiceChat(true)}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Chat with AI {name.split(" ")[0]}
+            </Button>
+          )}
+          {vcConfig.realtimeReady && (
+            <Button
+              variant="outline"
+              className="w-full h-11 text-sm font-medium bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100"
+              onClick={() => setShowRealtimeChat(true)}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Live call with AI {name.split(" ")[0]}
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground text-center">
+            {vcConfig.asyncEnabled && vcConfig.realtimeReady
+              ? `Free AI voice chat — message or call ${name}`
+              : vcConfig.realtimeReady
+                ? `Free 5-min live call with AI ${name}`
+                : `Free voice chat — AI responds in ${name}'s voice`}
           </p>
         </section>
+      )}
+
+      {showVoiceChat && (
+        <VoiceChatPanel
+          expertId={expert.id}
+          expertName={name}
+          open={showVoiceChat}
+          onClose={() => setShowVoiceChat(false)}
+        />
+      )}
+
+      {showRealtimeChat && (
+        <VoiceChatModal
+          expertId={expert.id}
+          expertName={name}
+          onClose={() => setShowRealtimeChat(false)}
+        />
       )}
 
       {/* About / Introduction Script */}

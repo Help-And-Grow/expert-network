@@ -108,6 +108,7 @@ const envSchema = z
     FISH_AUDIO_VOICE_ID_MALE: z.string().optional(),
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
+    VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
     AGORA_APP_ID: z.string().optional(),
     AGORA_APP_CERTIFICATE: z.string().optional(),
     TEN_AGENT_URL: z.string().url().optional(),

@@ -12,9 +12,8 @@
 ## Upcoming Work
 
 - [x] **Next.js 15 upgrade** — [completed plan](exec-plans/completed/nextjs-15-upgrade.md) (run manual QA on preview before prod)
-- [x] **AI Voice Chat (Phase 1)** — Talk to expert's AI clone via Agora RTC + TEN Agent; DashScope Qwen ASR/LLM/TTS-VC; 5-min free cap; Web + Telegram
-- [ ] **AI Voice Chat Phase 2** — Telegram Mini App testing + session logging to HiClaw DB
-- [ ] **AI Voice Chat Phase 3** — WeChat Mini Program support (Agora mini program SDK + enterprise cert)
+- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 10-turn) + realtime Agora RTC (5-min, requires TEN Agent). DashScope Qwen ASR/LLM/TTS-VC pipeline; Web, Telegram, WeChat
+- [ ] **AI Voice Chat — Realtime deployment** — Deploy TEN Agent on ECS, configure `AGORA_APP_CERTIFICATE` + `TEN_AGENT_URL`, flip `VOICE_CHAT_MODE=both`
 - [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
 - [ ] Expert earnings dashboard (view payouts, transaction history)
 - [ ] Group sessions / workshop booking support
@@ -51,6 +50,6 @@
 | 2026-03 | Use Qwen as primary AI in production | Better Chinese language support for SEA market |
 | 2026-03 | Remove WhatsApp integration | Low adoption, maintenance burden |
 | 2026-03 | Stripe Express Connect for experts | Simplest marketplace payout model |
-| 2026-04 | Agora RTC + TEN Framework for AI voice chat | Expert clone pre-interview; free 5-min cap; DashScope full pipeline (ASR/LLM/TTS-VC) |
+| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async (default, DashScope only) + realtime (Agora RTC + TEN Agent); expert clone pre-interview |
 
 See [docs/exec-plans/](exec-plans/) for detailed execution plans.

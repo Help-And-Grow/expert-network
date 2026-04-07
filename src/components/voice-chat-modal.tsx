@@ -6,7 +6,6 @@ import { Mic, MicOff, Phone, PhoneOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isTelegramMiniApp } from "@/lib/telegram";
 
 type IAgoraRTCClient = import("agora-rtc-sdk-ng").IAgoraRTCClient;
 type IMicrophoneAudioTrack = import("agora-rtc-sdk-ng").IMicrophoneAudioTrack;
@@ -99,7 +98,6 @@ export function VoiceChatModal({
         if (maxDurationSeconds) setMaxDuration(maxDurationSeconds);
 
         const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
-
         if (cancelled) return;
 
         const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
@@ -107,14 +105,6 @@ export function VoiceChatModal({
 
         await client.join(appId, channelName, token, uid);
         if (cancelled) return;
-
-        if (isTelegramMiniApp()) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const webApp = (window as any).Telegram?.WebApp;
-          if (webApp?.requestWriteAccess) {
-            await webApp.requestWriteAccess().catch(() => {});
-          }
-        }
 
         const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
         trackRef.current = micTrack;
@@ -155,7 +145,6 @@ export function VoiceChatModal({
       cancelled = true;
       cleanup();
     };
-    // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -188,7 +177,7 @@ export function VoiceChatModal({
           </h3>
           <p className="mt-1 text-sm text-white/80">
             {callState === "connected"
-              ? "Voice Chat · Free Preview"
+              ? "Live Voice · Free Preview"
               : callState === "connecting"
                 ? "Setting up AI voice agent..."
                 : callState === "error"
@@ -210,7 +199,6 @@ export function VoiceChatModal({
             </div>
             <p className="text-xs text-muted-foreground mt-1">remaining</p>
 
-            {/* Audio wave animation */}
             <div className="mt-4 flex items-center justify-center gap-1">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
@@ -229,7 +217,6 @@ export function VoiceChatModal({
           </div>
         )}
 
-        {/* Connecting state */}
         {callState === "connecting" && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
@@ -249,11 +236,7 @@ export function VoiceChatModal({
                 )}
                 onClick={toggleMute}
               >
-                {muted ? (
-                  <MicOff className="h-5 w-5" />
-                ) : (
-                  <Mic className="h-5 w-5" />
-                )}
+                {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
               <Button
                 variant="destructive"
@@ -267,24 +250,17 @@ export function VoiceChatModal({
           )}
 
           {(callState === "ended" || callState === "ending") && (
-            <Button onClick={onClose} className="w-full">
-              Close
-            </Button>
+            <Button onClick={onClose} className="w-full">Close</Button>
           )}
 
           {callState === "error" && (
-            <Button variant="outline" onClick={onClose} className="w-full">
-              Close
-            </Button>
+            <Button variant="outline" onClick={onClose} className="w-full">Close</Button>
           )}
 
           {callState === "connecting" && (
             <Button
               variant="outline"
-              onClick={() => {
-                cleanup();
-                setCallState("ended");
-              }}
+              onClick={() => { cleanup(); setCallState("ended"); }}
             >
               Cancel
             </Button>

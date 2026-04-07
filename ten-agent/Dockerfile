@@ -1,9 +1,14 @@
 FROM node:20-slim
 
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
+
 COPY package.json package-lock.json* ./
-RUN npm ci --production 2>/dev/null || npm install --production
-COPY src/ src/
+RUN npm ci --omit=dev
+
+COPY src/ ./src/
 
 EXPOSE 8080
+
 CMD ["node", "src/server.mjs"]

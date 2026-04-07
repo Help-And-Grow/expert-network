@@ -31,7 +31,6 @@ src/
   components/        ← React components (shadcn/ui primitives in ui/)
   lib/               ← Core business logic, integrations, AI providers
   hooks/             ← Custom React hooks
-ten-agent/           ← TEN Agent AI voice chat service (Docker)
 wechat/              ← WeChat Mini Program (Taro + React)
 ```
 
@@ -72,7 +71,7 @@ See `docs/` for full details:
 11. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (MySQL via `TIDB_DATABASE_URL` **or** Postgres via `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`), **waitingRoom**. Shadow stack uses **mem9** + **DashScope Qwen-Max**; session handoffs and `evaluator_critiques` on `sessions` / dedicated table. Details: [`hiclaw/README.md`](hiclaw/README.md). Design: [`docs/design-docs/hiclaw-agent-harness-db9.md`](docs/design-docs/hiclaw-agent-harness-db9.md).
 12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates HiClaw `sessions` in Postgres (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from the same store.
 13. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; mentee H&G balance via wagmi + ledger API.
-14. **AI Voice Chat**: Learners talk to an expert's AI clone via Agora RTC + TEN Agent (Docker service in `ten-agent/`). Uses DashScope Qwen for ASR/LLM/TTS-VC with the expert's cloned voice (`fishAudioModelId`) and mem9 context. Free 5-min cap. API: `/api/voice-chat/start`, `/api/voice-chat/stop`. Env: `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, `TEN_AGENT_URL`.
+14. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): voice/text messaging, ASR → LLM (+ mem9) → TTS-VC, 10-turn free cap, `POST /api/voice-chat/message`. **Realtime**: Agora RTC live call via TEN Agent (Docker), 5-min cap, `POST /api/voice-chat/start` + `/stop`. Config endpoint: `GET /api/voice-chat/config`. Requires `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, `TEN_AGENT_URL` for realtime mode.
 
 ## Documentation (key changes)
 
@@ -105,5 +104,5 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | On-chain sync/reputation | `src/lib/tidb.ts`, `src/app/api/webhook/onchain/`, `src/app/api/reputation/` |
 | DB9 / HiClaw Postgres URL (Vercel) | `docs/design-docs/db9-integration.md`; `/admin/tidb` DB9 API helper (`POST /api/admin/tidb/db9`); `npm run db9:provision` when CLI TLS fails |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
-| AI voice chat feature | `src/app/api/voice-chat/`, `src/lib/voice-chat-session.ts`, `src/lib/agora-token.ts`, `src/components/voice-chat-*.tsx`, `ten-agent/` |
+| AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |
 | Update product specs | `docs/product-specs/` |
