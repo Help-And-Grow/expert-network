@@ -41,6 +41,7 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# WeChat Mini Program CI private key
+# WeChat Mini Program CI private key (never commit; download from MP admin)
 private.*.key
+wechat/private.*.key
 .cursor/mcp.json

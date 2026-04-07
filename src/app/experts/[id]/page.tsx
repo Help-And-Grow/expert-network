@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
+import { VoiceChatButton } from "@/components/voice-chat-button";
 import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
@@ -60,6 +61,7 @@ interface Expert {
   xiaohongshu: string | null;
   hasAvatar: boolean;
   hasAudio: boolean;
+  hasClonedVoice: boolean;
   avatarScript: string | null;
   documentName: string | null;
   priceOnlineCents: number | null;
@@ -373,6 +375,21 @@ export default function ExpertProfilePage() {
             src={`/api/experts/${id}/audio`}
             label={`${name}'s voice introduction`}
           />
+        </section>
+      )}
+
+      {/* AI Voice Chat */}
+      {expert.hasClonedVoice && (
+        <section className="mt-4">
+          <VoiceChatButton
+            expertId={expert.id}
+            expertName={name}
+            hasClonedVoice={expert.hasClonedVoice}
+            className="w-full h-11 text-sm font-medium bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 hover:from-indigo-100 hover:to-purple-100"
+          />
+          <p className="mt-1.5 text-xs text-muted-foreground text-center">
+            Free 5-min voice chat with AI-powered expert clone
+          </p>
         </section>
       )}
 

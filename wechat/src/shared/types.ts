@@ -35,6 +35,7 @@ export interface ExpertDetail extends Expert {
   xiaohongshu: string | null;
   hasAvatar: boolean;
   hasAudio: boolean;
+  hasClonedVoice: boolean;
   avatarScript: string | null;
   documentName: string | null;
 }

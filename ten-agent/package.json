@@ -1,0 +1,14 @@
+{
+  "name": "ten-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs"
+  },
+  "dependencies": {
+    "agora-rtc-sdk-ng": "^4.22.0",
+    "agora-token": "^2.0.3"
+  }
+}
