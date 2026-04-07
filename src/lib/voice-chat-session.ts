@@ -280,6 +280,25 @@ async function synthesizeVoice(
   return tts.synthesize({ text, voiceId: voiceModelId });
 }
 
+export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): string {
+  const firstName = profile.name.split(/\s+/)[0] || profile.name;
+  if (profile.domains.length > 0) {
+    return `Hi! I'm AI ${firstName}. I specialize in ${profile.domains.slice(0, 2).join(" and ")}. Ask me anything — I'm here to give you a taste of what a full session feels like.`;
+  }
+  return `Hi! I'm AI ${firstName}. Ask me anything about what I do — I'm here to give you a taste of what a full session feels like.`;
+}
+
+/** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */
+export async function getVoiceChatGreeting(
+  expertId: string,
+): Promise<{ text: string; replyAudioBase64: string; replyAudioFormat: string } | null> {
+  const profile = await loadExpertVoiceChatProfile(expertId);
+  if (!profile) return null;
+  const text = buildVoiceChatGreetingText(profile);
+  const { audioBase64, format } = await synthesizeVoice(text, profile.voiceModelId);
+  return { text, replyAudioBase64: audioBase64, replyAudioFormat: format };
+}
+
 export interface VoiceChatResult {
   userText: string;
   replyText: string;

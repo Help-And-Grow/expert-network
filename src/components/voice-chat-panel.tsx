@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Mic,
@@ -97,6 +97,7 @@ export function VoiceChatPanel({
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [showStarters, setShowStarters] = useState(true);
+  const [greetingLoading, setGreetingLoading] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -121,21 +122,88 @@ export function VoiceChatPanel({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Welcome message on first open
-  useEffect(() => {
-    if (!open || messages.length > 0) return;
-    const welcomeText = expertDomains.length > 0
-      ? `Hi! I'm AI ${firstName}. I specialize in ${expertDomains.slice(0, 2).join(" & ")}. Ask me anything — I'm here to give you a taste of what a full session feels like.`
-      : `Hi! I'm AI ${firstName}. Ask me anything about what I do — I'm here to give you a taste of what a full session feels like.`;
+  const playAudio = useCallback((src: string, msgId: string) => {
+    if (audioRef.current) audioRef.current.pause();
+    const audio = new Audio(src);
+    audioRef.current = audio;
+    setPlayingId(msgId);
+    audio.onended = () => setPlayingId(null);
+    audio.onpause = () => setPlayingId(null);
+    void audio.play().catch(() => setPlayingId(null));
+  }, []);
 
-    const welcomeMsg: Message = {
-      id: nextId(),
-      role: "assistant",
-      text: welcomeText,
+  const fallbackGreetingText = useMemo(
+    () =>
+      expertDomains.length > 0
+        ? `Hi! I'm AI ${firstName}. I specialize in ${expertDomains.slice(0, 2).join(" & ")}. Ask me anything — I'm here to give you a taste of what a full session feels like.`
+        : `Hi! I'm AI ${firstName}. Ask me anything about what I do — I'm here to give you a taste of what a full session feels like.`,
+    [firstName, expertDomains],
+  );
+
+  // Reset when closed; fetch voice greeting when opened (proactive TTS)
+  useEffect(() => {
+    if (!open) {
+      setMessages([]);
+      setShowStarters(true);
+      setError(null);
+      setGreetingLoading(false);
+      msgIdRef.current = 0;
+      audioRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
+
+    let cancelled = false;
+    setGreetingLoading(true);
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/voice-chat/greeting", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ expertId }),
+        });
+        const data = (await res.json()) as {
+          replyText?: string;
+          replyAudio?: string;
+          error?: string;
+        };
+        if (cancelled) return;
+
+        if (res.ok && data.replyText && data.replyAudio) {
+          const id = nextId();
+          setMessages([
+            {
+              id,
+              role: "assistant",
+              text: data.replyText,
+              audioSrc: data.replyAudio,
+            },
+          ]);
+          requestAnimationFrame(() => {
+            if (!cancelled) playAudio(data.replyAudio!, id);
+          });
+        } else {
+          const id = nextId();
+          setMessages([
+            { id, role: "assistant", text: fallbackGreetingText },
+          ]);
+        }
+      } catch {
+        if (!cancelled) {
+          const id = nextId();
+          setMessages([{ id, role: "assistant", text: fallbackGreetingText }]);
+        }
+      } finally {
+        if (!cancelled) setGreetingLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    setMessages([welcomeMsg]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, expertId, fallbackGreetingText, playAudio]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -269,19 +337,6 @@ export function VoiceChatPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expertId, textInput, processing]);
 
-  const playAudio = useCallback(
-    (src: string, msgId: string) => {
-      if (audioRef.current) audioRef.current.pause();
-      const audio = new Audio(src);
-      audioRef.current = audio;
-      setPlayingId(msgId);
-      audio.onended = () => setPlayingId(null);
-      audio.onpause = () => setPlayingId(null);
-      audio.play().catch(() => setPlayingId(null));
-    },
-    [],
-  );
-
   const togglePlayback = useCallback(
     (msg: Message) => {
       if (!msg.audioSrc) return;
@@ -338,6 +393,24 @@ export function VoiceChatPanel({
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {greetingLoading && messages.length === 0 && (
+          <div className="flex items-center gap-2.5 mr-auto">
+            <div className="shrink-0">
+              {expertImage ? (
+                <img src={expertImage} alt="" className="h-7 w-7 rounded-full object-cover" />
+              ) : (
+                <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                  {firstName.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Preparing a voice hello…
+            </div>
+          </div>
+        )}
+
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -400,7 +473,7 @@ export function VoiceChatPanel({
         ))}
 
         {/* Starter chips */}
-        {showStarters && messages.length <= 1 && !processing && (
+        {showStarters && messages.length <= 1 && !processing && !greetingLoading && (
           <div className="flex flex-col gap-2 mt-2">
             <p className="text-xs text-muted-foreground font-medium">Try asking:</p>
             {starters.map((chip) => (
