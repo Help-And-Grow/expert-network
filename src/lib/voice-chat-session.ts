@@ -4,7 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
-import { QwenTTSProvider } from "@/lib/integrations/qwen-tts";
+import {
+  defaultQwenTtsVoiceId,
+  QwenTTSProvider,
+} from "@/lib/integrations/qwen-tts";
 
 const DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
@@ -60,8 +63,28 @@ export interface ExpertVoiceChatProfile {
   name: string;
   bio: string | null;
   domains: string[];
+  /** Fish clone / VC model id, or a built-in Qwen voice name (e.g. Ethan). */
   voiceModelId: string;
+  /** True when using expert's DashScope voice clone; false = system default voice. */
+  usesClonedVoice: boolean;
   mem9Context: string[];
+}
+
+function resolveVoiceModelId(
+  fishAudioModelId: string | null,
+  gender: string | null,
+): { voiceModelId: string; usesClonedVoice: boolean } {
+  if (fishAudioModelId) {
+    return { voiceModelId: fishAudioModelId, usesClonedVoice: true };
+  }
+  const override = env.VOICE_CHAT_DEFAULT_VOICE?.trim();
+  if (override) {
+    return { voiceModelId: override, usesClonedVoice: false };
+  }
+  return {
+    voiceModelId: defaultQwenTtsVoiceId(gender),
+    usesClonedVoice: false,
+  };
 }
 
 export async function loadExpertVoiceChatProfile(
@@ -72,13 +95,19 @@ export async function loadExpertVoiceChatProfile(
     select: {
       id: true,
       bio: true,
+      gender: true,
       domains: { select: { domain: true } },
       fishAudioModelId: true,
       user: { select: { name: true, nickName: true } },
     },
   });
 
-  if (!expert?.fishAudioModelId) return null;
+  if (!expert) return null;
+
+  const { voiceModelId, usesClonedVoice } = resolveVoiceModelId(
+    expert.fishAudioModelId,
+    expert.gender,
+  );
 
   const mem9Context = await searchExpertMemories(
     expertId,
@@ -91,7 +120,8 @@ export async function loadExpertVoiceChatProfile(
     name: expert.user.nickName ?? expert.user.name ?? "Expert",
     bio: expert.bio,
     domains: domainStrings(expert.domains),
-    voiceModelId: expert.fishAudioModelId,
+    voiceModelId,
+    usesClonedVoice,
     mem9Context,
   };
 }
@@ -217,7 +247,7 @@ export async function processVoiceMessage(
   mimeType: string,
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
-  if (!profile) throw new Error("Expert does not have a cloned voice");
+  if (!profile) throw new Error("Expert not found");
 
   const conv = ensureConversation(userId, profile);
 
@@ -252,7 +282,7 @@ export async function processTextMessage(
   text: string,
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
-  if (!profile) throw new Error("Expert does not have a cloned voice");
+  if (!profile) throw new Error("Expert not found");
 
   const conv = ensureConversation(userId, profile);
 

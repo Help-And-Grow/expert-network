@@ -115,6 +115,8 @@ const envSchema = z
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
     VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
+    /** Override default Qwen built-in voice (e.g. Cherry) when expert has no voice clone. */
+    VOICE_CHAT_DEFAULT_VOICE: z.string().min(1).optional(),
     /** Local dev only: enables one-click "Dev login" on /auth/signin (`next dev` only). */
     DEV_AUTH_EMAIL: z.string().min(1).optional(),
     AGORA_APP_ID: z.string().optional(),

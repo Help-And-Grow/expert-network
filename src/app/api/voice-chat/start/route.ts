@@ -59,10 +59,7 @@ export async function POST(request: NextRequest) {
 
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) {
-    return NextResponse.json(
-      { error: "Expert does not have a cloned voice." },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Expert not found." }, { status: 404 });
   }
 
   const channelName = `vc-${expertId}-${nanoid(8)}`;

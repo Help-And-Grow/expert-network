@@ -63,6 +63,7 @@ interface Expert {
   hasAvatar: boolean;
   hasAudio: boolean;
   hasClonedVoice: boolean;
+  hasVoiceChat: boolean;
   avatarScript: string | null;
   documentName: string | null;
   priceOnlineCents: number | null;
@@ -391,7 +392,7 @@ export default function ExpertProfilePage() {
       )}
 
       {/* AI Voice Chat */}
-      {expert.hasClonedVoice && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
+      {expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
         <section className="mt-4 space-y-2">
           {vcConfig.asyncEnabled && (
             <Button
@@ -418,7 +419,9 @@ export default function ExpertProfilePage() {
               ? `Free AI voice chat — message or call ${name}`
               : vcConfig.realtimeReady
                 ? `Free 5-min live call with AI ${name}`
-                : `Free voice chat — AI responds in ${name}'s voice`}
+                : expert.hasClonedVoice
+                  ? `Free voice chat — AI responds in ${name}'s voice`
+                  : `Free voice chat — AI answers as ${name} (standard voice)`}
           </p>
         </section>
       )}
@@ -427,6 +430,7 @@ export default function ExpertProfilePage() {
         <VoiceChatPanel
           expertId={expert.id}
           expertName={name}
+          hasClonedVoice={expert.hasClonedVoice}
           open={showVoiceChat}
           onClose={() => setShowVoiceChat(false)}
         />

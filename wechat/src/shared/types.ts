@@ -36,6 +36,8 @@ export interface ExpertDetail extends Expert {
   hasAvatar: boolean;
   hasAudio: boolean;
   hasClonedVoice: boolean;
+  /** When true, show AI voice chat (default true; uses clone or built-in voice). */
+  hasVoiceChat?: boolean;
   avatarScript: string | null;
   documentName: string | null;
 }

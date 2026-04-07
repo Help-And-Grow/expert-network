@@ -8,6 +8,8 @@ import "./index.scss";
 interface VoiceChatProps {
   expertId: string;
   expertName: string;
+  /** When false, TTS uses built-in voice; persona stays the expert. */
+  hasClonedVoice?: boolean;
   visible: boolean;
   onClose: () => void;
 }
@@ -35,6 +37,7 @@ function nextId(): string {
 export default function VoiceChat({
   expertId,
   expertName,
+  hasClonedVoice = true,
   visible,
   onClose,
 }: VoiceChatProps) {
@@ -265,7 +268,9 @@ export default function VoiceChat({
             <View className="vc-empty">
               <Text className="vc-empty__icon">💬</Text>
               <Text className="vc-empty__text">
-                发送语音或文字，AI 将以{expertName}的声音回复
+                {hasClonedVoice
+                  ? `发送语音或文字，AI 将以${expertName}的声音回复`
+                  : `发送语音或文字，AI 以${expertName}的身份回复（默认音色）`}
               </Text>
             </View>
           )}

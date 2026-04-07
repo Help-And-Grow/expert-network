@@ -26,6 +26,8 @@ interface Message {
 interface VoiceChatPanelProps {
   expertId: string;
   expertName: string;
+  /** When false, TTS uses a built-in default voice while the persona stays this expert. */
+  hasClonedVoice?: boolean;
   open: boolean;
   onClose: () => void;
 }
@@ -33,6 +35,7 @@ interface VoiceChatPanelProps {
 export function VoiceChatPanel({
   expertId,
   expertName,
+  hasClonedVoice = true,
   open,
   onClose,
 }: VoiceChatPanelProps) {
@@ -268,7 +271,10 @@ export function VoiceChatPanel({
             <MessageCircle className="h-12 w-12 mb-3 opacity-20" />
             <p className="text-sm font-medium">Voice chat with AI {expertName}</p>
             <p className="text-xs mt-1 max-w-[250px]">
-              Record a voice message or type to start. The AI will respond in {expertName}&apos;s voice.
+              Record a voice message or type to start.{" "}
+              {hasClonedVoice
+                ? `The AI will respond in ${expertName}'s voice.`
+                : `The AI answers as ${expertName} using a standard voice.`}
             </p>
           </div>
         )}
