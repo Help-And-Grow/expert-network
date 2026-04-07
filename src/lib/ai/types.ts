@@ -43,14 +43,23 @@ export interface MatchResult {
   noMatchMessage?: string;
 }
 
+export interface NormalizedQuery {
+  english: string;
+  keywords: string[];
+  intent: "specific_topic" | "broad_exploration" | "greeting";
+  original: string;
+}
+
 export interface AIProvider {
   generateExpertProfile(data: ProfileInput): Promise<ProfileOutput>;
   generateProfileImage(data: ImageInput): Promise<string | null>;
   improveWriting(type: "intro" | "services", content: string): Promise<string>;
+  normalizeQuery(query: string): Promise<NormalizedQuery>;
   matchExperts(
     query: string,
     expertSummaries: string,
-    conversationHistory: { role: string; content: string }[]
+    conversationHistory: { role: string; content: string }[],
+    normalizedQuery?: NormalizedQuery
   ): Promise<MatchResult>;
   extractTextFromPdf(buffer: Buffer): Promise<string>;
 }

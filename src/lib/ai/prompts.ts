@@ -207,17 +207,45 @@ ${content}`;
 }
 
 // ---------------------------------------------------------------------------
+// Query normalization (multilingual → English keywords + intent)
+// ---------------------------------------------------------------------------
+
+export function buildNormalizeQueryPrompt(query: string): string {
+  return `You are a query understanding module. The user typed a search query which may be in ANY language (Chinese, English, Malay, etc.).
+
+Input query: "${query}"
+
+Return ONLY a JSON object (no markdown fences) with:
+1. "english": the query translated to English (keep original if already English)
+2. "keywords": an array of 5-10 English keywords/synonyms relevant to the query topic (think broadly — include the profession, related skills, industry terms)
+3. "intent": one of "specific_topic", "broad_exploration", or "greeting" — classify the user's intent
+4. "original": the original query unchanged
+
+Examples:
+- "法律" → {"english":"law","keywords":["law","legal","lawyer","attorney","compliance","contract","litigation","corporate law","regulatory","counsel"],"intent":"specific_topic","original":"法律"}
+- "hi" → {"english":"hi","keywords":["hello","greeting"],"intent":"greeting","original":"hi"}
+- "AI" → {"english":"artificial intelligence","keywords":["artificial intelligence","machine learning","deep learning","AI","data science","LLM","neural network","NLP","automation","technology"],"intent":"specific_topic","original":"AI"}`;
+}
+
+// ---------------------------------------------------------------------------
 // Match experts
 // ---------------------------------------------------------------------------
 
 export function buildMatchExpertsPrompt(
   query: string,
   expertSummaries: string,
-  conversationHistory: { role: string; content: string }[]
+  conversationHistory: { role: string; content: string }[],
+  normalizedQuery?: { english: string; keywords: string[] }
 ): string {
   const historyContext = conversationHistory
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
+
+  const queryContext = normalizedQuery
+    ? `The user's latest query: "${query}"
+Interpreted as: "${normalizedQuery.english}"
+Related keywords: ${normalizedQuery.keywords.join(", ")}`
+    : `The user's latest query: "${query}"`;
 
   return `You are the AI matchmaking assistant for Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Members are both experts and learners: users may be seeking help, offering expertise, or both. The pool below lists people who publish sessions as experts.
 
@@ -226,7 +254,7 @@ ${expertSummaries}
 
 ${historyContext ? `Previous conversation:\n${historyContext}\n` : ""}
 
-The user's latest query: "${query}"
+${queryContext}
 
 Based on your deep analysis of the user's needs and the expert pool, recommend the top 2-3 most relevant experts. For each recommendation, provide:
 
@@ -235,9 +263,10 @@ Based on your deep analysis of the user's needs and the expert pool, recommend t
 3. "reason": A highly specific 2-3 sentence explanation of why this expert's background perfectly matches the user's need.
 4. "sessionTypes": Available session types
 
-Short or broad queries (e.g. a single word like "AI", "legal", "growth") are common: still pick the 2-3 best-fitting experts from the pool by relating domains, bio, and services to that theme. Prefer suggesting someone over returning an empty list unless the pool is truly irrelevant.
-
-If you truly cannot justify any match, return empty "recommendations" with a helpful "noMatchMessage".
+IMPORTANT — relevance rules:
+- Only recommend experts whose domains, bio, services, or agent memory clearly relate to the query topic.
+- Do NOT recommend experts just because they are popular or highly rated — relevance to the query is the ONLY criterion.
+- If NO expert in the pool has relevant expertise for this query, return empty "recommendations" with a helpful "noMatchMessage" suggesting what kind of expert the user should look for, or how to refine their search.
 
 Return ONLY a JSON object, no markdown code fences.`;
 }
