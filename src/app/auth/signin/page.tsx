@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import { Mail, Chrome, Loader2 } from "lucide-react";
-import { signIn, useSession } from "next-auth/react";
+import { getProviders, signIn, useSession } from "next-auth/react";
 
 import { useTelegram } from "@/components/telegram-provider";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,13 @@ function SignInForm() {
     }
     setEmailLoading(true);
     try {
+      const providers = await getProviders();
+      if (!providers?.nodemailer) {
+        setError(
+          "Email sign-in is not available (server mail is not configured). Use Google sign-in or ask an admin to set EMAIL_SERVER_* and EMAIL_FROM on the deployment.",
+        );
+        return;
+      }
       const result = await signIn("nodemailer", {
         email: email.trim(),
         callbackUrl,
@@ -62,6 +69,10 @@ function SignInForm() {
         setError("Failed to send magic link. Please try again.");
       } else if (result?.ok) {
         router.push("/auth/verify");
+      } else {
+        setError(
+          "Could not start email sign-in. Try again or use Google.",
+        );
       }
     } catch {
       setError("Something went wrong. Please try again.");
