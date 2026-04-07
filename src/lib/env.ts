@@ -9,7 +9,10 @@ function sanitizedProcessEnv(): Record<string, string | undefined> {
   const out: Record<string, string | undefined> = {};
   for (const key of Object.keys(raw)) {
     const v = raw[key];
-    out[key] = v === "" ? undefined : v;
+    if (v === undefined) continue;
+    // Vercel / .env files sometimes include trailing newlines (e.g. `async\n`).
+    const trimmed = v.trim();
+    out[key] = trimmed === "" ? undefined : trimmed;
   }
   return out;
 }
