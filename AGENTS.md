@@ -48,7 +48,7 @@ See `docs/` for full details:
 | Product sense | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) | User personas, product principles |
 | Quality | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md) | Per-domain quality grades |
 | Reliability | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Error handling, SLOs, monitoring |
-| Security | [docs/SECURITY.md](docs/SECURITY.md) | Auth, data handling, secrets |
+| Security | [docs/SECURITY.md](docs/SECURITY.md) | Auth, data handling, secrets; [Vercel env / rotation](docs/references/vercel-env-and-secret-rotation.md) |
 | Design docs | [docs/design-docs/](docs/design-docs/) | Indexed design decisions |
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
