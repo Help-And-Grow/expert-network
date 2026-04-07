@@ -219,6 +219,11 @@
     height: calc(100vh - 300px);
   }
 
+  &__match--solo {
+    height: calc(100vh - 160px);
+    min-height: 480px;
+  }
+
   &__chat {
     flex: 1;
     padding: 24px;

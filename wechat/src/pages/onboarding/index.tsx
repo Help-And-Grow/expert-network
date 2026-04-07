@@ -1,7 +1,7 @@
 import { View, Text, Input, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useRef, useCallback } from "react";
-import { post, request as apiRequest } from "../../shared/api";
+import { get, post, request as apiRequest } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
 import VoiceRecorder from "../../components/VoiceRecorder";
 import { DOMAINS, getDomainLabel } from "../../shared/types";
@@ -11,6 +11,7 @@ type Step =
   | "nickname"
   | "gender"
   | "social_links"
+  | "optional_social"
   | "domains"
   | "document"
   | "session_prefs"
@@ -42,6 +43,7 @@ export default function OnboardingPage() {
   const [, setGenerating] = useState(false);
   const [msgId, setMsgId] = useState(1);
   const scrollRef = useRef<string>("");
+  const [previewExpertId, setPreviewExpertId] = useState<string | null>(null);
 
   const addMsg = useCallback(
     (role: "system" | "user", content: string) => {
@@ -90,16 +92,48 @@ export default function OnboardingPage() {
         if (!formData.linkedIn) {
           setFormData((p) => ({ ...p, linkedIn: text }));
           saveToServer({ linkedIn: text });
-          setTimeout(() => addMsg("system", "请填写个人官网（可选，输入“跳过”可略过）："), 400);
-        } else if (!formData.website) {
+          setTimeout(
+            () => addMsg("system", "请填写个人官网（可选），或点下方「跳过官网」。"),
+            400
+          );
+        } else {
           const normalized = text.trim().toLowerCase();
-          const val = normalized === "skip" || text.trim() === "跳过" ? "" : text;
+          const val =
+            normalized === "skip" || text.trim() === "跳过" ? "" : text;
           setFormData((p) => ({ ...p, website: val }));
           if (val) saveToServer({ website: val });
-          setStep("domains");
-          setTimeout(() => addMsg("system", "请选择你的擅长领域："), 400);
+          setStep("optional_social");
+          setTimeout(
+            () =>
+              addMsg(
+                "system",
+                "其他社交链接（可选）：粘贴 X、小红书、Substack 等主页，或点「跳过」。"
+              ),
+            400
+          );
         }
         break;
+
+      case "optional_social": {
+        const normalized = text.trim().toLowerCase();
+        if (normalized === "skip" || text.trim() === "跳过") {
+          addMsg("user", "跳过");
+        } else if (text.trim()) {
+          const line = text.trim();
+          addMsg("user", line);
+          const lower = line.toLowerCase();
+          if (lower.includes("xiaohongshu") || lower.includes("xhslink")) {
+            saveToServer({ xiaohongshu: line });
+          } else {
+            saveToServer({ twitter: line });
+          }
+        } else {
+          addMsg("user", "跳过");
+        }
+        setStep("domains");
+        setTimeout(() => addMsg("system", "请选择你的擅长领域："), 400);
+        break;
+      }
 
       case "pricing":
         if (!formData.priceOnline) {
@@ -179,7 +213,16 @@ export default function OnboardingPage() {
       });
 
       if (!chooseRes.tempFiles?.length) return;
-      const file = chooseRes.tempFiles[0];
+      const file = chooseRes.tempFiles[0] as {
+        path?: string;
+        tempFilePath?: string;
+        name?: string;
+      };
+      const filePath = file.path || file.tempFilePath;
+      if (!filePath) {
+        Taro.showToast({ title: "无法读取文件，请重试", icon: "none" });
+        return;
+      }
 
       Taro.showLoading({ title: "上传中..." });
 
@@ -187,22 +230,38 @@ export default function OnboardingPage() {
       const API_BASE = getApiBase();
       const uploadRes = await Taro.uploadFile({
         url: `${API_BASE}/api/onboarding/upload`,
-        filePath: file.path,
+        filePath,
         name: "file",
         header: token ? { "x-wechat-token": token } : {},
       });
 
       Taro.hideLoading();
 
-      if (uploadRes.statusCode === 200) {
-        addMsg("user", `📄 ${file.name}`);
+      let ok = uploadRes.statusCode === 200;
+      if (ok && uploadRes.data != null) {
+        const raw = uploadRes.data as unknown;
+        if (typeof raw === "string") {
+          try {
+            const parsed = JSON.parse(raw) as { error?: string; success?: boolean };
+            ok = !parsed.error && parsed.success !== false;
+          } catch {
+            ok = true;
+          }
+        } else if (typeof raw === "object" && raw !== null && "error" in raw) {
+          ok = false;
+        }
+      }
+
+      if (ok) {
+        addMsg("user", `📄 ${file.name || "简历.pdf"}`);
         addMsg("system", "文档已上传，正在生成你的专家主页...");
         await generateProfile();
       } else {
-        Taro.showToast({ title: "上传失败", icon: "none" });
+        Taro.showToast({ title: "上传失败，请检查网络或 PDF 小于 5MB", icon: "none" });
       }
-    } catch {
+    } catch (err) {
       Taro.hideLoading();
+      console.error("[onboarding] PDF upload", err);
       Taro.showToast({ title: "上传失败", icon: "none" });
     }
   };
@@ -218,8 +277,11 @@ export default function OnboardingPage() {
     setGenerating(true);
 
     try {
-      const res = await post("/api/onboarding/generate", {});
+      const res = await post<{ expertId?: string }>("/api/onboarding/generate", {});
       if (res.statusCode === 200) {
+        if (res.data?.expertId) {
+          setPreviewExpertId(res.data.expertId);
+        }
         setStep("voice_sample");
         setTimeout(
           () =>
@@ -266,6 +328,15 @@ export default function OnboardingPage() {
       Taro.hideLoading();
     }
 
+    try {
+      const pr = await get<{ expert?: { id: string } | null }>("/api/profile");
+      if (pr.statusCode === 200 && pr.data?.expert?.id) {
+        setPreviewExpertId(pr.data.expert.id);
+      }
+    } catch {
+      /* ignore */
+    }
+
     setStep("preview");
     setTimeout(() => addMsg("system", "请先预览主页，确认后即可发布。"), 400);
   };
@@ -277,8 +348,61 @@ export default function OnboardingPage() {
       await post("/api/expert/generate-audio", {});
     } catch {}
     Taro.hideLoading();
+    try {
+      const pr = await get<{ expert?: { id: string } | null }>("/api/profile");
+      if (pr.statusCode === 200 && pr.data?.expert?.id) {
+        setPreviewExpertId(pr.data.expert.id);
+      }
+    } catch {
+      /* ignore */
+    }
     setStep("preview");
     setTimeout(() => addMsg("system", "专家主页已就绪，请预览并发布。"), 400);
+  };
+
+  const skipWebsite = () => {
+    addMsg("user", "跳过官网");
+    setFormData((p) => ({ ...p, website: "" }));
+    setStep("optional_social");
+    setTimeout(
+      () =>
+        addMsg(
+          "system",
+          "其他社交链接（可选）：粘贴 X、小红书、Substack 等主页，或点「跳过」。"
+        ),
+      400
+    );
+  };
+
+  const skipOptionalSocial = () => {
+    addMsg("user", "跳过");
+    setStep("domains");
+    setTimeout(() => addMsg("system", "请选择你的擅长领域："), 400);
+  };
+
+  const openPreviewExpert = () => {
+    const id = previewExpertId;
+    if (!id) {
+      Taro.showLoading({ title: "加载中..." });
+      get<{ expert?: { id: string } | null }>("/api/profile")
+        .then((pr) => {
+          Taro.hideLoading();
+          if (pr.statusCode === 200 && pr.data?.expert?.id) {
+            setPreviewExpertId(pr.data.expert.id);
+            Taro.navigateTo({
+              url: `/pages/expert/index?id=${pr.data.expert.id}`,
+            });
+          } else {
+            Taro.showToast({ title: "暂无法打开预览", icon: "none" });
+          }
+        })
+        .catch(() => {
+          Taro.hideLoading();
+          Taro.showToast({ title: "加载失败", icon: "none" });
+        });
+      return;
+    }
+    Taro.navigateTo({ url: `/pages/expert/index?id=${id}` });
   };
 
   const publishProfile = async () => {
@@ -298,7 +422,12 @@ export default function OnboardingPage() {
     }
   };
 
-  const showTextInput = ["nickname", "social_links", "pricing"].includes(step);
+  const showTextInput = [
+    "nickname",
+    "social_links",
+    "optional_social",
+    "pricing",
+  ].includes(step);
 
   return (
     <View className="onboarding">
@@ -392,6 +521,32 @@ export default function OnboardingPage() {
           </View>
         )}
 
+        {/* Skip website (optional) */}
+        {step === "social_links" && formData.linkedIn && (
+          <View className="onboarding__options">
+            <View
+              className="onboarding__option"
+              hoverClass="onboarding__option--hover"
+              onClick={skipWebsite}
+            >
+              跳过官网
+            </View>
+          </View>
+        )}
+
+        {/* Skip optional social links */}
+        {step === "optional_social" && (
+          <View className="onboarding__options">
+            <View
+              className="onboarding__option"
+              hoverClass="onboarding__option--hover"
+              onClick={skipOptionalSocial}
+            >
+              跳过
+            </View>
+          </View>
+        )}
+
         {/* Document upload */}
         {step === "document" && (
           <View className="onboarding__options">
@@ -429,11 +584,7 @@ export default function OnboardingPage() {
             <View
               className="onboarding__preview-btn"
               hoverClass="onboarding__preview-btn--hover"
-              onClick={() =>
-                Taro.navigateTo({
-                  url: "/pages/profile/index",
-                })
-              }
+              onClick={openPreviewExpert}
             >
               👁 预览主页
             </View>
@@ -456,6 +607,8 @@ export default function OnboardingPage() {
                 ? "请输入你的昵称..."
                 : step === "pricing"
                 ? "请输入 SGD 金额（示例：100）..."
+                : step === "optional_social"
+                ? "粘贴其他社交主页链接，或点跳过"
                 : "请输入你的回答..."
             }
             value={input}

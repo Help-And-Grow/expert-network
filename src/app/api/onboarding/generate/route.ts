@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
+      expertId: expert.id,
       bio: generated.bio,
       services: generated.services,
       videoScript: generated.videoScript,

@@ -37,7 +37,7 @@ export default function IndexPage() {
           hoverClass="landing__btn--hover"
           onClick={goDiscover}
         >
-          去发现专家
+          AI 智能匹配
         </View>
         <View
           className="landing__btn landing__btn--outline"
