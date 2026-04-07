@@ -1,13 +1,21 @@
 import { Resend } from "resend";
 
+import { env } from "@/lib/env";
+
 let _resend: Resend | null = null;
 function getResend(): Resend | null {
-  if (!process.env.RESEND_API_KEY) return null;
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  if (!env.RESEND_API_KEY) return null;
+  if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
   return _resend;
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Help & Grow <onboarding@resend.dev>";
+/**
+ * Booking confirmation + scheduled reminders only (Resend API).
+ * Do not reuse magic-link `EMAIL_FROM` here: that may point at Gmail SMTP.
+ * Resend free tier: typically only the account / verified test inboxes — use for internal QA until domain + plan allow broadcast.
+ */
+const FROM_EMAIL =
+  env.RESEND_EMAIL_FROM ?? "Help & Grow <onboarding@resend.dev>";
 
 interface BookingEmailParams {
   expertName: string;

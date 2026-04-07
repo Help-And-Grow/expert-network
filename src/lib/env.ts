@@ -63,6 +63,9 @@ const envSchema = z
     EMAIL_SERVER_USER: z.string().optional(),
     EMAIL_SERVER_PASSWORD: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
+    /** Resend-only "from" for booking emails (`src/lib/email.ts`). Optional; defaults in code. */
+    RESEND_EMAIL_FROM: z.string().optional(),
+    RESEND_API_KEY: z.string().optional(),
 
     AI_PROVIDER: z
       .enum(["dedalus", "gemini", "qwen", "openai"])
