@@ -10,7 +10,7 @@ import {
   Loader2,
   X,
   Send,
-  MessageCircle,
+  Calendar,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,15 +26,64 @@ interface Message {
 interface VoiceChatPanelProps {
   expertId: string;
   expertName: string;
-  /** When false, TTS uses a built-in default voice while the persona stays this expert. */
+  expertImage?: string | null;
+  expertDomains?: string[];
+  expertServices?: { title: string }[] | null;
   hasClonedVoice?: boolean;
   open: boolean;
   onClose: () => void;
 }
 
+function generateStarters(
+  name: string,
+  domains: string[],
+  services?: { title: string }[] | null,
+): string[] {
+  const first = name.split(" ")[0];
+  const chips: string[] = [];
+
+  if (services && services.length > 0) {
+    chips.push(`Tell me about your ${services[0].title.toLowerCase()} work`);
+    if (services.length > 1)
+      chips.push(`How does ${services[1].title.toLowerCase()} work with you?`);
+  }
+
+  if (domains.length > 0) {
+    chips.push(`What makes you different in ${domains[0]}?`);
+    if (domains.length > 1 && chips.length < 3)
+      chips.push(`How do ${domains[0]} and ${domains[1]} connect in your practice?`);
+  }
+
+  if (chips.length < 3) chips.push(`${first}, what should I ask you about?`);
+  if (chips.length < 3) chips.push(`What's a common mistake in your field?`);
+
+  return chips.slice(0, 3);
+}
+
+function SpeakingWaveform() {
+  return (
+    <span className="inline-flex items-center gap-[3px] h-4 ml-1.5">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className="inline-block w-[3px] rounded-full bg-indigo-500 animate-[wave_0.8s_ease-in-out_infinite_alternate]"
+          style={{
+            height: `${8 + Math.random() * 10}px`,
+            animationDelay: `${i * 120}ms`,
+          }}
+        />
+      ))}
+      <style>{`@keyframes wave{0%{transform:scaleY(.4)}100%{transform:scaleY(1)}}`}</style>
+    </span>
+  );
+}
+
 export function VoiceChatPanel({
   expertId,
   expertName,
+  expertImage,
+  expertDomains = [],
+  expertServices,
   hasClonedVoice = true,
   open,
   onClose,
@@ -47,6 +96,7 @@ export function VoiceChatPanel({
   const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [showStarters, setShowStarters] = useState(true);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -56,6 +106,7 @@ export function VoiceChatPanel({
   const msgIdRef = useRef(0);
 
   const nextId = () => `msg-${++msgIdRef.current}`;
+  const firstName = expertName.split(" ")[0];
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -69,6 +120,22 @@ export function VoiceChatPanel({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Welcome message on first open
+  useEffect(() => {
+    if (!open || messages.length > 0) return;
+    const welcomeText = expertDomains.length > 0
+      ? `Hi! I'm AI ${firstName}. I specialize in ${expertDomains.slice(0, 2).join(" & ")}. Ask me anything — I'm here to give you a taste of what a full session feels like.`
+      : `Hi! I'm AI ${firstName}. Ask me anything about what I do — I'm here to give you a taste of what a full session feels like.`;
+
+    const welcomeMsg: Message = {
+      id: nextId(),
+      role: "assistant",
+      text: welcomeText,
+    };
+    setMessages([welcomeMsg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -119,11 +186,8 @@ export function VoiceChatPanel({
     async (blob: Blob) => {
       setProcessing(true);
       setError(null);
-      const userMsg: Message = {
-        id: nextId(),
-        role: "user",
-        text: "...",
-      };
+      setShowStarters(false);
+      const userMsg: Message = { id: nextId(), role: "user", text: "..." };
       setMessages((prev) => [...prev, userMsg]);
 
       try {
@@ -153,7 +217,6 @@ export function VoiceChatPanel({
         };
         setMessages((prev) => [...prev, aiMsg]);
         setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-
         playAudio(data.replyAudio, aiMsg.id);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -167,12 +230,13 @@ export function VoiceChatPanel({
     [expertId],
   );
 
-  const sendText = useCallback(async () => {
-    const text = textInput.trim();
+  const sendText = useCallback(async (overrideText?: string) => {
+    const text = (overrideText ?? textInput).trim();
     if (!text || processing) return;
     setTextInput("");
     setProcessing(true);
     setError(null);
+    setShowStarters(false);
 
     const userMsg: Message = { id: nextId(), role: "user", text };
     setMessages((prev) => [...prev, userMsg]);
@@ -195,7 +259,6 @@ export function VoiceChatPanel({
       };
       setMessages((prev) => [...prev, aiMsg]);
       setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-
       playAudio(data.replyAudio, aiMsg.id);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -208,9 +271,7 @@ export function VoiceChatPanel({
 
   const playAudio = useCallback(
     (src: string, msgId: string) => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      if (audioRef.current) audioRef.current.pause();
       const audio = new Audio(src);
       audioRef.current = audio;
       setPlayingId(msgId);
@@ -240,19 +301,30 @@ export function VoiceChatPanel({
   if (!open) return null;
 
   const turnsRemaining = turnInfo.max - turnInfo.count;
+  const starters = generateStarters(expertName, expertDomains, expertServices);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      {/* Header */}
+      {/* Header with expert identity */}
       <div className="flex items-center justify-between border-b px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5" />
+        <div className="flex items-center gap-3">
+          {expertImage ? (
+            <img
+              src={expertImage}
+              alt={expertName}
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
+            />
+          ) : (
+            <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+              {firstName.charAt(0)}
+            </div>
+          )}
           <div>
-            <h3 className="text-sm font-semibold">AI {expertName}</h3>
-            <p className="text-xs text-white/70">
+            <h3 className="text-sm font-semibold leading-tight">AI {expertName}</h3>
+            <p className="text-[11px] text-white/70 leading-tight">
               {turnsRemaining > 0
-                ? `${turnsRemaining} messages remaining`
-                : "Limit reached"}
+                ? `${turnsRemaining} messages remaining · Free preview`
+                : "Preview ended"}
             </p>
           </div>
         </div>
@@ -266,27 +338,29 @@ export function VoiceChatPanel({
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <MessageCircle className="h-12 w-12 mb-3 opacity-20" />
-            <p className="text-sm font-medium">Voice chat with AI {expertName}</p>
-            <p className="text-xs mt-1 max-w-[250px]">
-              Record a voice message or type to start.{" "}
-              {hasClonedVoice
-                ? `The AI will respond in ${expertName}'s voice.`
-                : `The AI answers as ${expertName} using a standard voice.`}
-            </p>
-          </div>
-        )}
-
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={cn(
-              "flex gap-2 max-w-[85%]",
+              "flex gap-2.5 max-w-[85%]",
               msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto",
             )}
           >
+            {msg.role === "assistant" && (
+              <div className="shrink-0 mt-0.5">
+                {expertImage ? (
+                  <img
+                    src={expertImage}
+                    alt=""
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                    {firstName.charAt(0)}
+                  </div>
+                )}
+              </div>
+            )}
             <div
               className={cn(
                 "rounded-2xl px-3.5 py-2.5 text-sm",
@@ -308,22 +382,53 @@ export function VoiceChatPanel({
                   )}
                 >
                   {playingId === msg.id ? (
-                    <Pause className="h-3 w-3" />
+                    <>
+                      <Pause className="h-3 w-3" />
+                      Speaking
+                      <SpeakingWaveform />
+                    </>
                   ) : (
-                    <Play className="h-3 w-3" />
+                    <>
+                      <Play className="h-3 w-3" />
+                      {hasClonedVoice ? `Play in ${firstName}'s voice` : "Play voice"}
+                    </>
                   )}
-                  {playingId === msg.id ? "Pause" : "Play voice"}
                 </button>
               )}
             </div>
           </div>
         ))}
 
+        {/* Starter chips */}
+        {showStarters && messages.length <= 1 && !processing && (
+          <div className="flex flex-col gap-2 mt-2">
+            <p className="text-xs text-muted-foreground font-medium">Try asking:</p>
+            {starters.map((chip) => (
+              <button
+                key={chip}
+                onClick={() => sendText(chip)}
+                className="text-left text-sm px-3.5 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 transition-colors"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
+
         {processing && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mr-auto">
-            <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 flex items-center gap-2">
+          <div className="flex items-center gap-2.5 mr-auto">
+            <div className="shrink-0">
+              {expertImage ? (
+                <img src={expertImage} alt="" className="h-7 w-7 rounded-full object-cover" />
+              ) : (
+                <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                  {firstName.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Thinking...
+              {firstName} is thinking...
             </div>
           </div>
         )}
@@ -336,15 +441,32 @@ export function VoiceChatPanel({
         </div>
       )}
 
-      {/* Input area */}
+      {/* Input / Booking CTA */}
       <div className="border-t bg-background px-4 py-3 safe-area-inset-bottom">
         {turnsRemaining <= 0 ? (
-          <p className="text-center text-sm text-muted-foreground">
-            Message limit reached. Book a full session for more.
-          </p>
+          <div className="text-center space-y-3 py-2">
+            <p className="text-sm font-medium text-foreground">
+              Enjoyed the preview? Go deeper in a full session.
+            </p>
+            <Button
+              onClick={() => {
+                onClose();
+                window.location.href = `/book?expertId=${expertId}`;
+              }}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Book a session with {firstName}
+            </Button>
+            <button
+              onClick={onClose}
+              className="text-xs text-muted-foreground underline underline-offset-2"
+            >
+              Maybe later
+            </button>
+          </div>
         ) : (
           <div className="flex items-end gap-2">
-            {/* Text input */}
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -356,17 +478,16 @@ export function VoiceChatPanel({
                     sendText();
                   }
                 }}
-                placeholder="Type a message..."
+                placeholder={recording ? "Recording..." : `Ask ${firstName} anything...`}
                 disabled={processing || recording}
                 className="w-full rounded-full border bg-muted/50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
               />
             </div>
 
-            {/* Send text */}
             {textInput.trim() && !recording && (
               <Button
                 size="icon"
-                onClick={sendText}
+                onClick={() => sendText()}
                 disabled={processing}
                 className="h-10 w-10 rounded-full bg-indigo-600 hover:bg-indigo-700 shrink-0"
               >
@@ -374,7 +495,6 @@ export function VoiceChatPanel({
               </Button>
             )}
 
-            {/* Record voice */}
             {!textInput.trim() && (
               <Button
                 size="icon"
