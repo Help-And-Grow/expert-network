@@ -9,8 +9,11 @@ const nodeMajor = parseInt(process.versions.node.split(".")[0], 10);
 if (nodeMajor > 22) {
   console.error(
     `WeChat upload requires Node.js 18–22 (you have ${process.version}).\n` +
-      `Run: cd wechat && nvm use   (see wechat/.nvmrc), then from repo root:\n` +
-      `  node scripts/wechat-upload.js "1.0.0" "description"\n`,
+      `Use Node 20 for this script, for example:\n` +
+      `  Homebrew:  brew install node@20\n` +
+      `             export PATH="$(brew --prefix node@20)/bin:$PATH"\n` +
+      `  nvm:       install https://github.com/nvm-sh/nvm then  cd wechat && nvm use\n` +
+      `Then from repo root:  node scripts/wechat-upload.js "1.0.0" "description"\n`,
   );
   process.exit(1);
 }
