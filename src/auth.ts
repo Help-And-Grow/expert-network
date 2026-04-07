@@ -2,6 +2,7 @@ import { env } from "@/lib/env";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import Nodemailer from "next-auth/providers/nodemailer";
 
@@ -49,6 +50,42 @@ if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
       }
     },
   });
+}
+
+/** One-click local sign-in when `next dev` + DEV_AUTH_EMAIL (never enabled in production builds). */
+if (process.env.NODE_ENV === "development" && env.DEV_AUTH_EMAIL) {
+  const devEmail = env.DEV_AUTH_EMAIL.trim().toLowerCase();
+  providers.push(
+    Credentials({
+      id: "dev-login",
+      name: "Local dev",
+      credentials: {},
+      async authorize() {
+        let user = await prisma.user.findUnique({
+          where: { email: devEmail },
+        });
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email: devEmail,
+              emailVerified: new Date(),
+              name: "Local Dev",
+              nickName: "Dev",
+              role: "FOUNDER",
+            },
+          });
+        }
+        return {
+          id: user.id,
+          email: user.email ?? undefined,
+          name: user.name ?? undefined,
+          image: user.image ?? undefined,
+          role: user.role,
+          nickName: user.nickName ?? undefined,
+        };
+      },
+    }),
+  );
 }
 
 const authConfig = {
