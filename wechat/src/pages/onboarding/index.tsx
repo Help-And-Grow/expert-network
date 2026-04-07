@@ -27,6 +27,26 @@ interface ChatMessage {
   content: string;
 }
 
+type WeeklySlot = { start: string; end: string };
+
+/** Presets for /api/onboarding weeklySchedule JSON */
+const AVAIL_WEEKDAY_9_18: Record<string, WeeklySlot[]> = {
+  mon: [{ start: "09:00", end: "18:00" }],
+  tue: [{ start: "09:00", end: "18:00" }],
+  wed: [{ start: "09:00", end: "18:00" }],
+  thu: [{ start: "09:00", end: "18:00" }],
+  fri: [{ start: "09:00", end: "18:00" }],
+};
+
+const AVAIL_MON_SAT_10_20: Record<string, WeeklySlot[]> = {
+  mon: [{ start: "10:00", end: "20:00" }],
+  tue: [{ start: "10:00", end: "20:00" }],
+  wed: [{ start: "10:00", end: "20:00" }],
+  thu: [{ start: "10:00", end: "20:00" }],
+  fri: [{ start: "10:00", end: "20:00" }],
+  sat: [{ start: "10:00", end: "20:00" }],
+};
+
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("nickname");
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -147,7 +167,7 @@ export default function OnboardingPage() {
           if (formData.sessionType !== "ONLINE") {
             setTimeout(() => addMsg("system", "请填写线下每小时价格（SGD）："), 400);
           } else {
-            proceedToDocument();
+            proceedToAvailability();
           }
         } else {
           const cents = parseInt(text) * 100;
@@ -157,13 +177,40 @@ export default function OnboardingPage() {
           }
           setFormData((p) => ({ ...p, priceOffline: String(cents) }));
           saveToServer({ priceOfflineCents: cents });
-          proceedToDocument();
+          proceedToAvailability();
         }
         break;
 
       default:
         break;
     }
+  };
+
+  const proceedToAvailability = () => {
+    setStep("availability");
+    setTimeout(
+      () =>
+        addMsg(
+          "system",
+          "设置每周可预约时段。可选预设，或跳过稍后在「我的」里设置。"
+        ),
+      400
+    );
+  };
+
+  const pickAvailability = (
+    schedule: Record<string, WeeklySlot[]>,
+    userLabel: string
+  ) => {
+    addMsg("user", userLabel);
+    saveToServer({ weeklySchedule: schedule });
+    proceedToDocument();
+  };
+
+  const skipAvailability = () => {
+    addMsg("user", "跳过，稍后设置");
+    saveToServer({ weeklySchedule: {} });
+    proceedToDocument();
   };
 
   const proceedToDocument = () => {
@@ -543,6 +590,37 @@ export default function OnboardingPage() {
               onClick={skipOptionalSocial}
             >
               跳过
+            </View>
+          </View>
+        )}
+
+        {/* Weekly availability (after pricing) */}
+        {step === "availability" && (
+          <View className="onboarding__options">
+            <View
+              className="onboarding__option"
+              hoverClass="onboarding__option--hover"
+              onClick={() =>
+                pickAvailability(AVAIL_WEEKDAY_9_18, "工作日 9:00–18:00")
+              }
+            >
+              工作日 9:00–18:00（周一至周五）
+            </View>
+            <View
+              className="onboarding__option"
+              hoverClass="onboarding__option--hover"
+              onClick={() =>
+                pickAvailability(AVAIL_MON_SAT_10_20, "周一至周六 10:00–20:00")
+              }
+            >
+              周一至周六 10:00–20:00
+            </View>
+            <View
+              className="onboarding__option"
+              hoverClass="onboarding__option--hover"
+              onClick={skipAvailability}
+            >
+              跳过，稍后设置
             </View>
           </View>
         )}

@@ -47,4 +47,11 @@
     background: #6366f1;
     transition: width 0.3s linear;
   }
+
+  &__hint {
+    display: block;
+    font-size: 20px;
+    color: #94a3b8;
+    margin-top: 8px;
+  }
 }
