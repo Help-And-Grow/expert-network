@@ -391,38 +391,57 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
-      {/* AI Voice Chat */}
+      {/* AI Voice Chat — vivid entry */}
       {expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
-        <section className="mt-4 space-y-2">
-          {vcConfig.asyncEnabled && (
-            <Button
-              variant="outline"
-              className="w-full h-11 text-sm font-medium bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 hover:from-indigo-100 hover:to-purple-100"
-              onClick={() => setShowVoiceChat(true)}
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Chat with AI {name.split(" ")[0]}
-            </Button>
-          )}
-          {vcConfig.realtimeReady && (
-            <Button
-              variant="outline"
-              className="w-full h-11 text-sm font-medium bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100"
+        <section className="mt-5">
+          <div
+            onClick={() => vcConfig.asyncEnabled ? setShowVoiceChat(true) : setShowRealtimeChat(true)}
+            className="group relative w-full cursor-pointer rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-[1px] transition-shadow hover:shadow-lg hover:shadow-indigo-200"
+          >
+            <div className="flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5">
+              <div className="relative shrink-0">
+                {expert.user.image ? (
+                  <img
+                    src={expert.user.image}
+                    alt=""
+                    className="h-11 w-11 rounded-full object-cover ring-2 ring-indigo-100"
+                  />
+                ) : (
+                  <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                    {name.split(" ")[0].charAt(0)}
+                  </div>
+                )}
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-50" />
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-indigo-500 items-center justify-center">
+                    <Sparkles className="h-2.5 w-2.5 text-white" />
+                  </span>
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">
+                  Talk to AI {name.split(" ")[0]}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                  {expert.hasClonedVoice
+                    ? "Free voice preview — responds in their voice"
+                    : "Free AI preview — get a feel for the expert"}
+                </p>
+              </div>
+              <div className="shrink-0 flex items-center gap-1.5 text-indigo-600">
+                <Sparkles className="h-4 w-4 group-hover:animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {vcConfig.asyncEnabled && vcConfig.realtimeReady && (
+            <button
               onClick={() => setShowRealtimeChat(true)}
+              className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-indigo-600 transition-colors"
             >
-              <Play className="h-4 w-4 mr-2" />
-              Live call with AI {name.split(" ")[0]}
-            </Button>
+              Or try a <span className="font-medium underline underline-offset-2">live voice call</span> (5 min free)
+            </button>
           )}
-          <p className="text-xs text-muted-foreground text-center">
-            {vcConfig.asyncEnabled && vcConfig.realtimeReady
-              ? `Free AI voice chat — message or call ${name}`
-              : vcConfig.realtimeReady
-                ? `Free 5-min live call with AI ${name}`
-                : expert.hasClonedVoice
-                  ? `Free voice chat — AI responds in ${name}'s voice`
-                  : `Free voice chat — AI answers as ${name} (standard voice)`}
-          </p>
         </section>
       )}
 
@@ -430,6 +449,9 @@ export default function ExpertProfilePage() {
         <VoiceChatPanel
           expertId={expert.id}
           expertName={name}
+          expertImage={expert.user.image}
+          expertDomains={expert.domains}
+          expertServices={expert.servicesOffered}
           hasClonedVoice={expert.hasClonedVoice}
           open={showVoiceChat}
           onClose={() => setShowVoiceChat(false)}
