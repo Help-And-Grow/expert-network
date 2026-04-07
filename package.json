@@ -9,6 +9,7 @@
     "db:push": "prisma db push --accept-data-loss",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
+    "typecheck": "prisma generate && tsc --noEmit",
     "audit": "npm audit",
     "audit:omit-dev": "npm audit --omit=dev",
     "audit:triage": "node scripts/audit-triage.mjs",
