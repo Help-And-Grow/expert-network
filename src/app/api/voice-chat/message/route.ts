@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[voice-chat/message]", msg);
 
-    const status = msg.includes("Turn limit") ? 429 : msg.includes("cloned voice") ? 404 : 500;
+    const status = msg.includes("Turn limit")
+      ? 429
+      : msg.includes("Expert not found")
+        ? 404
+        : 500;
     return NextResponse.json({ error: msg }, { status });
   }
 }

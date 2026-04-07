@@ -20,6 +20,11 @@ const SYSTEM_VOICES = new Set([
   "Rocky", "Eric",
 ]);
 
+/** Built-in Qwen3-TTS voice when no expert voice clone exists. */
+export function defaultQwenTtsVoiceId(gender?: string | null): string {
+  return gender === "female" ? "Cherry" : "Ethan";
+}
+
 /**
  * Qwen3-TTS voice synthesis provider (DashScope).
  *
@@ -38,7 +43,7 @@ export class QwenTTSProvider implements VoiceSynthesisProvider {
   }
 
   getDefaultVoiceId(gender?: string | null): string | undefined {
-    return gender === "female" ? "Cherry" : "Ethan";
+    return defaultQwenTtsVoiceId(gender);
   }
 
   async synthesize(input: VoiceSynthesisInput): Promise<VoiceSynthesisResult> {

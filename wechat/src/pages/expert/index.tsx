@@ -216,7 +216,7 @@ export default function ExpertPage() {
       )}
 
       {/* AI Voice Chat */}
-      {expert.hasClonedVoice && (
+      {(expert.hasVoiceChat ?? true) && (
         <View className="expert-profile__section">
           <View
             className="expert-profile__voice-chat-btn"
@@ -229,7 +229,9 @@ export default function ExpertPage() {
                 与 AI {name} 对话
               </Text>
               <Text className="expert-profile__voice-chat-desc">
-                免费语音对话 · AI 以专家声音回复
+                {expert.hasClonedVoice
+                  ? "免费语音对话 · AI 以专家声音回复"
+                  : "免费语音对话 · AI 以专家身份回复（默认音色）"}
               </Text>
             </View>
           </View>
@@ -240,6 +242,7 @@ export default function ExpertPage() {
       <VoiceChat
         expertId={expertId}
         expertName={name}
+        hasClonedVoice={expert.hasClonedVoice}
         visible={showVoiceChat}
         onClose={() => setShowVoiceChat(false)}
       />

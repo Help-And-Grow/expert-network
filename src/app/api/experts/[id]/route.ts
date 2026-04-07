@@ -65,6 +65,8 @@ export async function GET(
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
       hasClonedVoice: !!expert.fishAudioModelId,
+      /** Voice chat works with clone or built-in default voice */
+      hasVoiceChat: true,
     });
   } catch (error) {
     console.error("[experts/[id] GET]", error);
