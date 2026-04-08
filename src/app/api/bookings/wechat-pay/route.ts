@@ -8,8 +8,10 @@ import { resolveUserId } from "@/lib/request-auth";
 import { calculateBookingAmount } from "@/lib/stripe";
 import {
   createUnifiedOrder,
+  createPartnerUnifiedOrder,
   buildPaymentParams,
   isWechatPayConfigured,
+  isWechatPayPartnerMode,
   convertSGDToCNY,
 } from "@/lib/wechat-pay";
 
@@ -91,6 +93,30 @@ export async function POST(request: NextRequest) {
       end
     );
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { wechatOpenId: true },
+    });
+
+    if (!user?.wechatOpenId) {
+      return NextResponse.json(
+        { error: "WeChat identity not found" },
+        { status: 400 }
+      );
+    }
+
+    const partner = isWechatPayPartnerMode();
+    const subMchId = expert.wechatSubMchId?.trim();
+    if (partner && !subMchId) {
+      return NextResponse.json(
+        {
+          error:
+            "WeChat partner mode requires expert wechatSubMchId (特约商户号)",
+        },
+        { status: 400 }
+      );
+    }
+
     const booking = await prisma.booking.create({
       data: {
         expertId,
@@ -117,28 +143,24 @@ export async function POST(request: NextRequest) {
         .catch(() => {});
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { wechatOpenId: true },
-    });
-
-    if (!user?.wechatOpenId) {
-      return NextResponse.json(
-        { error: "WeChat identity not found" },
-        { status: 400 }
-      );
-    }
-
     const depositCNY = convertSGDToCNY(depositCents);
     const expertName =
       expert.user.nickName ?? expert.user.name ?? "Expert";
 
-    const { prepayId } = await createUnifiedOrder({
-      outTradeNo: booking.id,
-      description: `Session with ${expertName}`,
-      totalAmountCNY: depositCNY,
-      openid: user.wechatOpenId,
-    });
+    const { prepayId } = partner && subMchId
+      ? await createPartnerUnifiedOrder({
+          outTradeNo: booking.id,
+          description: `Session with ${expertName}`,
+          totalAmountCNY: depositCNY,
+          openid: user.wechatOpenId,
+          subMchId,
+        })
+      : await createUnifiedOrder({
+          outTradeNo: booking.id,
+          description: `Session with ${expertName}`,
+          totalAmountCNY: depositCNY,
+          openid: user.wechatOpenId,
+        });
 
     const paymentParams = buildPaymentParams(prepayId);
 

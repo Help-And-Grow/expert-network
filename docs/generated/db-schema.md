@@ -56,6 +56,7 @@ Extended profile linked 1:1 to User.
 | currency | String | Default: "SGD" |
 | stripeAccountId | String? | Stripe Connected Account |
 | stripeAccountStatus | String? | none / onboarding / active / restricted |
+| wechatSubMchId | String? | WeChat Pay sub-merchant (特约商户号) for partner / profit-sharing mode |
 | weeklySchedule | Json? | `{ "mon": [{"start":"10:00","end":"15:00"}], ... }` |
 | sessionType | SessionType | Default: BOTH |
 | bio | String? (Text) | AI-generated professional bio |
@@ -103,6 +104,7 @@ Session records with full payment tracking.
 | paymentStatus | String | "pending" / "deposit_paid" / "fully_paid" |
 | stripeCheckoutSessionId | String? | For idempotent booking creation |
 | remainderChargedAt | DateTime? | When remainder was collected |
+| wechatProfitShareStatus | String? | Partner profit-sharing: pending / success / failed / skipped |
 
 ### Review
 Post-session ratings.

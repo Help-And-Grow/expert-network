@@ -109,6 +109,16 @@ const envSchema = z
     WECHAT_PAY_PRIVATE_KEY: z.string().optional(),
     WECHAT_APP_ID: z.string().optional(),
     WECHAT_PAY_NOTIFY_URL: z.string().optional(),
+    /** Service-provider mode: use partner JSAPI + profit sharing (set "true") */
+    WECHAT_PAY_PARTNER_MODE: z.enum(["true", "false"]).optional(),
+    /** Sub-merchant receiving the payment (Expert.wechatSubMchId per expert) */
+    WECHAT_PAY_PLATFORM_MCH_ID: z.string().optional(),
+    /** Legal name of platform merchant for profit-sharing `name` (encrypted) */
+    WECHAT_PAY_PLATFORM_MERCHANT_NAME: z.string().optional(),
+    /** PEM of WeChat Pay platform public key (for OAEP encrypting receiver name) */
+    WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM: z.string().optional(),
+    /** Wechatpay-Serial header: platform certificate serial or public key id */
+    WECHAT_PAY_PLATFORM_CERT_SERIAL: z.string().optional(),
 
     FISH_AUDIO_API_KEY: z.string().optional(),
     FISH_AUDIO_VOICE_ID_MALE: z.string().optional(),
