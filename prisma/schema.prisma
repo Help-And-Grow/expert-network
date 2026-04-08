@@ -133,6 +133,9 @@ model Expert {
   stripeAccountId     String?
   stripeAccountStatus String?  @default("none") // none | onboarding | active | restricted
 
+  /// WeChat Pay sub-merchant id (特约商户号) when using service-provider / profit-sharing mode
+  wechatSubMchId      String?
+
   // Weekly availability schedule (JSON: { "mon": [{"start":"10:00","end":"15:00"}], ... })
   weeklySchedule  Json?
 
@@ -231,6 +234,9 @@ model Booking {
   tonDepositTxHash        String?
   tonRemainderTxHash      String?
   remainderChargedAt      DateTime?
+
+  /// WeChat profit-sharing: pending | success | failed | skipped (null = not applicable or not yet processed)
+  wechatProfitShareStatus String?
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

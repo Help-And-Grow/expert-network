@@ -10,6 +10,12 @@ const NOTIFY_URL =
   env.WECHAT_PAY_NOTIFY_URL ||
   "https://expert-network.vercel.app/api/webhooks/wechat-pay";
 
+const PARTNER_MODE = env.WECHAT_PAY_PARTNER_MODE === "true";
+const PLATFORM_MCH_ID = env.WECHAT_PAY_PLATFORM_MCH_ID || MCH_ID;
+const PLATFORM_MERCHANT_NAME = env.WECHAT_PAY_PLATFORM_MERCHANT_NAME || "";
+const PLATFORM_PUBLIC_KEY_PEM = env.WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM || "";
+const PLATFORM_CERT_SERIAL = env.WECHAT_PAY_PLATFORM_CERT_SERIAL || "";
+
 function getPrivateKey(): string {
   let key = PRIVATE_KEY;
   if (!key.includes("BEGIN")) {
@@ -48,6 +54,10 @@ export interface UnifiedOrderParams {
   openid: string;
 }
 
+export interface PartnerUnifiedOrderParams extends UnifiedOrderParams {
+  subMchId: string;
+}
+
 export interface UnifiedOrderResult {
   prepayId: string;
 }
@@ -83,11 +93,61 @@ export async function createUnifiedOrder(
     body,
   });
 
-  const data = await res.json();
+  const data = (await res.json()) as { prepay_id?: string; message?: string };
 
   if (!res.ok || !data.prepay_id) {
     console.error("[wechat-pay] unified order error:", data);
     throw new Error(data.message || "WeChat Pay order failed");
+  }
+
+  return { prepayId: data.prepay_id };
+}
+
+/**
+ * Service-provider JSAPI prepay: funds settle to sub-merchant; use `settle_info.profit_sharing`
+ * so the platform can call `/v3/profitsharing/orders` after payment.
+ */
+export async function createPartnerUnifiedOrder(
+  params: PartnerUnifiedOrderParams
+): Promise<UnifiedOrderResult> {
+  const url = "/v3/pay/partner/transactions/jsapi";
+  const body = JSON.stringify({
+    sp_appid: APP_ID,
+    sp_mchid: MCH_ID,
+    sub_mchid: params.subMchId,
+    sub_appid: APP_ID,
+    description: params.description,
+    out_trade_no: params.outTradeNo,
+    notify_url: NOTIFY_URL,
+    amount: {
+      total: params.totalAmountCNY,
+      currency: "CNY",
+    },
+    payer: {
+      sub_openid: params.openid,
+    },
+    settle_info: {
+      profit_sharing: true,
+    },
+  });
+
+  const authorization = buildAuthorizationHeader("POST", url, body);
+
+  const res = await fetch(`https://api.mch.weixin.qq.com${url}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: authorization,
+    },
+    body,
+  });
+
+  const data = (await res.json()) as { prepay_id?: string; message?: string };
+
+  if (!res.ok || !data.prepay_id) {
+    console.error("[wechat-pay] partner unified order error:", data);
+    throw new Error(data.message || "WeChat Pay partner order failed");
   }
 
   return { prepayId: data.prepay_id };
@@ -145,10 +205,6 @@ export function verifyWebhookSignature(
   signature: string,
   _certPublicKey: string
 ): boolean {
-  // In production, verify using WeChat Pay's platform certificate.
-  // For now, rely on AEAD decryption as the primary verification.
-  // Full signature verification requires fetching platform certs from
-  // /v3/certificates and caching them.
   try {
     const message = `${timestamp}\n${nonce}\n${body}\n`;
     const verify = crypto.createVerify("RSA-SHA256");
@@ -163,11 +219,120 @@ export function isWechatPayConfigured(): boolean {
   return !!(MCH_ID && API_V3_KEY && CERT_SERIAL_NO && PRIVATE_KEY && APP_ID);
 }
 
+export function isWechatPayPartnerMode(): boolean {
+  return PARTNER_MODE && isWechatPayConfigured();
+}
+
+/** OAEP-SHA256 encrypted merchant name for profit-sharing receivers (API v3). */
+function encryptForWechatPayPlatform(plain: string): string {
+  if (!PLATFORM_PUBLIC_KEY_PEM) {
+    throw new Error("WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM is not set");
+  }
+  const buf = crypto.publicEncrypt(
+    {
+      key: PLATFORM_PUBLIC_KEY_PEM.includes("BEGIN")
+        ? PLATFORM_PUBLIC_KEY_PEM
+        : `-----BEGIN PUBLIC KEY-----\n${PLATFORM_PUBLIC_KEY_PEM}\n-----END PUBLIC KEY-----`,
+      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+      oaepHash: "sha256",
+    },
+    Buffer.from(plain, "utf8")
+  );
+  return buf.toString("base64");
+}
+
+export interface ProfitSharingParams {
+  subMchId: string;
+  transactionId: string;
+  /** Unique per split request; max 64 chars */
+  outOrderNo: string;
+  /** Amount in CNY fen to send to the platform merchant */
+  platformAmountFen: number;
+}
+
+/**
+ * Request profit sharing after payment (`/v3/profitsharing/orders`).
+ * Requires service-provider credentials; sends platform fee to `WECHAT_PAY_PLATFORM_MCH_ID` (defaults to SP mchid).
+ * Sensitive `name` field is RSA-OAEP encrypted; set `WECHAT_PAY_PLATFORM_MERCHANT_NAME` and platform cert env vars.
+ */
+export async function requestProfitSharing(
+  params: ProfitSharingParams
+): Promise<{ ok: boolean; skippedReason?: string; raw?: unknown }> {
+  if (!isWechatPayPartnerMode()) {
+    return { ok: false, skippedReason: "not_partner_mode" };
+  }
+  if (!PLATFORM_MERCHANT_NAME || !PLATFORM_PUBLIC_KEY_PEM || !PLATFORM_CERT_SERIAL) {
+    console.warn(
+      "[wechat-pay] profit sharing skipped: set WECHAT_PAY_PLATFORM_MERCHANT_NAME, WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM, WECHAT_PAY_PLATFORM_CERT_SERIAL"
+    );
+    return { ok: false, skippedReason: "missing_platform_encrypt_env" };
+  }
+  if (params.platformAmountFen <= 0) {
+    return { ok: false, skippedReason: "zero_amount" };
+  }
+
+  const url = "/v3/profitsharing/orders";
+  const nameEnc = encryptForWechatPayPlatform(PLATFORM_MERCHANT_NAME);
+  const body = JSON.stringify({
+    sub_mchid: params.subMchId,
+    transaction_id: params.transactionId,
+    out_order_no: params.outOrderNo,
+    receivers: [
+      {
+        type: "MERCHANT_ID",
+        account: PLATFORM_MCH_ID,
+        name: nameEnc,
+        amount: params.platformAmountFen,
+        description: "Platform fee",
+      },
+    ],
+    unfreeze_unsplit: true,
+  });
+
+  const authorization = buildAuthorizationHeader("POST", url, body);
+
+  const res = await fetch(`https://api.mch.weixin.qq.com${url}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: authorization,
+      "Wechatpay-Serial": PLATFORM_CERT_SERIAL,
+    },
+    body,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    console.error("[wechat-pay] profitsharing error:", data);
+    return { ok: false, skippedReason: "api_error", raw: data };
+  }
+  return { ok: true, raw: data };
+}
+
 const SGD_TO_CNY_RATE = 5.3;
 
 export function convertSGDToCNY(sgdCents: number): number {
-  // Input is SGD cents; output must be CNY fen.
-  // sgdCents / 100 -> SGD yuan, * rate -> CNY yuan, * 100 -> CNY fen
-  // => effectively sgdCents * rate.
   return Math.ceil(sgdCents * SGD_TO_CNY_RATE);
+}
+
+/** Platform fee portion of a CNY amount (fen), same basis points as Stripe's `getPlatformFeePercent`. */
+export function wechatPlatformFeePercent(): number {
+  const raw = process.env.STRIPE_PLATFORM_FEE_PERCENT;
+  if (raw) {
+    const n = parseFloat(raw);
+    if (!isNaN(n) && n >= 0 && n <= 100) return n;
+  }
+  return 15;
+}
+
+/**
+ * Deposit amount in CNY fen allocated to the platform (rounded down), for profit-sharing request.
+ */
+export function computeWechatPlatformShareFen(
+  depositCnyFen: number,
+  feePercent: number
+): number {
+  if (depositCnyFen <= 0 || feePercent <= 0) return 0;
+  return Math.floor((depositCnyFen * feePercent) / 100);
 }

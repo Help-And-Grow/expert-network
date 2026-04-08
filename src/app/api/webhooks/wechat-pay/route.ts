@@ -8,7 +8,14 @@ import {
   notifyExpertBooking,
   notifyFounderBooking,
 } from "@/lib/telegram-bot";
-import { decryptResource } from "@/lib/wechat-pay";
+import {
+  convertSGDToCNY,
+  computeWechatPlatformShareFen,
+  decryptResource,
+  isWechatPayPartnerMode,
+  requestProfitSharing,
+  wechatPlatformFeePercent,
+} from "@/lib/wechat-pay";
 
 interface WechatPayNotification {
   id: string;
@@ -102,6 +109,50 @@ export async function POST(request: NextRequest) {
     });
 
     triggerBookingEmails(updated);
+
+    const subMchId = updated.expert.wechatSubMchId?.trim();
+    const depositCnyFen = convertSGDToCNY(updated.depositAmountCents ?? 0);
+    const platformFen = computeWechatPlatformShareFen(
+      depositCnyFen,
+      wechatPlatformFeePercent()
+    );
+    if (
+      isWechatPayPartnerMode() &&
+      subMchId &&
+      platformFen > 0
+    ) {
+      const outOrderNo = `ps-${updated.id}`.slice(0, 64);
+      void requestProfitSharing({
+        subMchId,
+        transactionId: decrypted.transaction_id,
+        outOrderNo,
+        platformAmountFen: platformFen,
+      }).then((r) =>
+        prisma.booking
+          .update({
+            where: { id: updated.id },
+            data: {
+              wechatProfitShareStatus: r.ok
+                ? "success"
+                : r.skippedReason === "missing_platform_encrypt_env"
+                  ? "skipped"
+                  : "failed",
+            },
+          })
+          .catch((e: unknown) =>
+            console.error("[wechat-pay-webhook] profit share status error:", e)
+          )
+      );
+    } else if (isWechatPayPartnerMode()) {
+      void prisma.booking
+        .update({
+          where: { id: updated.id },
+          data: { wechatProfitShareStatus: "skipped" },
+        })
+        .catch((e: unknown) =>
+          console.error("[wechat-pay-webhook] profit share skip persist:", e)
+        );
+    }
 
     if (updated.totalAmountCents && updated.totalAmountCents > 0) {
       creditTokens(updated.founderId, updated.id, updated.totalAmountCents).catch(
