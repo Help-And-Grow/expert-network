@@ -3,6 +3,7 @@ import Taro, { useLoad, usePullDownRefresh, useDidShow } from "@tarojs/taro";
 import { useState, useCallback } from "react";
 import { get, post } from "../../shared/api";
 import type { Booking } from "../../shared/types";
+import { buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
 
 export default function DashboardPage() {
@@ -159,7 +160,7 @@ export default function DashboardPage() {
           </Text>
           <Text className="dashboard__empty-hint">
             {tab === "upcoming"
-              ? "去发现专家并预约第一场咨询"
+              ? "去发现专家；正式预约请在网页完成"
               : "已完成的咨询会显示在这里"}
           </Text>
           {tab === "upcoming" && (
@@ -209,11 +210,6 @@ export default function DashboardPage() {
                   <Text className="dashboard__card-type">
                     {booking.sessionType === "OFFLINE" ? "📍 线下" : "🖥 线上"}
                   </Text>
-                  {booking.depositAmountCents && (
-                    <Text className="dashboard__card-deposit">
-                      订金 {booking.currency} {(booking.depositAmountCents / 100).toFixed(2)}
-                    </Text>
-                  )}
                 </View>
 
                 {booking.meetingLink && (
@@ -255,12 +251,24 @@ export default function DashboardPage() {
                           hoverClass="dashboard__action-btn--hover"
                           onClick={(e) => {
                             e.stopPropagation();
-                            Taro.navigateTo({
-                              url: `/pages/book/index?id=${booking.expertId}&type=${booking.sessionType}&rescheduleId=${booking.id}`,
+                            const url = buildWebBookUrl(
+                              booking.expertId,
+                              booking.sessionType
+                            );
+                            Taro.setClipboardData({
+                              data: url,
+                              success: () => {
+                                Taro.showModal({
+                                  title: "改期",
+                                  content:
+                                    "已复制网页预约链接。请在浏览器中打开，联系平台或重新下单完成改期。",
+                                  showCancel: false,
+                                });
+                              },
                             });
                           }}
                         >
-                          改期
+                          改期（网页）
                         </View>
                       )}
                       <View

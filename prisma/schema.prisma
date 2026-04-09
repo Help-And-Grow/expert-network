@@ -224,6 +224,7 @@ model Booking {
   paymentStatus           String   @default("pending")
   stripeCheckoutSessionId String?
   stripePaymentIntentId   String?
+  wechatTransactionId     String?
   stripeCustomerId        String?
   stripePaymentMethodId   String?
   stripeRemainderPIId     String?

@@ -9,15 +9,11 @@ import {
   Star,
   Shield,
   Sparkles,
-  Link2,
   MapPin,
   Monitor,
   Loader2,
-  Linkedin,
-  Twitter,
   FileDown,
   ArrowLeft,
-  Globe,
   Play,
   Pause,
 } from "lucide-react";
@@ -31,7 +27,6 @@ import { UserMenu } from "@/components/user-menu";
 import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
-import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -95,15 +90,6 @@ interface ReviewsResponse {
   skip: number;
   take: number;
 }
-
-const socialConfig = [
-  { key: "linkedIn" as const, label: "LinkedIn", icon: Linkedin, getUrl: (e: Expert) => e.linkedIn },
-  { key: "website" as const, label: "Website", icon: Globe, getUrl: (e: Expert) => e.website },
-  { key: "twitter" as const, label: "X", icon: Twitter, getUrl: (e: Expert) => e.twitter },
-  { key: "substack" as const, label: "Substack", icon: Link2, getUrl: (e: Expert) => e.substack },
-  { key: "instagram" as const, label: "Instagram", icon: Link2, getUrl: (e: Expert) => e.instagram },
-  { key: "xiaohongshu" as const, label: "XiaoHongShu", icon: Link2, getUrl: (e: Expert) => e.xiaohongshu },
-];
 
 function HeroSkeleton() {
   return (
@@ -259,10 +245,6 @@ export default function ExpertProfilePage() {
 
   const name = expert.user.nickName ?? expert.user.name ?? "Expert";
   const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
-  const socialLinks = socialConfig.filter((c) => {
-    const url = c.getUrl(expert);
-    return url && url.trim() !== "";
-  });
   const hasMoreReviews = reviews.length < reviewsTotal;
 
   return (
@@ -487,7 +469,7 @@ export default function ExpertProfilePage() {
       {services.length > 0 && (
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-foreground mb-3">
-            Services Offered
+            Services offered
           </h2>
           <div className="space-y-3">
             {services.map((s, i) => (
@@ -504,40 +486,21 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
-      {/* Social Links */}
-      {socialLinks.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold text-foreground mb-3">Connect</h2>
-          <div className="flex flex-wrap gap-3">
-            {socialLinks.map(({ label, icon: Icon, getUrl }) => {
-              const url = getUrl(expert);
-              if (!url) return null;
-              const href = url.startsWith("http") ? url : `https://${url}`;
-              return (
-                <button
-                  key={label}
-                  onClick={() => openExternalUrl(href)}
-                  className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
-                >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Document Download */}
+      {/* Service introduction document (in-platform; no external social links on this page) */}
       {expert.documentName && (
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold text-foreground mb-3">Document</h2>
+        <section className="mt-8 rounded-xl border border-indigo-100 bg-indigo-50/40 dark:bg-indigo-950/20 p-4">
+          <h2 className="text-lg font-semibold text-foreground mb-1">
+            Service introduction
+          </h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Read how this expert structures their offering before you book.
+          </p>
           <a
             href={`/api/experts/${id}/document`}
             download
-            className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium hover:bg-accent transition-colors"
+            className="flex items-center gap-3 rounded-lg border border-background bg-background px-4 py-3 text-sm font-medium hover:bg-accent transition-colors"
           >
-            <FileDown className="h-5 w-5 text-muted-foreground" />
+            <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />
             <span className="truncate flex-1">{expert.documentName}</span>
             <span className="text-xs text-muted-foreground shrink-0">Download</span>
           </a>

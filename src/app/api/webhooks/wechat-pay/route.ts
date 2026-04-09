@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       data: {
         status: "CONFIRMED",
         paymentStatus: "deposit_paid",
-        stripePaymentIntentId: decrypted.transaction_id,
+        wechatTransactionId: decrypted.transaction_id,
       },
       include: {
         expert: { include: { user: true } },

@@ -155,10 +155,6 @@ export default function DiscoverPage() {
     Taro.navigateTo({ url: `/pages/expert/index?id=${expertId}` });
   };
 
-  const goToBook = (expertId: string) => {
-    Taro.navigateTo({ url: `/pages/book/index?id=${expertId}&from=match` });
-  };
-
   useLoad(() => {
     Taro.setNavigationBarTitle({ title: "AI 智能匹配" });
   });
@@ -230,20 +226,13 @@ export default function DiscoverPage() {
                             <Text className="discover__rec-reason">
                               {normalizeRecommendationReason(rec.reason)}
                             </Text>
-                            <View className="discover__rec-actions">
+                            <View className="discover__rec-actions discover__rec-actions--single">
                               <View
-                                className="discover__rec-btn discover__rec-btn--primary"
-                                hoverClass="discover__rec-btn--hover"
-                                onClick={() => goToBook(rec.expertId)}
-                              >
-                                预约
-                              </View>
-                              <View
-                                className="discover__rec-btn discover__rec-btn--outline"
+                                className="discover__rec-btn discover__rec-btn--primary discover__rec-btn--full"
                                 hoverClass="discover__rec-btn--hover"
                                 onClick={() => goToExpert(rec.expertId)}
                               >
-                                查看
+                                查看专家主页
                               </View>
                             </View>
                           </View>

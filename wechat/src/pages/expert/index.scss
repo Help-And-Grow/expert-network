@@ -4,7 +4,7 @@
 }
 
 .expert-profile {
-  padding-bottom: 140px;
+  padding-bottom: 32px;
 
   &__skeleton {
     padding: 48px 32px;
@@ -172,6 +172,20 @@
   &__section {
     padding: 0 32px;
     margin-top: 32px;
+
+    &--highlight {
+      margin-top: 28px;
+      padding: 28px 32px;
+      margin-left: 16px;
+      margin-right: 16px;
+      background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+      border-radius: 20px;
+      border: 1.5px solid #e0e7ff;
+    }
+
+    &--cta {
+      margin-top: 40px;
+    }
   }
 
   &__section-title {
@@ -180,6 +194,37 @@
     font-weight: 700;
     color: #1e1b4b;
     margin-bottom: 16px;
+  }
+
+  &__section-sub {
+    display: block;
+    font-size: 24px;
+    color: #64748b;
+    line-height: 1.55;
+    margin-bottom: 20px;
+  }
+
+  &__web-book-btn {
+    text-align: center;
+    padding: 22px;
+    border-radius: 16px;
+    font-size: 28px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+
+    &--secondary {
+      background: #fff;
+      color: #4f46e5;
+      border: 2px solid #c7d2fe;
+      box-shadow: none;
+    }
+
+    &--hover {
+      opacity: 0.88;
+    }
   }
 
   &__text {

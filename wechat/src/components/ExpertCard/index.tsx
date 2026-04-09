@@ -26,10 +26,6 @@ export default function ExpertCard({ expert }: Props) {
     Taro.navigateTo({ url: `/pages/expert/index?id=${expert.id}` });
   };
 
-  const goToBook = () => {
-    Taro.navigateTo({ url: `/pages/book/index?id=${expert.id}&from=browse` });
-  };
-
   return (
     <View className="expert-card" hoverClass="expert-card--hover" onClick={goToProfile}>
       <View className="expert-card__body">
@@ -80,18 +76,11 @@ export default function ExpertCard({ expert }: Props) {
       </View>
       <View className="expert-card__actions">
         <View
-          className="expert-card__btn expert-card__btn--primary"
-          hoverClass="expert-card__btn--hover"
-          onClick={(e) => { e.stopPropagation(); goToBook(); }}
-        >
-          预约咨询
-        </View>
-        <View
-          className="expert-card__btn expert-card__btn--outline"
+          className="expert-card__btn expert-card__btn--primary expert-card__btn--full"
           hoverClass="expert-card__btn--hover"
           onClick={(e) => { e.stopPropagation(); goToProfile(); }}
         >
-          查看主页
+          查看主页与 AI 对话
         </View>
       </View>
     </View>

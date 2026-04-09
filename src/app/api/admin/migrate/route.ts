@@ -29,6 +29,7 @@ const MIGRATIONS = [
   // POMP (Proof of Meet Protocol) migrations
   `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "tokenDiscount" INTEGER DEFAULT 0`,
   `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "tokensRedeemed" INTEGER DEFAULT 0`,
+  `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "wechatTransactionId" TEXT`,
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tokenBalance" INTEGER DEFAULT 0`,
   `DROP TABLE IF EXISTS "POVPCredential"`,
   `CREATE TABLE IF NOT EXISTS "POMPCredential" (
