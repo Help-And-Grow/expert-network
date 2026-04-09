@@ -1,280 +1,78 @@
-@keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-}
+.book-web {
+  padding: 48px 40px 80px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 40%);
 
-.book-page {
-  padding-bottom: 200px;
-
-  &__skeleton-header {
-    height: 120px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-  }
-
-  &__skeleton-dates {
-    display: flex;
-    gap: 12px;
-    padding: 24px 32px;
-  }
-
-  &__skeleton-date {
-    width: 88px;
-    height: 100px;
-    border-radius: 16px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-    flex-shrink: 0;
-  }
-
-  &__skeleton-slots {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 0 32px;
-  }
-
-  &__skeleton-slot {
-    width: 160px;
-    height: 56px;
-    border-radius: 14px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-  }
-
+  &__loading,
   &__error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    padding: 40px;
-  }
-
-  &__error-icon {
-    font-size: 56px;
-    margin-bottom: 16px;
-  }
-
-  &__error-text {
+    display: block;
+    text-align: center;
     font-size: 28px;
     color: #94a3b8;
-    margin-bottom: 20px;
+    margin-top: 120px;
   }
 
-  &__error-btn {
-    padding: 16px 48px;
-    background: #f1f5f9;
-    border-radius: 14px;
-    font-size: 28px;
-    color: #1e1b4b;
-    font-weight: 500;
-
-    &--hover {
-      background: #e2e8f0;
-    }
-  }
-
-  &__header {
-    padding: 32px;
-    background: #fff;
-    border-bottom: 1px solid #f1f5f9;
-  }
-
-  &__expert-name {
+  &__title {
     display: block;
-    font-size: 36px;
+    font-size: 40px;
+    font-weight: 800;
+    color: #1e1b4b;
+    margin-bottom: 24px;
+  }
+
+  &__desc {
+    display: block;
+    font-size: 26px;
+    color: #64748b;
+    line-height: 1.65;
+    margin-bottom: 32px;
+  }
+
+  &__card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1.5px solid #e0e7ff;
+    padding: 28px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.06);
+  }
+
+  &__expert {
+    display: block;
+    font-size: 32px;
     font-weight: 700;
     color: #1e1b4b;
-    margin-bottom: 12px;
   }
 
-  &__meta {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  &__session-type {
+  &__type {
+    display: block;
     font-size: 26px;
     color: #6366f1;
-    font-weight: 500;
-  }
-
-  &__price {
-    font-size: 26px;
-    font-weight: 600;
-    color: #059669;
-    background: rgba(16, 185, 129, 0.08);
-    padding: 4px 16px;
-    border-radius: 10px;
-  }
-
-  &__section {
-    padding: 24px 32px;
-  }
-
-  &__section-title {
-    display: block;
-    font-size: 30px;
-    font-weight: 700;
-    color: #1e1b4b;
-    margin-bottom: 16px;
-  }
-
-  &__hint {
-    display: block;
-    font-size: 22px;
-    color: #94a3b8;
-    margin-bottom: 16px;
-  }
-
-  &__dates {
-    white-space: nowrap;
-  }
-
-  &__date-chip {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 88px;
-    height: 100px;
-    border-radius: 16px;
-    background: #fff;
-    border: 2px solid #e2e8f0;
-    margin-right: 12px;
-
-    &--selected {
-      border-color: #6366f1;
-      background: #eef2ff;
-    }
-
-    &--hover {
-      border-color: #c7d2fe;
-    }
-  }
-
-  &__date-day {
-    font-size: 22px;
-    color: #94a3b8;
-    font-weight: 500;
-    margin-bottom: 4px;
-
-    .book-page__date-chip--selected & {
-      color: #6366f1;
-    }
-  }
-
-  &__date-num {
-    font-size: 34px;
-    font-weight: 700;
-    color: #1e1b4b;
-
-    .book-page__date-chip--selected & {
-      color: #6366f1;
-    }
-  }
-
-  &__no-slots-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px 0;
-  }
-
-  &__no-slots-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-  }
-
-  &__no-slots {
-    display: block;
-    font-size: 26px;
-    color: #94a3b8;
-    text-align: center;
-  }
-
-  &__no-slots-hint {
-    display: block;
-    font-size: 22px;
-    color: #cbd5e1;
     margin-top: 8px;
   }
 
-  &__slots {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  &__slot {
-    padding: 16px 28px;
-    border-radius: 14px;
-    border: 2px solid #e2e8f0;
-    font-size: 26px;
-    color: #475569;
-    background: #fff;
-    font-weight: 500;
-
-    &--selected {
-      border-color: #6366f1;
-      background: #eef2ff;
-      color: #6366f1;
-      font-weight: 600;
-    }
-
-    &--hover {
-      border-color: #c7d2fe;
-    }
-  }
-
-  &__slot-check {
-    color: #6366f1;
-    font-weight: 700;
-  }
-
-  &__bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 20px 32px;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    background: #fff;
-    border-top: 1px solid #f1f5f9;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
-  }
-
-  &__deposit {
-    display: block;
-    font-size: 24px;
-    color: #6366f1;
+  &__btn {
     text-align: center;
-    margin-bottom: 16px;
-    font-weight: 500;
-  }
-
-  &__confirm-btn {
-    text-align: center;
-    padding: 24px 0;
+    padding: 28px;
     border-radius: 18px;
     font-size: 30px;
     font-weight: 600;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    margin-bottom: 20px;
 
-    &--disabled {
-      opacity: 0.35;
-      box-shadow: none;
+    &--primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    }
+
+    &--ghost {
+      background: #f1f5f9;
+      color: #475569;
     }
 
     &--hover {
-      opacity: 0.85;
+      opacity: 0.88;
     }
   }
 }

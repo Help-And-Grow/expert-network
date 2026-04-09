@@ -843,14 +843,20 @@ export default function BookSessionPage() {
               )}
             </Button>
             {!isTelegram && totalCents > 0 && (
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={!canConfirm || submitting}
-                onClick={handleStripeCheckout}
-              >
-                Use Stripe Checkout instead
-              </Button>
+              <div className="space-y-1">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={!canConfirm || submitting}
+                  onClick={handleStripeCheckout}
+                >
+                  Pay with Stripe Checkout
+                </Button>
+                <p className="text-center text-xs text-muted-foreground px-1">
+                  Stripe Checkout includes PayNow, GrabPay, WeChat Pay, Alipay, then card. Apple Pay and Google Pay
+                  appear on the card step when your browser and Stripe Dashboard settings support them.
+                </p>
+              </div>
             )}
           </div>
         )}

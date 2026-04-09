@@ -2,11 +2,54 @@ import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { getApiBase, getToken } from "../../shared/auth";
+import { logToVercel } from "../../shared/debug-log";
 import "./index.scss";
 
 interface Props {
   src: string;
   label?: string;
+}
+
+function extFromContentType(ct: string | undefined): string {
+  if (!ct) return "mp3";
+  const m = ct.toLowerCase();
+  if (m.includes("wav")) return "wav";
+  if (m.includes("mpeg") || m.includes("mp3")) return "mp3";
+  if (m.includes("mp4") || m.includes("aac") || m.includes("m4a")) return "m4a";
+  return "mp3";
+}
+
+/** When downloadFile fails (e.g. domain only whitelisted for request), fetch bytes and write to USER_DATA_PATH. */
+async function fetchAudioToLocalPath(
+  fullUrl: string,
+  token: string | null,
+): Promise<string> {
+  const res = await Taro.request<ArrayBuffer>({
+    url: fullUrl,
+    method: "GET",
+    header: token ? { "x-wechat-token": token } : {},
+    responseType: "arraybuffer",
+  });
+  if (res.statusCode !== 200 || !res.data) {
+    throw new Error(`request audio failed: ${res.statusCode}`);
+  }
+  const hdr = res.header as Record<string, string> | undefined;
+  const ct =
+    hdr?.["Content-Type"] ?? hdr?.["content-type"] ?? hdr?.["Content-type"];
+  const ext = extFromContentType(typeof ct === "string" ? ct : undefined);
+  const fs = Taro.getFileSystemManager();
+  const root = Taro.env.USER_DATA_PATH;
+  if (!root) throw new Error("USER_DATA_PATH missing");
+  const filePath = `${root}/hg_intro_${Date.now()}.${ext}`;
+  await new Promise<void>((resolve, reject) => {
+    fs.writeFile({
+      filePath,
+      data: res.data,
+      success: () => resolve(),
+      fail: reject,
+    });
+  });
+  return filePath;
 }
 
 /**
@@ -77,14 +120,50 @@ export default function AudioPlayer({ src, label }: Props) {
       },
       fail: (err) => {
         console.error("[AudioPlayer] downloadFile", err);
-        if (!cancelled) {
-          setLoadError(true);
-          Taro.showToast({
-            title: "音频加载失败（请配置 downloadFile 合法域名）",
-            icon: "none",
-            duration: 3200,
-          });
-        }
+        logToVercel("warn", "AudioPlayer downloadFile", err);
+        void (async () => {
+          try {
+            const localPath = await fetchAudioToLocalPath(fullUrl, token);
+            if (cancelled) return;
+            const audio = Taro.createInnerAudioContext();
+            audio.obeyMuteSwitch = false;
+            audio.src = localPath;
+            audio.onPlay(() => setPlaying(true));
+            audio.onPause(() => setPlaying(false));
+            audio.onStop(() => {
+              setPlaying(false);
+              setProgress(0);
+            });
+            audio.onEnded(() => {
+              setPlaying(false);
+              setProgress(0);
+            });
+            audio.onTimeUpdate(() => {
+              if (audio.duration > 0) {
+                setProgress(audio.currentTime / audio.duration);
+              }
+            });
+            audio.onError((e) => {
+              console.error("[AudioPlayer] playback", e);
+              logToVercel("error", "AudioPlayer playback after request fallback", e);
+              setPlaying(false);
+              setLoadError(true);
+              Taro.showToast({ title: "无法播放音频", icon: "none" });
+            });
+            ctxRef.current = audio;
+            setReady(true);
+          } catch (e) {
+            logToVercel("error", "AudioPlayer request fallback", e);
+            if (!cancelled) {
+              setLoadError(true);
+              Taro.showToast({
+                title: "音频加载失败（请配置 request / downloadFile 合法域名）",
+                icon: "none",
+                duration: 3200,
+              });
+            }
+          }
+        })();
       },
     });
 

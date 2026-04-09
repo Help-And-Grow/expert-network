@@ -12,16 +12,8 @@ import type {
   ReviewsResponse,
 } from "../../shared/types";
 import { getDomainLabel } from "../../shared/types";
+import { buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
-
-const socialConfig = [
-  { key: "linkedIn" as const, label: "LinkedIn" },
-  { key: "website" as const, label: "官网" },
-  { key: "twitter" as const, label: "X" },
-  { key: "substack" as const, label: "Substack" },
-  { key: "instagram" as const, label: "Instagram" },
-  { key: "xiaohongshu" as const, label: "小红书" },
-];
 
 export default function ExpertPage() {
   const router = useRouter();
@@ -105,12 +97,6 @@ export default function ExpertPage() {
     };
   });
 
-  const goToBook = (type: string) => {
-    Taro.navigateTo({
-      url: `/pages/book/index?id=${expertId}&type=${type}&from=profile`,
-    });
-  };
-
   if (loading) {
     return (
       <View className="expert-profile">
@@ -144,10 +130,6 @@ export default function ExpertPage() {
 
   const name = expert.user.nickName || expert.user.name || "成员";
   const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
-  const socialLinks = socialConfig.filter((c) => {
-    const url = expert[c.key];
-    return url && String(url).trim() !== "";
-  });
   const hasMoreReviews = reviews.length < reviewsTotal;
   const API_BASE = getApiBase();
 
@@ -247,60 +229,13 @@ export default function ExpertPage() {
         onClose={() => setShowVoiceChat(false)}
       />
 
-      {/* About */}
-      <View className="expert-profile__section">
-        <Text className="expert-profile__section-title">个人介绍</Text>
-        <Text className="expert-profile__text">
-          {expert.avatarScript || "暂未填写介绍"}
-        </Text>
-      </View>
-
-      {/* Services */}
-      {services.length > 0 && (
-        <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">可提供服务</Text>
-          {services.map((s, i) => (
-            <View key={i} className="expert-profile__service-card">
-              <Text className="expert-profile__service-title">{s.title}</Text>
-              <Text className="expert-profile__service-desc">{s.description}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Social Links */}
-      {socialLinks.length > 0 && (
-        <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">联系方式</Text>
-          <View className="expert-profile__social-links">
-            {socialLinks.map(({ key, label }) => {
-              const url = String(expert[key]);
-              const href = url.startsWith("http") ? url : `https://${url}`;
-              return (
-                <View
-                  key={key}
-                  className="expert-profile__social-btn"
-                  hoverClass="expert-profile__social-btn--hover"
-                  onClick={() => {
-                    Taro.setClipboardData({
-                      data: href,
-                      success: () =>
-                        Taro.showToast({ title: "链接已复制", icon: "success" }),
-                    });
-                  }}
-                >
-                  {label}
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      )}
-
-      {/* Document */}
+      {/* Service introduction document (in mini program; book on web) */}
       {expert.documentName && (
-        <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">资料文档</Text>
+        <View className="expert-profile__section expert-profile__section--highlight">
+          <Text className="expert-profile__section-title">服务介绍资料</Text>
+          <Text className="expert-profile__section-sub">
+            了解专家的服务方式与背景；正式预约请在网页完成。
+          </Text>
           <View
             className="expert-profile__document"
             hoverClass="expert-profile__document--hover"
@@ -346,31 +281,24 @@ export default function ExpertPage() {
         </View>
       )}
 
-      {/* Session Pricing */}
-      {(expert.priceOnlineCents || expert.priceOfflineCents) && (
+      {/* About */}
+      <View className="expert-profile__section">
+        <Text className="expert-profile__section-title">个人介绍</Text>
+        <Text className="expert-profile__text">
+          {expert.avatarScript || "暂未填写介绍"}
+        </Text>
+      </View>
+
+      {/* Services */}
+      {services.length > 0 && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">咨询价格</Text>
-          <View className="expert-profile__prices">
-            {expert.priceOnlineCents && expert.sessionType !== "OFFLINE" && (
-              <View className="expert-profile__price-card">
-                <Text className="expert-profile__price-label">🖥 线上</Text>
-                <Text className="expert-profile__price-value">
-                  {expert.currency} {Math.round(expert.priceOnlineCents / 100)}/小时
-                </Text>
-              </View>
-            )}
-            {expert.priceOfflineCents && expert.sessionType !== "ONLINE" && (
-              <View className="expert-profile__price-card">
-                <Text className="expert-profile__price-label">📍 线下</Text>
-                <Text className="expert-profile__price-value">
-                  {expert.currency} {Math.round(expert.priceOfflineCents / 100)}/小时
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text className="expert-profile__price-note">
-            预约时支付 50% 订金，剩余费用在咨询结束 24 小时后扣款。
-          </Text>
+          <Text className="expert-profile__section-title">可提供服务</Text>
+          {services.map((s, i) => (
+            <View key={i} className="expert-profile__service-card">
+              <Text className="expert-profile__service-title">{s.title}</Text>
+              <Text className="expert-profile__service-desc">{s.description}</Text>
+            </View>
+          ))}
         </View>
       )}
 
@@ -432,29 +360,46 @@ export default function ExpertPage() {
         )}
       </View>
 
-      <View style={{ height: "16px" }} />
-
-      {/* Bottom bar */}
-      <View className="expert-profile__bottom-bar">
+      <View className="expert-profile__section expert-profile__section--cta">
+        <Text className="expert-profile__section-title">需要正式预约？</Text>
+        <Text className="expert-profile__section-sub">
+          支付与排期请在手机浏览器中完成（支持 Stripe 等方式）。
+        </Text>
         {expert.sessionType !== "OFFLINE" && (
           <View
-            className="expert-profile__book-btn expert-profile__book-btn--primary"
-            hoverClass="expert-profile__book-btn--hover"
-            onClick={() => goToBook("ONLINE")}
+            className="expert-profile__web-book-btn"
+            hoverClass="expert-profile__web-book-btn--hover"
+            onClick={() => {
+              const url = buildWebBookUrl(expertId, "ONLINE");
+              Taro.setClipboardData({
+                data: url,
+                success: () =>
+                  Taro.showToast({ title: "网页链接已复制", icon: "success" }),
+              });
+            }}
           >
-            🖥 预约线上咨询
+            复制「线上咨询」网页链接
           </View>
         )}
         {expert.sessionType !== "ONLINE" && (
           <View
-            className="expert-profile__book-btn expert-profile__book-btn--outline"
-            hoverClass="expert-profile__book-btn--hover"
-            onClick={() => goToBook("OFFLINE")}
+            className="expert-profile__web-book-btn expert-profile__web-book-btn--secondary"
+            hoverClass="expert-profile__web-book-btn--hover"
+            onClick={() => {
+              const url = buildWebBookUrl(expertId, "OFFLINE");
+              Taro.setClipboardData({
+                data: url,
+                success: () =>
+                  Taro.showToast({ title: "网页链接已复制", icon: "success" }),
+              });
+            }}
           >
-            📍 预约线下咨询
+            复制「线下咨询」网页链接
           </View>
         )}
       </View>
+
+      <View style={{ height: "48px" }} />
     </View>
   );
 }

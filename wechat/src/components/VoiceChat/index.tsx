@@ -3,6 +3,8 @@ import Taro from "@tarojs/taro";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { post } from "../../shared/api";
 import { getApiBase } from "../../shared/auth";
+import { logToVercel } from "../../shared/debug-log";
+import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
 import "./index.scss";
 
 interface VoiceChatProps {
@@ -18,7 +20,10 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   text: string;
+  /** Server payload (often data:audio/...;base64,...) — not playable directly in MP */
   audioUrl?: string;
+  /** Path under USER_DATA_PATH or temp from downloadFile — use for InnerAudioContext */
+  localAudioPath?: string;
 }
 
 interface ChatResponse {
@@ -45,6 +50,7 @@ export default function VoiceChat({
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const [greetingLoading, setGreetingLoading] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -53,6 +59,9 @@ export default function VoiceChat({
   const recorderRef = useRef<Taro.RecorderManager | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtxRef = useRef<Taro.InnerAudioContext | null>(null);
+  const sendVoiceRef = useRef<(filePath: string) => Promise<void>>(
+    async () => {},
+  );
 
   useEffect(() => {
     return () => {
@@ -72,6 +81,94 @@ export default function VoiceChat({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  const playLocalAudio = useCallback((localPath: string, msgId: string) => {
+    if (audioCtxRef.current) {
+      audioCtxRef.current.stop();
+      audioCtxRef.current.destroy();
+    }
+    const ctx = Taro.createInnerAudioContext();
+    ctx.obeyMuteSwitch = false;
+    ctx.src = localPath;
+    ctx.onEnded(() => setPlayingId(null));
+    ctx.onStop(() => setPlayingId(null));
+    ctx.onError((err) => {
+      logToVercel("error", "VoiceChat InnerAudioContext", err);
+      setPlayingId(null);
+      Taro.showToast({ title: "播放失败", icon: "none" });
+    });
+    ctx.play();
+    audioCtxRef.current = ctx;
+    setPlayingId(msgId);
+  }, []);
+
+  useEffect(() => {
+    if (!visible || !expertId) return;
+
+    setMessages([]);
+    setTurnInfo({ count: 0, max: 10 });
+    let cancelled = false;
+    const greetMsgId = `wc-greet-${expertId}`;
+
+    (async () => {
+      setGreetingLoading(true);
+      try {
+        const res = await post<{ replyText: string; replyAudio: string }>(
+          "/api/voice-chat/greeting",
+          { expertId },
+        );
+        if (cancelled) return;
+        if (res.statusCode !== 200) {
+          const err = (res.data as { error?: string })?.error;
+          logToVercel("warn", "voice-chat/greeting HTTP", {
+            status: res.statusCode,
+            err,
+          });
+          return;
+        }
+
+        const localPath = await prepareAudioForInnerAudio(
+          res.data.replyAudio,
+          greetMsgId,
+        );
+        if (cancelled) return;
+
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === greetMsgId)) return prev;
+          const greetMsg: Message = {
+            id: greetMsgId,
+            role: "assistant",
+            text: res.data.replyText,
+            audioUrl: res.data.replyAudio,
+            localAudioPath: localPath,
+          };
+          return [greetMsg, ...prev];
+        });
+
+        setTimeout(() => {
+          if (!cancelled) playLocalAudio(localPath, greetMsgId);
+        }, 150);
+      } catch (err) {
+        logToVercel("error", "voice-chat/greeting prepare", err);
+        Taro.showToast({ title: "欢迎语音加载失败", icon: "none" });
+      } finally {
+        if (!cancelled) setGreetingLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, expertId, playLocalAudio]);
+
+  useEffect(() => {
+    if (!visible && audioCtxRef.current) {
+      audioCtxRef.current.stop();
+      audioCtxRef.current.destroy();
+      audioCtxRef.current = null;
+      setPlayingId(null);
+    }
+  }, [visible]);
+
   const getRecorder = useCallback(() => {
     if (!recorderRef.current) {
       const recorder = Taro.getRecorderManager();
@@ -79,7 +176,7 @@ export default function VoiceChat({
         setRecording(false);
         if (timerRef.current) clearInterval(timerRef.current);
         if (res.tempFilePath) {
-          sendVoice(res.tempFilePath);
+          void sendVoiceRef.current(res.tempFilePath);
         }
       });
       recorder.onError(() => {
@@ -90,7 +187,7 @@ export default function VoiceChat({
       recorderRef.current = recorder;
     }
     return recorderRef.current;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startRecording = useCallback(() => {
@@ -142,17 +239,25 @@ export default function VoiceChat({
           ),
         );
 
+        const aiId = nextId();
+        const localPath = await prepareAudioForInnerAudio(
+          data.replyAudio,
+          aiId,
+        );
+
         const aiMsg: Message = {
-          id: nextId(),
+          id: aiId,
           role: "assistant",
           text: data.replyText,
           audioUrl: data.replyAudio,
+          localAudioPath: localPath,
         };
         setMessages((prev) => [...prev, aiMsg]);
         setTurnInfo({ count: data.turnCount, max: data.maxTurns });
 
-        playAudio(data.replyAudio, aiMsg.id);
+        playLocalAudio(localPath, aiId);
       } catch (err) {
+        logToVercel("error", "sendVoice", err);
         const msg = err instanceof Error ? err.message : "发送失败";
         Taro.showToast({ title: msg, icon: "none" });
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
@@ -160,8 +265,10 @@ export default function VoiceChat({
         setProcessing(false);
       }
     },
-    [expertId],
+    [expertId, playLocalAudio],
   );
+
+  sendVoiceRef.current = sendVoice;
 
   const sendText = useCallback(async () => {
     const text = textInput.trim();
@@ -183,49 +290,62 @@ export default function VoiceChat({
         throw new Error(errData?.error || "发送失败");
       }
 
+      const aiId = nextId();
+      const localPath = await prepareAudioForInnerAudio(
+        res.data.replyAudio,
+        aiId,
+      );
+
       const aiMsg: Message = {
-        id: nextId(),
+        id: aiId,
         role: "assistant",
         text: res.data.replyText,
         audioUrl: res.data.replyAudio,
+        localAudioPath: localPath,
       };
       setMessages((prev) => [...prev, aiMsg]);
       setTurnInfo({ count: res.data.turnCount, max: res.data.maxTurns });
 
-      playAudio(res.data.replyAudio, aiMsg.id);
+      playLocalAudio(localPath, aiId);
     } catch (err) {
+      logToVercel("error", "sendText", err);
       const msg = err instanceof Error ? err.message : "发送失败";
       Taro.showToast({ title: msg, icon: "none" });
     } finally {
       setProcessing(false);
     }
-  }, [expertId, textInput, processing]);
-
-  const playAudio = useCallback((src: string, msgId: string) => {
-    if (audioCtxRef.current) {
-      audioCtxRef.current.stop();
-      audioCtxRef.current.destroy();
-    }
-    const ctx = Taro.createInnerAudioContext();
-    ctx.src = src;
-    ctx.onEnded(() => setPlayingId(null));
-    ctx.onError(() => setPlayingId(null));
-    ctx.play();
-    audioCtxRef.current = ctx;
-    setPlayingId(msgId);
-  }, []);
+  }, [expertId, textInput, processing, playLocalAudio]);
 
   const togglePlay = useCallback(
-    (msg: Message) => {
-      if (!msg.audioUrl) return;
+    async (msg: Message) => {
       if (playingId === msg.id) {
         audioCtxRef.current?.stop();
         setPlayingId(null);
-      } else {
-        playAudio(msg.audioUrl, msg.id);
+        return;
       }
+
+      let path = msg.localAudioPath;
+      if (!path && msg.audioUrl) {
+        try {
+          path = await prepareAudioForInnerAudio(msg.audioUrl, msg.id);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === msg.id ? { ...m, localAudioPath: path } : m,
+            ),
+          );
+        } catch (err) {
+          logToVercel("error", "togglePlay prepare", err);
+          Taro.showToast({ title: "语音加载失败", icon: "none" });
+          return;
+        }
+      }
+      if (!path) {
+        Taro.showToast({ title: "无可用语音", icon: "none" });
+        return;
+      }
+      playLocalAudio(path, msg.id);
     },
-    [playingId, playAudio],
+    [playingId, playLocalAudio],
   );
 
   const formatTime = (s: number) =>
@@ -264,7 +384,7 @@ export default function VoiceChat({
           scrollTop={scrollTop}
           scrollWithAnimation
         >
-          {messages.length === 0 && (
+          {messages.length === 0 && !greetingLoading && (
             <View className="vc-empty">
               <Text className="vc-empty__icon">💬</Text>
               <Text className="vc-empty__text">
@@ -275,13 +395,19 @@ export default function VoiceChat({
             </View>
           )}
 
+          {greetingLoading && messages.length === 0 && (
+            <View className="vc-empty">
+              <Text className="vc-empty__text">正在加载欢迎语…</Text>
+            </View>
+          )}
+
           {messages.map((msg) => (
             <View
               key={msg.id}
               className={`vc-bubble ${msg.role === "user" ? "vc-bubble--user" : "vc-bubble--ai"}`}
             >
               <Text className="vc-bubble__text">{msg.text}</Text>
-              {msg.audioUrl && (
+              {(msg.localAudioPath || msg.audioUrl) && (
                 <View
                   className="vc-bubble__play"
                   hoverClass="vc-bubble__play--hover"

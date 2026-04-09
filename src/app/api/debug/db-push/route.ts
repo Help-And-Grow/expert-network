@@ -28,6 +28,7 @@ const ADD_COLUMNS = [
   { table: "Booking", column: "paymentStatus", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT DEFAULT 'pending'` },
   { table: "Booking", column: "stripeCheckoutSessionId", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripeCheckoutSessionId" TEXT` },
   { table: "Booking", column: "stripePaymentIntentId", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentIntentId" TEXT` },
+  { table: "Booking", column: "wechatTransactionId", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "wechatTransactionId" TEXT` },
   { table: "Booking", column: "stripeCustomerId", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT` },
   { table: "Booking", column: "stripePaymentMethodId", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentMethodId" TEXT` },
   { table: "Booking", column: "stripeRemainderPIId", sql: `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripeRemainderPIId" TEXT` },

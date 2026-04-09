@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",
+    "dev:3000": "next dev -p 3000 -H 0.0.0.0",
     "build": "node scripts/switch-db.mjs && prisma generate && next build",
     "db:switch": "node scripts/switch-db.mjs && prisma generate",
     "db:push": "prisma db push --accept-data-loss",

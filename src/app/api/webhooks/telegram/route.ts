@@ -39,6 +39,25 @@ async function sendChatAction(
   });
 }
 
+async function answerInlineQuery(
+  botToken: string,
+  inlineQueryId: string,
+  results: any[],
+  extra: Record<string, unknown> = {}
+) {
+  await fetch(`https://api.telegram.org/bot${botToken}/answerInlineQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      inline_query_id: inlineQueryId,
+      results,
+      cache_time: 300,
+      is_personal: true,
+      ...extra,
+    }),
+  });
+}
+
 function webAppButton(label: string, path = "/discover") {
   return { text: label, web_app: { url: `${APP_URL}${path}` } };
 }
@@ -74,6 +93,56 @@ export async function POST(request: NextRequest) {
           }),
         }
       );
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Inline Query handling ---
+    if (update.inline_query) {
+      const qId = update.inline_query.id;
+      const fromId = String(update.inline_query.from.id);
+      const queryText = update.inline_query.query.trim().toLowerCase();
+
+      // Only handle "me" or empty query for personal profile sharing for now
+      if (queryText === "me" || queryText === "") {
+        const user = await prisma.user.findFirst({
+          where: { telegramId: fromId },
+          include: { expert: { include: { domains: true } } },
+        });
+
+        if (user?.expert && user.expert.isPublished) {
+          const expert = user.expert;
+          const name = user.nickName || user.name || "Expert Profile";
+          const shareUrl = `${APP_URL}/experts/${expert.id}`;
+          const bookUrl = `${APP_URL}/experts/${expert.id}/book`;
+          const ratingText = expert.reviewCount > 0 
+            ? `⭐ ${expert.avgRating.toFixed(1)} (${expert.reviewCount} reviews)` 
+            : "New Expert";
+
+          const result: any = {
+            type: "article",
+            id: `expert_${expert.id}`,
+            title: name,
+            description: `${ratingText}\n${expert.bio?.slice(0, 100) || ""}`,
+            thumb_url: user.image || undefined,
+            input_message_content: {
+              message_text: `*${name} — Expert Profile*\n\n${expert.bio || ""}\n\n${ratingText}`,
+              parse_mode: "Markdown",
+            },
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "🚀 View Profile", web_app: { url: shareUrl } }],
+                [{ text: "📅 Book Session", web_app: { url: bookUrl } }],
+              ],
+            },
+          };
+
+          await answerInlineQuery(botToken, qId, [result]);
+          return NextResponse.json({ ok: true });
+        }
+      }
+
+      // Default empty if not found
+      await answerInlineQuery(botToken, qId, []);
       return NextResponse.json({ ok: true });
     }
 

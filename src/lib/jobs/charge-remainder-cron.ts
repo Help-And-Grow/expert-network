@@ -106,7 +106,8 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
       booking.paymentMethod === "stripe" ||
       booking.paymentMethod === "ton" ||
       booking.paymentMethod === "telegram_payments" ||
-      booking.paymentMethod === "paynow"
+      booking.paymentMethod === "paynow" ||
+      booking.paymentMethod === "wechat_pay"
     ) {
       await prisma.booking.update({
         where: { id: booking.id },

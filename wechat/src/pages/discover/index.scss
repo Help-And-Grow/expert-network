@@ -1,5 +1,7 @@
 .discover {
   padding-bottom: 20px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  box-sizing: border-box;
 
   &__domains {
     white-space: nowrap;
@@ -350,6 +352,10 @@
     display: flex;
     gap: 12px;
     margin-top: 16px;
+
+    &--single {
+      width: 100%;
+    }
   }
 
   &__rec-btn {
@@ -358,15 +364,21 @@
     font-size: 24px;
     font-weight: 600;
 
+    &--full {
+      flex: 1;
+      text-align: center;
+    }
+
     &--primary {
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff;
     }
 
     &--outline {
-      background: #fff;
-      color: #6366f1;
-      border: 1.5px solid #e0e7ff;
+      background: #eef2ff;
+      color: #3730a3;
+      border: 2px solid #818cf8;
+      font-weight: 600;
     }
 
     &--hover {

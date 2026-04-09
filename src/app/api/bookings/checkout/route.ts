@@ -124,9 +124,32 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Stripe Checkout payment_method_types order (Stripe may still reorder by customer context).
+    // PayNow > GrabPay > WeChat Pay > Alipay > card.
+    // Apple Pay & Google Pay: no separate type — they appear on the card step when enabled in Dashboard
+    // and the site domain is verified for Apple Pay (see Stripe Dashboard → Settings → Payment methods).
+    const paymentMethodTypes: string[] = ["paynow"];
+    if (process.env.STRIPE_CHECKOUT_GRABPAY !== "false") {
+      paymentMethodTypes.push("grabpay");
+    }
+    if (process.env.STRIPE_CHECKOUT_WECHAT_PAY !== "false") {
+      paymentMethodTypes.push("wechat_pay");
+    }
+    if (process.env.STRIPE_CHECKOUT_ALIPAY !== "false") {
+      paymentMethodTypes.push("alipay");
+    }
+    paymentMethodTypes.push("card");
+
+    const paymentMethodOptions: Record<string, unknown> = {
+      card: { setup_future_usage: "off_session" },
+    };
+    if (process.env.STRIPE_CHECKOUT_WECHAT_PAY !== "false") {
+      paymentMethodOptions.wechat_pay = { client: "web" };
+    }
+
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
-      payment_method_types: ["paynow", "grabpay", "card"],
+      payment_method_types: paymentMethodTypes,
       line_items: [
         {
           price_data: {
@@ -141,9 +164,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       payment_intent_data: paymentIntentData,
-      payment_method_options: {
-        card: { setup_future_usage: "off_session" },
-      },
+      payment_method_options: paymentMethodOptions,
       metadata: {
         type: "booking_deposit",
         expertId,
