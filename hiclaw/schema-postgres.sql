@@ -1,5 +1,5 @@
--- PostgreSQL / DB9 schema for HiClaw agent service (run once on a new database).
--- Use HICLAW_POSTGRES_URL or DB9_DATABASE_URL with hiclaw/service (see .env.example).
+-- PostgreSQL schema for HiClaw agent service (run once on a new database).
+-- Use HICLAW_POSTGRES_URL or DATABASE_URL with hiclaw/service (see .env.example).
 
 CREATE TABLE IF NOT EXISTS expert_status (
   expert_id VARCHAR(255) PRIMARY KEY,

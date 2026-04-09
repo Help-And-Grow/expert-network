@@ -1,9 +1,11 @@
 import { env } from "@/lib/env";
-import * as fs from "fs";
-
-import { GoogleGenAI } from "@google/genai";
 
 import { BaseAIProvider } from "./base-provider";
+import {
+  createGeminiClient,
+  getGeminiImageModel,
+  getGeminiTextModel,
+} from "./gemini-client";
 import {
   formatSocialLinks,
   buildProfilePromptWithNativeSearch,
@@ -14,45 +16,16 @@ import { parseProfileResponse } from "./types";
 import type { ProfileInput, ProfileOutput } from "./types";
 
 
-const TEXT_MODEL = "gemini-2.5-flash";
-const IMAGE_MODEL = "gemini-2.5-flash-image";
-
-function setupServiceAccountAuth() {
-  const encoded = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!encoded || process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
-
-  const keyPath = "/tmp/gcp-sa-key.json";
-  fs.writeFileSync(keyPath, Buffer.from(encoded, "base64").toString("utf-8"));
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
-}
-
-function createClient(): GoogleGenAI {
-  const project = env.GOOGLE_CLOUD_PROJECT;
-  const location = env.GOOGLE_CLOUD_LOCATION || "us-central1";
-
-  if (project) {
-    setupServiceAccountAuth();
-    console.log(
-      `[Gemini] Using Vertex AI (project=${project}, location=${location})`
-    );
-    return new GoogleGenAI({ vertexai: true, project, location });
-  }
-
-  console.log("[Gemini] Using AI Studio API key");
-  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
-}
-
 export class GeminiProvider extends BaseAIProvider {
-  private ai: GoogleGenAI;
+  private ai = createGeminiClient();
 
   constructor() {
     super();
-    this.ai = createClient();
   }
 
   protected async chat(prompt: string): Promise<string> {
     const response = await this.ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: getGeminiTextModel(),
       contents: prompt,
     });
     return response.text ?? "";
@@ -75,7 +48,7 @@ export class GeminiProvider extends BaseAIProvider {
     );
 
     const response = await this.ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: getGeminiTextModel(),
       contents: prompt,
       config: { tools: [{ googleSearch: {} }] },
     });
@@ -106,7 +79,7 @@ export class GeminiProvider extends BaseAIProvider {
 
     try {
       const response = await this.ai.models.generateContent({
-        model: IMAGE_MODEL,
+        model: getGeminiImageModel(),
         contents: prompt,
         config: { responseModalities: ["IMAGE"] },
       });
@@ -132,7 +105,7 @@ export class GeminiProvider extends BaseAIProvider {
     const base64 = buffer.toString("base64");
 
     const response = await this.ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: getGeminiTextModel(),
       contents: [
         {
           role: "user",

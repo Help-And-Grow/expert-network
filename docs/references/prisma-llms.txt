@@ -9,11 +9,10 @@
 
 ## Database Switching
 
-DB_PROVIDER=supabase → PostgreSQL (production default)
-DB_PROVIDER=tidb → MySQL
+This repo is PostgreSQL-only.
 
 Switch script: node scripts/switch-db.mjs
-Patches the `provider` line in schema.prisma.
+It enforces `provider = "postgresql"` in `schema.prisma` before Prisma generation.
 
 ## Common Commands
 

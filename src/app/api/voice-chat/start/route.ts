@@ -2,7 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 
 import { resolveUserId } from "@/lib/request-auth";
-import { isRealtimeEnabled, isRealtimeReady } from "@/lib/voice-chat-config";
+import {
+  getRealtimeBackend,
+  isRealtimeEnabled,
+  isRealtimeReady,
+} from "@/lib/voice-chat-config";
 import { generateRtcToken } from "@/lib/agora-token";
 import {
   hasRealtimeSession,
@@ -17,6 +21,8 @@ import {
 export const maxDuration = 15;
 
 export async function POST(request: NextRequest) {
+  const realtimeBackend = getRealtimeBackend();
+
   if (!isRealtimeEnabled()) {
     return NextResponse.json(
       { error: "Real-time voice chat is not enabled. Set VOICE_CHAT_MODE=realtime or both." },
@@ -26,7 +32,12 @@ export async function POST(request: NextRequest) {
 
   if (!isRealtimeReady()) {
     return NextResponse.json(
-      { error: "Real-time voice chat is enabled but not yet configured. AGORA_APP_ID, AGORA_APP_CERTIFICATE, and TEN_AGENT_URL are required." },
+      {
+        error:
+          realtimeBackend === "agora"
+            ? "Real-time voice chat is enabled but not yet configured. AGORA_APP_ID and AGORA_APP_CERTIFICATE are required for the Agora backend."
+            : "Real-time voice chat is enabled but not yet configured. AGORA_APP_ID, AGORA_APP_CERTIFICATE, and TEN_AGENT_URL are required for the TEN backend.",
+      },
       { status: 503 },
     );
   }
@@ -80,14 +91,18 @@ export async function POST(request: NextRequest) {
   const onTimeout = async (ch: string) => {
     console.log(`[voice-chat] Realtime session timed out: ${ch}`);
     removeRealtimeSession(ch);
-    await stopTenAgent(ch);
+    if (realtimeBackend === "ten") {
+      await stopTenAgent(ch);
+    }
   };
 
   registerRealtimeSession(channelName, expertId, userId, onTimeout);
 
-  const agentResult = await startTenAgent(channelName, agentUid, profile);
-  if (!agentResult.ok) {
-    console.warn("[voice-chat/start] TEN agent failed:", agentResult.error);
+  if (realtimeBackend === "ten") {
+    const agentResult = await startTenAgent(channelName, agentUid, profile);
+    if (!agentResult.ok) {
+      console.warn("[voice-chat/start] TEN agent failed:", agentResult.error);
+    }
   }
 
   return NextResponse.json({
@@ -95,6 +110,7 @@ export async function POST(request: NextRequest) {
     token,
     uid: userUid,
     appId,
+    backend: realtimeBackend,
     maxDurationSeconds: RT_MAX_DURATION_SECONDS,
     expertName: profile.name,
     expertDomains: profile.domains,

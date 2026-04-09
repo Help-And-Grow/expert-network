@@ -1,13 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Database, Loader2, Play } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 type DiagnosisCandidate = {
   key: string;
@@ -71,54 +76,6 @@ export default function AdminTidbPage() {
     null,
   );
 
-  const [db9ApiKey, setDb9ApiKey] = useState("");
-  const [db9DbName, setDb9DbName] = useState("expert-network-hiclaw");
-  const [db9Busy, setDb9Busy] = useState(false);
-  const [db9Error, setDb9Error] = useState<string | null>(null);
-  const [db9Reminder, setDb9Reminder] = useState<string | null>(null);
-  const [db9ConnectionString, setDb9ConnectionString] = useState<string | null>(null);
-
-  const callDb9Proxy = async (action: "get_connection_string" | "reset_admin_password") => {
-    setDb9Busy(true);
-    setDb9Error(null);
-    setDb9Reminder(null);
-    setDb9ConnectionString(null);
-    try {
-      const res = await fetch("/api/admin/tidb/db9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action,
-          apiKey: db9ApiKey.trim(),
-          databaseName: db9DbName.trim() || "expert-network-hiclaw",
-        }),
-      });
-      const data = (await res.json()) as {
-        ok?: boolean;
-        error?: string | Record<string, string[]>;
-        connectionString?: string;
-        reminder?: string;
-      };
-      if (!res.ok || !data.ok) {
-        const err =
-          typeof data.error === "string"
-            ? data.error
-            : data.error
-              ? JSON.stringify(data.error)
-              : res.statusText;
-        setDb9Error(err);
-        return;
-      }
-      if (data.connectionString) setDb9ConnectionString(data.connectionString);
-      if (data.reminder) setDb9Reminder(data.reminder);
-    } catch (e) {
-      setDb9Error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDb9Busy(false);
-    }
-  };
-
   const fetchHealth = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -136,7 +93,7 @@ export default function AdminTidbPage() {
         setHealth(null);
         if (res.status === 401) {
           setError(
-            "Not signed in for this request. Try refreshing the page after signing in with Google."
+            "Not signed in for this request. Refresh after signing in with Google.",
           );
         } else if (res.status === 403) {
           setError("Your account must have the ADMIN role to use HiClaw DB tools.");
@@ -144,15 +101,20 @@ export default function AdminTidbPage() {
           setError(data.error || res.statusText);
           if (data.hint) setHint(data.hint);
           if (data.diagnosis) setDiagnosis(data.diagnosis);
-          if (data.connectionProbe !== undefined) setConnectionProbe(data.connectionProbe ?? null);
-          if (data.connectionExperiments)
+          if (data.connectionProbe !== undefined) {
+            setConnectionProbe(data.connectionProbe ?? null);
+          }
+          if (data.connectionExperiments) {
             setConnectionExperiments(data.connectionExperiments);
+          }
         }
         return;
       }
       setHealth(data);
       if (data.diagnosis) setDiagnosis(data.diagnosis);
-      if (data.connectionProbe !== undefined) setConnectionProbe(data.connectionProbe ?? null);
+      if (data.connectionProbe !== undefined) {
+        setConnectionProbe(data.connectionProbe ?? null);
+      }
       setConnectionExperiments(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -162,7 +124,9 @@ export default function AdminTidbPage() {
   }, []);
 
   useEffect(() => {
-    if (status === "authenticated") fetchHealth();
+    if (status === "authenticated") {
+      void fetchHealth();
+    }
   }, [status, fetchHealth]);
 
   const applySchema = async () => {
@@ -177,7 +141,12 @@ export default function AdminTidbPage() {
         credentials: "include",
         body: JSON.stringify({ action: "apply_hiclaw_schema" }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        hint?: string;
+        results?: string[];
+        diagnosis?: HealthResponse["diagnosis"];
+      };
       if (data.results) setApplyResults(data.results);
       if (!res.ok) {
         setError(data.error || res.statusText);
@@ -223,23 +192,22 @@ export default function AdminTidbPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            HiClaw session DB (Postgres)
+            HiClaw Session DB
           </CardTitle>
           <CardDescription>
-            Test the connection and apply HiClaw tables from this deployment. The server uses the first{" "}
-            <strong>valid PostgreSQL</strong> URL in order:{" "}
-            <code className="rounded bg-slate-100 px-1">DB9_DATABASE_URL</code> →{" "}
-            <code className="rounded bg-slate-100 px-1">HICLAW_POSTGRES_URL</code> →{" "}
-            <code className="rounded bg-slate-100 px-1">TIDB_DATABASE_URL</code>. Legacy{" "}
-            <code className="rounded bg-slate-100 px-1">mysql://</code> values are skipped so DB9 can win.
+            Test the connection and apply HiClaw tables from this deployment. The app uses
+            <code className="mx-1 rounded bg-slate-100 px-1">HICLAW_POSTGRES_URL</code>
+            first and otherwise falls back to
+            <code className="mx-1 rounded bg-slate-100 px-1">DATABASE_URL</code>
+            so the marketplace and HiClaw can share the same Supabase Postgres instance.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={fetchHealth} disabled={loading}>
+            <Button variant="outline" onClick={() => void fetchHealth()} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Test connection"}
             </Button>
-            <Button onClick={applySchema} disabled={applyLoading}>
+            <Button onClick={() => void applySchema()} disabled={applyLoading}>
               {applyLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -250,7 +218,9 @@ export default function AdminTidbPage() {
           </div>
 
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {error}
+            </div>
           )}
 
           {hint && (
@@ -264,22 +234,19 @@ export default function AdminTidbPage() {
             <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-950">
               <p className="font-medium">Missing password in URL</p>
               <p className="mt-1 text-xs leading-relaxed">
-                Your <code className="rounded bg-red-100 px-1">DB9_DATABASE_URL</code> is parsed as{" "}
-                <code className="rounded bg-red-100 px-1">postgresql://{connectionProbe.user}@…</code> with{" "}
-                <strong>no</strong> <code className="rounded bg-red-100 px-1">:password@</code> segment.
-                Postgres cannot authenticate. Set a full DSN from DB9 (role + password + host), e.g. via{" "}
-                <code className="rounded bg-red-100 px-1">npm run db9:reset-password-vercel</code>.
+                The winning PostgreSQL URL is missing the
+                <code className="mx-1 rounded bg-red-100 px-1">:password@</code>
+                segment. Save a full DSN from Supabase or your Postgres provider, then redeploy.
               </p>
             </div>
           )}
 
           {connectionProbe && (
             <div className="rounded-md border border-slate-300 bg-slate-50 p-3 text-sm">
-              <p className="font-medium text-slate-900">Systematic debug (safe — no password)</p>
+              <p className="font-medium text-slate-900">Systematic debug (safe, no password)</p>
               <p className="mt-1 text-xs text-slate-600">
-                Parsed from the winning env URL. Use this to verify host, role name, and whether the password
-                looks like a short-lived JWT vs a stable admin secret. On failure, the API also tries{" "}
-                <strong>raw</strong> vs <strong>normalized</strong> userinfo.
+                Parsed from the winning environment variable so you can verify host, role, and URL
+                shape without exposing secrets.
               </p>
               <dl className="mt-3 grid gap-1 text-xs sm:grid-cols-2">
                 <dt className="text-slate-500">Winner</dt>
@@ -298,24 +265,28 @@ export default function AdminTidbPage() {
                   {connectionProbe.password.present
                     ? `present, length ${connectionProbe.password.length}`
                     : "missing"}
-                  {connectionProbe.password.looksLikeJwt ? " · JWT-like" : ""}
+                  {connectionProbe.password.looksLikeJwt ? " · token-like" : ""}
                   {connectionProbe.password.hasPercentEncoding ? " · %encoded" : ""}
                   {connectionProbe.password.hasUnencodedEquals ? " · raw =" : ""}
                 </dd>
                 <dt className="text-slate-500">Userinfo normalized?</dt>
-                <dd>{connectionProbe.userinfoNormalizationChanged ? "yes (differs from raw env)" : "no"}</dd>
+                <dd>{connectionProbe.userinfoNormalizationChanged ? "yes" : "no"}</dd>
                 <dt className="text-slate-500">URL query keys</dt>
                 <dd className="font-mono">
-                  {connectionProbe.queryKeys.length > 0 ? connectionProbe.queryKeys.join(", ") : "—"}
+                  {connectionProbe.queryKeys.length > 0
+                    ? connectionProbe.queryKeys.join(", ")
+                    : "—"}
                 </dd>
               </dl>
+
               {connectionProbe.checks.length > 0 && (
                 <ul className="mt-3 list-inside list-disc text-xs text-slate-700">
-                  {connectionProbe.checks.map((c, i) => (
-                    <li key={i}>{c}</li>
+                  {connectionProbe.checks.map((check, index) => (
+                    <li key={index}>{check}</li>
                   ))}
                 </ul>
               )}
+
               {connectionExperiments && connectionExperiments.length > 0 && (
                 <div className="mt-3 border-t border-slate-200 pt-3">
                   <p className="text-xs font-medium text-slate-800">Connect experiments</p>
@@ -328,8 +299,8 @@ export default function AdminTidbPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {connectionExperiments.map((row, i) => (
-                        <tr key={i} className="border-b border-slate-100">
+                      {connectionExperiments.map((row, index) => (
+                        <tr key={index} className="border-b border-slate-100">
                           <td className="py-1.5 pr-2 align-top">{row.label}</td>
                           <td className="py-1.5 pr-2 align-top">
                             {row.ok ? (
@@ -345,12 +316,6 @@ export default function AdminTidbPage() {
                       ))}
                     </tbody>
                   </table>
-                  <p className="mt-2 text-xs text-slate-600">
-                    If only one row appears, raw and normalized URLs are identical. If <strong>raw</strong>{" "}
-                    works but <strong>normalized</strong> fails, report a bug. If you see 28P01 with a missing
-                    password in the probe above, fix the URL shape first — experiments cannot succeed until{" "}
-                    <code className="rounded bg-slate-200 px-0.5">:password@</code> is present.
-                  </p>
                 </div>
               )}
             </div>
@@ -358,13 +323,10 @@ export default function AdminTidbPage() {
 
           {diagnosis?.candidates && diagnosis.candidates.length > 0 && (
             <div className="rounded-md border border-slate-200 bg-white p-3 text-sm">
-              <p className="font-medium text-slate-800">Env resolution (no secrets)</p>
+              <p className="font-medium text-slate-800">Env resolution</p>
               <p className="mt-1 text-slate-600">
-                The app uses the first row with scheme{" "}
-                <code className="rounded bg-slate-100 px-1">postgres</code>. Values starting with{" "}
-                <code className="rounded bg-slate-100 px-1">mysql://</code> are ignored when choosing a URL.
-                If nothing is postgres, fix or remove the blocking variable (including Vercel{" "}
-                <strong>Team</strong> env).
+                The app uses the first row with scheme
+                <code className="mx-1 rounded bg-slate-100 px-1">postgres</code>.
               </p>
               <table className="mt-3 w-full border-collapse text-left text-xs">
                 <thead>
@@ -372,16 +334,18 @@ export default function AdminTidbPage() {
                     <th className="py-1 pr-2 font-medium">Variable</th>
                     <th className="py-1 pr-2 font-medium">Set</th>
                     <th className="py-1 pr-2 font-medium">Scheme</th>
-                    <th className="py-1 font-medium">Host (only)</th>
+                    <th className="py-1 font-medium">Host</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {diagnosis.candidates.map((c) => (
-                    <tr key={c.key} className="border-b border-slate-100">
-                      <td className="py-1.5 pr-2 font-mono">{c.key}</td>
-                      <td className="py-1.5 pr-2">{c.isSet ? "yes" : "no"}</td>
-                      <td className="py-1.5 pr-2">{c.scheme}</td>
-                      <td className="py-1.5 font-mono text-slate-600">{c.host ?? "—"}</td>
+                  {diagnosis.candidates.map((candidate) => (
+                    <tr key={candidate.key} className="border-b border-slate-100">
+                      <td className="py-1.5 pr-2 font-mono">{candidate.key}</td>
+                      <td className="py-1.5 pr-2">{candidate.isSet ? "yes" : "no"}</td>
+                      <td className="py-1.5 pr-2">{candidate.scheme}</td>
+                      <td className="py-1.5 font-mono text-slate-600">
+                        {candidate.host ?? "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -396,16 +360,6 @@ export default function AdminTidbPage() {
               )}
             </div>
           )}
-
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            <p className="font-medium text-slate-800">If DB9 CLI / db9 login fails on your laptop</p>
-            <p className="mt-1">
-              Corporate TLS proxies often break the <code className="rounded bg-slate-100 px-1">db9</code>{" "}
-              binary. Use the <strong>DB9 API helper</strong> below (this server calls{" "}
-              <code className="rounded bg-slate-100 px-1">api.db9.ai</code> for you), or set{" "}
-              <code className="rounded bg-slate-100 px-1">DB9_DATABASE_URL</code> on Vercel manually.
-            </p>
-          </div>
 
           {health && (
             <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -426,106 +380,9 @@ export default function AdminTidbPage() {
 
           {applyResults && (
             <div className="max-h-48 overflow-auto rounded-md border border-slate-200 bg-white p-3 font-mono text-xs">
-              {applyResults.map((line, i) => (
-                <div key={i}>{line}</div>
+              {applyResults.map((line, index) => (
+                <div key={index}>{line}</div>
               ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">DB9 API helper (no local CLI)</CardTitle>
-          <CardDescription>
-            Paste a DB9 <strong>Bearer token</strong> from <code className="rounded bg-slate-100 px-1">db9 token show</code>{" "}
-            (after <code className="rounded bg-slate-100 px-1">db9 login</code> on any machine). This app calls{" "}
-            <code className="rounded bg-slate-100 px-1">https://api.db9.ai</code> once and returns a{" "}
-            <code className="rounded bg-slate-100 px-1">postgresql://</code> URL to paste into Vercel. The token
-            is not stored.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="db9-api-key" className="text-sm font-medium text-slate-800">
-              DB9 API token
-            </label>
-            <Input
-              id="db9-api-key"
-              type="password"
-              autoComplete="off"
-              placeholder="Bearer token from db9 token show"
-              value={db9ApiKey}
-              onChange={(e) => setDb9ApiKey(e.target.value)}
-              className="font-mono text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="db9-db-name" className="text-sm font-medium text-slate-800">
-              Database name
-            </label>
-            <Input
-              id="db9-db-name"
-              type="text"
-              autoComplete="off"
-              placeholder="expert-network-hiclaw"
-              value={db9DbName}
-              onChange={(e) => setDb9DbName(e.target.value)}
-              className="font-mono text-sm"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={db9Busy || !db9ApiKey.trim()}
-              onClick={() => void callDb9Proxy("get_connection_string")}
-            >
-              {db9Busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Fetch connection string"}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={db9Busy || !db9ApiKey.trim()}
-              onClick={() => void callDb9Proxy("reset_admin_password")}
-            >
-              Reset DB9 admin password &amp; fetch URL
-            </Button>
-          </div>
-          <p className="text-xs text-slate-500">
-            <strong>Reset</strong> issues a new Postgres password on DB9 (use if “password authentication
-            failed”). If DB9 returns 410, your org may be passwordless — use the official CLI{" "}
-            <code className="rounded bg-slate-100 px-1">db9 db connect</code> instead.
-          </p>
-
-          {db9Error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{db9Error}</div>
-          )}
-          {db9Reminder && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-              {db9Reminder}
-            </div>
-          )}
-          {db9ConnectionString && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-slate-800">Connection string</span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(db9ConnectionString);
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
-              <textarea
-                readOnly
-                className="h-24 w-full rounded-md border border-slate-200 bg-slate-50 p-2 font-mono text-xs"
-                value={db9ConnectionString}
-              />
             </div>
           )}
         </CardContent>

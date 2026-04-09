@@ -36,6 +36,11 @@ const PROVIDERS: Record<string, () => AIProvider> = {
     const { OpenAIProvider } = require("./openai") as typeof import("./openai");
     return new OpenAIProvider();
   },
+  zai: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ZAIProvider } = require("./zai") as typeof import("./zai");
+    return new ZAIProvider();
+  },
 };
 
 // ---------------------------------------------------------------------------

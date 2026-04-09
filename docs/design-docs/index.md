@@ -17,10 +17,10 @@ Design docs capture significant architectural and product decisions. Each doc sh
 | [Multi-Platform Auth](multi-platform-auth.md) | Accepted | 2026-03 | Unified auth across Web, Telegram, WeChat |
 | [Payment Architecture](payment-architecture.md) | Accepted | 2026-03 | Stripe + TON + WeChat Pay with double-write pattern |
 | [AI Provider Abstraction](ai-provider-abstraction.md) | Accepted | 2026-03 | Swappable AI providers via factory pattern |
-| [HiClaw harness + DB9](hiclaw-agent-harness-db9.md) | Accepted (phased) | 2026-03 | Generator/evaluator loop, handoffs, Postgres store option; Anthropic harness patterns |
-| [DB9 integration (Vercel + HiClaw URL)](db9-integration.md) | Draft | 2026-03 | Serverless Postgres via `DB9_DATABASE_URL`; PM-friendly setup + legacy `TIDB_DATABASE_URL` removal |
+| [HiClaw harness + Postgres](hiclaw-agent-harness-db9.md) | Accepted (phased) | 2026-04 | Generator/evaluator loop, handoffs, and the current Postgres-backed HiClaw store |
+| [DB9 integration (historical)](db9-integration.md) | Superseded | 2026-04 | Archived background only; current deployments use Supabase/Postgres without DB9 |
 | [Agentic methodology (best practices)](agentic-methodology-best-practices.md) | Accepted | 2026-03 | How HiClaw applies harness ideas (handoffs, evaluator, sprint contracts); companion to harness doc |
-| [Tech Stack Improvements](tech-stack-improvements.md) | Accepted (phased) | 2026-03 | mem9 vs DB9/pgvector, Inngest vs FC; **§3** tRPC procedure inventory + npm audit posture + open ops items |
+| [Tech Stack Improvements](tech-stack-improvements.md) | Accepted (phased) | 2026-04 | mem9 + Supabase/Postgres posture, Inngest vs FC, tRPC inventory, and operational follow-ups |
 | [npm audit (production)](npm-audit-production.md) | Accepted | 2026-03 | Triaged prod deps: overrides, EAS/Hardhat transitive risk, CI artifact — companion to tech-stack §3.2 |
 | [Vercel best practices](vercel-best-practices.md) | Accepted | 2026-03 | Platform defaults for this repo (functions, regions, Cron, Blob, AI Gateway, OTEL, etc.); env CLI/checklist cross-linked from tech-stack doc §4 |
 | [Tech stack tasks (PM tracker)](../exec-plans/active/tech-stack-improvements-tasks.md) | Active | 2026-03 | **Open tasks only** — links to main doc for strategy |

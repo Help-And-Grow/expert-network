@@ -345,6 +345,9 @@ function AdminContent() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/ai-provider">AI Provider</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/admin/tidb">HiClaw DB</Link>
             </Button>
             <Button

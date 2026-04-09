@@ -25,15 +25,18 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Production alias for this project (not preview URLs like *-hash-team.vercel.app).
+          # Production aliases for the main and hackathon projects (not preview URLs like *-hash-team.vercel.app).
           HOST="${BASE#*://}"
           HOST="${HOST%%/*}"
-          PROD_HOST="expert-network.vercel.app"
-          if [ "$HOST" != "$PROD_HOST" ]; then
-            echo "Host is $HOST (expected $PROD_HOST for smoke); skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          case "$HOST" in
+            expert-network.vercel.app|expert-network-hackathon.vercel.app)
+              ;;
+            *)
+              echo "Host is $HOST (not a production alias we smoke); skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
 

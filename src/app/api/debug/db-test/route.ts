@@ -8,7 +8,9 @@ export async function GET() {
   const info: Record<string, unknown> = {
     dbUrl: process.env.DATABASE_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),
     directUrl: process.env.DIRECT_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),
-    dbProvider: process.env.DB_PROVIDER || "(not set)",
+    hiClawDbUrl:
+      process.env.HICLAW_POSTGRES_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80) ??
+      "(falls back to DATABASE_URL)",
     timestamp: new Date().toISOString(),
   };
 

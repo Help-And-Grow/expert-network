@@ -1,9 +1,6 @@
 /**
- * HiClaw **agent session** store for on-chain sync + reputation (was TiDB/MySQL).
- * Requires a **PostgreSQL** URL — same database HiClaw `store.js` uses when deployed.
- *
- * Env: first **valid** `postgres://` / `postgresql://` among `DB9_DATABASE_URL`,
- * `HICLAW_POSTGRES_URL`, `TIDB_DATABASE_URL` (skips `mysql://` legacy values).
+ * HiClaw agent session store for on-chain sync + reputation.
+ * Uses PostgreSQL only: HICLAW_POSTGRES_URL if set, otherwise DATABASE_URL.
  */
 import { Pool } from "pg";
 

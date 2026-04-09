@@ -6,22 +6,21 @@ The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma
 
 ### Core app (Prisma)
 
-- **`DATABASE_URL`** — must be `postgresql://` or `postgresql://` (Supabase, Neon, etc.).
+- **`DATABASE_URL`** — must be `postgres://` or `postgresql://` (Supabase, Neon, etc.).
 
 ### HiClaw session DB (Next.js: `/api/webhook/onchain`, `/api/reputation/:expertId`, admin “HiClaw DB”)
 
 Resolution order in `src/lib/tidb.ts`:
 
-1. **`DB9_DATABASE_URL`**
-2. **`HICLAW_POSTGRES_URL`**
-3. **`TIDB_DATABASE_URL`** — **only** if the value starts with `postgres://` or `postgresql://` (legacy name for the same Postgres instance).
+1. **`HICLAW_POSTGRES_URL`**
+2. **`DATABASE_URL`**
 
 If none resolve to Postgres, routes that call `tidb` helpers will throw with a clear error.
 
 ### HiClaw Node service (`hiclaw/service`)
 
-- **`DB9_HTTP_SQL_URL`** + **`DB9_HTTP_SQL_TOKEN`** (or `DB9_API_KEY`) — HTTP SQL (preferred when using DB9-style API).
-- Else **`DB9_DATABASE_URL`** or **`HICLAW_POSTGRES_URL`** — TCP `pg` pool.
+- **`HICLAW_POSTGRES_URL`** — preferred direct Postgres URL for HiClaw workers.
+- Else **`DATABASE_URL`** — reuse the same Supabase/Postgres instance as the main app.
 
 ### Inngest (optional)
 
@@ -38,7 +37,7 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 ## Deploy checklist
 
 1. Set **`DATABASE_URL`** to Postgres on Vercel.
-2. Set **`HICLAW_POSTGRES_URL`** or **`DB9_DATABASE_URL`** to the **same** or a dedicated Postgres that holds HiClaw tables (`sessions`, etc.).
+2. Set **`HICLAW_POSTGRES_URL`** to the **same** or a dedicated Postgres that holds HiClaw tables (`sessions`, etc.). If unset, the app will reuse `DATABASE_URL`.
 3. Run **Apply HiClaw schema** from **Admin → HiClaw DB** (`/admin/tidb`) or execute the DDL your team uses for that database.
 4. Register **`https://<your-domain>/api/inngest`** in Inngest Cloud and set signing + event keys if using scheduled or event-driven functions.
 5. Remove any **`mysql://`** URLs from secrets; they will break boot or HiClaw routes.

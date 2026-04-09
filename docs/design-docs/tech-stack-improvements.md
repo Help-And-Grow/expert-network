@@ -4,13 +4,15 @@
 **Date:** 2026-03  
 **Status:** Active — **follow-up only** (large backlog items are already implemented in-repo)
 
-**Completed work (archive):** Auth.js v5, Postgres-only Prisma + HiClaw session access, env validation, Inngest wiring, DB9 HTTP SQL in HiClaw `store.js`, optional pgvector dual-write, tRPC bootstrap, WeChat `shared-api`, npm audit CI/process, `miniprogram-ci` under `wechat/`. See the progress log in [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) and ops notes in [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md).
+**2026-04 update:** Database guidance is now **Supabase/Postgres only**. Treat older DB9 references in this historical doc as superseded context, not current setup instructions.
+
+**Completed work (archive):** Auth.js v5, Postgres-only Prisma + HiClaw session access, env validation, Inngest wiring, optional pgvector dual-write, tRPC bootstrap, WeChat `shared-api`, npm audit CI/process, `miniprogram-ci` under `wechat/`. See the progress log in [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) and ops notes in [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md).
 
 **PM checklist:** [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) — rows are **remaining** work only.
 
 ---
 
-## 1. mem9 and DB9 — best practices for this product
+## 1. mem9 and Postgres — best practices for this product
 
 ### For PMs (minimal database jargon)
 
@@ -20,13 +22,13 @@ Think of **three different “places data lives”** — they solve different pr
 |----------------------|-------------|----------------|
 | **Accounts, bookings, payments, the catalog** | One Postgres (`DATABASE_URL`) | The main app database — “source of truth” for the marketplace. |
 | **AI-ready memory about each expert** (snippets from profile, sessions, reviews for matching and answers) | **mem9** (plus `mem9SpaceId` on the expert) | A **managed memory service**: we don’t run vector search or tune embeddings ourselves; the app sends text and reads context back. Best when you want **speed of shipping** and **less ops**. |
-| **HiClaw agent runs** (sessions, waiting room, handoffs, traces) and optionally **vectors next to agent data** | **Postgres** — often **DB9** or any Postgres you operate (`HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`) | **Your** database for agents: SQL you control, same schema as HiClaw, optional **HTTP SQL** for workers without a long-lived DB connection, optional **pgvector** if you want embeddings **in the same place** as session rows. |
+| **HiClaw agent runs** (sessions, waiting room, handoffs, traces) and optionally **vectors next to agent data** | **Postgres** (`HICLAW_POSTGRES_URL` or `DATABASE_URL`) | **Your** database for agents: SQL you control, same schema as HiClaw, optional **pgvector** if you want embeddings **in the same place** as session rows. |
 
 **When to emphasize mem9:** default path for **expert memory** used by product AI (matching, context) — especially early and mid-stage, when the team should not own embedding pipelines. **Product stance:** the **primary user is the expert**; **expert-centric mem9** (one space per expert) is the intended scope — not a separate long-term memory space per learner.
 
-**When to emphasize DB9 / “HiClaw Postgres”:** anything that is **agent infrastructure** (HiClaw tables, shadow/evaluator state, on-chain session sync rows in our design). If the org wants **one region, one bill, full SQL control** next to Alibaba/DashScope workloads, DB9-style Postgres is the natural home.
+**When to emphasize HiClaw Postgres:** anything that is **agent infrastructure** (HiClaw tables, shadow/evaluator state, on-chain session sync rows in our design). The simplest posture is one Supabase-backed Postgres footprint with `HICLAW_POSTGRES_URL` only when you need isolation.
 
-**Not either-or for the main app:** the marketplace still uses Prisma + `DATABASE_URL` in all scenarios; mem9 vs DB9 here is **not** about replacing the marketplace DB — it is about **expert memory** (mem9) vs **agent + optional vector colocation** (Postgres/DB9).
+**Not either-or for the main app:** the marketplace still uses Prisma + `DATABASE_URL` in all scenarios; mem9 vs Postgres here is **not** about replacing the marketplace DB — it is about **expert memory** (mem9) vs **agent + optional vector colocation** (Postgres).
 
 ### Expert-centric mem9, reflections, and post-service notes
 
@@ -40,31 +42,31 @@ Think of **three different “places data lives”** — they solve different pr
 |-------|----------------|-------------------|
 | **Core marketplace** | Users, experts, bookings, payments, reviews | Postgres via Prisma (`DATABASE_URL`) |
 | **Expert “memory” for AI** | Profile seeds, booking/review snippets, match-time context | **mem9** (hosted spaces per expert, `mem9SpaceId` on `Expert`) |
-| **HiClaw / shadow agent** | Sessions, waiting room, handoffs, evaluator traces | **Postgres** (DB9 or any Postgres — TCP `pg` or **DB9 HTTP SQL**) |
+| **HiClaw / shadow agent** | Sessions, waiting room, handoffs, evaluator traces | **Postgres** (`HICLAW_POSTGRES_URL` or `DATABASE_URL`) |
 
 mem9 fits **fast iteration** and **product memory** without you operating a vector pipeline: provisioning is already wired (`ensureExpertSpace`, lifecycle writes in `mem9-lifecycle.ts`). It keeps the main app decoupled from embedding models and index tuning.
 
-DB9 (or “DB9-style” Postgres) fits **agent-local state** and **infrastructure you control**: same SQL as HiClaw tables, optional **HTTP SQL** for stateless workers, and **pgvector** if you want embeddings colocated with sessions.
+Postgres fits **agent-local state** and **infrastructure you control**: same SQL as HiClaw tables, and **pgvector** if you want embeddings colocated with sessions.
 
 ### Recommended near-term stance (default)
 
 1. **Keep mem9 as the system of record for expert memory** while you scale matching, HiClaw, and payments. Do not block launches on pgvector migration.
-2. **Use Postgres (DB9 or Supabase) for HiClaw** — align `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` with where you run `schema-postgres.sql`. Prefer **one physical Postgres** for HiClaw + on-chain session rows when ops cost matters; two instances remain valid if you want isolation.
+2. **Use Postgres (Supabase recommended) for HiClaw** — align `HICLAW_POSTGRES_URL` with where you run `schema-postgres.sql`, or let it fall back to `DATABASE_URL`. Prefer **one physical Postgres** for HiClaw + on-chain session rows when ops cost matters; two instances remain valid if you want isolation.
 3. **Enable `USE_PGVECTOR_MEMORY=1` only when** you explicitly want: (a) **dual-write** from the same lifecycle hooks into `expert_memory_embeddings`, (b) **search-first-on-PG** for `searchExpertMemories` (falls back to mem9 if PG returns nothing), (c) a path toward **reducing mem9 dependency** later. Requires Postgres + extension/table (admin migrate) and, for quality embeddings, **`OPENAI_API_KEY`** (see `pgvector-memory.ts`).
 4. **Backfill** historical mem9 text into PG only after dual-write is stable: `POST /api/admin/pgvector-backfill` (admin), optional `expertId` scope.
 
-### Long-term roadmap (when to shift weight from mem9 to pgvector/DB9)
+### Long-term roadmap (when to shift weight from mem9 to pgvector/Postgres)
 
 | Stage | Goal | Action |
 |-------|------|--------|
 | **Now** | Reliability + simple ops | mem9 primary; PG optional mirror off |
 | **Growth** | Cost/latency/compliance | Dual-write + `OPENAI_API_KEY`; monitor PG hit rate on search |
 | **Mature** | Single-store story for agents | Make pgvector primary for **search**; mem9 read-only or decommission after migration script + verification |
-| **HiClaw + memory unified** | One dialect, agent SQL + vectors | Prefer DB9 or one Postgres: sessions + optional `expert_memory_embeddings` in the same region as **DashScope** (Alibaba) for HiClaw |
+| **HiClaw + memory unified** | One dialect, agent SQL + vectors | Prefer one Postgres: sessions + optional `expert_memory_embeddings` in the same region as the rest of the deployment |
 
-**Principle:** mem9 optimizes for **speed of product development**; DB9/pgvector optimizes for **control, colocation with agent data, and Alibaba-adjacent deployment**. The codebase supports both; choose based on team capacity, not dogma.
+**Principle:** mem9 optimizes for **speed of product development**; pgvector/Postgres optimizes for **control and colocation with agent data**. The codebase supports both; choose based on team capacity, not dogma.
 
-**References:** `src/lib/integrations/mem9-lifecycle.ts`, `pgvector-memory.ts`, `mem9-pgvector-backfill.ts`, `hiclaw/README.md`, [hiclaw-agent-harness-db9.md](hiclaw-agent-harness-db9.md), [db9.ai skill](https://db9.ai/skill.md).
+**References:** `src/lib/integrations/mem9-lifecycle.ts`, `pgvector-memory.ts`, `mem9-pgvector-backfill.ts`, `hiclaw/README.md`, [hiclaw-agent-harness-db9.md](hiclaw-agent-harness-db9.md).
 
 ---
 

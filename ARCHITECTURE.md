@@ -19,13 +19,12 @@
                 │  /api/*             │
                 └──┬──────┬──────┬───┘
                    │      │      │
-           ┌───────▼┐ ┌───▼───┐ ┌▼────────┐
-           │ Prisma  │ │Stripe │ │AI Provs │
-           │ (DB)    │ │(Pay)  │ │(Qwen/   │
-           │         │ │       │ │ Gemini/ │
-           │ Supa/   │ │Connect│ │ OpenAI) │
-           │ TiDB    │ │Webhook│ │         │
-           └─────────┘ └───────┘ └─────────┘
+           ┌──────────┐ ┌───▼───┐ ┌▼──────────────┐
+           │ Prisma + │ │Stripe │ │AI Providers   │
+           │ Supabase │ │(Pay)  │ │(Qwen/Gemini/  │
+           │ Postgres │ │       │ │ OpenAI/Z.ai/  │
+           │          │ │Connect│ │ Dedalus)      │
+           └──────────┘ └───────┘ └───────────────┘
 ```
 
 ## Business Domains
@@ -91,7 +90,7 @@ src/lib/ai/
 └── search.ts         — Search grounding utilities
 ```
 
-Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai` (defaults to **qwen** when unset; runtime registry in `src/lib/ai/index.ts`).
+Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai|zai` (defaults to **qwen** when unset; runtime registry in `src/lib/ai/index.ts`).
 
 ## Database
 
@@ -103,8 +102,8 @@ Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai` (defaults to **qwen
 
 - **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
 - **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
-- **Data store:** **`store.js`** — Postgres via HTTP SQL (`DB9_HTTP_SQL_URL` + token) or TCP `pg` (`DB9_DATABASE_URL` / `HICLAW_POSTGRES_URL`). Align the **same** Postgres (or replicate) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
-- **Doc:** [hiclaw/README.md](hiclaw/README.md) · [docs/design-docs/hiclaw-agent-harness-db9.md](docs/design-docs/hiclaw-agent-harness-db9.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
+- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the **same** Supabase/Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
+- **Doc:** [hiclaw/README.md](hiclaw/README.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
 
 ### Key Models
 

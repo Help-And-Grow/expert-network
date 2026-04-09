@@ -1,22 +1,14 @@
 import pg from "pg";
 import { v4 as uuidv4 } from "uuid";
 
-const pgUrl = process.env.DB9_DATABASE_URL || process.env.HICLAW_POSTGRES_URL;
+const pgUrl =
+  process.env.HICLAW_POSTGRES_URL || process.env.DATABASE_URL || "";
 
-/** Full URL for DB9 (or compatible) HTTP SQL endpoint — POST JSON body, Bearer auth. */
-const httpSqlUrl = (process.env.DB9_HTTP_SQL_URL || process.env.DB9_DATABASE_HTTP_URL || "")
-  .trim()
-  .replace(/\/$/, "");
-const httpSqlToken =
-  process.env.DB9_HTTP_SQL_TOKEN || process.env.DB9_API_KEY || "";
-
-if (!httpSqlUrl && !pgUrl) {
-  console.warn(
-    "[store] Set DB9_HTTP_SQL_URL (HTTP) or DB9_DATABASE_URL / HICLAW_POSTGRES_URL (TCP pg).",
-  );
+if (!pgUrl) {
+  console.warn("[store] Set HICLAW_POSTGRES_URL or DATABASE_URL to a PostgreSQL URL.");
 }
 
-const pgPool = pgUrl && !httpSqlUrl ? new pg.Pool({ connectionString: pgUrl }) : null;
+const pgPool = pgUrl ? new pg.Pool({ connectionString: pgUrl }) : null;
 
 function toPgSql(sql, params) {
   let n = 0;
@@ -24,57 +16,10 @@ function toPgSql(sql, params) {
   return { text, values: params };
 }
 
-/**
- * Execute SQL via DB9-style HTTP API when DB9_HTTP_SQL_URL + DB9_HTTP_SQL_TOKEN are set;
- * otherwise use the pg pool.
- */
-async function executeHttp(sql, params = []) {
-  const { text, values } = toPgSql(sql, params);
-  const res = await fetch(httpSqlUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${httpSqlToken}`,
-    },
-    body: JSON.stringify({
-      query: text,
-      sql: text,
-      params: values,
-      arguments: values,
-    }),
-  });
-  const rawText = await res.text();
-  if (!res.ok) {
-    throw new Error(`[store] HTTP SQL ${res.status}: ${rawText.slice(0, 500)}`);
-  }
-  let json;
-  try {
-    json = JSON.parse(rawText);
-  } catch {
-    throw new Error("[store] HTTP SQL response was not JSON");
-  }
-  const rows =
-    json.rows ??
-    json.data?.rows ??
-    json.result?.rows ??
-    json.records ??
-    (Array.isArray(json) ? json : []);
-  if (!Array.isArray(rows)) {
-    console.warn("[store] HTTP SQL: unexpected shape, returning []");
-    return [];
-  }
-  return rows;
-}
-
 /** @param {string} sql @param {unknown[]} [params] */
 export async function execute(sql, params = []) {
-  if (httpSqlUrl && httpSqlToken) {
-    return executeHttp(sql, params);
-  }
   if (!pgPool) {
-    throw new Error(
-      "No database configured. Set DB9_HTTP_SQL_URL + DB9_HTTP_SQL_TOKEN, or DB9_DATABASE_URL.",
-    );
+    throw new Error("No database configured. Set HICLAW_POSTGRES_URL or DATABASE_URL.");
   }
   const { text, values } = toPgSql(sql, params);
   const r = await pgPool.query(text, values);
@@ -82,11 +27,11 @@ export async function execute(sql, params = []) {
 }
 
 export function usingPostgres() {
-  return !!pgPool || (!!httpSqlUrl && !!httpSqlToken);
+  return !!pgPool;
 }
 
 export function usingHttpSql() {
-  return !!(httpSqlUrl && httpSqlToken);
+  return false;
 }
 
 export async function checkExpertStatus(expertId) {

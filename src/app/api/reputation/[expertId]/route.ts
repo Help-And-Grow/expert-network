@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/reputation/:expertId
- * Aggregated reputation from TiDB (EAS / legacy session sync).
+ * Aggregated reputation from the HiClaw Postgres store (EAS / session sync).
  */
 export async function GET(
   _request: NextRequest,
