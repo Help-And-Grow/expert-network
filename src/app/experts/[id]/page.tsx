@@ -136,6 +136,7 @@ export default function ExpertProfilePage() {
     asyncEnabled: boolean;
     realtimeEnabled: boolean;
     realtimeReady: boolean;
+    realtimeBackend?: "ten" | "agora";
   }>({ asyncEnabled: true, realtimeEnabled: false, realtimeReady: false });
   const reviewsRef = useRef<Review[]>([]);
   reviewsRef.current = reviews;
@@ -412,7 +413,9 @@ export default function ExpertProfilePage() {
                 <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
                   {expert.hasClonedVoice
                     ? "Free voice preview — responds in their voice"
-                    : "Free AI preview — get a feel for the expert"}
+                    : vcConfig.realtimeBackend === "agora"
+                      ? "Free live voice AI preview — voice first, words on screen"
+                      : "Free AI preview — get a feel for the expert"}
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-1.5 text-indigo-600">
@@ -426,7 +429,11 @@ export default function ExpertProfilePage() {
               onClick={() => setShowRealtimeChat(true)}
               className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-indigo-600 transition-colors"
             >
-              Or try a <span className="font-medium underline underline-offset-2">live voice call</span> (5 min free)
+              Or try a{" "}
+              <span className="font-medium underline underline-offset-2">
+                {vcConfig.realtimeBackend === "agora" ? "live voice AI call" : "live voice call"}
+              </span>{" "}
+              (5 min free)
             </button>
           )}
         </section>

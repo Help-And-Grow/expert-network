@@ -71,15 +71,23 @@ const envSchema = z
     RESEND_API_KEY: z.string().optional(),
 
     AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "openai"])
+      .enum(["dedalus", "gemini", "qwen", "openai", "zai"])
       .default("qwen"),
 
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLOUD_PROJECT: z.string().optional(),
     GOOGLE_CLOUD_LOCATION: z.string().optional(),
+    GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
+    GEMINI_TEXT_MODEL: z.string().optional(),
+    GEMINI_IMAGE_MODEL: z.string().optional(),
 
     DASHSCOPE_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    ZAI_API_KEY: z.string().optional(),
+    ZAI_BASE_URL: z.string().url().optional(),
+    ZAI_TEXT_MODEL: z.string().optional(),
+    ZAI_IMAGE_MODEL: z.string().optional(),
+    ZAI_VERTEX_LOCATION: z.string().optional(),
 
     DEDALUS_API_KEY: z.string().optional(),
     DEDALUS_MODEL: z.string().optional(),
@@ -99,9 +107,7 @@ const envSchema = z
 
     ALCHEMY_WEBHOOK_SECRET: z.string().optional(),
 
-    TIDB_DATABASE_URL: z.string().url().optional(),
     HICLAW_POSTGRES_URL: z.string().url().optional(),
-    DB9_DATABASE_URL: z.string().url().optional(),
 
     WECHAT_PAY_MCH_ID: z.string().optional(),
     WECHAT_PAY_API_V3_KEY: z.string().optional(),
@@ -125,6 +131,7 @@ const envSchema = z
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
     VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
+    REALTIME_BACKEND: z.enum(["ten", "agora"]).default("ten"),
     /** Override default Qwen built-in voice (e.g. Cherry) when expert has no voice clone. */
     VOICE_CHAT_DEFAULT_VOICE: z.string().min(1).optional(),
     /** Local dev only: enables one-click "Dev login" on /auth/signin (`next dev` only). */
@@ -132,6 +139,11 @@ const envSchema = z
     AGORA_APP_ID: z.string().optional(),
     AGORA_APP_CERTIFICATE: z.string().optional(),
     TEN_AGENT_URL: z.string().url().optional(),
+
+    VERCEL_MANAGEMENT_TOKEN: z.string().optional(),
+    VERCEL_MANAGED_TEAM_ID: z.string().optional(),
+    VERCEL_MANAGED_PROJECT: z.string().optional(),
+    VERCEL_DEPLOY_HOOK_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     if (process.env.NODE_ENV !== "production") return;

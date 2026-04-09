@@ -7,8 +7,8 @@
  */
 
 import { env } from "@/lib/env";
-import { GoogleGenAI } from "@google/genai";
 
+import { createGeminiClient, getGeminiTextModel } from "./gemini-client";
 import {
   buildSearchPrompt,
   formatSocialLinks,
@@ -17,15 +17,12 @@ import {
 
 import type { ProfileInput } from "./types";
 
-const SEARCH_MODEL = "gemini-2.5-flash";
+let _client: ReturnType<typeof createGeminiClient> | null = null;
 
-let _client: GoogleGenAI | null = null;
-
-function getClient(): GoogleGenAI | null {
+function getClient() {
   if (_client) return _client;
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-  _client = new GoogleGenAI({ apiKey });
+  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) return null;
+  _client = createGeminiClient();
   return _client;
 }
 
@@ -46,7 +43,7 @@ export async function searchSocialProfiles(
 
   try {
     const response = await gemini.models.generateContent({
-      model: SEARCH_MODEL,
+      model: getGeminiTextModel(),
       contents: prompt,
       config: { tools: [{ googleSearch: {} }] },
     });
@@ -70,12 +67,12 @@ export async function extractPdfWithGemini(base64: string): Promise<string> {
   const gemini = getClient();
   if (!gemini) {
     throw new Error(
-      "GEMINI_API_KEY is required for PDF extraction (set it even when using a non-Gemini provider)"
+      "Gemini access is required for PDF extraction. Set GEMINI_API_KEY or Vertex AI credentials (GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY)."
     );
   }
 
   const response = await gemini.models.generateContent({
-    model: SEARCH_MODEL,
+    model: getGeminiTextModel(),
     contents: [
       {
         role: "user",

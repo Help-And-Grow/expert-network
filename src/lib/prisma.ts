@@ -13,7 +13,7 @@ function createPrismaClient() {
 
   if (url.startsWith("mysql://")) {
     throw new Error(
-      "[prisma] DATABASE_URL is MySQL — no longer supported. Use PostgreSQL (Supabase/TiDB Serverless Postgres if available) and DB_PROVIDER=supabase. See docs/exec-plans/active/postgres-cutover-runbook.md",
+      "[prisma] DATABASE_URL is MySQL — no longer supported. Use PostgreSQL (Supabase recommended). See docs/exec-plans/active/postgres-cutover-runbook.md",
     );
   }
 

@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
-import { isAsyncEnabled } from "@/lib/voice-chat-config";
+import {
+  isAgoraRealtimeBackend,
+  isAsyncEnabled,
+  isRealtimeEnabled,
+} from "@/lib/voice-chat-config";
 import { getVoiceChatGreeting } from "@/lib/voice-chat-session";
 
 export const maxDuration = 30;
@@ -12,9 +16,12 @@ export const maxDuration = 30;
  * Returns synthesized welcome audio (same voice as chat) + text. Does not use a turn.
  */
 export async function POST(request: NextRequest) {
-  if (!isAsyncEnabled()) {
+  const canServeGreeting =
+    isAsyncEnabled() || (isRealtimeEnabled() && isAgoraRealtimeBackend());
+
+  if (!canServeGreeting) {
     return NextResponse.json(
-      { error: "Async voice chat is not enabled." },
+      { error: "Voice preview is not enabled for the current voice-chat configuration." },
       { status: 503 },
     );
   }

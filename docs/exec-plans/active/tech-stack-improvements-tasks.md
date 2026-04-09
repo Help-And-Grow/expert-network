@@ -1,6 +1,6 @@
 # Tech stack — remaining tasks (PM-friendly)
 
-This file lists **only work that is still open**. Shipped items (Auth.js v5, Postgres cutover, Inngest wiring, DB9 HTTP SQL, pgvector optional path, tRPC bootstrap, WeChat shared-api, audit process, etc.) are recorded in the **Progress log** below — not as active tasks.
+This file lists **only work that is still open**. Shipped items (Auth.js v5, Postgres cutover, Inngest wiring, pgvector optional path, tRPC bootstrap, WeChat shared-api, audit process, etc.) are recorded in the **Progress log** below — not as active tasks.
 
 **Strategy & rationale:** [tech-stack-improvements.md](../../design-docs/tech-stack-improvements.md) (mem9 vs DB9/pgvector, Inngest vs Alibaba FC, long-term roadmap).
 
@@ -24,7 +24,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 | # | Task | In plain English | Status |
 |---|------|------------------|--------|
 | D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid double runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
-| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` or `DB9_DATABASE_URL`; ensure `DATABASE_URL` is `postgresql://`; rotate toward `AUTH_SECRET`. **How:** [tech-stack-improvements.md §4](../../design-docs/tech-stack-improvements.md#4-vercel-cli-managing-environment-variables) (CLI commands + full checklist). Platform habits: [vercel-best-practices.md](../../design-docs/vercel-best-practices.md). | **Ongoing** (HiClaw DB9 pass verified 2026-03) |
+| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` if HiClaw should use a dedicated database, otherwise keep `DATABASE_URL` as the shared Supabase Postgres source of truth; rotate toward `AUTH_SECRET`. **How:** [tech-stack-improvements.md §4](../../design-docs/tech-stack-improvements.md#4-vercel-cli-managing-environment-variables) (CLI commands + full checklist). Platform habits: [vercel-best-practices.md](../../design-docs/vercel-best-practices.md). | **Ongoing** |
 | G | **Post-deploy / toggle smoke** | **Public:** `npm run smoke:public` (or `scripts/smoke-public-endpoints.sh`) + deploy workflow. **Manual:** one booking + expert profile on staging after infra toggles. | **Ongoing** (public smoke vs prod URL passed 2026-03) |
 
 **Done (documented elsewhere):** tRPC procedure inventory (tech-stack **§3.1**); npm production audit triage (tech-stack **§3.2**, [npm-audit-production.md](../../design-docs/npm-audit-production.md)).
@@ -33,7 +33,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 
 | # | Task | Outcome |
 |---|------|---------|
-| **C** | **Single Postgres (optional)** | **Done.** Keep **two databases:** marketplace = **Supabase** (`DATABASE_URL` / Prisma); HiClaw agents = **DB9** (`DB9_DATABASE_URL`). No merge required unless strategy changes later. |
+| **C** | **Single Postgres (optional)** | **Done.** The default architecture is **Supabase/Postgres only**. Marketplace uses `DATABASE_URL`; HiClaw may use `HICLAW_POSTGRES_URL` only when you explicitly want a separate Postgres instance. |
 | **E** | **Expert memory: mem9 vs pgvector** | **Done.** **mem9** is the primary path for expert memory (PingCAP partnership). **pgvector** stays an **optional** code path only if you set `USE_PGVECTOR_MEMORY=1` — not a default roadmap item. |
 
 ---
@@ -42,8 +42,8 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 
 | Date | Note |
 |------|------|
-| 2026-03-31 | **Tasks C & E closed (PM):** (C) Marketplace **Supabase** + HiClaw **DB9** — documented as final architecture. (E) **mem9** as primary expert memory (PingCAP / mem9 partner); pgvector optional only. |
-| 2026-03-30 | **Vercel env hygiene:** `vercel env ls production` — core vars present (`DATABASE_URL`, `DIRECT_URL`, `DB9_DATABASE_URL`, `AUTH_SECRET`, OAuth, Stripe, AI, etc.); legacy `TIDB` / duplicate `HICLAW` not required when DB9 set. **Smoke:** `BASE_URL=https://expert-network.vercel.app bash scripts/smoke-public-endpoints.sh` — OK (`/api/health`, tRPC `health`, `expertsPublished`). **Architecture:** keep **Supabase** for marketplace + **DB9** for HiClaw (no single-Postgres merge). |
+| 2026-04-10 | **Database cleanup:** DB9/TiDB runtime paths removed. `DATABASE_URL` is the Supabase/Postgres source of truth; `HICLAW_POSTGRES_URL` is optional for isolation. |
+| 2026-03-31 | **Task E closed (PM):** **mem9** remains the primary expert-memory system; pgvector is optional only. |
 | 2026-03-28 | tRPC surface documented in tech-stack §3.1; npm audit triage + `serialize-javascript` override + [npm-audit-production.md](../../design-docs/npm-audit-production.md); tasks A/B closed. |
 | 2026-03-24 | Env validation; tracker created. |
 | 2026-03-27 | Auth.js v5, shared-api, cron runner extraction, audit scripts. |

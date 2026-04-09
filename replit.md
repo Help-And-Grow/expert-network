@@ -5,9 +5,9 @@ An AI-native expert network platform for Singapore & Southeast Asia. Users can b
 ## Architecture
 
 - **Framework**: Next.js 15 (App Router)
-- **Database ORM**: Prisma (supports PostgreSQL via Supabase, or MySQL via TiDB)
+- **Database ORM**: Prisma with PostgreSQL only
 - **Auth**: NextAuth v4 with Prisma adapter
-- **AI**: Google Gemini (default), OpenAI, or Qwen/DashScope
+- **AI**: Gemini, Qwen/DashScope, OpenAI, Dedalus, or Z.ai via `AI_PROVIDER`
 - **Blockchain**: Base chain + EAS attestations (POMP reputation)
 - **Payments**: Stripe
 - **Messaging**: Telegram, WeChat mini-program
@@ -36,7 +36,7 @@ See `.env.example` for the full list. Minimum required to start:
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL (Supabase) or MySQL (TiDB) connection string |
+| `DATABASE_URL` | PostgreSQL connection string for the main app (Supabase recommended) |
 | `NEXTAUTH_URL` | Full public URL of the app (e.g. `https://<repl>.replit.app`) |
 | `NEXTAUTH_SECRET` | Random secret — generate with `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (for sign-in) |
@@ -49,12 +49,11 @@ Optional but used by features:
 - `STRIPE_*` — Payments
 - `POMP_ISSUER_PRIVATE_KEY`, `POMP_EAS_SCHEMA_UID` — Reputation attestations
 - `ALCHEMY_WEBHOOK_SECRET` — On-chain webhook verification
-- `TIDB_DATABASE_URL` / `HICLAW_POSTGRES_URL` — HiClaw sub-service
+- `HICLAW_POSTGRES_URL` — Optional dedicated PostgreSQL URL for HiClaw; otherwise it reuses `DATABASE_URL`
+- `VOICE_CHAT_MODE`, `REALTIME_BACKEND`, `AGORA_*` — Voice chat features
+- `ZAI_API_KEY` — Required if `AI_PROVIDER=zai`
 
 ## Database
 
-Switch between PostgreSQL and MySQL by setting `DB_PROVIDER` in `.env`:
-- `DB_PROVIDER=supabase` (default) → PostgreSQL adapter
-- `DB_PROVIDER=tidb` → MySQL/MariaDB adapter
-
-Run `npm run db:switch` after changing the provider.
+This repo is PostgreSQL-only. `scripts/switch-db.mjs` keeps Prisma on
+`provider = "postgresql"` before client generation and deployment builds.

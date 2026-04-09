@@ -46,7 +46,7 @@ export function splitPostgresUrl(raw: string): PostgresUrlParts | null {
 
 export type PasswordHeuristic = {
   length: number;
-  /** Looks like a DB9 connect JWT (short-lived). */
+  /** Looks like a JWT or opaque signed token. */
   looksLikeJwt: boolean;
   /** Password segment contains %XX sequences (may already be URL-encoded). */
   hasPercentEncoding: boolean;
@@ -66,14 +66,14 @@ export function describePasswordHeuristic(password: string): PasswordHeuristic {
 }
 
 export type HiClawConnectionProbe = {
-  /** Env var that won (e.g. DB9_DATABASE_URL). */
+  /** Env var that won (e.g. HICLAW_POSTGRES_URL). */
   resolvedSource: string;
-  /** Userinfo changed by encode/decode normalization. */
+  /** Raw and normalized URLs differ. */
   userinfoNormalizationChanged: boolean;
   host: string | null;
   port: string | null;
   database: string;
-  /** Postgres role name only (e.g. e324….admin). */
+  /** Postgres role name only. */
   user: string;
   password: PasswordHeuristic & { present: boolean };
   /** Query params on the URL (e.g. sslmode). */
@@ -137,34 +137,26 @@ export function buildHiClawConnectionProbe(
   const checks: string[] = [];
   if (!pwd) {
     checks.push(
-      "The URL has no password: use postgresql://ROLE:PASSWORD@HOST:PORT/db — for DB9 the role is often tenant.admin; there must be a colon after the role name, then the password, then @ (the role name alone is not the password).",
-    );
-    checks.push(
-      "Fix: run DB9_API_KEY=\"$(db9 token show)\" npm run db9:reset-password-vercel (writes a full URL to Vercel), or paste the full string from DB9. If the dashboard ate the password, use `echo 'URL' | npx vercel env add DB9_DATABASE_URL production --force`.",
+      "The URL has no password. Use a full PostgreSQL URL in the form postgresql://ROLE:PASSWORD@HOST:PORT/db.",
     );
   }
   if (heuristic.looksLikeJwt) {
     checks.push(
-      "Password looks like a DB9 connect JWT — it expires quickly; use reset-password DSN or refresh connect URL.",
-    );
-  }
-  if (pwd && normParts.user === "admin" && (host?.includes("db9.io") ?? false)) {
-    checks.push(
-      'User is exactly "admin" on DB9 — the wire role is usually "something.admin". If auth fails with 28P01, re-run `npm run db9:reset-password-vercel` (fixed merge prefers the role from connection_string over JSON admin_user).',
+      "Password looks like a signed token. If authentication fails, rotate the DSN in Supabase or your PostgreSQL provider and update Vercel.",
     );
   }
   if (heuristic.hasUnencodedEquals && !heuristic.hasPercentEncoding) {
     checks.push(
-      "Password contains raw `=` — app normalizes userinfo (decode→encode); if auth still fails, try `npm run db9:reset-password-vercel` for a fresh admin password.",
+      "Password contains raw `=`. URL-encode credentials before saving the DSN if your provider gives a raw password.",
     );
   }
   if (userinfoNormalizationChanged) {
     checks.push(
-      "Raw env URL differs from normalized URL after userinfo encoding — if “raw” experiment succeeds below, file a bug on normalization.",
+      "Raw env URL differs from the normalized URL after userinfo encoding. If the raw variant succeeds and the normalized one fails, keep the exact provider-issued DSN.",
     );
   }
-  if (host && !host.includes("db9.io") && !host.includes("localhost")) {
-    checks.push(`Host is ${host} — confirm this matches your DB9 / HiClaw Postgres instance.`);
+  if (host && !host.includes("localhost")) {
+    checks.push(`Host is ${host}. Confirm this is the intended Supabase/Postgres instance for HiClaw.`);
   }
 
   return {

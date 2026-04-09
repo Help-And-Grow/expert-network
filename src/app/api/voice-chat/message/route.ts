@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
-import { isAsyncEnabled } from "@/lib/voice-chat-config";
+import {
+  isAgoraRealtimeBackend,
+  isAsyncEnabled,
+  isRealtimeEnabled,
+} from "@/lib/voice-chat-config";
 import {
   processVoiceMessage,
   processTextMessage,
@@ -12,13 +16,19 @@ export const maxDuration = 30;
 /**
  * POST /api/voice-chat/message
  *
- * Async voice chat: accepts voice or text, returns AI reply as text + audio.
- * Only available when VOICE_CHAT_MODE is "async" or "both".
+ * Accepts voice or text, returns AI reply as text + audio.
+ * Used by async voice chat and the Agora-backed realtime mode.
  */
 export async function POST(request: NextRequest) {
-  if (!isAsyncEnabled()) {
+  const canServeVoiceTurns =
+    isAsyncEnabled() || (isRealtimeEnabled() && isAgoraRealtimeBackend());
+
+  if (!canServeVoiceTurns) {
     return NextResponse.json(
-      { error: "Async voice chat is not enabled. Set VOICE_CHAT_MODE=async or both." },
+      {
+        error:
+          "Voice turns are not enabled. Use VOICE_CHAT_MODE=async or both, or set REALTIME_BACKEND=agora for realtime-generated replies.",
+      },
       { status: 503 },
     );
   }

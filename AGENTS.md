@@ -59,19 +59,19 @@ See `docs/` for full details:
 ## Key Conventions
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
-2. **AI providers**: Swappable via `AI_PROVIDER` env var (`dedalus`, `gemini`, `qwen`, `openai`). Default when unset: **`qwen`** (Alibaba DashScope). See `src/lib/ai/index.ts`.
+2. **AI providers**: Swappable via `AI_PROVIDER` env var (`dedalus`, `gemini`, `qwen`, `openai`, `zai`). Default when unset: **`qwen`** (Alibaba DashScope). See `src/lib/ai/index.ts`.
 3. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
-4. **Database switching**: Run `node scripts/switch-db.mjs` — reads `DB_PROVIDER` and patches `prisma/schema.prisma`.
+4. **Database switching**: Run `node scripts/switch-db.mjs` — Prisma is PostgreSQL-only and the script enforces `provider = "postgresql"` in `prisma/schema.prisma`.
 5. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Uses the same backend API with `x-wechat-token` auth header.
 6. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
 7. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
 8. **POMP (Proof of Meet Protocol)**: Every completed booking creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
 9. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. Learners earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
 10. **Smart Contracts**: Foundry-based (`contracts/`). Deploy via `forge script script/Deploy.s.sol` (HelpGrowToken on Base Sepolia/Mainnet).
-11. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (MySQL via `TIDB_DATABASE_URL` **or** Postgres via `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL`), **waitingRoom**. Shadow stack uses **mem9** + **DashScope Qwen-Max**; session handoffs and `evaluator_critiques` on `sessions` / dedicated table. Details: [`hiclaw/README.md`](hiclaw/README.md). Design: [`docs/design-docs/hiclaw-agent-harness-db9.md`](docs/design-docs/hiclaw-agent-harness-db9.md).
+11. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (Postgres via `HICLAW_POSTGRES_URL`, falling back to `DATABASE_URL`), **waitingRoom**. Shadow stack uses **mem9** + **DashScope Qwen-Max**; session handoffs and `evaluator_critiques` on `sessions` / dedicated table. Details: [`hiclaw/README.md`](hiclaw/README.md).
 12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates HiClaw `sessions` in Postgres (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from the same store.
 13. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; mentee H&G balance via wagmi + ledger API.
-14. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): voice/text messaging, ASR → LLM (+ mem9) → TTS-VC, 10-turn free cap, `POST /api/voice-chat/message`; opening voice greeting (TTS, no turn) `POST /api/voice-chat/greeting`. **Realtime**: Agora RTC live call via TEN Agent (Docker), 5-min cap, `POST /api/voice-chat/start` + `/stop`. Config endpoint: `GET /api/voice-chat/config`. Requires `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, `TEN_AGENT_URL` for realtime mode.
+14. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): voice/text messaging, ASR → LLM (+ mem9) → TTS-VC, 10-turn free cap, `POST /api/voice-chat/message`; opening voice greeting (TTS, no turn) `POST /api/voice-chat/greeting`. **Realtime**: Agora RTC live call, 5-min cap, `POST /api/voice-chat/start` + `/stop`. `REALTIME_BACKEND=ten` keeps the TEN agent path; `REALTIME_BACKEND=agora` uses Agora session setup with server-generated voice replies and transcript bubbles. Config endpoint: `GET /api/voice-chat/config`. Requires `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, and `TEN_AGENT_URL` only when using the TEN backend.
 
 ## Documentation (key changes)
 
@@ -102,7 +102,7 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |
 | Work on HiClaw agents | `hiclaw/README.md`, `hiclaw/service/src/` (manager, shadowWorker, evaluatorWorker, plannerWorker, store, waitingRoom) |
 | On-chain sync/reputation | `src/lib/tidb.ts`, `src/app/api/webhook/onchain/`, `src/app/api/reputation/` |
-| DB9 / HiClaw Postgres URL (Vercel) | `docs/design-docs/db9-integration.md`; `/admin/tidb` DB9 API helper (`POST /api/admin/tidb/db9`); `npm run db9:provision` when CLI TLS fails |
+| Manage AI provider on Vercel | `/admin/ai-provider`, `src/app/api/admin/ai-provider/route.ts`, `src/lib/vercel-admin.ts` |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |
 | Update product specs | `docs/product-specs/` |

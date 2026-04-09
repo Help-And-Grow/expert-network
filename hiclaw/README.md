@@ -6,21 +6,21 @@ Separate **Node service** (`hiclaw/service/`) that runs the offline-expert **sha
 
 ---
 
-## Session store: PostgreSQL (HTTP SQL or TCP `pg`)
+## Session store: PostgreSQL only
 
 The service uses **`store.js`**:
 
-1. If **`DB9_HTTP_SQL_URL`** and a bearer token (**`DB9_HTTP_SQL_TOKEN`**, or `DB9_API_KEY`) are set, all queries go through that HTTP SQL API.
-2. Otherwise it uses a **`pg`** pool with **`DB9_DATABASE_URL`** or **`HICLAW_POSTGRES_URL`**.
+1. If **`HICLAW_POSTGRES_URL`** is set, HiClaw uses that dedicated PostgreSQL connection string.
+2. Otherwise it falls back to **`DATABASE_URL`** so the marketplace app and HiClaw share the same Supabase/Postgres database.
 
 There is **no MySQL / mysql2** path in this service.
 
 | Mode | Env var(s) | Schema |
 |------|------------|--------|
-| HTTP SQL | `DB9_HTTP_SQL_URL` + `DB9_HTTP_SQL_TOKEN` (or `DB9_API_KEY`) | Apply [`schema-postgres.sql`](schema-postgres.sql) on the backing Postgres |
-| TCP Postgres | `DB9_DATABASE_URL` or `HICLAW_POSTGRES_URL` | Same |
+| Dedicated Postgres | `HICLAW_POSTGRES_URL` | Apply [`schema-postgres.sql`](schema-postgres.sql) |
+| Shared app Postgres | `DATABASE_URL` | Same |
 
-**Next.js (Vercel)** uses the same logical database for HiClaw tables when syncing on-chain data and reputation: set **`DB9_DATABASE_URL`** or **`HICLAW_POSTGRES_URL`** (or a postgres-shaped **`TIDB_DATABASE_URL`** legacy name; resolution order in `src/lib/hiclaw-db-env.ts`). Admin **HiClaw DB** is at `/admin/tidb`. See [postgres-cutover-runbook.md](../docs/exec-plans/active/postgres-cutover-runbook.md).
+**Next.js (Vercel)** uses the same logical database for HiClaw tables when syncing on-chain data and reputation: set **`HICLAW_POSTGRES_URL`** if you want isolation, otherwise let it reuse **`DATABASE_URL`**. Admin **HiClaw DB** is at `/admin/tidb`. See [postgres-cutover-runbook.md](../docs/exec-plans/active/postgres-cutover-runbook.md).
 
 **Tables:** `expert_status`, `sessions`, `waiting_room`, **`evaluator_critiques`**. Session rows support **`conversation_messages`**, **`handoff_artifact`**, **`mem9_profile_summary`** for multi-turn and context reset.
 
@@ -32,9 +32,8 @@ Copy [`.env.example`](.env.example) to `hiclaw/service/.env` (or use repo root e
 
 | Variable | Purpose |
 |----------|---------|
-| `DB9_HTTP_SQL_URL` | Optional; HTTP SQL endpoint (with token) |
-| `DB9_HTTP_SQL_TOKEN` / `DB9_API_KEY` | Bearer token for HTTP SQL |
-| `HICLAW_POSTGRES_URL` / `DB9_DATABASE_URL` | TCP Postgres when not using HTTP SQL |
+| `HICLAW_POSTGRES_URL` | Optional dedicated PostgreSQL URL for HiClaw |
+| `DATABASE_URL` | Shared application PostgreSQL URL when `HICLAW_POSTGRES_URL` is unset |
 
 Plus: `DASHSCOPE_API_KEY`, `MEM9_ENABLED`, evaluator and shadow tuning vars as in `.env.example`.
 
@@ -69,6 +68,4 @@ Docker: [`docker-compose.yml`](docker-compose.yml) attaches to external network 
 ## Links
 
 - [HiClaw](https://hiclaw.io/)
-- [db9.ai skill / API](https://db9.ai/skill.md)
-- Design: [Harness + DB9 evaluation](../docs/design-docs/hiclaw-agent-harness-db9.md)
 - Doc maintenance checklist: [documentation-maintenance.md](../docs/references/documentation-maintenance.md)

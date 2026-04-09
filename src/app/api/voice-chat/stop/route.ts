@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
-import { isRealtimeEnabled } from "@/lib/voice-chat-config";
+import { getRealtimeBackend, isRealtimeEnabled } from "@/lib/voice-chat-config";
 import {
   getRealtimeSession,
   removeRealtimeSession,
@@ -9,6 +9,8 @@ import {
 } from "@/lib/voice-chat-session";
 
 export async function POST(request: NextRequest) {
+  const realtimeBackend = getRealtimeBackend();
+
   if (!isRealtimeEnabled()) {
     return NextResponse.json(
       { error: "Real-time voice chat is not enabled" },
@@ -43,7 +45,9 @@ export async function POST(request: NextRequest) {
   }
 
   removeRealtimeSession(channelName);
-  await stopTenAgent(channelName).catch(() => {});
+  if (realtimeBackend === "ten") {
+    await stopTenAgent(channelName).catch(() => {});
+  }
 
   const durationMs = Date.now() - session.startedAt;
 

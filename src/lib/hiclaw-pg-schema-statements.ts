@@ -1,6 +1,6 @@
 /**
  * Idempotent DDL for HiClaw tables on PostgreSQL (on-chain sync + reputation).
- * Applied from POST /api/admin/tidb (admin UI still says “HiClaw DB”).
+ * Applied from POST /api/admin/tidb (historical route name; UI says “HiClaw DB”).
  * Mirrors `hiclaw/schema-postgres.sql`.
  */
 export const HICLAW_PG_SCHEMA_STATEMENTS = [
