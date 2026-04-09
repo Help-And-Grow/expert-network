@@ -42,7 +42,7 @@ async function sendChatAction(
 async function answerInlineQuery(
   botToken: string,
   inlineQueryId: string,
-  results: any[],
+  results: Array<Record<string, unknown>>,
   extra: Record<string, unknown> = {}
 ) {
   await fetch(`https://api.telegram.org/bot${botToken}/answerInlineQuery`, {
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
             ? `⭐ ${expert.avgRating.toFixed(1)} (${expert.reviewCount} reviews)` 
             : "New Expert";
 
-          const result: any = {
+          const result: Record<string, unknown> = {
             type: "article",
             id: `expert_${expert.id}`,
             title: name,
