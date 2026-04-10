@@ -15,6 +15,7 @@
 - **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://`
 - **Hosting**: Vercel (serverless)
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
+- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`)
 
 ## Repository Layout
 
@@ -105,4 +106,5 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Manage AI provider on Vercel | `/admin/ai-provider`, `src/app/api/admin/ai-provider/route.ts`, `src/lib/vercel-admin.ts` |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |
+| Run browser smoke tests | `playwright.config.ts`, `e2e/`, `npm run test:ui`, `.github/workflows/ui-smoke.yml` |
 | Update product specs | `docs/product-specs/` |
