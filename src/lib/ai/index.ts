@@ -41,6 +41,11 @@ const PROVIDERS: Record<string, () => AIProvider> = {
     const { ZAIProvider } = require("./zai") as typeof import("./zai");
     return new ZAIProvider();
   },
+  byteplus: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { BytePlusProvider } = require("./byteplus") as typeof import("./byteplus");
+    return new BytePlusProvider();
+  },
 };
 
 // ---------------------------------------------------------------------------

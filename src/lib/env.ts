@@ -71,13 +71,16 @@ const envSchema = z
     RESEND_API_KEY: z.string().optional(),
 
     AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "openai", "zai"])
+      .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus"])
       .default("qwen"),
 
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLOUD_PROJECT: z.string().optional(),
     GOOGLE_CLOUD_LOCATION: z.string().optional(),
     GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
+    BYTEPLUS_API_KEY: z.string().optional(),
+    BYTEPLUS_MODEL_ID: z.string().optional(),
+
     GEMINI_TEXT_MODEL: z.string().optional(),
     GEMINI_IMAGE_MODEL: z.string().optional(),
 
