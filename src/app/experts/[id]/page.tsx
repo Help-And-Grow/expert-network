@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 
 import {
@@ -279,10 +280,11 @@ export default function ExpertProfilePage() {
         <div className="relative">
           <div className={`aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center transition-all duration-300 ${isAudioPlaying ? "ring-4 ring-indigo-400/50 ring-offset-2" : ""}`}>
             {expert.hasAvatar ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
+              <Image
                 src={`/api/experts/${id}/avatar`}
                 alt={`${name}'s avatar`}
+                fill
+                sizes="(max-width: 768px) 100vw, 448px"
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -375,7 +377,7 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
-      {/* AI Voice Chat — vivid entry */}
+      {/* Voice preview — vivid entry */}
       {expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
         <section className="mt-5">
           <div
@@ -389,9 +391,11 @@ export default function ExpertProfilePage() {
             <div className="flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5">
               <div className="relative shrink-0">
                 {expert.user.image ? (
-                  <img
+                  <Image
                     src={expert.user.image}
                     alt=""
+                    width={44}
+                    height={44}
                     className="h-11 w-11 rounded-full object-cover ring-2 ring-indigo-100"
                   />
                 ) : (
@@ -408,14 +412,14 @@ export default function ExpertProfilePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground leading-tight">
-                  Talk to AI {name.split(" ")[0]}
+                  Talk to {name.split(" ")[0]}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
                   {expert.hasClonedVoice
-                    ? "Free voice preview — responds in their voice"
+                    ? "Free voice preview — hear how they respond"
                     : vcConfig.realtimeBackend === "agora"
-                      ? "Free live voice AI preview — voice first, words on screen"
-                      : "Free AI preview — get a feel for the expert"}
+                      ? "Free live voice preview — voice first, words on screen"
+                      : "Free voice preview — get a feel for the expert"}
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-1.5 text-indigo-600">
@@ -431,7 +435,7 @@ export default function ExpertProfilePage() {
             >
               Or try a{" "}
               <span className="font-medium underline underline-offset-2">
-                {vcConfig.realtimeBackend === "agora" ? "live voice AI call" : "live voice call"}
+                live voice call
               </span>{" "}
               (5 min free)
             </button>

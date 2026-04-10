@@ -78,7 +78,7 @@ export async function sendGreeting(telegramUsername: string): Promise<boolean> {
     `• Session reminders`,
     `• Updates from your sessions`,
     ``,
-    `The *AI Native Expert Network* for SG & SEA—tap below to explore.`,
+    `The expert network for SG & SEA—tap below to explore.`,
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [

@@ -63,7 +63,7 @@ export function HomeContent() {
             <UserMenu variant="light" />
           </div>
           <p className="text-sm font-medium text-indigo-200/90 mb-2">
-            AI Native Expert Network
+            Expert network for real sessions
           </p>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
             Learn by doing. Grow by helping.
@@ -71,8 +71,8 @@ export function HomeContent() {
           <p className="text-lg text-slate-300 mb-8 max-w-md">
             Everyone is both <span className="text-white font-medium">expert</span> and{" "}
             <span className="text-white font-medium">learner</span>—offer what you know, learn
-            what you need. An AI-native network rooted in Singapore &amp; Southeast Asia, building
-            toward always-on digital experts that learn beside you and facilitate real sessions.
+            what you need. A network rooted in Singapore &amp; Southeast Asia, built for trusted
+            introductions, expert conversations, and real sessions.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {isTelegram || isLoggedIn ? (
@@ -187,10 +187,10 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  AI-native, rooted in SEA
+                  Human expertise, rooted in SEA
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
-                  Describe what you need in plain language; AI matches you to the right people.
+                  Describe what you need in plain language; we route you to the right people.
                   Founders, operators, and investors use the same rails—localisation, talent, BD,
                   fundraising, and more across Singapore &amp; Southeast Asia.
                 </p>
@@ -216,7 +216,7 @@ export function HomeContent() {
                 Chat to find the right expert
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                Describe what you need; our AI matches you with people offering relevant expertise
+                Describe what you need; we match you with people offering relevant expertise
                 across Singapore and Southeast Asia—learners and experts in one network.
               </p>
             </div>
@@ -268,7 +268,7 @@ export function HomeContent() {
           <span className="font-semibold text-slate-700 dark:text-slate-300">
             Help &amp; Grow
           </span>{" "}
-          — AI Native Expert Network · Singapore &amp; Southeast Asia
+          — Expert Network · Singapore &amp; Southeast Asia
         </p>
       </footer>
     </div>

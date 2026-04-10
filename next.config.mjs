@@ -7,6 +7,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   // Avoid picking a parent-folder lockfile as the tracing root (e.g. ~/package-lock.json).
   outputFileTracingRoot: path.join(__dirname),
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
   serverExternalPackages: [
     "@ton/crypto",
     "@ton/ton",

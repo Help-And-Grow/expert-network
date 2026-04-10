@@ -12,6 +12,7 @@
     "lint": "next lint",
     "typecheck": "prisma generate && tsc --noEmit",
     "test:ui": "playwright test",
+    "test:ui:prod": "playwright test -c playwright.prod.config.ts",
     "test:ui:headed": "playwright test --headed",
     "test:ui:install": "playwright install --with-deps chromium",
     "audit": "npm audit",

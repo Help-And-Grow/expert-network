@@ -238,10 +238,10 @@ export async function POST(request: NextRequest) {
       const welcomeText = [
         `👋 *Welcome to Help & Grow!*`,
         ``,
-        `The *AI Native Expert Network*—Singapore & Southeast Asia. Everyone's both expert and learner. What are you looking for?`,
+        `The expert network for Singapore & Southeast Asia. Everyone's both expert and learner. What are you looking for?`,
         ``,
-        `• _"I need advice on expanding my AI startup in SEA"_`,
-        `• _"Looking for an AI expert with localisation experience"_`,
+        `• _"I need advice on expanding my startup in SEA"_`,
+        `• _"Looking for an expert with localisation experience"_`,
         `• _"Who can help with fundraising in Singapore?"_`,
         ``,
         `Or use these commands:`,
@@ -284,7 +284,7 @@ export async function POST(request: NextRequest) {
       await sendMessage(
         botToken,
         chatId,
-        `Open the app to chat with our AI and get matched to experts:`,
+        `Open the app to describe what you need and get matched to experts:`,
         {
           reply_markup: {
             inline_keyboard: [

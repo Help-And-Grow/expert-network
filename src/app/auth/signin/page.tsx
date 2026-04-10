@@ -117,7 +117,7 @@ function SignInForm() {
         </CardTitle>
         <CardDescription className="text-base space-y-1">
           <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            AI Native Expert Network
+            Expert Network
           </span>
           <span className="block">{isExpert ? "Join the community" : "Sign in"}</span>
         </CardDescription>
@@ -239,7 +239,7 @@ function SignInFallback() {
         <CardTitle className="text-2xl font-bold tracking-tight">
           Help &amp; Grow
         </CardTitle>
-        <CardDescription className="text-base">AI Native Expert Network · Sign in</CardDescription>
+        <CardDescription className="text-base">Expert Network · Sign in</CardDescription>
       </CardHeader>
       <CardContent className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

@@ -428,15 +428,15 @@ export function VoiceChatModal({
             {callState === "connecting"
               ? "Connecting..."
               : callState === "error"
-                ? "Connection Failed"
-                : callState === "ended" || callState === "ending"
-                  ? "Call Ended"
-                  : `AI ${expertName}`}
+                  ? "Connection Failed"
+                  : callState === "ended" || callState === "ending"
+                    ? "Call Ended"
+                  : expertName}
           </h3>
           <p className="mt-1 text-sm text-white/80">
             {callState === "connected"
               ? backend === "agora"
-                ? "Live Voice AI · Free Preview"
+                ? "Live Voice · Free Preview"
                 : "Live Voice · Free Preview"
               : callState === "connecting"
                 ? "Connecting voice session..."
