@@ -57,7 +57,7 @@ Use when the workflow benefits from explicit collaboration and human visibility:
 - meeting management and follow-up loops
 - memo and reflection capture
 - expert growth workflows
-- transparent multi-step coordination where human-in-the-loop review matters
+- transparent multi-step coordination where human-in-the-loop **approval** matters
 
 ### Scion
 

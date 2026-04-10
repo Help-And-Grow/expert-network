@@ -4,7 +4,7 @@
 
 ## User Story
 
-As a learner, I want to understand an expert quickly, hear how they think, and decide whether they are worth paying for.
+As a **player**, I want to understand an expert quickly, hear how they think, and decide whether a paid **meetup** is worth it.
 
 As an expert, I want my public profile, materials, and digital service layer to present my expertise with the right balance of trust, efficiency, and personalization.
 
@@ -12,7 +12,7 @@ As an expert, I want my public profile, materials, and digital service layer to 
 
 - The experience is **expert-first**, not AI-first.
 - Voice is a premium trust-building medium, not a decorative add-on.
-- Free preview should help users judge fit, not replace paid consultation.
+- Free preview should help users judge fit, not replace a paid **meetup**.
 - Personalization quality is the north-star metric: the system should match the right requirement to the right service at the best quality/price ratio.
 
 ## Experience Model
@@ -23,7 +23,7 @@ The public expert profile must do three jobs:
 
 - establish trust
 - let the user hear the expert
-- move the user toward a web login + formal booking path
+- move the user toward a web login + **schedule meetup** path
 
 Required elements:
 
@@ -37,8 +37,8 @@ Required elements:
 
 The preview interaction is voice-only on WeChat:
 
-- learner records up to 3 short clips as one question bundle
-- learner confirms once
+- player records up to 3 short clips as one question bundle
+- player confirms once
 - expert returns one concise voice reply
 - each user receives at most 5 free expert replies
 - each reply should fit within 60 seconds
@@ -53,13 +53,13 @@ Realtime voice is a subscription capability:
 - capped duration per session
 - surfaced in the contract even when temporarily disabled in demo environments
 
-### 4. Formal consultation
+### 4. Formal meetup
 
 Payment, scheduling, and final conversion stay on web:
 
 - login first
 - return to the public expert profile
-- continue to paid booking from there
+- continue to **paid meetup** checkout from there
 
 ## Expert Service Requirements
 

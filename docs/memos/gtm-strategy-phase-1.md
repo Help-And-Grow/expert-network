@@ -47,5 +47,5 @@ To facilitate growth, experts need to "own" their reputation outside our platfor
 
 ## 5. Metrics of Success (Phase 1)
 - **Primary**: 50 active SG-based experts in AI/B2B domains.
-- **Secondary**: 200 "Paid Sessions" completed using the tRPC booking flow.
-- **Retention**: % of learners who book a second expert within 30 days.
+- **Secondary**: 200 **paid meetups** completed using the tRPC flow (Prisma `Booking`).
+- **Retention**: % of **players** who schedule a second meetup with an expert within 30 days.

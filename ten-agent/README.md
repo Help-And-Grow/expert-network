@@ -1,13 +1,13 @@
 # TEN Agent — Real-time AI Voice Chat Service
 
 This is the companion Docker service for **Help & Grow** real-time AI voice chat.
-It joins an Agora RTC channel, listens to the learner's microphone stream, and
+It joins an Agora RTC channel, listens to the **player's** microphone stream, and
 speaks back as the expert's AI clone using TEN Framework + DashScope Qwen.
 
 ## Architecture
 
 ```
-Learner (browser/WeChat) ──Agora RTC──> TEN Agent container
+Player (browser/WeChat) ──Agora RTC──> TEN Agent container
                                          ├─ ASR:  DashScope Qwen3-ASR
                                          ├─ LLM:  Qwen-Max + mem9 context
                                          └─ TTS:  Qwen3-TTS-VC (expert voice clone)

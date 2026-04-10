@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and learners**—offering domain knowledge as services and learning from others—supported by **AI matching**, **expert memory via mem9 or pgvector**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real sessions). It serves web, Telegram Mini App, and WeChat Mini Program from one Next.js API layer on Vercel. Current WeChat work is converging on a premium, voice-first expert experience rather than a generic AI chatbot surface. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
+**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and players**—**sharing** domain judgment as services and learning from others (**coaches** when they offer help)—supported by **AI matching**, **expert memory via mem9 or pgvector**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real meetups). It serves web, Telegram Mini App, and WeChat Mini Program from one Next.js API layer on Vercel. Current WeChat work is converging on a premium, voice-first expert experience rather than a generic AI chatbot surface. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
 
 ## System Diagram
 
@@ -33,9 +33,9 @@
 |--------|---------------|-----------|
 | **Auth** | Multi-platform authentication (Auth.js / NextAuth v5, Telegram, WeChat) | `src/auth.ts`, `src/lib/request-auth.ts`, `src/lib/telegram-server.ts` |
 | **Experts** | Profile management, domains, availability, pricing | `src/app/api/experts/`, `src/app/api/expert/` |
-| **Bookings** | Session scheduling, timezone handling, conflict detection | `src/app/api/bookings/`, `src/lib/booking-utils.ts` |
+| **Meetups** (Prisma: `Booking`) | Meetup scheduling, timezone handling, conflict detection | `src/app/api/bookings/`, `src/lib/booking-utils.ts` |
 | **Payments** | Stripe checkout, TON crypto, WeChat Pay, free sessions | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
-| **Reviews** | Post-session ratings with expert suggestions | `src/app/api/reviews/` |
+| **Appreciations** (Prisma: `Review`) | Post-meetup ratings with coach follow-up | `src/app/api/reviews/` |
 | **AI** | Expert matching, profile generation, chat, image gen, TTS/ASR | `src/lib/ai/`, `src/lib/chat-engine.ts` |
 | **Onboarding** | Multi-step expert registration wizard | `src/app/api/onboarding/` |
 | **Notifications** | Telegram bot + WeChat template messages | `src/lib/telegram-bot.ts`, `src/lib/wechat-notify.ts` |
@@ -154,15 +154,15 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 | Expert | Extended profile linked to User — pricing, schedule, Stripe Connect |
 | ExpertDomain | Many-to-many expert ↔ domain mapping |
 | AvailableSlot | Explicit availability windows |
-| Booking | Session records with payment tracking |
-| Review | Post-session ratings and expert suggestions |
+| Booking | Meetup records with payment tracking (product copy: **meetup**) |
+| Review | Appreciation + coach follow-up (product copy: avoid “review”) |
 
 ## Payment Architecture
 
 1. **Stripe** (primary): Checkout Sessions → webhook creates Booking → cron charges remainder
 2. **TON**: TonConnect wallet → on-chain transfer → manual confirmation
 3. **WeChat Pay**: JSAPI → webhook confirms payment
-4. **Free**: Direct booking creation when expert price is 0
+4. **Free**: Direct `Booking` creation when expert price is 0
 
 Stripe uses Connected Accounts (Express) for marketplace payouts with configurable platform fee.
 
@@ -174,8 +174,8 @@ Each expert gets a persistent cloud memory space via [mem9.ai](https://mem9.ai) 
 Expert onboarded → ensureExpertSpace() → mem9 space created
                 → seedExpertProfile()  → bio, domains, services stored as memories
                                          ↓
-Booking created  → storeBookingEvent()  → session details added to memory
-Review received  → storeReviewEvent()   → rating + comment added to memory
+Meetup scheduled → `storeBookingEvent()` → meetup details added to memory
+Appreciation saved → `storeReviewEvent()` → rating + comment added to memory (tags: appreciation)
                                          ↓
 AI match query   → searchExpertMemories() → relevant memories injected into prompt
 AI chat          → searchExpertMemories() → context-aware responses
@@ -188,7 +188,7 @@ AI chat          → searchExpertMemories() → context-aware responses
 
 **Design principles:**
 - All mem9 calls are fire-and-forget (`.catch(() => {})`) — never block primary flows
-- Memory accumulates over time: profile seed → bookings → reviews → richer AI matching
+- Memory accumulates over time: profile seed → meetups → appreciations → richer AI matching
 - Search results are injected as additional context into AI provider prompts
 
 ## WeChat Mini Program

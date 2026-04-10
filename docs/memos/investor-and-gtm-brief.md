@@ -9,8 +9,8 @@
 | Element | Statement |
 |--------|-----------|
 | **Name** | Help & Grow |
-| **Category** | **AI Native Expert Network** — not a generic directory; matching, sessions, and memory are AI-first. |
-| **Core transaction** | Paid (or free) **1:1 sessions** between people who have expertise and people who need it. |
+| **Category** | **AI Native Expert Network** — not a generic directory; matching, **meetups**, and memory are AI-first. |
+| **Core transaction** | Paid (or free) **1:1 meetups** between people who **share** expertise and people who need practical help (**players**). |
 | **Surfaces** | Web (Next.js), **Telegram** Mini App, **WeChat** Mini Program — one API layer. |
 
 ---
@@ -21,7 +21,7 @@
 |--------|---------|
 | **Problem** | Expertise is fragmented across DMs, intros, and opaque networks; discovery is slow and trust is hard to scale. |
 | **Insight** | The same person often **both** needs help **and** can offer help; “marketplace” language undervalues that symmetry. |
-| **Solution** | A network where **everyone is expert and learner**: natural-language discovery, structured booking/payments, and reputation (including on-chain attestations + token incentives). |
+| **Solution** | A network where **everyone is expert, player, and coach**: natural-language discovery, structured meetup/payment rails, and reputation (including on-chain attestations + token incentives). |
 
 ---
 
@@ -30,14 +30,14 @@
 We are building toward **service as agent**: a **digital counterpart** of each expert that **continuously learns** from public context, meetings (online/offline), reflection, and memos — stays **always on**, **evolves with the human**, answers on-platform, and **facilitates** real sessions (does not replace the expert).
 
 **Today:** AI matching, profiles, mem9-backed memory, HiClaw-style shadow flows (roadmap).  
-**Tomorrow:** richer agent layer tied to the same trust and booking rails.
+**Tomorrow:** richer agent layer tied to the same trust and **meetup** rails (`Booking` / payments).
 
 ---
 
 ## 4. Why now (AI native)
 
 - **Discovery** scales with LLMs: users describe needs in prose; the system maps to the right people.
-- **Trust** can compound: reviews, structured profiles, optional **on-chain proof of meet** (EAS), learner rewards (H&G token).
+- **Trust** can compound: **appreciations**, structured profiles, optional **on-chain proof of meet** (EAS), **player** rewards (H&G token).
 - **Distribution** fits **Telegram / WeChat** + web — where SEA operators already work.
 
 ---
@@ -62,8 +62,8 @@ We are building toward **service as agent**: a **digital counterpart** of each e
 | Track | Metrics / evidence to prepare |
 |--------|-------------------------------|
 | Supply | # published experts, domains covered, invite policy |
-| Demand | # bookings, GMV, repeat bookings |
-| Product | NPS, session completion, review rates |
+| Demand | # meetups (`Booking` count), GMV, repeat meetups |
+| Product | NPS, meetup completion, appreciation rates |
 | Tech | uptime, payment success, multi-client parity |
 
 *Replace this table with live numbers in pitch decks; keep this doc as the narrative spine.*
@@ -85,7 +85,7 @@ We are building toward **service as agent**: a **digital counterpart** of each e
 | Risk | Mitigation direction |
 |------|---------------------|
 | Cold start (two-sided) | Wedge geography + invite; seed supply with known experts |
-| Trust & safety | Reviews, verification posture, clear policies |
+| Trust & safety | Appreciations + verification posture, clear policies |
 | Agent over-promise | Ship incrementally; human-in-the-loop for high-stakes answers |
 | Regulatory (payments, tokens) | Jurisdiction-specific advice; token as reward/discount, not investment pitch |
 

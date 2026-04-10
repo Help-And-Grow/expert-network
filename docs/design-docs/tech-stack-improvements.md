@@ -21,10 +21,10 @@ Think of **three different “places data lives”** — they solve different pr
 | If the product needs… | What we use | Plain English |
 |----------------------|-------------|----------------|
 | **Accounts, bookings, payments, the catalog** | One Postgres (`DATABASE_URL`) | The main app database — “source of truth” for the marketplace. |
-| **AI-ready memory about each expert** (snippets from profile, sessions, reviews for matching and answers) | **mem9** (plus `mem9SpaceId` on the expert) | A **managed memory service**: we don’t run vector search or tune embeddings ourselves; the app sends text and reads context back. Best when you want **speed of shipping** and **less ops**. |
+| **AI-ready memory about each expert** (snippets from profile, meetups, appreciations for matching and answers) | **mem9** (plus `mem9SpaceId` on the expert) | A **managed memory service**: we don’t run vector search or tune embeddings ourselves; the app sends text and reads context back. Best when you want **speed of shipping** and **less ops**. |
 | **HiClaw agent runs** (sessions, waiting room, handoffs, traces) and optionally **vectors next to agent data** | **Postgres** (`HICLAW_POSTGRES_URL` or `DATABASE_URL`) | **Your** database for agents: SQL you control, same schema as HiClaw, optional **pgvector** if you want embeddings **in the same place** as session rows. |
 
-**When to emphasize mem9:** default path for **expert memory** used by product AI (matching, context) — especially early and mid-stage, when the team should not own embedding pipelines. **Product stance:** the **primary user is the expert**; **expert-centric mem9** (one space per expert) is the intended scope — not a separate long-term memory space per learner.
+**When to emphasize mem9:** default path for **expert memory** used by product AI (matching, context) — especially early and mid-stage, when the team should not own embedding pipelines. **Product stance:** the **primary user is the expert**; **expert-centric mem9** (one space per expert) is the intended scope — not a separate long-term memory space per **player**.
 
 **When to emphasize HiClaw Postgres:** anything that is **agent infrastructure** (HiClaw tables, shadow/evaluator state, on-chain session sync rows in our design). The simplest posture is one Supabase-backed Postgres footprint with `HICLAW_POSTGRES_URL` only when you need isolation.
 
@@ -32,16 +32,16 @@ Think of **three different “places data lives”** — they solve different pr
 
 ### Expert-centric mem9, reflections, and post-service notes
 
-**Can mem9 hold memos or reflections about a booking or the experience after delivery?** Yes: mem9 stores **text** with **tags** and **source** (`mem9.ts`). For this product, those chunks belong in the **expert’s** space — the expert is the primary user, and memory is scoped so their AI counterpart stays grounded in **their** clients, sessions, and feedback.
+**Can mem9 hold memos or reflections about a meetup or the experience after delivery?** Yes: mem9 stores **text** with **tags** and **source** (`mem9.ts`). For this product, those chunks belong in the **expert’s** space — the expert is the primary user, and memory is scoped so their AI counterpart stays grounded in **their** clients, sessions, and feedback.
 
-**What is wired today:** **per-expert** spaces (`Expert.mem9SpaceId`). Lifecycle hooks write **booking summaries** and **review text** (rating + comment) into that space (`mem9-lifecycle.ts`). Additional expert-authored reflections (e.g. post-session notes, style preferences about a client) can use the same `store` API with tags such as `reflection` or `session` when you add UX and hooks — still **expert-centric**, not a separate learner memory product.
+**What is wired today:** **per-expert** spaces (`Expert.mem9SpaceId`). Lifecycle hooks write **meetup summaries** and **appreciation text** (rating + comment) into that space (`mem9-lifecycle.ts`). Additional expert-authored reflections (e.g. post-meetup notes, style preferences about a client) can use the same `store` API with tags such as `reflection` or `session` when you add UX and hooks — still **expert-centric**, not a separate **player** memory product.
 
 ### Roles today
 
 | Layer | Responsibility | Typical technology |
 |-------|----------------|-------------------|
-| **Core marketplace** | Users, experts, bookings, payments, reviews | Postgres via Prisma (`DATABASE_URL`) |
-| **Expert “memory” for AI** | Profile seeds, booking/review snippets, match-time context | **mem9** (hosted spaces per expert, `mem9SpaceId` on `Expert`) |
+| **Core marketplace** | Users, experts, meetups (`Booking`), payments, appreciations (`Review`) | Postgres via Prisma (`DATABASE_URL`) |
+| **Expert “memory” for AI** | Profile seeds, meetup/appreciation snippets, match-time context | **mem9** (hosted spaces per expert, `mem9SpaceId` on `Expert`) |
 | **HiClaw / shadow agent** | Sessions, waiting room, handoffs, evaluator traces | **Postgres** (`HICLAW_POSTGRES_URL` or `DATABASE_URL`) |
 
 mem9 fits **fast iteration** and **product memory** without you operating a vector pipeline: provisioning is already wired (`ensureExpertSpace`, lifecycle writes in `mem9-lifecycle.ts`). It keeps the main app decoupled from embedding models and index tuning.

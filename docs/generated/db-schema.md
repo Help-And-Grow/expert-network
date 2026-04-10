@@ -2,6 +2,8 @@
 
 > Auto-generated from `prisma/schema.prisma`. Regenerate when schema changes.
 
+**Product language:** In UI and brand docs we say **meetup** and **appreciation**; Prisma model names remain **`Booking`** and **`Review`**. See [docs/BRAND.md](../BRAND.md).
+
 ## Entity Relationship Diagram
 
 ```
@@ -63,8 +65,8 @@ Extended profile linked 1:1 to User.
 | servicesOffered | Json? | Structured services list |
 | onboardingStep | OnboardingStep | Current wizard step |
 | isPublished | Boolean | Visible in discover list |
-| avgRating | Float | Computed from reviews |
-| reviewCount | Int | Total review count |
+| avgRating | Float | Computed from appreciations (`Review` rows) |
+| reviewCount | Int | Count of appreciations (API/UI: avoid “review”) |
 | tonWalletAddress | String? | TON crypto wallet |
 | mem9SpaceId | String? | Persistent memory space |
 
@@ -107,14 +109,14 @@ Session records with full payment tracking.
 | wechatProfitShareStatus | String? | Partner profit-sharing: pending / success / failed / skipped |
 
 ### Review
-Post-session ratings.
+Post-meetup **appreciation** (player rating + optional comment); coach **follow-up** on `expertSuggestion`.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | bookingId | String | Unique FK → Booking |
 | expertId | String | FK → Expert |
-| founderId | String | FK → User |
+| founderId | String | FK → User (player side) |
 | rating | Int | 1-5 stars |
-| comment | String? (Text) | Founder's review |
-| expertSuggestion | String? (Text) | Expert's response/suggestion |
-| suggestionAt | DateTime? | When expert responded |
+| comment | String? (Text) | Player appreciation note |
+| expertSuggestion | String? (Text) | Coach follow-up |
+| suggestionAt | DateTime? | When coach responded |

@@ -1,6 +1,6 @@
 # Agentic System Design & Best Practices
 
-Help & Grow delegates critical human proxy interactions (expert booking, vetting, and continuous coaching) to a multi-agent OS (HiClaw). To prevent "agent degradation" and ensure high-quality subjective output, our architecture implements the following best practices derived from Anthropic's Harness Design.
+Help & Grow delegates critical human proxy interactions (expert **meetup** facilitation, vetting, and continuous coaching) to a multi-agent OS (HiClaw). To prevent "agent degradation" and ensure high-quality subjective output, our architecture implements the following best practices derived from Anthropic's Harness Design.
 
 ## 1. Context Resets & State Handoffs
 **The Problem:** LLMs suffer from "context anxiety" when their context windows fill up—they begin hastily wrapping up tasks or hallucinating. Simply summarizing the chat history ("in-place compaction") is insufficient for complex, multi-day interactions (like vetting a founder).

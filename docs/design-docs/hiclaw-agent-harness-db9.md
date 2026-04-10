@@ -11,7 +11,7 @@
 |------|--------|----------------|
 | Context reset + handoff artifact on `sessions` | **Implemented** (2026-03) | `hiclaw/service/src/shadowWorker.js`, `manager.js`, `store.js`; columns `handoff_artifact`, `conversation_messages`, `mem9_profile_summary`; `POST /query` `continueSessionId` |
 | Evaluator + grading loop | **Implemented** | `evaluatorWorker.js`, `manager.js`; table `evaluator_critiques`; env `EVALUATOR_*` |
-| Gate before mentee channels | **Implemented (service boundary)** | Draft is evaluated before `waiting_room` enqueue; Telegram/WeChat sends remain post–expert approval in app layer |
+| Gate before player channels (`menteeId` in API) | **Implemented (service boundary)** | Draft is evaluated before `waiting_room` enqueue; Telegram/WeChat sends remain post–expert approval in app layer |
 | Sprint / vetting contracts | **Implemented (phased)** | Optional `sprintContract` / `autoSprintContract` + `sprintMode`; `plannerWorker.js` |
 | Evaluator tools (e.g. MCP availability) | **Partial** | Optional `HICLAW_EVALUATOR_TOOL_URL` hint injection in `evaluatorWorker.js`; no in-repo MCP caller yet |
 | HiClaw store on Postgres | **Implemented** | `HICLAW_POSTGRES_URL` or `DATABASE_URL` + `pg`; `hiclaw/schema-postgres.sql` |
@@ -19,11 +19,11 @@
 ## Overview
 The [recent Anthropic engineering article](https://www.anthropic.com/engineering/harness-design-long-running-apps) discusses building a "harness design for long-running application development." It specifically looks at effective multi-agent patterns, combating LLM context degradation, and objectively grading subjective AI outputs.
 
-**Help & Grow** is an "AI Native Expert Network" where experts brand their skills as discrete services (e.g., marketing, headhunting) delivered to startup founders (learners) after an initial meeting. The expert's knowledge evolves through practice, and they continuously write reflections and best practices to their digital avatar. 
+**Help & Grow** is an "AI Native Expert Network" where experts brand their skills as discrete services (e.g., marketing, headhunting) delivered to startup founders (**players**) after an initial meeting—**sharing** judgment, not lecturing. The expert's knowledge evolves through practice, and they continuously write reflections and best practices to their digital avatar. 
 
 The Anthropic principles map cleanly to this product paradigm. The digital avatar acts in a dual capacity: 
-- **Externally** as a proxy connecting with founders (handling Q&A, vetting, and facilitating the booking).
-- **Internally** as a mentor, coach, and partner to the human expert, encouraging them and synthesizing their evolving experience into better services.
+- **Externally** as a proxy connecting with founders (handling Q&A, vetting, and facilitating **meetups**).
+- **Internally** as a **coach** and partner to the human expert, encouraging them and synthesizing their evolving experience into better services.
 
 ---
 
@@ -31,7 +31,7 @@ The Anthropic principles map cleanly to this product paradigm. The digital avata
 **The Article:** Models suffer from "context anxiety" (wrapping up prematurely) and degradation when context windows fill. Relying strictly on "in-place compaction" (summarizing chat history) fails for complex work. The solution is **context resets**: closing the session, explicitly writing the state to a structured handoff artifact, and passing it to a fresh agent instance with a clean slate.
 
 **Help & Grow Application:**
-HiClaw session state now lives on PostgreSQL, aligned with the rest of the product stack. As the digital avatar engages in prolonged relationships—either nurturing potential learners (founders) over weeks before a booking, or acting as an ongoing, multi-year reflection coach to the human expert—context windows will inevitably degrade.
+HiClaw session state now lives on PostgreSQL, aligned with the rest of the product stack. As the digital avatar engages in prolonged relationships—either nurturing potential **players** (founders) over weeks before a **meetup**, or acting as an ongoing, multi-year reflection coach to the human expert—context windows will inevitably degrade.
 * **Implementation (done):**
   * `shadowWorker` estimates prompt tokens; above `SHADOW_CONTEXT_RESET_RATIO` × `SHADOW_CONTEXT_WINDOW_TOKENS` (~70% × 32k default), it generates a JSON **Session Handoff Artifact** (goal, progress, temperament, next step, risks).
   * Persisted on **`sessions.handoff_artifact`**; **`conversation_messages`** replaced with the rehydrated turn list via `manager` → `store.updateSession`. mem9 **profile summary** stored on session and folded into the system prompt.
@@ -44,7 +44,7 @@ In Help & Grow, you are dealing with subjective "soft skills" output—e.g., ton
 * **Implementation (done):**
   * **`evaluatorWorker.js`** scores drafts (brand voice, actionability, empathy, overall) with JSON parsing; **`manager`** runs up to `EVALUATOR_MAX_ROUNDS` refinements via **`shadowWorker.refineDraft`**.
   * Critiques persisted in **`evaluator_critiques`** for downstream prompt tuning.
-  * Product path: mentee-facing Telegram/WeChat typically fire **after** expert approval of the waiting-room draft; the evaluator still gates **before** enqueue so drafts never enter the queue unreviewed by the second model.
+  * Product path: player-facing Telegram/WeChat typically fire **after** expert approval of the waiting-room draft; the evaluator still gates **before** enqueue so drafts never enter the queue without an evaluator pass from the second model.
 
 ## 3. Sprint Contracts & Planning
 **The Article:** For complex generation, the "Planner" agent creates a specification, but before execution, the Generator and Evaluator negotiate a "sprint contract"—agreeing exactly on what success looks like for that step.
@@ -79,7 +79,7 @@ HiClaw now uses standard PostgreSQL for session state, waiting-room drafts, eval
 The following were the original execution items; status as of 2026-03:
 
 1. **`evaluatorWorker`** — Done (`hiclaw/service/src/evaluatorWorker.js`).
-2. **Grading loop** — Done in `manager.js`; mentee notifications remain downstream of expert approval; evaluator gates the draft before `waiting_room`.
+2. **Grading loop** — Done in `manager.js`; player notifications remain downstream of expert approval; evaluator gates the draft before `waiting_room`.
 3. **Context resets + handoff schema** — Done (`sessions` columns, `shadowWorker`, `continueSessionId`).
 4. **Postgres for HiClaw store** — Done via `pg` + env selection.
 

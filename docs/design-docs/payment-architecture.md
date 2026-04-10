@@ -15,16 +15,18 @@
 
 ## Context
 
-The marketplace needs to collect payments from founders and distribute to experts, supporting multiple payment methods across geographies.
+The marketplace needs to collect payments from **players** (founders) and distribute to experts (**coaches**), supporting multiple payment methods across geographies.
+
+**Product language:** In UI we say **meetup**; implementation still uses Prisma **`Booking`**, routes under `/api/bookings/`, and the word “booking” in code-focused sections below.
 
 ## Decision
 
 ### Payment Methods
-- **PayNow (primary for SGD web bookings)**: customized SGQR with pre-filled amount and receiver UEN
+- **PayNow (primary for SGD web meetups)**: customized SGQR with pre-filled amount and receiver UEN
 - **Stripe** (fallback + remainder): Checkout Sessions for fallback deposits and manual remainder checkout
 - **TON** (crypto): On-chain transfers via TonConnect for crypto-native users
 - **WeChat Pay**: JSAPI for WeChat Mini Program users
-- **Free sessions**: Direct booking creation for experts with zero pricing
+- **Free sessions**: Direct `Booking` row creation for experts with zero pricing
 
 ### Marketplace Model
 - Stripe Connected Accounts (Express type) for expert payouts
@@ -35,7 +37,7 @@ The marketplace needs to collect payments from founders and distribute to expert
 When `WECHAT_PAY_PARTNER_MODE=true`, the mini program uses **partner JSAPI** (`/v3/pay/partner/transactions/jsapi`) with `settle_info.profit_sharing: true` so the sub-merchant (expert’s `Expert.wechatSubMchId` / 特约商户号) receives the payment. After `TRANSACTION.SUCCESS`, the server calls **`/v3/profitsharing/orders`** to move the platform share (same percentage as Stripe, from deposit in CNY) to the platform merchant (`WECHAT_PAY_PLATFORM_MCH_ID`, defaulting to the service provider mchid). Receiver `name` must be RSA-OAEP-SHA256 encrypted per WeChat Pay API v3; set `WECHAT_PAY_PLATFORM_MERCHANT_NAME`, `WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM`, and `WECHAT_PAY_PLATFORM_CERT_SERIAL`. Status is stored on `Booking.wechatProfitShareStatus`. Without partner mode, the legacy **direct merchant** JSAPI path is unchanged.
 
 ### Deposit Model
-- 50% deposit charged at booking time
+- 50% deposit charged when the meetup is initiated (`Booking` created)
 - PayNow deposit flow:
   - create pending booking + generated PayNow QR payload (`pending_paynow`)
   - founder submits transfer (`submitted_paynow`)

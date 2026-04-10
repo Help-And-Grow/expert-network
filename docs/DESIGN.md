@@ -3,8 +3,8 @@
 ## Brand Identity
 
 - **Product**: **Help & Grow** — **AI Native Expert Network**
-- **Positioning**: AI-native matching, booking, and (roadmap) *service as agent* — digital experts that learn from their human counterpart and facilitate real sessions
-- **Ethos**: Everyone is **expert and learner**; **learning by doing**, **growing by helping**
+- **Positioning**: AI-native matching, **meetups**, and (roadmap) *service as agent* — digital experts that learn from their human counterpart and facilitate real meetups
+- **Ethos**: Everyone is **expert, player, and coach**; **learning by doing**, **growing by helping**; prefer **sharing** over lecturing
 - **Regional context**: Strong Singapore & SEA roots (not the only headline)
 - See [BRAND.md](BRAND.md) for full copy
 - **Primary color**: Indigo 600 (`#4f46e5`) / gradient `from-indigo-600 to-purple-600`

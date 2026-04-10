@@ -24,7 +24,7 @@ When a rule matters, encode it in tooling (linters, type checks, CI). Documentat
 
 ## 6. Double-Write for Critical Paths
 
-Payment and booking creation use redundant paths (webhook + verify endpoint). For any business-critical operation, assume one path will fail and provide a fallback.
+Payment and meetup (`Booking`) creation use redundant paths (webhook + verify endpoint). For any business-critical operation, assume one path will fail and provide a fallback.
 
 ## 7. Fire-and-Forget for Non-Critical Side Effects
 
