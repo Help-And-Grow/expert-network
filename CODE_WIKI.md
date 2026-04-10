@@ -26,8 +26,9 @@ Help & Grow operates as a multi-platform product serving web browsers, a Telegra
           ┌──────────┐ ┌───▼───┐ ┌▼──────────────┐
           │ Prisma + │ │Stripe │ │AI Providers   │
           │ Postgres │ │(Pay)  │ │(Qwen/Gemini/  │
-          │ +pgvector│ │Connect│ │ OpenAI/Ollama)│
-          └──────────┘ └───────┘ └───────────────┘
+          │ +pgvector│ │Connect│ │ OpenAI/Ollama/│
+          └──────────┘ └───────┘ │ BytePlus)     │
+                                 └───────────────┘
 ```
 
 ### Sidecar Architecture: HiClaw
@@ -45,7 +46,7 @@ The application is structured into domain-specific modules. Below are the core d
 | **Experts** | `src/app/api/experts/` | Expert profile management, domain mapping, pricing, and schedules. |
 | **Meetups** (`Booking`) | `src/app/api/bookings/` | Meetup scheduling (product copy), timezone handling, conflict detection. |
 | **Payments** | `src/lib/stripe.ts` | Processing via Stripe Connect, TON crypto, and WeChat Pay. Webhooks handle post-payment logic. |
-| **AI Matching & Chat** | `src/lib/ai/` | Expert matching, profile generation, chat via multiple AI providers (Qwen, Gemini, OpenAI, Ollama). |
+| **AI Matching & Chat** | `src/lib/ai/` | Expert matching, profile generation, chat via multiple AI providers (Qwen, Gemini, OpenAI, Ollama, BytePlus ModelArk). |
 | **Memory** | `src/lib/integrations/` | Persistent expert context management via `mem9` and/or `pgvector`. |
 | **On-chain & Tokens**| `src/lib/hg-token.ts`, `contracts/` | Issues Help & Grow ERC-20 tokens and registers POMP (Proof of Meet Protocol) via EAS attestations on Base. |
 | **WeChat Client** | `wechat/` | Taro 4.x React project for the WeChat Mini Program interface. |
@@ -90,7 +91,7 @@ UI (React components in src/app/, src/components/)
 - [resolveUserId](file:///Users/qiumiao/Desktop/expert-network/src/lib/request-auth.ts): The unified auth resolver. It checks `x-wechat-token` (WeChat), `x-telegram-init-data` (Telegram), or Auth.js session cookies to identify the user making an API request.
 
 ### AI Engine
-- **`AIProvider` Factory** ([src/lib/ai/index.ts](file:///Users/qiumiao/Desktop/expert-network/src/lib/ai/index.ts)): Reads the `AI_PROVIDER` environment variable and returns the specific implementation class (e.g., `GeminiProvider`, `QwenProvider`, `OllamaProvider`).
+- **AIProvider Factory** ([src/lib/ai/index.ts](file:///Users/qiumiao/Desktop/expert-network/src/lib/ai/index.ts)): Reads the `AI_PROVIDER` environment variable and returns the specific implementation class (e.g., `GeminiProvider`, `QwenProvider`, `OllamaProvider`, `BytePlusProvider`).
 
 ### Memory & State
 - **`storeBookingEvent()` & `storeReviewEvent()`** ([src/lib/integrations/mem9-lifecycle.ts](file:///Users/qiumiao/Desktop/expert-network/src/lib/integrations/mem9-lifecycle.ts)): Fire-and-forget hooks that accumulate **meetup** and **appreciation** context into the expert's memory backend.
