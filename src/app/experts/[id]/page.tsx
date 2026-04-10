@@ -63,10 +63,11 @@ interface Expert {
   hasVoiceChat: boolean;
   avatarScript: string | null;
   documentName: string | null;
-  priceOnlineCents: number | null;
   priceOfflineCents: number | null;
   currency: string;
   user: ExpertUser;
+  learnedFromCount: number;
+  offeredHelpCount: number;
 }
 
 interface ReviewFounder {
@@ -339,22 +340,15 @@ export default function ExpertProfilePage() {
               </Badge>
             ))}
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star
-                  key={i}
-                  className={`h-4 w-4 ${
-                    i <= Math.round(expert.avgRating)
-                      ? "fill-amber-400 text-amber-400"
-                      : "text-muted-foreground/40"
-                  }`}
-                />
-              ))}
+          <div className="mt-3 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+              <Shield className="h-4 w-4" />
+              <span>Learned from {expert.learnedFromCount}+ mentors</span>
             </div>
-            <span className="text-sm text-muted-foreground">
-              {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
-            </span>
+            <div className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="h-4 w-4" />
+              <span>Offered help to {expert.offeredHelpCount}+ mentees</span>
+            </div>
           </div>
           {expert.isVerified && (
             <Badge
@@ -560,13 +554,12 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
-      {/* Reviews */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-foreground mb-3">
-          Reviews ({reviewsTotal})
+          Appreciations ({reviewsTotal})
         </h2>
         {reviews.length === 0 ? (
-          <p className="text-muted-foreground py-4">No reviews yet</p>
+          <p className="text-muted-foreground py-4">No appreciations yet</p>
         ) : (
           <>
             <div className="space-y-0">
@@ -590,26 +583,15 @@ export default function ExpertProfilePage() {
                           {new Date(r.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <div className="mt-0.5 flex">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
-                            key={i}
-                            className={`h-3.5 w-3.5 ${
-                              i <= r.rating
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-muted-foreground/40"
-                            }`}
-                          />
-                        ))}
-                      </div>
+                      <div className="mt-0.5" />
                       {r.comment && (
                         <p className="mt-1 text-sm text-muted-foreground">
                           {r.comment}
                         </p>
                       )}
                       {r.expertSuggestion && (
-                        <div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3 py-2">
-                          <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-0.5">Mentor&apos;s Suggestion</p>
+                        <div className="mt-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 border border-indigo-100 dark:border-indigo-900/50">
+                          <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-0.5 uppercase tracking-wide">Mentor&apos;s Guidance</p>
                           <p className="text-sm text-foreground">{r.expertSuggestion}</p>
                         </div>
                       )}
