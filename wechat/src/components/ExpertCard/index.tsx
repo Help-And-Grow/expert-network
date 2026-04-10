@@ -80,7 +80,7 @@ export default function ExpertCard({ expert }: Props) {
           hoverClass="expert-card__btn--hover"
           onClick={(e) => { e.stopPropagation(); goToProfile(); }}
         >
-          查看主页与 AI 对话
+          查看主页
         </View>
       </View>
     </View>

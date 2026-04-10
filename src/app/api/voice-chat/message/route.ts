@@ -7,6 +7,7 @@ import {
   isRealtimeEnabled,
 } from "@/lib/voice-chat-config";
 import {
+  processVoiceDrafts,
   processVoiceMessage,
   processTextMessage,
 } from "@/lib/voice-chat-session";
@@ -86,16 +87,44 @@ async function handleVoiceMessage(request: NextRequest, userId: string) {
 }
 
 async function handleTextMessage(request: NextRequest, userId: string) {
-  let body: { expertId?: string; text?: string };
+  let body: {
+    expertId?: string;
+    text?: string;
+    audioClips?: Array<{ audioBase64?: string; mimeType?: string }>;
+  };
   try {
-    body = await request.json();
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { expertId, text } = body;
+  const { expertId, text, audioClips } = body;
   if (!expertId) {
     return NextResponse.json({ error: "expertId is required" }, { status: 400 });
+  }
+  if (Array.isArray(audioClips) && audioClips.length > 0) {
+    const normalized = audioClips
+      .map((clip) => ({
+        audioBase64: clip.audioBase64?.trim() ?? "",
+        mimeType: clip.mimeType?.trim() || "audio/mpeg",
+      }))
+      .filter((clip) => clip.audioBase64.length > 0);
+
+    if (normalized.length === 0) {
+      return NextResponse.json(
+        { error: "audioClips must include at least one base64 payload" },
+        { status: 400 },
+      );
+    }
+
+    const result = await processVoiceDrafts(userId, expertId, normalized);
+    return NextResponse.json({
+      userText: result.userText,
+      replyText: result.replyText,
+      replyAudio: `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`,
+      turnCount: result.turnCount,
+      maxTurns: result.maxTurns,
+    });
   }
   if (!text?.trim()) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });

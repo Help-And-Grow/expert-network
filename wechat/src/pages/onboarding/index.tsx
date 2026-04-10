@@ -54,7 +54,7 @@ export default function OnboardingPage() {
       id: 0,
       role: "system",
       content:
-        "欢迎来到 Help & Grow（AI 原生专家网络）！我们先创建你的专家主页。请问怎么称呼你？",
+        "欢迎来到 Help & Grow。我们先为你建立一张专业、可信、可持续经营的专家主页。请问怎么称呼你？",
     },
   ]);
   const [input, setInput] = useState("");
@@ -64,6 +64,7 @@ export default function OnboardingPage() {
   const [msgId, setMsgId] = useState(1);
   const scrollRef = useRef<string>("");
   const [previewExpertId, setPreviewExpertId] = useState<string | null>(null);
+  const [documentReadyForPublish, setDocumentReadyForPublish] = useState(false);
 
   const addMsg = useCallback(
     (role: "system" | "user", content: string) => {
@@ -215,7 +216,14 @@ export default function OnboardingPage() {
 
   const proceedToDocument = () => {
     setStep("document");
-    setTimeout(() => addMsg("system", "请上传一份介绍你专业能力的 PDF 文档（可跳过）。"), 400);
+    setTimeout(
+      () =>
+        addMsg(
+          "system",
+          "请上传一份服务介绍 PDF，用来展示你的专业背景、服务范围与合作方式。你可以先跳过继续生成草稿，但正式发布前必须补齐。"
+        ),
+      400
+    );
   };
 
   const selectGender = (gender: "male" | "female" | "other", label: string) => {
@@ -301,7 +309,8 @@ export default function OnboardingPage() {
 
       if (ok) {
         addMsg("user", `📄 ${file.name || "简历.pdf"}`);
-        addMsg("system", "文档已上传，正在生成你的专家主页...");
+        addMsg("system", "资料已收妥，正在生成你的专家主页草稿...");
+        setDocumentReadyForPublish(true);
         await generateProfile();
       } else {
         Taro.showToast({ title: "上传失败，请检查网络或 PDF 小于 5MB", icon: "none" });
@@ -315,7 +324,8 @@ export default function OnboardingPage() {
 
   const skipDocument = async () => {
     addMsg("user", "跳过");
-    addMsg("system", "正在生成你的专家主页...");
+    addMsg("system", "我们先继续生成专家主页草稿。请注意：正式发布前仍需补充服务介绍 PDF。");
+    setDocumentReadyForPublish(false);
     await generateProfile();
   };
 
@@ -334,7 +344,7 @@ export default function OnboardingPage() {
           () =>
             addMsg(
               "system",
-              "主页已生成！请录制一段 10-60 秒语音介绍，帮助他人更快了解你。"
+              "主页草稿已生成。你可以录制一段 10-60 秒语音介绍，让潜在用户更快建立信任。"
             ),
           800
         );
@@ -365,7 +375,7 @@ export default function OnboardingPage() {
 
       if (uploadRes.statusCode === 200) {
         await post("/api/expert/generate-audio", {});
-        addMsg("system", "语音介绍已生成，专家主页已准备就绪。");
+        addMsg("system", "语音介绍已生成，你的专家主页已准备就绪。");
       } else {
         addMsg("system", "语音处理失败，但主页已可使用。");
       }
@@ -385,7 +395,16 @@ export default function OnboardingPage() {
     }
 
     setStep("preview");
-    setTimeout(() => addMsg("system", "请先预览主页，确认后即可发布。"), 400);
+    setTimeout(
+      () =>
+        addMsg(
+          "system",
+          documentReadyForPublish
+            ? "请先预览主页，确认后即可发布。"
+            : "请先预览主页。若你准备正式发布，请先补充服务介绍 PDF。"
+        ),
+      400
+    );
   };
 
   const skipVoice = async () => {
@@ -404,7 +423,16 @@ export default function OnboardingPage() {
       /* ignore */
     }
     setStep("preview");
-    setTimeout(() => addMsg("system", "专家主页已就绪，请预览并发布。"), 400);
+    setTimeout(
+      () =>
+        addMsg(
+          "system",
+          documentReadyForPublish
+            ? "专家主页已就绪，请预览并发布。"
+            : "专家主页已就绪，请先预览；正式发布前仍需补充服务介绍 PDF。"
+        ),
+      400
+    );
   };
 
   const skipWebsite = () => {
@@ -453,6 +481,15 @@ export default function OnboardingPage() {
   };
 
   const publishProfile = async () => {
+    if (!documentReadyForPublish) {
+      Taro.showModal({
+        title: "发布前需要补充资料",
+        content: "正式发布前，请先上传服务介绍 PDF，帮助用户更完整地了解你的专业背景与服务内容。",
+        showCancel: false,
+      });
+      return;
+    }
+
     Taro.showLoading({ title: "发布中..." });
     try {
       const res = await post("/api/onboarding/publish", {});
@@ -461,11 +498,15 @@ export default function OnboardingPage() {
         Taro.showToast({ title: "发布成功", icon: "success" });
         setTimeout(() => Taro.switchTab({ url: "/pages/profile/index" }), 1500);
       } else {
-        throw new Error("发布失败");
+        const err = res.data as { error?: string };
+        throw new Error(err.error || "发布失败");
       }
-    } catch {
+    } catch (err) {
       Taro.hideLoading();
-      Taro.showToast({ title: "发布失败", icon: "none" });
+      Taro.showToast({
+        title: err instanceof Error ? err.message : "发布失败",
+        icon: "none",
+      });
     }
   };
 
@@ -629,10 +670,10 @@ export default function OnboardingPage() {
         {step === "document" && (
           <View className="onboarding__options">
             <View className="onboarding__option" hoverClass="onboarding__option--hover" onClick={handleDocumentUpload}>
-              📄 上传 PDF
+              📄 上传服务介绍 PDF
             </View>
             <View className="onboarding__option" hoverClass="onboarding__option--hover" onClick={skipDocument}>
-              跳过
+              先跳过，稍后补充
             </View>
           </View>
         )}
@@ -659,6 +700,11 @@ export default function OnboardingPage() {
         {/* Preview & Publish */}
         {step === "preview" && (
           <View className="onboarding__preview-actions">
+            {!documentReadyForPublish && (
+              <View className="onboarding__publish-note">
+                发布前请先补充服务介绍 PDF。没有这份材料，主页仍可预览，但不能正式上线。
+              </View>
+            )}
             <View
               className="onboarding__preview-btn"
               hoverClass="onboarding__preview-btn--hover"

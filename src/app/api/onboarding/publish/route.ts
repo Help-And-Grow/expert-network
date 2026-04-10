@@ -24,6 +24,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!expert.documentData || !expert.documentName) {
+      return NextResponse.json(
+        {
+          error: "Please upload your service introduction PDF before publishing.",
+          code: "SERVICE_PDF_REQUIRED",
+        },
+        { status: 400 }
+      );
+    }
+
     const updated = await prisma.expert.update({
       where: { id: expert.id },
       data: {

@@ -20,3 +20,24 @@ export type CreateBookingBody = {
   meetingLink?: string;
   offlineAddress?: string;
 };
+
+/** Capability contract exposed by public expert profile surfaces. */
+export type ExperienceCapabilities = {
+  voiceIntroAvailable: boolean;
+  voiceConsult: {
+    enabled: boolean;
+    freeReplyLimit: number;
+    groupedDrafts: boolean;
+    replyStyle: string;
+  };
+  realtimeVoice: {
+    enabled: boolean;
+    availableNow: boolean;
+    premiumOnly: boolean;
+    durationSeconds: number;
+  };
+  web: {
+    publicProfileUrl: string;
+    loginFirstProfileUrl: string;
+  };
+};

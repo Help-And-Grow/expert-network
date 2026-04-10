@@ -160,8 +160,8 @@ export default function DashboardPage() {
           </Text>
           <Text className="dashboard__empty-hint">
             {tab === "upcoming"
-              ? "去发现专家；正式预约请在网页完成"
-              : "已完成的咨询会显示在这里"}
+              ? "先去浏览合适的专家主页，正式预约仍在网页完成"
+              : "已完成或已结束的咨询会显示在这里"}
           </Text>
           {tab === "upcoming" && (
             <View

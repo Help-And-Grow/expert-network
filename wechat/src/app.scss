@@ -1,11 +1,20 @@
 page {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "SF Pro Text",
+    "Helvetica Neue", "Microsoft YaHei", sans-serif;
   font-size: 28px;
-  color: #1e1b4b;
-  background: #f8f9fa;
-  line-height: 1.5;
+  color: #111827;
+  background: #f4f1ea;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+}
+
+view,
+text,
+button,
+input,
+scroll-view {
+  box-sizing: border-box;
 }
 
 .container {
@@ -15,12 +24,12 @@ page {
 .section-title {
   font-size: 34px;
   font-weight: 700;
-  color: #1e1b4b;
+  color: #111827;
   margin-bottom: 24px;
 }
 
 .text-muted {
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .text-sm {

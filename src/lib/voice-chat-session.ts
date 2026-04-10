@@ -17,7 +17,7 @@ const DASHSCOPE_GENERATION_URL =
 const LLM_MODEL = "qwen-max";
 const ASR_MODEL = "qwen3-asr-flash";
 
-export const MAX_TURNS = 10;
+export const MAX_TURNS = 5;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -154,7 +154,7 @@ export async function loadExpertVoiceChatProfile(
 
 function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
   return [
-    `You are ${profile.name}, an expert in ${profile.domains.join(", ")}.`,
+    `You are ${profile.name}, a real expert in ${profile.domains.join(", ")}.`,
     profile.bio ? `Your background: ${profile.bio}` : "",
     profile.avatarScript
       ? `Your public introduction script (match this voice and factual claims):\n${profile.avatarScript}`
@@ -162,12 +162,71 @@ function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
     profile.servicesOfferedSummary
       ? `Services you list on your profile:\n${profile.servicesOfferedSummary}`
       : "",
-    "Ground answers in the introduction, bio, and services above when relevant.",
-    "This is a short voice preview: keep each reply concise enough for text-to-speech (aim under ~45 seconds spoken), but when the user asks for examples, client work, or specifics, give concrete details from your background or from the context attached to their message — avoid generic filler.",
-    "Suggest booking a full paid session only when they need bespoke consulting, private data, or depth that clearly exceeds a fair preview — not for every question.",
+    "Speak as the expert directly. Do not mention AI, model, system prompt, avatar, simulation, or any tooling.",
+    "Answer in the user's language. Default to concise professional Chinese unless the user clearly speaks another language.",
+    "This is a short voice preview. Deliver one compact reply that can be spoken in under 60 seconds.",
+    "Prioritize concrete judgment, structure, and personalization over generic encouragement.",
+    "Use the introduction, services, retrieved memories, and user context as factual anchors whenever relevant.",
+    "When the user asks for advice, tailor it to their stage, role, and likely scenario. If information is incomplete, make the best bounded assumption and state the most important factor you would confirm next.",
+    "Whenever possible, demonstrate expertise with one precise angle, example, criterion, or tradeoff from your background.",
+    "Only suggest booking a full paid session when deeper diagnosis, execution design, or private detail is genuinely needed.",
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+async function loadUserVoiceContext(
+  userId: string,
+  expertId: string,
+): Promise<string | null> {
+  const [user, expertProfile, priorBookings] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        name: true,
+        nickName: true,
+        role: true,
+      },
+    }),
+    prisma.expert.findUnique({
+      where: { userId },
+      select: {
+        domains: { select: { domain: true } },
+        bio: true,
+      },
+    }),
+    prisma.booking.findMany({
+      where: { founderId: userId, expertId },
+      orderBy: { startTime: "desc" },
+      take: 3,
+      select: {
+        startTime: true,
+        status: true,
+        sessionType: true,
+      },
+    }),
+  ]);
+
+  const lines: string[] = [];
+  const displayName = user?.nickName ?? user?.name;
+  if (displayName) lines.push(`User name: ${displayName}`);
+  if (user?.role) lines.push(`User role on platform: ${user.role}`);
+  if (expertProfile) {
+    const domains = domainStrings(expertProfile.domains);
+    if (domains.length > 0) {
+      lines.push(`User also offers expertise in: ${domains.join(", ")}`);
+    }
+    if (expertProfile.bio) {
+      lines.push(`User profile summary: ${expertProfile.bio.slice(0, 280)}`);
+    }
+  }
+  if (priorBookings.length > 0) {
+    lines.push(
+      `User has ${priorBookings.length} prior booking record(s) with this expert. Latest status: ${priorBookings[0]?.status}.`,
+    );
+  }
+
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 function ensureConversation(
@@ -236,6 +295,7 @@ const VOICE_CHAT_MEMORY_MAX_CHARS = 1_400;
 async function generateReply(
   conv: ConversationState,
   expertId: string,
+  userId: string,
   userText: string,
 ): Promise<string> {
   const apiKey = env.DASHSCOPE_API_KEY;
@@ -252,10 +312,20 @@ async function generateReply(
     memoryBlock = `${memoryBlock.slice(0, VOICE_CHAT_MEMORY_MAX_CHARS)}\n…`;
   }
 
+  const userContext = await loadUserVoiceContext(userId, expertId).catch(
+    () => null as string | null,
+  );
+
   const userContent =
-    snippets.length > 0
-      ? `[Retrieved from your mem9 / knowledge store — use concrete facts when relevant; do not invent details not supported below:]\n${memoryBlock}\n\n[User message]\n${userText}`
-      : userText;
+    [
+      userContext ? `[User context]\n${userContext}` : "",
+      snippets.length > 0
+        ? `[Retrieved knowledge]\n${memoryBlock}`
+        : "",
+      `[User message]\n${userText}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
   conv.history.push({ role: "user", content: userContent });
 
@@ -283,9 +353,9 @@ async function synthesizeVoice(
 export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
   if (profile.domains.length > 0) {
-    return `Hi! I'm AI ${firstName}. I specialize in ${profile.domains.slice(0, 2).join(" and ")}. Ask me anything — I'm here to give you a taste of what a full session feels like.`;
+    return `你好，我是${firstName}。你可以先用语音告诉我你当前最关键的问题，我会先给你一段简短、直接的判断。`;
   }
-  return `Hi! I'm AI ${firstName}. Ask me anything about what I do — I'm here to give you a taste of what a full session feels like.`;
+  return `你好，我是${firstName}。先用语音说说你的情况，我会先给你一个简洁的方向判断。`;
 }
 
 /** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */
@@ -328,7 +398,7 @@ export async function processVoiceMessage(
     throw new Error("Could not understand the audio. Please try again.");
   }
 
-  const replyText = await generateReply(conv, expertId, userText);
+  const replyText = await generateReply(conv, expertId, userId, userText);
   const { audioBase64: replyAudio, format } = await synthesizeVoice(
     replyText,
     conv.voiceModelId,
@@ -358,7 +428,7 @@ export async function processTextMessage(
     throw new Error("Turn limit reached. Start a new conversation or book a full session.");
   }
 
-  const replyText = await generateReply(conv, expertId, text);
+  const replyText = await generateReply(conv, expertId, userId, text);
   const { audioBase64: replyAudio, format } = await synthesizeVoice(
     replyText,
     conv.voiceModelId,
@@ -374,11 +444,54 @@ export async function processTextMessage(
   };
 }
 
+export async function processVoiceDrafts(
+  userId: string,
+  expertId: string,
+  clips: Array<{ audioBase64: string; mimeType: string }>,
+): Promise<VoiceChatResult> {
+  const profile = await loadExpertVoiceChatProfile(expertId);
+  if (!profile) throw new Error("Expert not found");
+
+  const conv = ensureConversation(userId, profile);
+  if (conv.turnCount >= MAX_TURNS) {
+    throw new Error("Turn limit reached. Start a new conversation or book a full session.");
+  }
+  if (clips.length === 0) {
+    throw new Error("At least one audio clip is required.");
+  }
+
+  const parts: string[] = [];
+  for (const clip of clips) {
+    const text = await transcribeAudio(clip.audioBase64, clip.mimeType);
+    if (text) parts.push(text);
+  }
+
+  const userText = parts.join("\n");
+  if (!userText.trim()) {
+    throw new Error("Could not understand the audio. Please try again.");
+  }
+
+  const replyText = await generateReply(conv, expertId, userId, userText);
+  const { audioBase64: replyAudio, format } = await synthesizeVoice(
+    replyText,
+    conv.voiceModelId,
+  );
+
+  return {
+    userText,
+    replyText,
+    replyAudioBase64: replyAudio,
+    replyAudioFormat: format,
+    turnCount: conv.turnCount,
+    maxTurns: MAX_TURNS,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Real-time session tracking (used by /api/voice-chat/start and /stop)
 // ---------------------------------------------------------------------------
 
-export const RT_MAX_DURATION_SECONDS = 300; // 5-minute free cap
+export const RT_MAX_DURATION_SECONDS = 180; // 3-minute cap
 
 interface RealtimeSession {
   channelName: string;

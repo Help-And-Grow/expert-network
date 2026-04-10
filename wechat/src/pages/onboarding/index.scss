@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f8f9fa;
+  background:
+    radial-gradient(circle at top right, rgba(31, 63, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, #f9f7f2 0%, #f4f1ea 100%);
 
   &__scroll {
     flex: 1;
@@ -30,6 +32,7 @@
     font-size: 28px;
     line-height: 1.6;
     word-break: break-word;
+    overflow-wrap: anywhere;
 
     &--user {
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
@@ -38,10 +41,10 @@
     }
 
     &--system {
-      background: #fff;
-      color: #1e1b4b;
+      background: rgba(255, 255, 255, 0.92);
+      color: #111827;
       border-bottom-left-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
     }
   }
 
@@ -121,6 +124,15 @@
     flex-direction: column;
     gap: 16px;
     padding: 16px 0;
+  }
+
+  &__publish-note {
+    padding: 20px 22px;
+    border-radius: 18px;
+    background: rgba(17, 24, 39, 0.92);
+    color: rgba(249, 250, 251, 0.88);
+    font-size: 24px;
+    line-height: 1.7;
   }
 
   &__preview-btn {

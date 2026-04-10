@@ -9,9 +9,9 @@ export default defineAppConfig({
     "pages/profile/index",
   ],
   tabBar: {
-    color: "#999999",
-    selectedColor: "#6366f1",
-    backgroundColor: "#ffffff",
+    color: "#8a8f98",
+    selectedColor: "#1f3fff",
+    backgroundColor: "#fcfbf8",
     borderStyle: "white",
     list: [
       {
@@ -22,7 +22,7 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/discover/index",
-        text: "匹配",
+        text: "发现",
         iconPath: "assets/tab-discover.png",
         selectedIconPath: "assets/tab-discover-active.png",
       },
@@ -42,7 +42,7 @@ export default defineAppConfig({
   },
   window: {
     backgroundTextStyle: "light",
-    navigationBarBackgroundColor: "#ffffff",
+    navigationBarBackgroundColor: "#fcfbf8",
     navigationBarTitleText: "帮助与成长",
     navigationBarTextStyle: "black",
   },

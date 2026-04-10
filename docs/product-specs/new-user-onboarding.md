@@ -14,8 +14,9 @@ As an expert, I want to create a professional profile in under 5 minutes so I ca
 4. **Availability**: Set weekly schedule (recurring time ranges per day)
 5. **Stripe KYC**: Connect Stripe account for payouts
 6. **AI Generation**: System generates bio, tagline, services, and profile image from social data
-7. **Preview**: Review generated profile, edit as needed
-8. **Publish**: Go live on the platform
+7. **Service PDF**: Upload a service-introduction PDF before publishing (drafts may exist without it)
+8. **Preview**: Review generated profile, edit as needed
+9. **Publish**: Go live on the platform
 
 ## Requirements
 
@@ -24,10 +25,13 @@ As an expert, I want to create a professional profile in under 5 minutes so I ca
 - Stripe KYC must be completed before receiving paid bookings
 - Weekly schedule supports multiple time ranges per day
 - All steps accessible from both web and WeChat Mini Program
+- Service-introduction PDF is required before the profile can be published
 
 ## Acceptance Criteria
 
 - [ ] Expert can complete onboarding in < 5 minutes
 - [ ] AI-generated bio is professional and accurate
+- [ ] Expert can keep a draft profile without a PDF
+- [ ] Expert cannot publish without a service-introduction PDF
 - [ ] Profile appears in discover list after publishing
 - [ ] Expert receives notification when booked

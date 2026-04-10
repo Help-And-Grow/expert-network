@@ -16,6 +16,15 @@ function extFromMime(mimePart: string): string {
   return "bin";
 }
 
+function mimeFromPath(filePath: string): string {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".m4a")) return "audio/m4a";
+  if (lower.endsWith(".aac")) return "audio/aac";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  return "audio/mpeg";
+}
+
 export async function prepareAudioForInnerAudio(
   src: string,
   cacheKey: string,
@@ -70,4 +79,30 @@ export async function prepareAudioForInnerAudio(
     throw new Error(`downloadFile failed: ${res.statusCode}`);
   }
   return res.tempFilePath;
+}
+
+export async function readLocalAudioAsBase64(
+  filePath: string,
+): Promise<{ audioBase64: string; mimeType: string }> {
+  const fs = Taro.getFileSystemManager();
+  const audioBase64 = await new Promise<string>((resolve, reject) => {
+    fs.readFile({
+      filePath,
+      encoding: "base64",
+      success: (res) => {
+        const data = res.data;
+        if (typeof data === "string" && data.length > 0) {
+          resolve(data);
+          return;
+        }
+        reject(new Error("Audio file is empty"));
+      },
+      fail: (err) => reject(err),
+    });
+  });
+
+  return {
+    audioBase64,
+    mimeType: mimeFromPath(filePath),
+  };
 }
