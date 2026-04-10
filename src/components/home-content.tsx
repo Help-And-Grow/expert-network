@@ -69,7 +69,7 @@ export function HomeContent() {
             Learn by doing. Grow by helping.
           </h1>
           <p className="text-lg text-slate-300 mb-8 max-w-md">
-            Everyone is both <span className="text-white font-medium">expert</span> and{" "}
+            Everyone is both <span className="text-white font-medium">coach</span> and{" "}
             <span className="text-white font-medium">player</span>—offer what you know, learn
             what you need. A network rooted in Singapore &amp; Southeast Asia, built for trusted
             introductions, expert conversations, and real sessions.
@@ -153,7 +153,7 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  Expert and player, together
+                  Coach and player, together
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
                   You bring expertise others need—and you learn from people who&apos;ve been there.
@@ -217,7 +217,7 @@ export function HomeContent() {
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
                 Describe what you need; we match you with people offering relevant expertise
-                across Singapore and Southeast Asia—players and experts in one network.
+                across Singapore and Southeast Asia—players and coaches in one network.
               </p>
             </div>
           </div>
