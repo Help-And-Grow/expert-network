@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-Public copy should align with [**Help & Grow** — AI Native Expert Network](BRAND.md): dual expert/learner identity, *service as agent* vision, learning by doing / growing by helping.
+Public copy should align with [**Help & Grow** — AI Native Expert Network](BRAND.md): dual **expert / player / coach** identity, *service as agent* vision, learning by doing / growing by helping, and the **Product language** section in [BRAND.md](BRAND.md) (**meetup**, **appreciation**, sharing over lecturing).
 
 ## Routing
 
@@ -13,10 +13,10 @@ Next.js App Router with file-based routing under `src/app/`.
 
 ### Authenticated Pages
 - `/experts/[id]` — Expert profile
-- `/experts/[id]/book` — Booking flow (slot selection, payment)
-- `/booking` — User's booking dashboard
+- `/experts/[id]/book` — Meetup scheduling flow (slot selection, payment); route name unchanged
+- `/booking` — **My Meetups** dashboard (route name unchanged)
 - `/bookings/checkout-success` — Post-payment confirmation
-- `/reviews/[bookingId]` — Post-session review form
+- `/reviews/[bookingId]` — Redirects to meetups; appreciations are inline on `/booking`
 - `/profile` — User settings
 - `/onboarding` — Expert registration wizard
 
@@ -52,6 +52,6 @@ Located in `wechat/src/pages/`:
 | `discover` | Discover | Expert list + AI match chat |
 | `expert` | — | Expert detail (navigated to) |
 | `book` | — | Date picker + slot selection |
-| `dashboard` | Bookings | User's sessions list |
+| `dashboard` | Meetups (tab: 见面) | User's meetups list |
 | `onboarding` | — | Expert registration |
 | `profile` | Me | User settings + share |

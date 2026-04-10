@@ -43,7 +43,7 @@ The application is structured into domain-specific modules. Below are the core d
 | --- | --- | --- |
 | **Auth** | `src/auth.ts`, `src/lib/request-auth.ts` | Multi-platform authentication (Auth.js / NextAuth v5, Telegram init data, WeChat openId). |
 | **Experts** | `src/app/api/experts/` | Expert profile management, domain mapping, pricing, and schedules. |
-| **Bookings** | `src/app/api/bookings/` | Session scheduling, timezone handling, conflict detection. |
+| **Meetups** (`Booking`) | `src/app/api/bookings/` | Meetup scheduling (product copy), timezone handling, conflict detection. |
 | **Payments** | `src/lib/stripe.ts` | Processing via Stripe Connect, TON crypto, and WeChat Pay. Webhooks handle post-payment logic. |
 | **AI Matching & Chat** | `src/lib/ai/` | Expert matching, profile generation, chat via multiple AI providers (Qwen, Gemini, OpenAI, Ollama). |
 | **Memory** | `src/lib/integrations/` | Persistent expert context management via `mem9` and/or `pgvector`. |
@@ -93,11 +93,11 @@ UI (React components in src/app/, src/components/)
 - **`AIProvider` Factory** ([src/lib/ai/index.ts](file:///Users/qiumiao/Desktop/expert-network/src/lib/ai/index.ts)): Reads the `AI_PROVIDER` environment variable and returns the specific implementation class (e.g., `GeminiProvider`, `QwenProvider`, `OllamaProvider`).
 
 ### Memory & State
-- **`storeBookingEvent()` & `storeReviewEvent()`** ([src/lib/integrations/mem9-lifecycle.ts](file:///Users/qiumiao/Desktop/expert-network/src/lib/integrations/mem9-lifecycle.ts)): Fire-and-forget hooks that accumulate session and review context into the expert's memory backend.
+- **`storeBookingEvent()` & `storeReviewEvent()`** ([src/lib/integrations/mem9-lifecycle.ts](file:///Users/qiumiao/Desktop/expert-network/src/lib/integrations/mem9-lifecycle.ts)): Fire-and-forget hooks that accumulate **meetup** and **appreciation** context into the expert's memory backend.
 - **`searchExpertMemories()`**: Queries `pgvector` or `mem9` to inject historical context into AI matching prompts.
 
 ### On-chain / Smart Contracts
-- **`pomp-credential.ts`**: Handles logic to create EAS (Ethereum Attestation Service) attestations whenever a booking is completed.
+- **`pomp-credential.ts`**: Handles logic to create EAS (Ethereum Attestation Service) attestations whenever a **meetup** (`Booking`) is completed.
 - **`redeemDiscount()`**: A Solidity function within `contracts/src/HelpGrowToken.sol` that burns H&G tokens on the Base network to apply session discounts.
 
 ---

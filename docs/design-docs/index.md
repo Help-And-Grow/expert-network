@@ -31,5 +31,5 @@ Design docs capture significant architectural and product decisions. Each doc sh
 1. Create a new `.md` file in this directory
 2. Include: **Context**, **Options Considered**, **Decision**, **Consequences**
 3. Add an entry to this index
-4. Set status to `Draft` until reviewed
+4. Set status to `Draft` until editorial sign-off
 5. After implementation, add a **Status (verification)** block to the doc and update the index status

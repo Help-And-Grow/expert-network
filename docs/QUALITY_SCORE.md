@@ -11,16 +11,16 @@ Quality grades per domain and layer. Updated periodically to track improvement.
 | Auth (Web) | B | Solid NextAuth setup, email + Google OAuth | 2026-03 |
 | Auth (Telegram) | B | HMAC validation, JWT, cookie-based | 2026-03 |
 | Auth (WeChat) | B | code2session + JWT, tested | 2026-03 |
-| Expert Profiles | B | AI generation works well, needs image quality review | 2026-03 |
-| Bookings | B | Multi-slot, timezone-aware, overlap detection | 2026-03 |
+| Expert Profiles | B | AI generation works well; hero images need another quality pass | 2026-03 |
+| Meetups (`Booking`) | B | Multi-slot, timezone-aware, overlap detection | 2026-03 |
 | Payments (Stripe) | B | Live mode, Connected Accounts, webhook fixed | 2026-03 |
 | Payments (TON) | C | Works but manual confirmation, no refund flow | 2026-03 |
 | Payments (WeChat Pay) | C | Implemented but not tested in production | 2026-03 |
 | AI Matching | B | Multi-provider with keyword fallback | 2026-03 |
-| Reviews | B | Two-way with expert suggestions | 2026-03 |
+| Appreciations (`Review`) | B | Two-way with coach follow-up | 2026-03 |
 | Onboarding | B | Multi-step wizard, AI-powered | 2026-03 |
 | Notifications | C | Telegram works, WeChat template msgs untested | 2026-03 |
-| WeChat Mini Program | C | Functional but needs UX polish before review | 2026-03 |
+| WeChat Mini Program | C | Functional but needs UX polish before wider launch | 2026-03 |
 
 ## Layer Grades
 
@@ -38,5 +38,5 @@ Quality grades per domain and layer. Updated periodically to track improvement.
 
 - [ ] Add Zod validation to all API route inputs
 - [ ] Set up structured logging (at minimum for payment and webhook flows)
-- [ ] Add integration tests for critical paths (booking, payment, webhook)
+- [ ] Add integration tests for critical paths (meetup scheduling, payment, webhook)
 - [ ] Improve error handling consistency across all API routes

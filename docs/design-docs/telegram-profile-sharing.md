@@ -1,6 +1,6 @@
 # System Design: Expert Profile Sharing (Telegram Card)
 
-**Product Objective**: Enable experts to share a high-conversion "booking card" directly in any Telegram chat using a simple inline command.
+**Product Objective**: Enable experts to share a high-conversion **meetup** / profile card directly in any Telegram chat using a simple inline command.
 
 ---
 
@@ -19,8 +19,8 @@
 
 ### Interaction Flow
 1. Peer sees the card in the group.
-2. Peer taps **"🚀 View Profile"** or **"📅 Book Session"**.
-3. Peer is taken directly to the expert's booking page inside the Mini App.
+2. Peer taps **"🚀 View Profile"** or **"📅 Schedule meetup"** (or equivalent CTA).
+3. Peer is taken directly to the expert's **meetup scheduling** page inside the Mini App (`/experts/[id]/book`).
 
 ---
 
@@ -68,16 +68,16 @@ To generate the card, the Telegram Webhook will map existing Prisma fields to th
   "type": "article",
   "id": "expert_unique_id",
   "title": "Alex Chen — AI Strategy Expert",
-  "description": "Ex-FAANG, based in Singapore. 4.9⭐ (42 reviews). Helping founders with regional scale.",
+  "description": "Ex-FAANG, based in Singapore. 4.9⭐ (42 appreciations). Helping founders with regional scale.",
   "thumb_url": "https://expert-network.com/avatars/alex.jpg",
   "input_message_content": {
-    "message_text": "*Alex Chen — AI Expert*\n\nEx-FAANG, based in Singapore.\n⭐ 4.9 (42 reviews)\n\n_Book a 30-min strategy session below_",
+    "message_text": "*Alex Chen — AI Expert*\n\nEx-FAANG, based in Singapore.\n⭐ 4.9 (42 appreciations)\n\n_Schedule a 30-min strategy meetup below_",
     "parse_mode": "Markdown"
   },
   "reply_markup": {
     "inline_keyboard": [[
       { "text": "🚀 Open Profile", "web_app": { "url": "https://hng.app/experts/alex123" } },
-      { "text": "📅 Book Now", "web_app": { "url": "https://hng.app/experts/alex123/book" } }
+      { "text": "📅 Meetup", "web_app": { "url": "https://hng.app/experts/alex123/book" } }
     ]]
   }
 }
@@ -96,4 +96,4 @@ To generate the card, the Telegram Webhook will map existing Prisma fields to th
 
 - **Sharing Volume**: Number of unique experts using the `@me` command per week.
 - **Viral Coefficient**: New user signups originating from a Telegram card share event.
-- **Conversion**: Click-through rate from Telegram Expert Card to Booking Success.
+- **Conversion**: Click-through rate from Telegram Expert Card to **meetup** checkout success.

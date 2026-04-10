@@ -1,6 +1,6 @@
 # HiClaw integration (Help & Grow)
 
-Separate **Node service** (`hiclaw/service/`) that runs the offline-expert **shadow** pipeline: route mentee queries, optional **evaluator** loop, **session handoffs**, then **waiting room** for human expert review. Deploy beside the full [HiClaw](https://hiclaw.io/) stack or standalone on ECS / a laptop.
+Separate **Node service** (`hiclaw/service/`) that runs the offline-expert **shadow** pipeline: route **player** queries (JSON field `menteeId`), optional **evaluator** loop, **session handoffs**, then **waiting room** for human expert **approval**. Deploy beside the full [HiClaw](https://hiclaw.io/) stack or standalone on ECS / a laptop. Product copy: [docs/BRAND.md](../docs/BRAND.md) (**meetup**, **appreciation**, coach/player).
 
 **Code map:** `src/manager.js` (orchestration) · `shadowWorker.js` (generator) · `evaluatorWorker.js` (quality gate) · `plannerWorker.js` (optional sprint contract) · `store.js` (persistence) · `waitingRoom.js` · `mem9Client.js` · `index.js` (Express).
 
@@ -48,7 +48,7 @@ Plus: `DASHSCOPE_API_KEY`, `MEM9_ENABLED`, evaluator and shadow tuning vars as i
 
 **Flow (offline expert):** mem9 context → optional sprint contract → shadow generate → optional context reset + handoff persisted on `sessions` → evaluator loop (scores logged to `evaluator_critiques`) → enqueue **`waiting_room`**. Expert approves via **`POST /review/:draftId`**. Online experts are **forwarded** without generation (same as before).
 
-Mentee-facing Telegram/WeChat sends happen **after** expert approval in product flows; the evaluator runs **before** the draft is queued so quality is gated upstream of those channels.
+Player-facing Telegram/WeChat sends happen **after** expert approval in product flows; the evaluator runs **before** the draft is queued so quality is gated upstream of those channels.
 
 ---
 

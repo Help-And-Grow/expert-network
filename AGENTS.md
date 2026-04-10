@@ -7,7 +7,7 @@
 
 - **Product:** **Help & Grow** — **AI Native Expert Network**
 - **Vision:** *Service as agent* — a digital expert that learns continuously from the human expert (social, meetings, reflection, memos), stays online, evolves with them, answers on-platform, and facilitates the expert.
-- **Ethos:** Everyone is **both expert and learner**; we foster **learning by doing** and **growing by helping**. Full copy: [docs/BRAND.md](docs/BRAND.md).
+- **Ethos:** Everyone is **both expert and player** (and **coach** when sharing); we foster **learning by doing** and **growing by helping**. Full copy: [docs/BRAND.md](docs/BRAND.md).
 
 ## Quick Start
 
@@ -67,12 +67,12 @@ See `docs/` for full details:
 6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Uses the same backend API with `x-wechat-token` auth header.
 7. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
 8. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
-9. **POMP (Proof of Meet Protocol)**: Every completed booking creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
-10. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. Learners earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
+9. **POMP (Proof of Meet Protocol)**: Every completed meetup (`Booking` row) creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
+10. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. **Players** earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
 11. **Smart Contracts**: Foundry-based (`contracts/`). Deploy via `forge script script/Deploy.s.sol` (HelpGrowToken on Base Sepolia/Mainnet).
 12. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (Postgres via `HICLAW_POSTGRES_URL`, falling back to `DATABASE_URL`), **waitingRoom**. Local-first defaults are **Ollama + Postgres/pgvector**; mem9 is optional and the service falls back to `expert_memory_embeddings` when mem9 is off. Details: [`hiclaw/README.md`](hiclaw/README.md).
 13. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates HiClaw `sessions` in Postgres (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from the same store.
-14. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; mentee H&G balance via wagmi + ledger API.
+14. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; **player** H&G balance via wagmi + ledger API.
 15. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): voice preview, ASR → LLM (+ memory backend) → TTS-VC, **5-reply free cap**, `POST /api/voice-chat/message`; opening voice greeting (TTS, no turn) `POST /api/voice-chat/greeting`. WeChat now uses grouped voice drafts (up to 3 clips) with one confirmed send per question bundle. **Realtime**: Agora RTC live call, **3-min cap**, `POST /api/voice-chat/start` + `/stop`. `REALTIME_BACKEND=ten` keeps the TEN agent path; `REALTIME_BACKEND=agora` uses Agora session setup with server-generated voice replies and transcript bubbles. Config endpoint: `GET /api/voice-chat/config`. Requires `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, and `TEN_AGENT_URL` only when using the TEN backend.
 16. **Expert detail contract**: `/api/experts/[id]` keeps legacy flags (`hasAudio`, `hasVoiceChat`, `hasClonedVoice`) but now also returns `experienceCapabilities` for voice-intro availability, async voice quota, premium realtime status, and canonical web continuation URLs.
 

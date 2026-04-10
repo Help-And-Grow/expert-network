@@ -1,13 +1,13 @@
 ---
 name: expert_network
-description: Search, discover, and book sessions on Help & Grow — the AI Native Expert Network. Find people by domain (Marketing, Fundraising, Law, Headhunting), check availability, and get booking links.
+description: Search, discover, and schedule meetups on Help & Grow — the AI Native Expert Network. Find people by domain (Marketing, Fundraising, Law, Headhunting), check availability, and get meetup scheduling links.
 user-invocable: true
 metadata: {"openclaw": {"emoji": "🧠", "homepage": "https://expert-network.vercel.app"}}
 ---
 
 # Help & Grow (AI Native Expert Network)
 
-You have access to **Help & Grow** — an AI-native network where members are **both expert and learner**: book 1-on-1 consultations (online or offline), discover expertise by domain, and match with natural language.
+You have access to **Help & Grow** — an AI-native network where members are **both expert and player** (and **coach** when sharing): schedule 1-on-1 **meetups** online or offline, discover expertise by domain, and match with natural language. Prefer **sharing** over lecturing; canonical copy lives in the repo at `docs/BRAND.md`.
 
 ## Base URL
 
@@ -55,7 +55,7 @@ Get full details for a specific expert.
 GET /api/experts/{expertId}
 ```
 
-Returns full profile including bio, services offered, reviews, pricing, and session type.
+Returns full profile including bio, services offered, appreciations/ratings summary, pricing, and session type.
 
 ### 4. Check Availability
 
@@ -100,7 +100,7 @@ await web_fetch({ url: "https://expert-network.vercel.app/api/experts/EXPERT_ID_
 ## Response Handling
 
 - All endpoints return JSON.
-- Expert profiles include a `profileUrl` field — share this with the user so they can view the full profile and book directly.
+- Expert profiles include a `profileUrl` field — share this with the user so they can view the full profile and **schedule a meetup** directly.
 - When showing results, present the expert's name, domains, bio summary, rating, and pricing clearly.
 - If no experts match, suggest the user try broader search terms or list available domains using the domains endpoint.
 
@@ -113,4 +113,4 @@ When a user asks for expert help:
 3. **Present results** — show expert name, domains, rating, and a brief bio.
 4. **Deep dive** — if the user is interested in a specific expert, fetch their full profile with `/api/experts/{id}`.
 5. **Check availability** — use `/api/experts/{id}/slots` to show open time slots.
-6. **Direct to booking** — provide the profile URL so the user can book: `https://expert-network.vercel.app/experts/{id}/book`
+6. **Direct to meetup flow** — provide the scheduling URL: `https://expert-network.vercel.app/experts/{id}/book`

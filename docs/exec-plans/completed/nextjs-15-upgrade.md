@@ -74,7 +74,7 @@ Upgrade from **Next.js 14.2.x** to **Next.js 15** with no regressions to auth, p
 
 **Money**
 
-- [ ] Stripe Checkout (test mode): create booking → pay → success URL
+- [ ] Stripe Checkout (test mode): schedule meetup → pay → success URL
 - [ ] Stripe webhook still receives events (Vercel logs)
 
 **Core product**
