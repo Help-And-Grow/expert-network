@@ -1,10 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import type { ExperienceCapabilities } from "@expert-network/shared-api";
+
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 
+function buildExperienceCapabilities(origin: string, expertId: string, hasAudio: boolean): ExperienceCapabilities {
+  const publicProfilePath = `/experts/${expertId}?from=wechat`;
+  return {
+    voiceIntroAvailable: hasAudio,
+    voiceConsult: {
+      enabled: true,
+      freeReplyLimit: 5,
+      groupedDrafts: true,
+      replyStyle: "single concise expert voice reply under 60 seconds",
+    },
+    realtimeVoice: {
+      enabled: true,
+      availableNow: false,
+      premiumOnly: true,
+      durationSeconds: 180,
+    },
+    web: {
+      publicProfileUrl: `${origin}${publicProfilePath}`,
+      loginFirstProfileUrl: `${origin}/auth/signin?callbackUrl=${encodeURIComponent(publicProfilePath)}`,
+    },
+  };
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -58,6 +83,12 @@ export async function GET(
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { documentData: _dd, avatarVideoUrl: _av, audioIntroUrl: _ai, domains: domainRows, ...rest } = expert;
+    const origin = new URL(request.url).origin;
+    const experienceCapabilities = buildExperienceCapabilities(
+      origin,
+      expert.id,
+      !!expert.audioIntroUrl,
+    );
 
     return NextResponse.json({
       ...rest,
@@ -67,6 +98,7 @@ export async function GET(
       hasClonedVoice: !!expert.fishAudioModelId,
       /** Voice chat works with clone or built-in default voice */
       hasVoiceChat: true,
+      experienceCapabilities,
     });
   } catch (error) {
     console.error("[experts/[id] GET]", error);

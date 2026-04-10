@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: "AI 智能匹配",
+  navigationBarTitleText: "发现专家",
   enablePullDownRefresh: false,
 });

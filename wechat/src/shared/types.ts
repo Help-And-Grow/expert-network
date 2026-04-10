@@ -11,6 +11,26 @@ export interface ExpertUser {
   email: string | null;
 }
 
+export interface ExperienceCapabilities {
+  voiceIntroAvailable: boolean;
+  voiceConsult: {
+    enabled: boolean;
+    freeReplyLimit: number;
+    groupedDrafts: boolean;
+    replyStyle: string;
+  };
+  realtimeVoice: {
+    enabled: boolean;
+    availableNow: boolean;
+    premiumOnly: boolean;
+    durationSeconds: number;
+  };
+  web: {
+    publicProfileUrl: string;
+    loginFirstProfileUrl: string;
+  };
+}
+
 export interface Expert {
   id: string;
   domains: string[];
@@ -40,6 +60,7 @@ export interface ExpertDetail extends Expert {
   hasVoiceChat?: boolean;
   avatarScript: string | null;
   documentName: string | null;
+  experienceCapabilities?: ExperienceCapabilities;
 }
 
 export interface ServiceItem {

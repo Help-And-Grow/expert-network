@@ -12,7 +12,7 @@ import type {
   ReviewsResponse,
 } from "../../shared/types";
 import { getDomainLabel } from "../../shared/types";
-import { buildWebBookUrl } from "../../shared/web-booking";
+import { buildWebProfileLoginUrl } from "../../shared/web-booking";
 import "./index.scss";
 
 export default function ExpertPage() {
@@ -132,6 +132,12 @@ export default function ExpertPage() {
   const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
   const hasMoreReviews = reviews.length < reviewsTotal;
   const API_BASE = getApiBase();
+  const experience = expert.experienceCapabilities;
+  const voiceReplyLimit = experience?.voiceConsult.freeReplyLimit ?? 5;
+  const realtimeDurationSeconds = experience?.realtimeVoice.durationSeconds ?? 180;
+  const realtimeMinutes = Math.max(1, Math.round(realtimeDurationSeconds / 60));
+  const loginFirstProfileUrl =
+    experience?.web.loginFirstProfileUrl ?? buildWebProfileLoginUrl(expertId);
 
   return (
     <View className="expert-profile">
@@ -187,41 +193,53 @@ export default function ExpertPage() {
         </View>
       </View>
 
-      {/* Voice Introduction */}
-      {expert.hasAudio && (
+      {(experience?.voiceIntroAvailable ?? expert.hasAudio) && (
         <View className="expert-profile__section">
+          <Text className="expert-profile__section-title">先听一段介绍</Text>
+          <Text className="expert-profile__section-sub">
+            用一段语音，先感受 {name} 的表达方式、专业判断和服务气质。
+          </Text>
           <AudioPlayer
             src={`/api/experts/${expertId}/audio`}
-            label={`${name}的语音介绍`}
+            label={`${name} 的语音介绍`}
           />
         </View>
       )}
 
-      {/* AI Voice Chat */}
       {(expert.hasVoiceChat ?? true) && (
         <View className="expert-profile__section">
+          <Text className="expert-profile__section-title">与 {name} 对话</Text>
+          <Text className="expert-profile__section-sub">
+            先用语音讲清你的处境与问题。每次确认后，你会收到一段简洁、聚焦、带判断的专家回复。
+          </Text>
           <View
             className="expert-profile__voice-chat-btn"
             hoverClass="expert-profile__voice-chat-btn--hover"
             onClick={() => setShowVoiceChat(true)}
           >
-            <Text className="expert-profile__voice-chat-icon">💬</Text>
+            <Text className="expert-profile__voice-chat-icon">🎙</Text>
             <View className="expert-profile__voice-chat-text">
               <Text className="expert-profile__voice-chat-title">
-                与 AI {name} 对话
+                开始语音提问
               </Text>
               <Text className="expert-profile__voice-chat-desc">
-                {expert.hasClonedVoice
-                  ? "免费语音对话 · AI 以专家声音回复"
-                  : "免费语音对话 · AI 以专家身份回复（默认音色）"}
+                免费预览 · 最多 {voiceReplyLimit} 次专家回复 · 每次回复不超过 60 秒
               </Text>
             </View>
+          </View>
+
+          <View className="expert-profile__realtime-card expert-profile__realtime-card--disabled">
+            <Text className="expert-profile__realtime-badge">订阅功能</Text>
+            <Text className="expert-profile__realtime-title">实时语音通话</Text>
+            <Text className="expert-profile__realtime-desc">
+              订阅后可开启，每次最多 {realtimeMinutes} 分钟。当前 demo 仅展示入口，不开放体验。
+            </Text>
           </View>
         </View>
       )}
 
       {/* Voice Chat Modal */}
-      <VoiceChat
+        <VoiceChat
         expertId={expertId}
         expertName={name}
         hasClonedVoice={expert.hasClonedVoice}
@@ -229,12 +247,11 @@ export default function ExpertPage() {
         onClose={() => setShowVoiceChat(false)}
       />
 
-      {/* Service introduction document (in mini program; book on web) */}
       {expert.documentName && (
         <View className="expert-profile__section expert-profile__section--highlight">
           <Text className="expert-profile__section-title">服务介绍资料</Text>
           <Text className="expert-profile__section-sub">
-            了解专家的服务方式与背景；正式预约请在网页完成。
+            了解专家更详细的介绍、服务内容与工作方式，请先查看附件。若你希望继续深入了解或正式咨询，请复制网页主页链接，在浏览器登录后继续。
           </Text>
           <View
             className="expert-profile__document"
@@ -276,8 +293,25 @@ export default function ExpertPage() {
             <Text className="expert-profile__document-name">
               📄 {expert.documentName}
             </Text>
-            <Text className="expert-profile__document-action">打开</Text>
+            <Text className="expert-profile__document-action">查看附件</Text>
           </View>
+
+          <View
+            className="expert-profile__web-book-btn"
+            hoverClass="expert-profile__web-book-btn--hover"
+            onClick={() => {
+              Taro.setClipboardData({
+                data: loginFirstProfileUrl,
+                success: () =>
+                  Taro.showToast({ title: "网页主页链接已复制", icon: "success" }),
+              });
+            }}
+          >
+            复制网页主页链接
+          </View>
+          <Text className="expert-profile__section-hint">
+            复制后请在浏览器打开，先登录，再回到当前专家主页继续浏览与预约。
+          </Text>
         </View>
       )}
 
@@ -357,45 +391,6 @@ export default function ExpertPage() {
               </View>
             )}
           </>
-        )}
-      </View>
-
-      <View className="expert-profile__section expert-profile__section--cta">
-        <Text className="expert-profile__section-title">需要正式预约？</Text>
-        <Text className="expert-profile__section-sub">
-          支付与排期请在手机浏览器中完成（支持 Stripe 等方式）。
-        </Text>
-        {expert.sessionType !== "OFFLINE" && (
-          <View
-            className="expert-profile__web-book-btn"
-            hoverClass="expert-profile__web-book-btn--hover"
-            onClick={() => {
-              const url = buildWebBookUrl(expertId, "ONLINE");
-              Taro.setClipboardData({
-                data: url,
-                success: () =>
-                  Taro.showToast({ title: "网页链接已复制", icon: "success" }),
-              });
-            }}
-          >
-            复制「线上咨询」网页链接
-          </View>
-        )}
-        {expert.sessionType !== "ONLINE" && (
-          <View
-            className="expert-profile__web-book-btn expert-profile__web-book-btn--secondary"
-            hoverClass="expert-profile__web-book-btn--hover"
-            onClick={() => {
-              const url = buildWebBookUrl(expertId, "OFFLINE");
-              Taro.setClipboardData({
-                data: url,
-                success: () =>
-                  Taro.showToast({ title: "网页链接已复制", icon: "success" }),
-              });
-            }}
-          >
-            复制「线下咨询」网页链接
-          </View>
         )}
       </View>
 

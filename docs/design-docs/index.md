@@ -21,6 +21,7 @@ Design docs capture significant architectural and product decisions. Each doc sh
 | [DB9 integration (historical)](db9-integration.md) | Superseded | 2026-04 | Archived background only; current deployments use Supabase/Postgres without DB9 |
 | [Agentic methodology (best practices)](agentic-methodology-best-practices.md) | Accepted | 2026-03 | How HiClaw applies harness ideas (handoffs, evaluator, sprint contracts); companion to harness doc |
 | [Tech Stack Improvements](tech-stack-improvements.md) | Accepted (phased) | 2026-04 | mem9 + Supabase/Postgres posture, Inngest vs FC, tRPC inventory, and operational follow-ups |
+| [Pluggable expert avatar control plane](pluggable-expert-avatar-control-plane.md) | Accepted (phased) | 2026-04 | Capability fabric + HiClaw / Scion / local fallback routing model for future expert services |
 | [npm audit (production)](npm-audit-production.md) | Accepted | 2026-03 | Triaged prod deps: overrides, EAS/Hardhat transitive risk, CI artifact — companion to tech-stack §3.2 |
 | [Vercel best practices](vercel-best-practices.md) | Accepted | 2026-03 | Platform defaults for this repo (functions, regions, Cron, Blob, AI Gateway, OTEL, etc.); env CLI/checklist cross-linked from tech-stack doc §4 |
 | [Tech stack tasks (PM tracker)](../exec-plans/active/tech-stack-improvements-tasks.md) | Active | 2026-03 | **Open tasks only** — links to main doc for strategy |

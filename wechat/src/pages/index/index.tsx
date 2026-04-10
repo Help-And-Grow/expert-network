@@ -25,9 +25,9 @@ export default function IndexPage() {
           <View className="landing__logo">H&G</View>
         </View>
         <Text className="landing__title">帮助与成长</Text>
-        <Text className="landing__subtitle">AI 原生专家网络</Text>
+        <Text className="landing__subtitle">AI Native Expert Network</Text>
         <Text className="landing__desc">
-          人人既是专家，也是学习者。预约真实咨询、分享专业经验，在互相帮助中持续成长。
+          在这里，专业经验以更高效的方式被看见、被连接、被兑现。你既能向合适的专家请教，也能把自己的能力沉淀为长期服务。
         </Text>
       </View>
 
@@ -37,7 +37,7 @@ export default function IndexPage() {
           hoverClass="landing__btn--hover"
           onClick={goDiscover}
         >
-          AI 智能匹配
+          发现专家
         </View>
         <View
           className="landing__btn landing__btn--outline"
@@ -56,7 +56,7 @@ export default function IndexPage() {
           <View className="landing__feature-text">
             <Text className="landing__feature-title">学习与求助</Text>
             <Text className="landing__feature-desc">
-              一键预约实战专家，覆盖增长、招聘、法务与融资等关键问题
+              快速找到真正懂业务的人，先了解，再决定是否进入正式咨询
             </Text>
           </View>
         </View>
@@ -67,7 +67,7 @@ export default function IndexPage() {
           <View className="landing__feature-text">
             <Text className="landing__feature-title">分享专业能力</Text>
             <Text className="landing__feature-desc">
-              把你的经验变成服务，同时也能向其他专家学习成长
+              把经验沉淀成可持续的专业服务，与高质量用户建立长期信任
             </Text>
           </View>
         </View>
@@ -76,9 +76,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">📊</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">AI 原生匹配</Text>
+            <Text className="landing__feature-title">更懂业务场景的匹配</Text>
             <Text className="landing__feature-desc">
-              用自然语言描述需求，智能匹配最合适的专家，走向常在线数字专家
+              以语音与内容沉淀构建数字分身，让服务体验更稳定、更个性化
             </Text>
           </View>
         </View>

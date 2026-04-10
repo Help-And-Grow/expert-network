@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and learners**—offering domain knowledge as services and learning from others—supported by **AI matching**, **mem9-backed context**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real sessions). It serves web, Telegram Mini App, and WeChat Mini Program from one Next.js API layer on Vercel. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
+**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and learners**—offering domain knowledge as services and learning from others—supported by **AI matching**, **expert memory via mem9 or pgvector**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real sessions). It serves web, Telegram Mini App, and WeChat Mini Program from one Next.js API layer on Vercel. Current WeChat work is converging on a premium, voice-first expert experience rather than a generic AI chatbot surface. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
 
 ## System Diagram
 
@@ -90,7 +90,48 @@ src/lib/ai/
 └── search.ts         — Search grounding utilities
 ```
 
-Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai|zai` (defaults to **qwen** when unset; runtime registry in `src/lib/ai/index.ts`).
+Provider selection: `AI_PROVIDER=dedalus|qwen|gemini|openai|zai|ollama` (defaults to **qwen** when unset; the local compose stack uses **ollama**; runtime registry lives in `src/lib/ai/index.ts`).
+
+## Expert Avatar Control Plane
+
+The long-term service architecture is moving toward a capability-routed control plane rather than a single hard-wired multi-agent stack.
+
+```
+Experience surfaces
+  → Service control plane
+  → Capability fabric
+  → Orchestration adapters
+  → Runtime / context infrastructure
+```
+
+### Capability fabric
+
+Named capabilities are the main product abstraction:
+
+- voice reply
+- realtime talk
+- meeting capture
+- memo / reflection
+- online content learning
+- service matching
+- conversion support
+
+Each capability resolves four selectors:
+
+- `orchestrator`
+- `runtimeProfile`
+- `modelProfile`
+- `memoryProfile`
+
+Precedence is platform default → expert override → capability override.
+
+### Adapter posture
+
+- **HiClaw** is the collaboration-heavy, human-visible option for memo/reflection and expert-growth workflows.
+- **Scion** is the container-oriented, isolated execution option for future swarm and concurrent agent workloads.
+- **Local fallback** is always required: Docker + Ollama + Postgres/pgvector, with mem9 optional.
+
+See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs/pluggable-expert-avatar-control-plane.md).
 
 ## Database
 
@@ -157,4 +198,5 @@ AI chat          → searchExpertMemories() → context-aware responses
 - **Pages**: Home, Discover, Expert, Book, Dashboard, Onboarding, Profile
 - **Auth**: `wx.login()` → backend `code2session` → JWT stored in Taro storage
 - **API calls**: Same backend via `TARO_APP_API_BASE` with `x-wechat-token` header
-- **Build**: `npm run build:weapp` in `wechat/` → `node scripts/wechat-upload.js` (loads `miniprogram-ci` from `wechat/node_modules` — run `npm install` in `wechat/` first)
+- **Current product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
+- **Build / upload**: `npm run build:weapp` in `wechat/`; from repo root `npm run wechat:upload` builds and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` (build on PR; upload on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`).

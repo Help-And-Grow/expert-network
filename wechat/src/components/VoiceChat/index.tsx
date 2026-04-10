@@ -1,16 +1,18 @@
-import { View, Text, ScrollView, Input } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { post } from "../../shared/api";
-import { getApiBase } from "../../shared/auth";
 import { logToVercel } from "../../shared/debug-log";
-import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
+import {
+  prepareAudioForInnerAudio,
+  readLocalAudioAsBase64,
+} from "../../shared/wechat-audio";
 import "./index.scss";
 
 interface VoiceChatProps {
   expertId: string;
   expertName: string;
-  /** When false, TTS uses built-in voice; persona stays the expert. */
   hasClonedVoice?: boolean;
   visible: boolean;
   onClose: () => void;
@@ -19,11 +21,17 @@ interface VoiceChatProps {
 interface Message {
   id: string;
   role: "user" | "assistant";
-  text: string;
-  /** Server payload (often data:audio/...;base64,...) — not playable directly in MP */
+  title: string;
+  note: string;
   audioUrl?: string;
-  /** Path under USER_DATA_PATH or temp from downloadFile — use for InnerAudioContext */
   localAudioPath?: string;
+  clipCount?: number;
+}
+
+interface DraftClip {
+  id: string;
+  filePath: string;
+  duration: number;
 }
 
 interface ChatResponse {
@@ -34,34 +42,49 @@ interface ChatResponse {
   maxTurns: number;
 }
 
-let msgCounter = 0;
-function nextId(): string {
-  return `wc-msg-${++msgCounter}`;
+let messageCounter = 0;
+let draftCounter = 0;
+
+function nextMessageId(): string {
+  messageCounter += 1;
+  return `wc-msg-${messageCounter}`;
 }
 
-export default function VoiceChat({
-  expertId,
-  expertName,
-  hasClonedVoice = true,
-  visible,
-  onClose,
-}: VoiceChatProps) {
+function nextDraftId(): string {
+  draftCounter += 1;
+  return `wc-draft-${draftCounter}`;
+}
+
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+export default function VoiceChat(props: VoiceChatProps) {
+  const { expertId, expertName, visible, onClose } = props;
   const [messages, setMessages] = useState<Message[]>([]);
+  const [draftClips, setDraftClips] = useState<DraftClip[]>([]);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [greetingLoading, setGreetingLoading] = useState(false);
-  const [textInput, setTextInput] = useState("");
-  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
+  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 5 });
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
 
   const recorderRef = useRef<Taro.RecorderManager | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtxRef = useRef<Taro.InnerAudioContext | null>(null);
-  const sendVoiceRef = useRef<(filePath: string) => Promise<void>>(
-    async () => {},
-  );
+  const elapsedAtStopRef = useRef(0);
+
+  const scrollToBottom = useCallback(() => {
+    setScrollTop((prev) => prev + 2000);
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, draftClips, scrollToBottom]);
 
   useEffect(() => {
     return () => {
@@ -73,82 +96,119 @@ export default function VoiceChat({
     };
   }, []);
 
-  const scrollToBottom = useCallback(() => {
-    setScrollTop((prev) => prev + 9999);
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  const playLocalAudio = useCallback((localPath: string, msgId: string) => {
+  const playLocalAudio = useCallback((localPath: string, targetId: string) => {
     if (audioCtxRef.current) {
       audioCtxRef.current.stop();
       audioCtxRef.current.destroy();
     }
+
     const ctx = Taro.createInnerAudioContext();
     ctx.obeyMuteSwitch = false;
     ctx.src = localPath;
     ctx.onEnded(() => setPlayingId(null));
     ctx.onStop(() => setPlayingId(null));
+    ctx.onPause(() => setPlayingId(null));
     ctx.onError((err) => {
-      logToVercel("error", "VoiceChat InnerAudioContext", err);
+      logToVercel("error", "VoiceChat playback", err);
       setPlayingId(null);
-      Taro.showToast({ title: "播放失败", icon: "none" });
+      Taro.showToast({ title: "语音播放失败", icon: "none" });
     });
     ctx.play();
     audioCtxRef.current = ctx;
-    setPlayingId(msgId);
+    setPlayingId(targetId);
   }, []);
+
+  const ensureAudioForMessage = useCallback(
+    async (message: Message): Promise<string | null> => {
+      if (message.localAudioPath) return message.localAudioPath;
+      if (!message.audioUrl) return null;
+      const localPath = await prepareAudioForInnerAudio(message.audioUrl, message.id);
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === message.id ? { ...item, localAudioPath: localPath } : item,
+        ),
+      );
+      return localPath;
+    },
+    [],
+  );
+
+  const toggleMessagePlayback = useCallback(
+    async (message: Message) => {
+      if (playingId === message.id) {
+        audioCtxRef.current?.stop();
+        setPlayingId(null);
+        return;
+      }
+
+      try {
+        const localPath = await ensureAudioForMessage(message);
+        if (!localPath) {
+          Taro.showToast({ title: "暂无可用语音", icon: "none" });
+          return;
+        }
+        playLocalAudio(localPath, message.id);
+      } catch (err) {
+        logToVercel("error", "VoiceChat ensureAudioForMessage", err);
+        Taro.showToast({ title: "语音加载失败", icon: "none" });
+      }
+    },
+    [ensureAudioForMessage, playLocalAudio, playingId],
+  );
+
+  const toggleDraftPlayback = useCallback(
+    (draft: DraftClip) => {
+      if (playingId === draft.id) {
+        audioCtxRef.current?.stop();
+        setPlayingId(null);
+        return;
+      }
+      playLocalAudio(draft.filePath, draft.id);
+    },
+    [playLocalAudio, playingId],
+  );
 
   useEffect(() => {
     if (!visible || !expertId) return;
 
     setMessages([]);
-    setTurnInfo({ count: 0, max: 10 });
+    setDraftClips([]);
+    setTurnInfo({ count: 0, max: 5 });
     let cancelled = false;
-    const greetMsgId = `wc-greet-${expertId}`;
+    const greetingMessageId = `wc-greet-${expertId}`;
 
-    (async () => {
+    void (async () => {
       setGreetingLoading(true);
       try {
         const res = await post<{ replyText: string; replyAudio: string }>(
           "/api/voice-chat/greeting",
           { expertId },
         );
-        if (cancelled) return;
-        if (res.statusCode !== 200) {
-          const err = (res.data as { error?: string })?.error;
-          logToVercel("warn", "voice-chat/greeting HTTP", {
-            status: res.statusCode,
-            err,
-          });
-          return;
-        }
+        if (cancelled || res.statusCode !== 200) return;
 
         const localPath = await prepareAudioForInnerAudio(
           res.data.replyAudio,
-          greetMsgId,
+          greetingMessageId,
         );
         if (cancelled) return;
 
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === greetMsgId)) return prev;
-          const greetMsg: Message = {
-            id: greetMsgId,
-            role: "assistant",
-            text: res.data.replyText,
-            audioUrl: res.data.replyAudio,
-            localAudioPath: localPath,
-          };
-          return [greetMsg, ...prev];
-        });
+        const greetingMessage: Message = {
+          id: greetingMessageId,
+          role: "assistant",
+          title: `${expertName} 的欢迎语音`,
+          note: "打开后会自动播放一次，你也可以随时重听。",
+          audioUrl: res.data.replyAudio,
+          localAudioPath: localPath,
+        };
 
+        setMessages([greetingMessage]);
         setTimeout(() => {
-          if (!cancelled) playLocalAudio(localPath, greetMsgId);
-        }, 150);
+          if (!cancelled) {
+            playLocalAudio(localPath, greetingMessageId);
+          }
+        }, 180);
       } catch (err) {
-        logToVercel("error", "voice-chat/greeting prepare", err);
+        logToVercel("error", "voice-chat/greeting", err);
         Taro.showToast({ title: "欢迎语音加载失败", icon: "none" });
       } finally {
         if (!cancelled) setGreetingLoading(false);
@@ -158,7 +218,7 @@ export default function VoiceChat({
     return () => {
       cancelled = true;
     };
-  }, [visible, expertId, playLocalAudio]);
+  }, [expertId, expertName, playLocalAudio, visible]);
 
   useEffect(() => {
     if (!visible && audioCtxRef.current) {
@@ -175,11 +235,27 @@ export default function VoiceChat({
       recorder.onStop((res) => {
         setRecording(false);
         if (timerRef.current) clearInterval(timerRef.current);
-        if (res.tempFilePath) {
-          void sendVoiceRef.current(res.tempFilePath);
-        }
+
+        if (!res.tempFilePath) return;
+
+        const recordedDuration = Math.max(elapsedAtStopRef.current, 1);
+        setDraftClips((prev) => {
+          if (prev.length >= 3) {
+            Taro.showToast({ title: "当前最多先整理 3 段语音", icon: "none" });
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              id: nextDraftId(),
+              filePath: res.tempFilePath,
+              duration: recordedDuration,
+            },
+          ];
+        });
       });
-      recorder.onError(() => {
+      recorder.onError((err) => {
+        console.error("[VoiceChat] recorder", err);
         setRecording(false);
         if (timerRef.current) clearInterval(timerRef.current);
         Taro.showToast({ title: "录音失败", icon: "none" });
@@ -187,18 +263,46 @@ export default function VoiceChat({
       recorderRef.current = recorder;
     }
     return recorderRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
+    if (processing) return;
+    if (draftClips.length >= 3) {
+      Taro.showToast({ title: "当前最多先整理 3 段语音", icon: "none" });
+      return;
+    }
+
+    try {
+      await Taro.authorize({ scope: "scope.record" });
+    } catch {
+      Taro.showModal({
+        title: "需要麦克风权限",
+        content: "请允许使用麦克风后再录音。",
+        showCancel: false,
+      });
+      return;
+    }
+
     const recorder = getRecorder();
-    recorder.start({ duration: 30000, format: "mp3" });
-    setRecording(true);
+    elapsedAtStopRef.current = 0;
     setElapsed(0);
+    setRecording(true);
+    recorder.start({
+      duration: 45000,
+      format: "mp3",
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      encodeBitRate: 96000,
+    });
+
     timerRef.current = setInterval(() => {
-      setElapsed((p) => p + 1);
+      setElapsed((prev) => {
+        const next = prev + 1;
+        elapsedAtStopRef.current = next;
+        return next;
+      });
     }, 1000);
-  }, [getRecorder]);
+  }, [draftClips.length, getRecorder, processing]);
 
   const stopRecording = useCallback(() => {
     const recorder = getRecorder();
@@ -207,82 +311,29 @@ export default function VoiceChat({
     setRecording(false);
   }, [getRecorder]);
 
-  const sendVoice = useCallback(
-    async (filePath: string) => {
-      setProcessing(true);
-      const userMsg: Message = { id: nextId(), role: "user", text: "..." };
-      setMessages((prev) => [...prev, userMsg]);
+  const removeDraftClip = useCallback((draftId: string) => {
+    setDraftClips((prev) => prev.filter((item) => item.id !== draftId));
+    if (playingId === draftId) {
+      audioCtxRef.current?.stop();
+      setPlayingId(null);
+    }
+  }, [playingId]);
 
-      try {
-        const API_BASE = getApiBase();
-        const token = Taro.getStorageSync("token") as string;
-        const uploadRes = await Taro.uploadFile({
-          url: `${API_BASE}/api/voice-chat/message`,
-          filePath,
-          name: "audio",
-          formData: { expertId },
-          header: {
-            "x-wechat-token": token || "",
-          },
-        });
-
-        if (uploadRes.statusCode !== 200) {
-          const errData = JSON.parse(uploadRes.data || "{}");
-          throw new Error(errData.error || "发送失败");
-        }
-
-        const data: ChatResponse = JSON.parse(uploadRes.data);
-
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === userMsg.id ? { ...m, text: data.userText } : m,
-          ),
-        );
-
-        const aiId = nextId();
-        const localPath = await prepareAudioForInnerAudio(
-          data.replyAudio,
-          aiId,
-        );
-
-        const aiMsg: Message = {
-          id: aiId,
-          role: "assistant",
-          text: data.replyText,
-          audioUrl: data.replyAudio,
-          localAudioPath: localPath,
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-        setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-
-        playLocalAudio(localPath, aiId);
-      } catch (err) {
-        logToVercel("error", "sendVoice", err);
-        const msg = err instanceof Error ? err.message : "发送失败";
-        Taro.showToast({ title: msg, icon: "none" });
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-      } finally {
-        setProcessing(false);
-      }
-    },
-    [expertId, playLocalAudio],
-  );
-
-  sendVoiceRef.current = sendVoice;
-
-  const sendText = useCallback(async () => {
-    const text = textInput.trim();
-    if (!text || processing) return;
-    setTextInput("");
+  const submitDrafts = useCallback(async () => {
+    if (draftClips.length === 0 || processing) return;
     setProcessing(true);
 
-    const userMsg: Message = { id: nextId(), role: "user", text };
-    setMessages((prev) => [...prev, userMsg]);
-
     try {
+      const audioClips = await Promise.all(
+        draftClips.map(async (clip) => {
+          const payload = await readLocalAudioAsBase64(clip.filePath);
+          return { ...payload, durationSeconds: clip.duration };
+        }),
+      );
+
       const res = await post<ChatResponse>("/api/voice-chat/message", {
         expertId,
-        text,
+        audioClips,
       });
 
       if (res.statusCode !== 200) {
@@ -290,82 +341,60 @@ export default function VoiceChat({
         throw new Error(errData?.error || "发送失败");
       }
 
-      const aiId = nextId();
+      const userMessage: Message = {
+        id: nextMessageId(),
+        role: "user",
+        title:
+          draftClips.length === 1
+            ? "你的语音问题"
+            : `你的语音问题（共 ${draftClips.length} 段）`,
+        note: "已提交，等待专家给出一段语音判断。",
+        clipCount: draftClips.length,
+      };
+
+      const replyMessageId = nextMessageId();
       const localPath = await prepareAudioForInnerAudio(
         res.data.replyAudio,
-        aiId,
+        replyMessageId,
       );
 
-      const aiMsg: Message = {
-        id: aiId,
+      const replyMessage: Message = {
+        id: replyMessageId,
         role: "assistant",
-        text: res.data.replyText,
+        title: `${expertName} 的语音回复`,
+        note: "已自动播放。若你想再听一遍，可点击重新播放。",
         audioUrl: res.data.replyAudio,
         localAudioPath: localPath,
       };
-      setMessages((prev) => [...prev, aiMsg]);
-      setTurnInfo({ count: res.data.turnCount, max: res.data.maxTurns });
 
-      playLocalAudio(localPath, aiId);
+      setMessages((prev) => [...prev, userMessage, replyMessage]);
+      setTurnInfo({ count: res.data.turnCount, max: res.data.maxTurns });
+      setDraftClips([]);
+
+      setTimeout(() => {
+        playLocalAudio(localPath, replyMessageId);
+      }, 150);
     } catch (err) {
-      logToVercel("error", "sendText", err);
-      const msg = err instanceof Error ? err.message : "发送失败";
-      Taro.showToast({ title: msg, icon: "none" });
+      logToVercel("error", "VoiceChat submitDrafts", err);
+      const message = err instanceof Error ? err.message : "发送失败";
+      Taro.showToast({ title: message, icon: "none" });
     } finally {
       setProcessing(false);
     }
-  }, [expertId, textInput, processing, playLocalAudio]);
-
-  const togglePlay = useCallback(
-    async (msg: Message) => {
-      if (playingId === msg.id) {
-        audioCtxRef.current?.stop();
-        setPlayingId(null);
-        return;
-      }
-
-      let path = msg.localAudioPath;
-      if (!path && msg.audioUrl) {
-        try {
-          path = await prepareAudioForInnerAudio(msg.audioUrl, msg.id);
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === msg.id ? { ...m, localAudioPath: path } : m,
-            ),
-          );
-        } catch (err) {
-          logToVercel("error", "togglePlay prepare", err);
-          Taro.showToast({ title: "语音加载失败", icon: "none" });
-          return;
-        }
-      }
-      if (!path) {
-        Taro.showToast({ title: "无可用语音", icon: "none" });
-        return;
-      }
-      playLocalAudio(path, msg.id);
-    },
-    [playingId, playLocalAudio],
-  );
-
-  const formatTime = (s: number) =>
-    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  }, [draftClips, expertId, expertName, playLocalAudio, processing]);
 
   if (!visible) return null;
 
-  const turnsRemaining = turnInfo.max - turnInfo.count;
+  const turnsRemaining = Math.max(turnInfo.max - turnInfo.count, 0);
 
   return (
     <View className="vc-overlay">
       <View className="vc-container">
-        {/* Header */}
         <View className="vc-header">
           <View className="vc-header__info">
-            <Text className="vc-header__title">AI {expertName}</Text>
+            <Text className="vc-header__title">与 {expertName} 对话</Text>
             <Text className="vc-header__subtitle">
-              {turnsRemaining > 0
-                ? `还可发送 ${turnsRemaining} 条消息`
-                : "已达上限"}
+              免费语音预览 · 还可获得 {turnsRemaining} 次专家回复
             </Text>
           </View>
           <View
@@ -377,101 +406,141 @@ export default function VoiceChat({
           </View>
         </View>
 
-        {/* Messages */}
         <ScrollView
           className="vc-messages"
           scrollY
           scrollTop={scrollTop}
           scrollWithAnimation
         >
-          {messages.length === 0 && !greetingLoading && (
-            <View className="vc-empty">
-              <Text className="vc-empty__icon">💬</Text>
-              <Text className="vc-empty__text">
-                {hasClonedVoice
-                  ? `发送语音或文字，AI 将以${expertName}的声音回复`
-                  : `发送语音或文字，AI 以${expertName}的身份回复（默认音色）`}
-              </Text>
-            </View>
-          )}
+          <View className="vc-guidance">
+            <Text className="vc-guidance__title">使用方式</Text>
+            <Text className="vc-guidance__text">
+              你可以连续补充最多 3 段语音，再点击“确认发送问题”。每次只会收到一段浓缩后的语音判断。
+            </Text>
+          </View>
 
           {greetingLoading && messages.length === 0 && (
-            <View className="vc-empty">
-              <Text className="vc-empty__text">正在加载欢迎语…</Text>
+            <View className="vc-status-card">
+              <Text className="vc-status-card__text">正在准备欢迎语音...</Text>
             </View>
           )}
 
-          {messages.map((msg) => (
+          {messages.map((message) => (
             <View
-              key={msg.id}
-              className={`vc-bubble ${msg.role === "user" ? "vc-bubble--user" : "vc-bubble--ai"}`}
+              key={message.id}
+              className={`vc-message ${message.role === "user" ? "vc-message--user" : "vc-message--assistant"}`}
             >
-              <Text className="vc-bubble__text">{msg.text}</Text>
-              {(msg.localAudioPath || msg.audioUrl) && (
+              <Text className="vc-message__title">{message.title}</Text>
+              <Text className="vc-message__note">{message.note}</Text>
+              {(message.localAudioPath || message.audioUrl) && (
                 <View
-                  className="vc-bubble__play"
-                  hoverClass="vc-bubble__play--hover"
-                  onClick={() => togglePlay(msg)}
+                  className="vc-message__play"
+                  hoverClass="vc-message__play--hover"
+                  onClick={() => toggleMessagePlayback(message)}
                 >
-                  <Text>{playingId === msg.id ? "⏸" : "▶"}</Text>
-                  <Text className="vc-bubble__play-label">
-                    {playingId === msg.id ? "暂停" : "播放语音"}
+                  <Text className="vc-message__play-icon">
+                    {playingId === message.id ? "⏸" : "▶"}
+                  </Text>
+                  <Text className="vc-message__play-label">
+                    {playingId === message.id ? "暂停语音" : "播放语音"}
                   </Text>
                 </View>
               )}
             </View>
           ))}
 
+          {draftClips.length > 0 && (
+            <View className="vc-drafts">
+              <Text className="vc-drafts__title">待发送的语音问题</Text>
+              {draftClips.map((draft, index) => (
+                <View key={draft.id} className="vc-draft-card">
+                  <View className="vc-draft-card__body">
+                    <Text className="vc-draft-card__title">
+                      语音草稿 {index + 1}
+                    </Text>
+                    <Text className="vc-draft-card__meta">
+                      时长 {formatDuration(draft.duration)}
+                    </Text>
+                  </View>
+                  <View className="vc-draft-card__actions">
+                    <View
+                      className="vc-draft-card__btn"
+                      hoverClass="vc-draft-card__btn--hover"
+                      onClick={() => toggleDraftPlayback(draft)}
+                    >
+                      {playingId === draft.id ? "暂停" : "播放"}
+                    </View>
+                    <View
+                      className="vc-draft-card__btn vc-draft-card__btn--danger"
+                      hoverClass="vc-draft-card__btn--hover"
+                      onClick={() => removeDraftClip(draft.id)}
+                    >
+                      删除
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {processing && (
-            <View className="vc-bubble vc-bubble--ai">
-              <Text className="vc-bubble__text">思考中...</Text>
+            <View className="vc-status-card">
+              <Text className="vc-status-card__text">正在整理你的问题...</Text>
+            </View>
+          )}
+
+          {turnsRemaining <= 0 && (
+            <View className="vc-status-card vc-status-card--limit">
+              <Text className="vc-status-card__text">
+                免费语音预览已用完。若你需要进一步深入讨论，请在网页继续浏览并预约正式咨询。
+              </Text>
             </View>
           )}
         </ScrollView>
 
-        {/* Input */}
-        <View className="vc-input-bar">
-          {turnsRemaining <= 0 ? (
-            <Text className="vc-input-bar__limit">已达消息上限，请预约完整咨询</Text>
+        <View className="vc-footer">
+          {recording ? (
+            <View
+              className="vc-footer__record vc-footer__record--recording"
+              hoverClass="vc-footer__record--hover"
+              onClick={stopRecording}
+            >
+              结束录音 · {formatDuration(elapsed)}
+            </View>
           ) : (
-            <>
-              <Input
-                className="vc-input-bar__text"
-                value={textInput}
-                onInput={(e) => setTextInput(e.detail.value)}
-                onConfirm={() => sendText()}
-                confirmType="send"
-                placeholder="输入文字..."
-                disabled={processing || recording}
-              />
-              {textInput.trim() ? (
-                <View
-                  className="vc-input-bar__btn vc-input-bar__btn--send"
-                  hoverClass="vc-input-bar__btn--hover"
-                  onClick={() => sendText()}
-                >
-                  发送
-                </View>
-              ) : (
-                <View
-                  className={`vc-input-bar__btn ${recording ? "vc-input-bar__btn--recording" : "vc-input-bar__btn--mic"}`}
-                  hoverClass="vc-input-bar__btn--hover"
-                  onClick={recording ? stopRecording : startRecording}
-                >
-                  {recording ? "⏹" : "🎤"}
-                </View>
-              )}
-            </>
+            <View className="vc-footer__actions">
+              <View
+                className={`vc-footer__record ${
+                  turnsRemaining <= 0 || processing || draftClips.length >= 3
+                    ? "vc-footer__record--disabled"
+                    : ""
+                }`}
+                hoverClass="vc-footer__record--hover"
+                onClick={() => {
+                  if (turnsRemaining <= 0 || processing || draftClips.length >= 3) return;
+                  void startRecording();
+                }}
+              >
+                {draftClips.length >= 3 ? "已达到 3 段上限" : "新增一段语音"}
+              </View>
+
+              <View
+                className={`vc-footer__submit ${
+                  draftClips.length === 0 || processing || turnsRemaining <= 0
+                    ? "vc-footer__submit--disabled"
+                    : ""
+                }`}
+                hoverClass="vc-footer__submit--hover"
+                onClick={() => {
+                  if (draftClips.length === 0 || processing || turnsRemaining <= 0) return;
+                  void submitDrafts();
+                }}
+              >
+                确认发送问题
+              </View>
+            </View>
           )}
         </View>
-
-        {recording && (
-          <View className="vc-recording-hint">
-            <Text className="vc-recording-hint__text">
-              录音中 {formatTime(elapsed)}
-            </Text>
-          </View>
-        )}
       </View>
     </View>
   );
