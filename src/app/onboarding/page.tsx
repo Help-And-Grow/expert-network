@@ -246,7 +246,7 @@ export default function OnboardingPage() {
           id: "greeting",
           role: "ai",
           content:
-            "Hey! Welcome to Help & Grow for Singapore & Southeast Asia. Everyone's both expert and player here — learn by doing, grow by helping. Let's set up your profile so others can find you. About 2 minutes.",
+            "Hey! Welcome to Help & Grow for Singapore & Southeast Asia. Everyone's both coach and player here — learn by doing, grow by helping. Let's set up your profile so others can find you. About 2 minutes.",
           type: "text",
         },
       ]);

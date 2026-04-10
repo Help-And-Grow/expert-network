@@ -111,7 +111,7 @@ export function buildProfilePromptWithNativeSearch(
   socialLinks: string,
   resumeSection: string
 ): string {
-  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and player (learn by doing, grow by helping); profiles may serve people scheduling meetups for insight OR offering their own expertise to share.
+  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both coach and player (learn by doing, grow by helping); profiles may serve people scheduling meetups for insight OR offering their own expertise to share.
 
 Expert's name: ${data.nickName}
 Professional domains: ${data.domains.join(", ")}
