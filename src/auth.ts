@@ -55,6 +55,7 @@ if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
 /** One-click local sign-in when `next dev` + DEV_AUTH_EMAIL (never enabled in production builds). */
 if (process.env.NODE_ENV === "development" && env.DEV_AUTH_EMAIL) {
   const devEmail = env.DEV_AUTH_EMAIL.trim().toLowerCase();
+  const devRole = env.DEV_AUTH_ROLE ?? "FOUNDER";
   providers.push(
     Credentials({
       id: "dev-login",
@@ -71,8 +72,13 @@ if (process.env.NODE_ENV === "development" && env.DEV_AUTH_EMAIL) {
               emailVerified: new Date(),
               name: "Local Dev",
               nickName: "Dev",
-              role: "FOUNDER",
+              role: devRole,
             },
+          });
+        } else if (user.role !== devRole) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { role: devRole },
           });
         }
         return {

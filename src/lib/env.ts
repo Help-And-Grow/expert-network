@@ -136,6 +136,8 @@ const envSchema = z
     VOICE_CHAT_DEFAULT_VOICE: z.string().min(1).optional(),
     /** Local dev only: enables one-click "Dev login" on /auth/signin (`next dev` only). */
     DEV_AUTH_EMAIL: z.string().min(1).optional(),
+    /** Local dev only: role for the auto-provisioned dev-login user. */
+    DEV_AUTH_ROLE: z.enum(["EXPERT", "FOUNDER", "ADMIN"]).optional(),
     AGORA_APP_ID: z.string().optional(),
     AGORA_APP_CERTIFICATE: z.string().optional(),
     TEN_AGENT_URL: z.string().url().optional(),
