@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
  * Merge Vercel production env: copy shared config from origin (expert-network) onto
- * hackathon (expert-network-hackathon), preserving Gemini/GCP + hackathon URL.
+ * the BytePlus version (expert-network-byteplus), preserving provider keys + byteplus URL.
  *
  * Prerequisites: pull both projects first, e.g.
  *   vercel link --project expert-network --yes --scope <team>
  *   vercel env pull /tmp/vercel-origin-production.env --environment production --yes
- *   vercel link --project expert-network-hackathon --yes --scope <team>
- *   vercel env pull /tmp/vercel-hackathon-production.env --environment production --yes
+ *   vercel link --project expert-network-byteplus --yes --scope <team>
+ *   vercel env pull /tmp/vercel-byteplus-production.env --environment production --yes
  *
  * Usage:
- *   node scripts/vercel-merge-hackathon-env.mjs /tmp/vercel-origin-production.env /tmp/vercel-hackathon-production.env /tmp/vercel-hackathon-merged.env
+ *   node scripts/vercel-merge-byteplus-env.mjs /tmp/vercel-origin-production.env /tmp/vercel-byteplus-production.env /tmp/vercel-byteplus-merged.env
  */
 import fs from "node:fs";
 
-const HACKATHON_CANONICAL_URL = "https://expert-network-hackathon.vercel.app";
+const HACKATHON_CANONICAL_URL = "https://expert-network-byteplus.vercel.app";
 
 /** Vercel runtime / pull artifacts — never push these via `vercel env add`. */
 function isVercelSystemKey(k) {
@@ -116,6 +116,21 @@ for (const k of PRESERVE_FROM_HACKATHON) {
 }
 
 merged.NEXTAUTH_URL = HACKATHON_CANONICAL_URL.trim();
+merged.AI_PROVIDER = "byteplus";
+merged.VOICE_CHAT_DEFAULT_VOICE = "byteplus-voice";
+
+for (const k of Object.keys(hackathon)) {
+  // Preserve byteplus/gemini config
+  if (
+    k.startsWith("BYTEPLUS_") ||
+    k.startsWith("GEMINI_") ||
+    k.startsWith("GOOGLE_CLOUD_") ||
+    k.startsWith("GOOGLE_SERVICE_") ||
+    k.startsWith("FISH_AUDIO_")
+  ) {
+    merged[k] = hackathon[k];
+  }
+}
 
 const auth = origin.AUTH_SECRET ?? hackathon.AUTH_SECRET ?? hackathon.NEXTAUTH_SECRET;
 if (auth) {
@@ -146,7 +161,7 @@ const keys = Object.keys(merged)
   .sort();
 
 const body =
-  "# Merged for expert-network-hackathon: shared with expert-network + Gemini/GCP preserved.\n" +
+  "# Merged for expert-network-byteplus: shared with expert-network + BytePlus/Gemini/GCP preserved.\n" +
   "# Do not commit. Apply: node scripts/vercel-env-from-file.mjs production <this-file>\n" +
   keys.map((k) => `${k}=${escapeForDotenv(merged[k])}`).join("\n") +
   "\n";

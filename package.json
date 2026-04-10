@@ -25,6 +25,7 @@
     "vercel:env:pull:production": "npx vercel@latest env pull .env.vercel.production.local --environment production --yes",
     "vercel:env:apply": "node scripts/vercel-env-from-file.mjs",
     "vercel:env:migrate-auth-secret": "node scripts/vercel-migrate-auth-secret.mjs",
+    "vercel:env:byteplus": "node scripts/vercel-merge-byteplus-env.mjs /tmp/vercel-origin-production.env /tmp/vercel-byteplus-production.env /tmp/vercel-byteplus-merged.env",
     "postinstall": "node scripts/switch-db.mjs && prisma generate",
     "wechat:build": "npm run build:weapp --prefix wechat",
     "wechat:upload": "npm run wechat:build && node scripts/run-wechat-upload.cjs"
