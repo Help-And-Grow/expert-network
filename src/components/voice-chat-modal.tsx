@@ -587,7 +587,7 @@ export function VoiceChatModal({
               variant="outline"
               onClick={() => {
                 void cleanup();
-                setCallState("ended");
+                onClose();
               }}
             >
               Cancel

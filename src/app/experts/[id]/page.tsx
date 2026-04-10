@@ -7,7 +7,6 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 
 import {
-  Star,
   Shield,
   Sparkles,
   MapPin,
@@ -19,7 +18,7 @@ import {
   Pause,
 } from "lucide-react";
 
-import { AudioPlayer } from "@/components/audio-player";
+import { AudioPlayer, type AudioPlayerHandle } from "@/components/audio-player";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -132,6 +131,7 @@ export default function ExpertProfilePage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const introPlayerRef = useRef<AudioPlayerHandle>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [showRealtimeChat, setShowRealtimeChat] = useState(false);
@@ -175,7 +175,7 @@ export default function ExpertProfilePage() {
         const res = await fetch(
           `/api/reviews?expertId=${id}&skip=${skip}&take=5`
         );
-        if (!res.ok) throw new Error("Failed to fetch reviews");
+        if (!res.ok) throw new Error("Failed to load appreciations");
         const data: ReviewsResponse = await res.json();
         if (append) {
           setReviews((prev) => [...prev, ...data.reviews]);
@@ -205,6 +205,44 @@ export default function ExpertProfilePage() {
       fetchReviews(false);
     }
   }, [expert?.id, fetchReviews]);
+
+  const pausePublicIntroAudio = useCallback(() => {
+    audioRef.current?.pause();
+    introPlayerRef.current?.pause();
+  }, []);
+
+  useEffect(() => {
+    if (showVoiceChat || showRealtimeChat) pausePublicIntroAudio();
+  }, [showVoiceChat, showRealtimeChat, pausePublicIntroAudio]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setShowVoiceChat(false);
+      setShowRealtimeChat(false);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const pushVoiceChatHistory = useCallback(() => {
+    window.history.pushState(
+      { ...window.history.state, voiceChatOverlay: true },
+      "",
+      window.location.href,
+    );
+  }, []);
+
+  const closeVoiceChatOverlay = useCallback(() => {
+    const st = window.history.state as { voiceChatOverlay?: boolean } | null;
+    if (st?.voiceChatOverlay) window.history.back();
+    else setShowVoiceChat(false);
+  }, []);
+
+  const closeRealtimeVoiceOverlay = useCallback(() => {
+    const st = window.history.state as { voiceChatOverlay?: boolean } | null;
+    if (st?.voiceChatOverlay) window.history.back();
+    else setShowRealtimeChat(false);
+  }, []);
 
   const loadMoreReviews = () => {
     fetchReviews(true);
@@ -344,11 +382,11 @@ export default function ExpertProfilePage() {
           <div className="mt-3 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
               <Shield className="h-4 w-4" />
-              <span>Learned from {expert.learnedFromCount}+ mentors</span>
+              <span>Learned from {expert.learnedFromCount}+ coaches</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400">
               <Sparkles className="h-4 w-4" />
-              <span>Offered help to {expert.offeredHelpCount}+ mentees</span>
+              <span>Offered help to {expert.offeredHelpCount}+ players</span>
             </div>
           </div>
           {expert.isVerified && (
@@ -366,6 +404,7 @@ export default function ExpertProfilePage() {
       {expert.hasAudio && (
         <section className="mt-6">
           <AudioPlayer
+            ref={introPlayerRef}
             src={`/api/experts/${id}/audio`}
             label={`${name}'s voice introduction`}
           />
@@ -377,7 +416,9 @@ export default function ExpertProfilePage() {
         <section className="mt-5">
           <div
             onClick={() => {
+              pausePublicIntroAudio();
               resumeSharedAudioContext();
+              pushVoiceChatHistory();
               if (vcConfig.asyncEnabled) setShowVoiceChat(true);
               else setShowRealtimeChat(true);
             }}
@@ -425,7 +466,12 @@ export default function ExpertProfilePage() {
 
           {vcConfig.asyncEnabled && vcConfig.realtimeReady && (
             <button
-              onClick={() => setShowRealtimeChat(true)}
+              onClick={() => {
+                pausePublicIntroAudio();
+                resumeSharedAudioContext();
+                pushVoiceChatHistory();
+                setShowRealtimeChat(true);
+              }}
               className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-indigo-600 transition-colors"
             >
               Or try a{" "}
@@ -447,7 +493,7 @@ export default function ExpertProfilePage() {
           expertServices={expert.servicesOffered}
           hasClonedVoice={expert.hasClonedVoice}
           open={showVoiceChat}
-          onClose={() => setShowVoiceChat(false)}
+          onClose={closeVoiceChatOverlay}
         />
       )}
 
@@ -455,7 +501,7 @@ export default function ExpertProfilePage() {
         <VoiceChatModal
           expertId={expert.id}
           expertName={name}
-          onClose={() => setShowRealtimeChat(false)}
+          onClose={closeRealtimeVoiceOverlay}
         />
       )}
 
@@ -516,7 +562,7 @@ export default function ExpertProfilePage() {
       {/* Session Pricing */}
       {(expert.priceOnlineCents != null || expert.priceOfflineCents != null) && (
         <section className="mt-8">
-          <h2 className="text-lg font-semibold text-foreground mb-3">Session Rates</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">Meetup rates</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {expert.priceOnlineCents != null && expert.sessionType !== "OFFLINE" && (
               <Card>
@@ -550,7 +596,7 @@ export default function ExpertProfilePage() {
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            50% deposit due at booking. Remainder charged 24h after the session.
+            50% deposit when you schedule. Remainder charged 24h after the meetup.
           </p>
         </section>
       )}
@@ -592,7 +638,7 @@ export default function ExpertProfilePage() {
                       )}
                       {r.expertSuggestion && (
                         <div className="mt-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 border border-indigo-100 dark:border-indigo-900/50">
-                          <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-0.5 uppercase tracking-wide">Mentor&apos;s Guidance</p>
+                          <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-0.5 uppercase tracking-wide">Coach follow-up</p>
                           <p className="text-sm text-foreground">{r.expertSuggestion}</p>
                         </div>
                       )}
@@ -631,13 +677,13 @@ export default function ExpertProfilePage() {
           <Button asChild className="flex-1 h-12 text-base font-semibold" size="lg">
             <Link href={`/experts/${id}/book?type=ONLINE&from=profile`} className="flex items-center justify-center gap-2">
               <Monitor className="h-5 w-5" />
-              Book Online
+              Meet online
             </Link>
           </Button>
           <Button asChild variant="outline" className="flex-1 h-12 text-base font-semibold" size="lg">
             <Link href={`/experts/${id}/book?type=OFFLINE&from=profile`} className="flex items-center justify-center gap-2">
               <MapPin className="h-5 w-5" />
-              Book Offline
+              Meet in person
             </Link>
           </Button>
         </div>

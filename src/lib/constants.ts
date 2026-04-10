@@ -12,7 +12,7 @@ export const SESSION_TYPES = ["ONLINE", "OFFLINE", "BOTH"] as const;
 export const ONBOARDING_STEPS = [
   { key: "profile", label: "Profile" },
   { key: "services", label: "Services" },
-  { key: "review", label: "Review" },
+  { key: "review", label: "Overview" },
   { key: "publish", label: "Publish" },
 ] as const;
 

@@ -3,6 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 const port = 3000;
 const baseURL = `http://localhost:${port}`;
 
+/** Keep in sync with `.github/workflows/ui-smoke.yml` job `env` defaults. */
+const defaultAuthSecret = "playwright-local-auth-secret-0123456789";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -17,13 +20,14 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: [
-      "NEXTAUTH_URL=http://localhost:3000",
-      "AUTH_SECRET=playwright-local-auth-secret-0123456789",
-      "DEV_AUTH_EMAIL=admin-smoke@localhost",
-      "DEV_AUTH_ROLE=ADMIN",
-      "npx -y node@20 ./node_modules/next/dist/bin/next dev -p 3000 -H 0.0.0.0",
-    ].join(" "),
+    command: `npx -y node@20 ./node_modules/next/dist/bin/next dev -p ${port} -H 0.0.0.0`,
+    env: {
+      ...process.env,
+      NEXTAUTH_URL: `http://localhost:${port}`,
+      AUTH_SECRET: process.env.AUTH_SECRET ?? defaultAuthSecret,
+      DEV_AUTH_EMAIL: process.env.DEV_AUTH_EMAIL ?? "admin-smoke@localhost",
+      DEV_AUTH_ROLE: process.env.DEV_AUTH_ROLE ?? "ADMIN",
+    },
     url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,
     stdout: "pipe",

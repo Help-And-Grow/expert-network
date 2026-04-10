@@ -148,7 +148,7 @@ export async function PATCH(request: NextRequest) {
     }
     if (booking.expert.userId !== userId) {
       return NextResponse.json(
-        { error: "Forbidden: only the mentor can add guidance" },
+        { error: "Forbidden: only the coach can add follow-up" },
         { status: 403 }
       );
     }

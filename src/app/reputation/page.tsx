@@ -28,7 +28,7 @@ export default function ReputationPage() {
   const { address, isConnected } = useAccount();
   const [reputation, setReputation] = useState<ReputationData | null>(null);
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
-  const [activeTab, setActiveTab] = useState<"expert" | "mentee">("expert");
+  const [activeTab, setActiveTab] = useState<"expert" | "player">("expert");
 
   const hgAddress = process.env.NEXT_PUBLIC_HG_TOKEN_ADDRESS as `0x${string}` | undefined;
   const easSchemaUid = process.env.NEXT_PUBLIC_POMP_EAS_SCHEMA_UID;
@@ -105,14 +105,14 @@ export default function ReputationPage() {
             Expert View
           </button>
           <button
-            onClick={() => setActiveTab("mentee")}
+            onClick={() => setActiveTab("player")}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              activeTab === "mentee"
+              activeTab === "player"
                 ? "bg-indigo-600 text-white"
                 : "bg-slate-800 text-slate-400 hover:bg-slate-700"
             }`}
           >
-            Mentee View
+            Player view
           </button>
         </div>
 
@@ -121,12 +121,12 @@ export default function ReputationPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <StatCard
                 icon={<Award className="h-5 w-5 text-amber-400" />}
-                label="Verified sessions (HiClaw DB)"
+                label="Verified meetups (HiClaw DB)"
                 value={reputation?.totalSBTs ?? 0}
               />
               <StatCard
                 icon={<Users className="h-5 w-5 text-blue-400" />}
-                label="Unique mentees"
+                label="Unique players"
                 value={reputation?.menteeCount ?? 0}
               />
               <StatCard
@@ -198,7 +198,7 @@ export default function ReputationPage() {
           </div>
         )}
 
-        {activeTab === "mentee" && (
+        {activeTab === "player" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <StatCard

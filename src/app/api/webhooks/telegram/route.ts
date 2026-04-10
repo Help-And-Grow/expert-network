@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
       const welcomeText = [
         `👋 *Welcome to Help & Grow!*`,
         ``,
-        `The expert network for Singapore & Southeast Asia. Everyone's both expert and learner. What are you looking for?`,
+        `The expert network for Singapore & Southeast Asia. Everyone's both expert and player — learn by doing, grow by helping. What are you looking for?`,
         ``,
         `• _"I need advice on expanding my startup in SEA"_`,
         `• _"Looking for an expert with localisation experience"_`,

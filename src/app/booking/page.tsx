@@ -21,7 +21,6 @@ import {
   Trash2,
   Wallet,
   ExternalLink,
-  Star,
   MessageSquarePlus,
   Heart,
   MessageSquareHeart,
@@ -143,7 +142,7 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 p-6">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading bookings…</p>
+        <p className="text-sm text-muted-foreground">Loading meetups…</p>
       </div>
     );
   }
@@ -152,7 +151,7 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center p-6">
         <Link href="/auth/signin" className="text-sm text-muted-foreground underline">
-          Please sign in to view your bookings
+          Please sign in to view your meetups
         </Link>
       </div>
     );
@@ -187,7 +186,7 @@ export default function DashboardPage() {
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </button>
-            <h1 className="text-xl font-bold">My Bookings</h1>
+            <h1 className="text-xl font-bold">My Meetups</h1>
           </div>
           <UserMenu />
         </div>
@@ -200,7 +199,7 @@ export default function DashboardPage() {
           {activeBookings.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                <p className="mb-4">No upcoming bookings</p>
+                <p className="mb-4">No upcoming meetups</p>
                 <Button asChild><Link href="/discover">Chat &amp; match</Link></Button>
               </CardContent>
             </Card>
@@ -209,7 +208,7 @@ export default function DashboardPage() {
               {activeBookings.map((b) => {
                 const isMenteeForThis = b.founderId === userData?.id;
                 return (
-                  <BookingCard key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant} onUpdate={loadDashboard} currentUserId={userData?.id} isExpert={!isMenteeForThis} roleLabel={isMenteeForThis ? "Learner" : "Mentor"} />
+                  <BookingCard key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant} onUpdate={loadDashboard} currentUserId={userData?.id} isExpert={!isMenteeForThis} roleLabel={isMenteeForThis ? "Player" : "Coach"} />
                 );
               })}
             </div>
@@ -226,11 +225,11 @@ export default function DashboardPage() {
                 return (
                   <BookingCard
                     key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant}
-                    showLeaveReview={isMenteeForThis && b.status === "COMPLETED" && !b.review}
+                    showLeaveAppreciation={isMenteeForThis && b.status === "COMPLETED" && !b.review}
                     isExpert={!isMenteeForThis}
                     onUpdate={loadDashboard}
                     currentUserId={userData?.id}
-                    roleLabel={isMenteeForThis ? "Learner" : "Mentor"}
+                    roleLabel={isMenteeForThis ? "Player" : "Coach"}
                   />
                 );
               })}
@@ -245,11 +244,11 @@ export default function DashboardPage() {
 /* ============= Booking Card ============= */
 
 const BookingCard = memo(function BookingCard({
-  booking, showFounder, showLeaveReview, statusVariant, onUpdate, currentUserId, isExpert, roleLabel,
+  booking, showFounder, showLeaveAppreciation, statusVariant, onUpdate, currentUserId, isExpert, roleLabel,
 }: {
   booking: Booking;
   showFounder?: boolean;
-  showLeaveReview?: boolean;
+  showLeaveAppreciation?: boolean;
   isExpert?: boolean;
   statusVariant: (s: string) => "default" | "secondary" | "destructive" | "outline";
   onUpdate: () => Promise<void>;
@@ -603,7 +602,7 @@ const BookingCard = memo(function BookingCard({
             {roleLabel && (
               <span className={cn(
                 "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-                roleLabel === "Mentor"
+                roleLabel === "Coach"
                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
                   : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
               )}>
@@ -729,10 +728,10 @@ const BookingCard = memo(function BookingCard({
               )}
             </div>
             {!canRescheduleOrCancel && (
-              <p className="mt-1 text-xs text-muted-foreground">Reschedule & cancel disabled — booking starts within 2 hours</p>
+              <p className="mt-1 text-xs text-muted-foreground">Reschedule & cancel disabled — meetup starts within 2 hours</p>
             )}
             {!canChangeLocation && !isOnline && (
-              <p className="mt-1 text-xs text-muted-foreground">Location change disabled — booking starts within 1 hour</p>
+              <p className="mt-1 text-xs text-muted-foreground">Location change disabled — meetup starts within 1 hour</p>
             )}
           </>
         )}
@@ -755,7 +754,7 @@ const BookingCard = memo(function BookingCard({
 
         {showCancel && (
           <div className="mt-3 space-y-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3">
-            <p className="text-sm font-medium text-red-700 dark:text-red-400">Cancel this booking?</p>
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">Cancel this meetup?</p>
             <Input placeholder="Reason (optional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
             <div className="flex gap-2">
               <Button size="sm" variant="destructive" onClick={handleCancel} disabled={cancelling}>
@@ -819,8 +818,8 @@ const BookingCard = memo(function BookingCard({
           </div>
         )}
 
-        {showLeaveReview && (
-          <LearnerAppreciationForm bookingId={booking.id} onUpdate={onUpdate} />
+        {showLeaveAppreciation && (
+          <PlayerAppreciationForm bookingId={booking.id} onUpdate={onUpdate} />
         )}
 
         {booking.status === "COMPLETED" && booking.review && (
@@ -856,7 +855,7 @@ function ReviewSuggestionSection({
 
       {hasAppreciation && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Learner&apos;s Appreciation</p>
+          <p className="text-xs font-medium text-muted-foreground">Player appreciation</p>
           {review.comment && (
             <p className="text-sm text-muted-foreground">{review.comment}</p>
           )}
@@ -865,7 +864,7 @@ function ReviewSuggestionSection({
 
       {review.expertSuggestion && (
         <div className={cn("space-y-1.5", hasAppreciation && "mt-3")}>
-          <p className="text-xs font-medium text-muted-foreground">Mentor&apos;s Guidance & Next Steps</p>
+          <p className="text-xs font-medium text-muted-foreground">Coach shared follow-up</p>
           <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 border border-indigo-100 dark:border-indigo-900">
             <p className="text-sm text-foreground">{review.expertSuggestion}</p>
           </div>
@@ -923,7 +922,7 @@ function ExpertSuggestionForm({
         <Separator className="my-3" />
         <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
           <MessageSquarePlus className="mr-1 h-3.5 w-3.5" />
-          Add Guidance & Next Steps
+          Share follow-up ideas
         </Button>
       </>
     );
@@ -931,7 +930,7 @@ function ExpertSuggestionForm({
 
   return (
     <div className="mt-3 space-y-2 rounded-lg border p-3 bg-muted/30">
-      <p className="text-sm font-medium">Guidance & Next Steps for Learner</p>
+      <p className="text-sm font-medium">Share follow-up ideas for your player</p>
       <Textarea
         placeholder="Share recommended next steps, resources, or action items..."
         value={suggestion}
@@ -944,7 +943,7 @@ function ExpertSuggestionForm({
       )}
       <div className="flex gap-2">
         <Button size="sm" onClick={handleSubmit} disabled={!suggestion.trim() || submitting}>
-          {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save Guidance"}
+          {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
       </div>
@@ -952,9 +951,9 @@ function ExpertSuggestionForm({
   );
 }
 
-/* ============= Learner Appreciation Form ============= */
+/* ============= Player appreciation (post-meetup) ============= */
 
-function LearnerAppreciationForm({
+function PlayerAppreciationForm({
   bookingId,
   onUpdate,
 }: {
@@ -1009,7 +1008,7 @@ function LearnerAppreciationForm({
         <p className="text-sm font-medium text-pink-900 dark:text-pink-100">Show your appreciation</p>
       </div>
       <Textarea
-        placeholder="How did this session help you? Your words of appreciation mean a lot..."
+        placeholder="What stood out from this meetup? A few words of appreciation go a long way…"
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         className="min-h-[100px] resize-none bg-background border-pink-100 dark:border-pink-900/50 focus-visible:ring-pink-500"

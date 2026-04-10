@@ -88,7 +88,7 @@ Keep under 100 words. No fluff.
 
 2. "services" (ARRAY of objects): 3-4 services following MECE (Mutually Exclusive, Collectively Exhaustive) principle. Each service covers a distinct, non-overlapping area. Format: {"title": "concise service name (3-5 words)", "description": "one-sentence value proposition for founders"}
 
-3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY verified facts. Structure: who I am → what I do → how I help founders → book a session CTA.
+3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY verified facts. Structure: who I am → what I do → how I help founders → invite them to schedule a meetup (sharing, not lecturing).
 
 4. "sourceSummary" (STRING): Which platforms had useful data and which did not. Example: "Found data from: LinkedIn, Official Website. No data: X/Twitter."`;
 
@@ -111,7 +111,7 @@ export function buildProfilePromptWithNativeSearch(
   socialLinks: string,
   resumeSection: string
 ): string {
-  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and learner; profiles may serve people booking sessions for advice OR offering their own expertise.
+  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and player (learn by doing, grow by helping); profiles may serve people scheduling meetups for insight OR offering their own expertise to share.
 
 Expert's name: ${data.nickName}
 Professional domains: ${data.domains.join(", ")}
@@ -154,7 +154,7 @@ export function buildProfilePromptFromResearch(
   searchResults: string,
   resumeSection: string
 ): string {
-  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and learner; profiles may serve people booking sessions for advice OR offering their own expertise.
+  return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and player (learn by doing, grow by helping); profiles may serve people scheduling meetups for insight OR offering their own expertise to share.
 
 Expert's name: ${data.nickName}
 Professional domains: ${data.domains.join(", ")}
@@ -247,7 +247,7 @@ Interpreted as: "${normalizedQuery.english}"
 Related keywords: ${normalizedQuery.keywords.join(", ")}`
     : `The user's latest query: "${query}"`;
 
-  return `You are the AI matchmaking assistant for Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Members are both experts and learners: users may be seeking help, offering expertise, or both. The pool below lists people who publish sessions as experts.
+  return `You are the AI matchmaking assistant for Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Members are both experts and players: users may be seeking help, offering expertise to share, or both. The pool below lists people who publish meetups as experts.
 
 Here is the pool of available experts:
 ${expertSummaries}

@@ -498,7 +498,7 @@ export default function BookSessionPage() {
         body: JSON.stringify(bookingPayload()),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create booking");
+      if (!res.ok) throw new Error(data.error || "Failed to schedule meetup");
       router.push("/booking");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -539,7 +539,7 @@ export default function BookSessionPage() {
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </button>
-            <h1 className="text-lg font-semibold">Book a Session</h1>
+            <h1 className="text-lg font-semibold">Schedule a meetup</h1>
           </div>
           <UserMenu />
         </div>
@@ -584,7 +584,7 @@ export default function BookSessionPage() {
           <section>
             <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-3 text-sm text-indigo-700">
               <Monitor className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-              A video meeting link will be generated automatically when your booking is confirmed.
+              A video meeting link will be generated automatically when your meetup is confirmed.
             </div>
           </section>
         )}
@@ -622,7 +622,7 @@ export default function BookSessionPage() {
             Available times
           </h2>
           <p className="mb-2 text-xs text-muted-foreground">
-            Times shown in {timezone} · 30 min per slot · select consecutive slots for longer sessions
+            Times shown in {timezone} · 30 min per slot · select consecutive slots for longer meetups
           </p>
           {!selectedDate ? (
             <p className="rounded-lg border border-dashed border-muted-foreground/30 py-8 text-center text-sm text-muted-foreground">
@@ -688,13 +688,13 @@ export default function BookSessionPage() {
         {selectedSlots.length > 0 && (
           <section className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
             <h3 className="font-semibold text-sm">
-              {totalCents > 0 ? "Payment Summary" : "Booking Summary"}
+              {totalCents > 0 ? "Payment Summary" : "Meetup summary"}
             </h3>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
                 {totalCents > 0
                   ? `${expertPricing?.currency || "SGD"} ${((pricePerHour || 0) / 100).toFixed(2)}/hr × ${slotDurationMinutes} min`
-                  : `${slotDurationMinutes} min session`}
+                  : `${slotDurationMinutes} min meetup`}
               </span>
               <span className="font-medium">
                 {totalCents > 0
@@ -712,7 +712,7 @@ export default function BookSessionPage() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Remainder — charged 24h after session</span>
+                  <span className="text-muted-foreground">Remainder — charged 24h after meetup</span>
                   <span className="text-muted-foreground">
                     {expertPricing?.currency || "SGD"} {(remainderCents / 100).toFixed(2)}
                   </span>
@@ -758,7 +758,7 @@ export default function BookSessionPage() {
                 placeholder="Your payer reference / bank transfer note (optional)"
               />
               <p className="text-xs text-muted-foreground">
-                Once transferred, submit so our team can verify and confirm your booking.
+                Once transferred, submit so our team can verify and confirm your meetup.
               </p>
               <div className="flex gap-2">
                 <Button
@@ -839,7 +839,7 @@ export default function BookSessionPage() {
               ) : totalCents > 0 ? (
                 `Pay with PayNow — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
               ) : (
-                "Confirm Booking"
+                "Confirm meetup"
               )}
             </Button>
             {!isTelegram && totalCents > 0 && (

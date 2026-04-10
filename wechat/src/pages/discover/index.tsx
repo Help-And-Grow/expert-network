@@ -192,9 +192,9 @@ export default function DiscoverPage() {
     <ScrollView scrollY className="discover">
       <View className="discover__hero">
         <Text className="discover__eyebrow">Expert Concierge</Text>
-        <Text className="discover__title">先找到对的人，再进入正式咨询。</Text>
+        <Text className="discover__title">先找到对的人，再安排一次见面。</Text>
         <Text className="discover__desc">
-          先浏览可信的专家主页、听一段语音介绍，再决定是否进入网页完成登录与预约。
+          先浏览可信的专家主页、听一段语音介绍，再决定是否进入网页完成登录并安排见面。
         </Text>
       </View>
 
@@ -304,7 +304,7 @@ export default function DiscoverPage() {
 
       <View className="discover__footer-note">
         <Text className="discover__footer-note-text">
-          正式预约、支付与排期仍在网页完成。小程序当前优先服务发现、了解与初步判断。
+          正式见面、支付与排期仍在网页完成。小程序当前优先服务发现、了解与初步判断。
         </Text>
       </View>
     </ScrollView>

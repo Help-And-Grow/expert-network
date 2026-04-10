@@ -70,7 +70,7 @@ export function HomeContent() {
           </h1>
           <p className="text-lg text-slate-300 mb-8 max-w-md">
             Everyone is both <span className="text-white font-medium">expert</span> and{" "}
-            <span className="text-white font-medium">learner</span>—offer what you know, learn
+            <span className="text-white font-medium">player</span>—offer what you know, learn
             what you need. A network rooted in Singapore &amp; Southeast Asia, built for trusted
             introductions, expert conversations, and real sessions.
           </p>
@@ -104,7 +104,7 @@ export function HomeContent() {
                     size="lg"
                     className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
                   >
-                    <Link href="/booking">My Bookings</Link>
+                    <Link href="/booking">My Meetups</Link>
                   </Button>
                 )}
               </>
@@ -143,7 +143,7 @@ export function HomeContent() {
           Why Help &amp; Grow
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 text-center">
-          One network for expertise—whether you&apos;re booking help or offering it
+          One network for expertise—whether you&apos;re finding help or offering it
         </p>
         <div className="grid gap-6">
           <div className="rounded-xl bg-white dark:bg-slate-800/80 p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700/50">
@@ -153,11 +153,11 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  Expert and learner, together
+                  Expert and player, together
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
                   You bring expertise others need—and you learn from people who&apos;ve been there.
-                  Export part of what you know as a service; buy insight when you need it. We brew a
+                  Share part of what you know as a service; learn from others when you need it. We brew a
                   culture of learning by doing and growing by helping.
                 </p>
               </div>
@@ -217,7 +217,7 @@ export function HomeContent() {
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
                 Describe what you need; we match you with people offering relevant expertise
-                across Singapore and Southeast Asia—learners and experts in one network.
+                across Singapore and Southeast Asia—players and experts in one network.
               </p>
             </div>
           </div>
@@ -228,7 +228,7 @@ export function HomeContent() {
             <div>
               <h3 className="font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-indigo-500" />
-                Book a Session
+                Schedule a meetup
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
                 Pick a time for an online or in-person meeting. Flexible 30-min

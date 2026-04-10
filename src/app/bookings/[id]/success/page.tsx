@@ -54,9 +54,9 @@ export default function BookingSuccessPage() {
         const list = data?.bookings ?? [];
         const found = list.find((b: { id: string }) => b.id === bookingId);
         setBooking(found ?? null);
-        if (!found) setError("Booking not found");
+        if (!found) setError("Meetup not found");
       })
-      .catch(() => setError("Failed to load booking"))
+      .catch(() => setError("Failed to load meetup"))
       .finally(() => setLoading(false));
   }, [bookingId]);
 
@@ -68,8 +68,8 @@ export default function BookingSuccessPage() {
       booking.expert?.user?.nickName ||
       booking.expert?.user?.name ||
       "Expert";
-    const title = `Session with ${expertName}`;
-    const details = `Help & Grow session — ${booking.sessionType}`;
+    const title = `Meetup with ${expertName}`;
+    const details = `Help & Grow meetup — ${booking.sessionType}`;
 
     const formatForGoogle = (d: Date) =>
       d.toISOString().replace(/-|:|\.\d{3}/g, "").slice(0, 15);
@@ -92,7 +92,7 @@ export default function BookingSuccessPage() {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 p-6">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading booking…</p>
+        <p className="text-sm text-muted-foreground">Loading meetup…</p>
       </div>
     );
   }
@@ -101,10 +101,10 @@ export default function BookingSuccessPage() {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 p-6">
         <p className="text-center text-muted-foreground">
-          {error ?? "Booking not found"}
+          {error ?? "Meetup not found"}
         </p>
         <Button asChild>
-          <Link href="/booking">View My Bookings</Link>
+          <Link href="/booking">View My Meetups</Link>
         </Button>
       </div>
     );
@@ -122,7 +122,7 @@ export default function BookingSuccessPage() {
         <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
           <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
         </div>
-        <h1 className="mb-2 text-2xl font-bold">Booking Confirmed!</h1>
+        <h1 className="mb-2 text-2xl font-bold">Meetup confirmed!</h1>
         <p className="mb-8 text-muted-foreground">
           Your session has been successfully booked.
         </p>
@@ -134,7 +134,7 @@ export default function BookingSuccessPage() {
               <span className="text-muted-foreground">{expertName}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="font-medium">Session type</span>
+              <span className="font-medium">Meetup type</span>
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 {isOnline ? (
                   <>
@@ -188,7 +188,7 @@ export default function BookingSuccessPage() {
             <Link href="/discover">Back to Discovery</Link>
           </Button>
           <Button asChild size="lg" className="w-full">
-            <Link href="/booking">View My Bookings</Link>
+            <Link href="/booking">View My Meetups</Link>
           </Button>
         </div>
       </main>

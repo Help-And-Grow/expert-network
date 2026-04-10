@@ -10,7 +10,7 @@ function getResend(): Resend | null {
 }
 
 /**
- * Booking confirmation + scheduled reminders only (Resend API).
+ * Meetup confirmation + scheduled reminders only (Resend API).
  * Do not reuse magic-link `EMAIL_FROM` here: that may point at Gmail SMTP.
  * Resend free tier: typically only the account / verified test inboxes — use for internal QA until domain + plan allow broadcast.
  */
@@ -60,9 +60,9 @@ function confirmationHtml(p: BookingEmailParams, recipientRole: "expert" | "foun
       <div style="text-align:center;margin-bottom:24px">
         <h1 style="font-size:24px;color:#1E1B4B;margin:0">Help & Grow</h1>
       </div>
-      <h2 style="font-size:20px;color:#1E1B4B;margin-bottom:16px">Booking Confirmed!</h2>
+      <h2 style="font-size:20px;color:#1E1B4B;margin-bottom:16px">Meetup confirmed!</h2>
       <p>Hi ${greeting},</p>
-      <p>Your ${p.sessionType.toLowerCase()} session with <strong>${otherName}</strong> has been confirmed.</p>
+      <p>Your ${p.sessionType.toLowerCase()} meetup with <strong>${otherName}</strong> has been confirmed.</p>
       <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:20px;margin:20px 0">
         <p style="margin:4px 0"><strong>Date:</strong> ${formatTime(p.startTime, p.timezone)}</p>
         <p style="margin:4px 0"><strong>Duration:</strong> ${Math.round((p.endTime.getTime() - p.startTime.getTime()) / 60000)} minutes</p>
@@ -75,7 +75,7 @@ function confirmationHtml(p: BookingEmailParams, recipientRole: "expert" | "foun
           Join Meeting
         </a>
       </div>` : ""}
-      <p style="color:#64748B;font-size:13px">You'll receive a reminder 1 hour before the session.</p>
+      <p style="color:#64748B;font-size:13px">You'll receive a reminder 1 hour before the meetup.</p>
       <hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0" />
       <p style="color:#94A3B8;font-size:12px;text-align:center">Help & Grow — AI Native Expert Network</p>
     </div>`;
@@ -98,9 +98,9 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
       <div style="text-align:center;margin-bottom:24px">
         <h1 style="font-size:24px;color:#1E1B4B;margin:0">Help & Grow</h1>
       </div>
-      <h2 style="font-size:20px;color:#D97706;margin-bottom:16px">Session Starting in 1 Hour</h2>
+      <h2 style="font-size:20px;color:#D97706;margin-bottom:16px">Meetup starting in 1 hour</h2>
       <p>Hi ${greeting},</p>
-      <p>Just a reminder — your session with <strong>${otherName}</strong> starts in about 1 hour.</p>
+      <p>Just a reminder — your meetup with <strong>${otherName}</strong> starts in about 1 hour.</p>
       <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:20px;margin:20px 0">
         <p style="margin:4px 0"><strong>Time:</strong> ${formatTime(p.startTime, p.timezone)}</p>
         <p style="margin:4px 0"><strong>Type:</strong> ${p.sessionType === "ONLINE" ? "Online (Video Call)" : "In-Person"}</p>
@@ -118,8 +118,8 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
 }
 
 /**
- * Send booking confirmation emails to both expert and founder,
- * and schedule reminder emails for 1 hour before the session.
+ * Send meetup confirmation emails to both expert and founder,
+ * and schedule reminder emails for 1 hour before the meetup.
  */
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
   const resend = getResend();
@@ -142,7 +142,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
       .send({
         from: FROM_EMAIL,
         to: r.email,
-        subject: `Booking Confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-Person"} Session`,
+        subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
         html: confirmationHtml(params, r.role),
       })
       .catch((err) => console.error(`[email] Failed to send confirmation to ${r.email}:`, err))
@@ -157,7 +157,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
           .send({
             from: FROM_EMAIL,
             to: r.email,
-            subject: `Reminder: Session with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
+            subject: `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
             html: reminderHtml(params, r.role),
             scheduledAt: reminderTime.toISOString(),
           })

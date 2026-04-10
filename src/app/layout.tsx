@@ -23,7 +23,7 @@ const geistMono = localFont({
 const APP_URL = env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 const TITLE = "Help & Grow — Expert Network";
 const DESCRIPTION =
-  "A network for real expertise across Singapore and Southeast Asia: be both expert and learner, book sessions, share what you know, and grow together.";
+  "A network for real expertise across Singapore and Southeast Asia: be both expert and player, schedule meetups, share what you know, and grow together — learn by doing, grow by helping.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "expert network",
     "Singapore",
     "Southeast Asia",
-    "mentorship",
+    "peer learning",
     "advisory",
     "founders",
     "experts",

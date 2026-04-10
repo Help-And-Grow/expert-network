@@ -492,7 +492,7 @@ export default function VoiceChat(props: VoiceChatProps) {
           {turnsRemaining <= 0 && (
             <View className="vc-status-card vc-status-card--limit">
               <Text className="vc-status-card__text">
-                免费语音预览已用完。若你需要进一步深入讨论，请在网页继续浏览并预约正式咨询。
+                免费语音预览已用完。若你需要进一步深入讨论，请在网页继续浏览并安排正式见面。
               </Text>
             </View>
           )}

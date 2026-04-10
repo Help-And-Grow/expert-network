@@ -71,14 +71,14 @@ export default function BookWebPage() {
 
   return (
     <View className="book-web">
-      <Text className="book-web__title">预约与支付</Text>
+      <Text className="book-web__title">见面与支付</Text>
       <Text className="book-web__desc">
         小程序内不提供支付。请复制下方链接，在手机浏览器中打开，完成时段选择与支付（支持 Stripe Checkout，可在开通后使用微信支付等方式）。
       </Text>
       <View className="book-web__card">
         <Text className="book-web__expert">{name}</Text>
         <Text className="book-web__type">
-          {sessionType === "OFFLINE" ? "线下咨询" : "线上咨询"}
+          {sessionType === "OFFLINE" ? "线下见面" : "线上见面"}
         </Text>
       </View>
       <View
@@ -86,7 +86,7 @@ export default function BookWebPage() {
         hoverClass="book-web__btn--hover"
         onClick={copyLink}
       >
-        复制网页预约链接
+        复制网页见面链接
       </View>
       <View
         className="book-web__btn book-web__btn--ghost"

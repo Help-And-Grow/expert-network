@@ -374,7 +374,7 @@ function AdminContent() {
               <Users className="h-4 w-4 hidden sm:block" /> Users
             </TabsTrigger>
             <TabsTrigger value="bookings" className="gap-1 text-xs sm:text-sm">
-              <CalendarCheck className="h-4 w-4 hidden sm:block" /> Bookings
+              <CalendarCheck className="h-4 w-4 hidden sm:block" /> Meetups
             </TabsTrigger>
             <TabsTrigger value="invites" className="gap-1 text-xs sm:text-sm">
               <TicketCheck className="h-4 w-4 hidden sm:block" /> Invites
@@ -388,7 +388,7 @@ function AdminContent() {
                 <div className="grid grid-cols-2 gap-3">
                   <StatCard label="Total Users" value={stats.totalUsers} icon={<Users className="h-5 w-5 text-indigo-600" />} />
                   <StatCard label="Experts" value={`${stats.publishedExperts} / ${stats.totalExperts}`} subtitle="published / total" icon={<Shield className="h-5 w-5 text-green-600" />} />
-                  <StatCard label="Bookings" value={stats.totalBookings} subtitle={`${stats.confirmedBookings} confirmed`} icon={<CalendarCheck className="h-5 w-5 text-blue-600" />} />
+                  <StatCard label="Meetups" value={stats.totalBookings} subtitle={`${stats.confirmedBookings} confirmed`} icon={<CalendarCheck className="h-5 w-5 text-blue-600" />} />
                   <StatCard
                     label="Revenue"
                     value={`SGD ${(stats.totalRevenueCents / 100).toFixed(2)}`}
@@ -479,11 +479,11 @@ function AdminContent() {
 
           {/* ========== BOOKINGS ========== */}
           <TabsContent value="bookings" className="space-y-4 mt-4">
-            <p className="text-xs text-muted-foreground">{bookings.length} bookings</p>
+            <p className="text-xs text-muted-foreground">{bookings.length} meetups</p>
             {bookings.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  No bookings yet
+                  No meetups yet
                 </CardContent>
               </Card>
             ) : (
