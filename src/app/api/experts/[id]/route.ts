@@ -81,6 +81,24 @@ export async function GET(
       );
     }
 
+    // Calculate stats: Learned from XX+ mentors, helped YY+ mentees
+    const [learnedFromCount, offeredHelpCount] = await Promise.all([
+      prisma.booking.groupBy({
+        by: ["expertId"],
+        where: {
+          founderId: expert.userId,
+          status: "COMPLETED",
+        },
+      }).then((groups) => groups.length),
+      prisma.booking.groupBy({
+        by: ["founderId"],
+        where: {
+          expertId: expert.id,
+          status: "COMPLETED",
+        },
+      }).then((groups) => groups.length),
+    ]);
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { documentData: _dd, avatarVideoUrl: _av, audioIntroUrl: _ai, domains: domainRows, ...rest } = expert;
     const origin = new URL(request.url).origin;
@@ -99,7 +117,10 @@ export async function GET(
       /** Voice chat works with clone or built-in default voice */
       hasVoiceChat: true,
       experienceCapabilities,
+      learnedFromCount,
+      offeredHelpCount,
     });
+
   } catch (error) {
     console.error("[experts/[id] GET]", error);
     return NextResponse.json(

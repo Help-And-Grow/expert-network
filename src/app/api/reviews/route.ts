@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const bookingId =
       typeof body.bookingId === "string" ? body.bookingId.trim() : null;
     const rating =
-      typeof body.rating === "number" ? body.rating : parseInt(String(body.rating ?? ""), 10);
+      typeof body.rating === "number" ? body.rating : 5;
     const comment =
       typeof body.comment === "string" ? body.comment : undefined;
 
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    if (!Number.isInteger(rating) || rating < 0 || rating > 5) {
       return NextResponse.json(
-        { error: "rating must be an integer between 1 and 5" },
+        { error: "rating must be an integer between 0 and 5" },
         { status: 400 }
       );
     }
@@ -52,13 +52,13 @@ export async function POST(request: NextRequest) {
     }
     if (booking.founderId !== userId) {
       return NextResponse.json(
-        { error: "Forbidden: only the session booker can leave a review" },
+        { error: "Forbidden: only the session booker can send an appreciation" },
         { status: 403 }
       );
     }
     if (booking.status !== "COMPLETED") {
       return NextResponse.json(
-        { error: "Can only review completed bookings" },
+        { error: "Can only appreciate completed bookings" },
         { status: 400 }
       );
     }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     });
     if (existingReview) {
       return NextResponse.json(
-        { error: "This booking has already been reviewed" },
+        { error: "This booking has already been appreciated" },
         { status: 400 }
       );
     }
@@ -135,7 +135,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
     }
     if (!expertSuggestion) {
-      return NextResponse.json({ error: "expertSuggestion is required" }, { status: 400 });
+      return NextResponse.json({ error: "Guidance is required" }, { status: 400 });
     }
 
     const booking = await prisma.booking.findUnique({
@@ -148,13 +148,13 @@ export async function PATCH(request: NextRequest) {
     }
     if (booking.expert.userId !== userId) {
       return NextResponse.json(
-        { error: "Forbidden: only the expert can add suggestions" },
+        { error: "Forbidden: only the mentor can add guidance" },
         { status: 403 }
       );
     }
     if (booking.status !== "COMPLETED") {
       return NextResponse.json(
-        { error: "Can only add suggestions for completed bookings" },
+        { error: "Can only add guidance for completed bookings" },
         { status: 400 }
       );
     }
@@ -198,7 +198,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const where = { expertId, rating: { gt: 0 } };
+    const where = { 
+      expertId, 
+      OR: [
+        { rating: { gt: 0 } },
+        { comment: { not: null } }
+      ]
+    };
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
         where,

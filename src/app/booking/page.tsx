@@ -23,6 +23,8 @@ import {
   ExternalLink,
   Star,
   MessageSquarePlus,
+  Heart,
+  MessageSquareHeart,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -818,7 +820,7 @@ const BookingCard = memo(function BookingCard({
         )}
 
         {showLeaveReview && (
-          <><Separator className="my-3" /><Button variant="outline" size="sm" asChild><Link href={`/reviews/${booking.id}`}><Star className="mr-1 h-3.5 w-3.5" />Leave Review</Link></Button></>
+          <LearnerAppreciationForm bookingId={booking.id} onUpdate={onUpdate} />
         )}
 
         {booking.status === "COMPLETED" && booking.review && (
@@ -846,26 +848,15 @@ function ReviewSuggestionSection({
   bookingId: string;
   onUpdate: () => Promise<void>;
 }) {
-  const hasRating = review.rating > 0;
+  const hasAppreciation = !!review.comment;
 
   return (
     <>
       <Separator className="my-3" />
 
-      {hasRating && (
+      {hasAppreciation && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Mentee Review</p>
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Star
-                key={i}
-                className={cn(
-                  "h-3.5 w-3.5",
-                  i <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"
-                )}
-              />
-            ))}
-          </div>
+          <p className="text-xs font-medium text-muted-foreground">Learner&apos;s Appreciation</p>
           {review.comment && (
             <p className="text-sm text-muted-foreground">{review.comment}</p>
           )}
@@ -873,9 +864,9 @@ function ReviewSuggestionSection({
       )}
 
       {review.expertSuggestion && (
-        <div className={cn("space-y-1.5", hasRating && "mt-3")}>
-          <p className="text-xs font-medium text-muted-foreground">Mentor&apos;s Next-Step Suggestion</p>
-          <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3 py-2">
+        <div className={cn("space-y-1.5", hasAppreciation && "mt-3")}>
+          <p className="text-xs font-medium text-muted-foreground">Mentor&apos;s Guidance & Next Steps</p>
+          <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 border border-indigo-100 dark:border-indigo-900">
             <p className="text-sm text-foreground">{review.expertSuggestion}</p>
           </div>
         </div>
@@ -932,20 +923,20 @@ function ExpertSuggestionForm({
         <Separator className="my-3" />
         <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
           <MessageSquarePlus className="mr-1 h-3.5 w-3.5" />
-          Add Next-Step Suggestion
+          Add Guidance & Next Steps
         </Button>
       </>
     );
   }
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border p-3">
-      <p className="text-sm font-medium">Next-Step Suggestion for Mentee</p>
+    <div className="mt-3 space-y-2 rounded-lg border p-3 bg-muted/30">
+      <p className="text-sm font-medium">Guidance & Next Steps for Learner</p>
       <Textarea
         placeholder="Share recommended next steps, resources, or action items..."
         value={suggestion}
         onChange={(e) => setSuggestion(e.target.value)}
-        className="min-h-[80px] resize-none"
+        className="min-h-[80px] resize-none bg-background"
         rows={3}
       />
       {error && (
@@ -953,7 +944,83 @@ function ExpertSuggestionForm({
       )}
       <div className="flex gap-2">
         <Button size="sm" onClick={handleSubmit} disabled={!suggestion.trim() || submitting}>
-          {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save Suggestion"}
+          {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save Guidance"}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ============= Learner Appreciation Form ============= */
+
+function LearnerAppreciationForm({
+  bookingId,
+  onUpdate,
+}: {
+  bookingId: string;
+  onUpdate: () => Promise<void>;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!comment.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const tgHeaders = getHeaders();
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
+        body: JSON.stringify({ bookingId, comment: comment.trim(), rating: 5 }), // Default 5 for appreciation
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save appreciation");
+      }
+      setShowForm(false);
+      await onUpdate();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!showForm) {
+    return (
+      <div className="mt-2">
+        <Separator className="my-3" />
+        <Button variant="outline" size="sm" onClick={() => setShowForm(true)} className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:hover:bg-pink-950/20 border-pink-100 dark:border-pink-900/50">
+          <Heart className="mr-1 h-3.5 w-3.5 fill-pink-600" />
+          Send Appreciation
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border border-pink-100 dark:border-pink-900/50 p-3 bg-pink-50/30 dark:bg-pink-950/10">
+      <div className="flex items-center gap-2">
+        <MessageSquareHeart className="h-4 w-4 text-pink-500" />
+        <p className="text-sm font-medium text-pink-900 dark:text-pink-100">Show your appreciation</p>
+      </div>
+      <Textarea
+        placeholder="How did this session help you? Your words of appreciation mean a lot..."
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        className="min-h-[100px] resize-none bg-background border-pink-100 dark:border-pink-900/50 focus-visible:ring-pink-500"
+        rows={3}
+      />
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSubmit} disabled={!comment.trim() || submitting} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
+          {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send Appreciation"}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
       </div>
