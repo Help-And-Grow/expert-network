@@ -63,6 +63,7 @@ interface Expert {
   hasVoiceChat: boolean;
   avatarScript: string | null;
   documentName: string | null;
+  priceOnlineCents: number | null;
   priceOfflineCents: number | null;
   currency: string;
   user: ExpertUser;
