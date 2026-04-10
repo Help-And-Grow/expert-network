@@ -12,6 +12,7 @@ import {
   X,
   Send,
   Calendar,
+  ArrowLeft,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -420,32 +421,44 @@ export function VoiceChatPanel({
     >
       {/* Header with expert identity */}
       <div className="flex items-center justify-between border-b px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 hover:bg-white/20 transition-colors shrink-0"
+            aria-label="Back to profile"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-3 min-w-0">
           {expertImage ? (
             <Image
               src={expertImage}
               alt={expertName}
               width={36}
               height={36}
-              className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30 shrink-0"
             />
           ) : (
-            <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+            <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold shrink-0">
               {firstName.charAt(0)}
             </div>
           )}
-          <div>
-            <h3 className="text-sm font-semibold leading-tight">{expertName}</h3>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold leading-tight truncate">{expertName}</h3>
             <p className="text-[11px] text-white/70 leading-tight">
               {turnsRemaining > 0
                 ? `${turnsRemaining} messages remaining · Free preview`
                 : "Preview ended"}
             </p>
           </div>
+          </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="rounded-full p-1.5 hover:bg-white/20 transition-colors"
+          className="rounded-full p-1.5 hover:bg-white/20 transition-colors shrink-0"
+          aria-label="Close"
         >
           <X className="h-5 w-5" />
         </button>
@@ -586,7 +599,7 @@ export function VoiceChatPanel({
         </div>
       )}
 
-      {/* Input / Booking CTA */}
+      {/* Input / meetup CTA */}
       <div className="border-t bg-background px-4 py-3 safe-area-inset-bottom">
         {turnsRemaining <= 0 ? (
           <div className="text-center space-y-3 py-2">
@@ -601,7 +614,7 @@ export function VoiceChatPanel({
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
             >
               <Calendar className="h-4 w-4 mr-2" />
-              Book a session with {firstName}
+              Schedule a meetup with {firstName}
             </Button>
             <button
               onClick={onClose}

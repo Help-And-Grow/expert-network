@@ -14,6 +14,14 @@ async function signInAsLocalDev(page: Page, callbackUrl = "/booking") {
   });
 
   expect(response.ok()).toBeTruthy();
+
+  const sessionRes = await page.context().request.get("/api/auth/session");
+  expect(sessionRes.ok()).toBeTruthy();
+  const session = (await sessionRes.json()) as { user?: { email?: string | null } };
+  expect(
+    session?.user?.email,
+    "dev-login must establish a session (check DATABASE_URL and Prisma for CI)",
+  ).toBeTruthy();
 }
 
 async function signInWithProdE2E(page: Page, callbackUrl = "/booking") {
@@ -38,6 +46,11 @@ async function signInWithProdE2E(page: Page, callbackUrl = "/booking") {
   });
 
   expect(response.ok()).toBeTruthy();
+
+  const sessionRes = await page.context().request.get("/api/auth/session");
+  expect(sessionRes.ok()).toBeTruthy();
+  const session = (await sessionRes.json()) as { user?: { email?: string | null } };
+  expect(session?.user?.email).toBe(email!);
 }
 
 test.describe("local smoke", () => {
@@ -59,12 +72,12 @@ test.describe("local smoke", () => {
     await expect(page.getByRole("link", { name: /Get Started/i })).toBeVisible();
   });
 
-  test("dev login reaches bookings and admin provider screens", async ({ page }) => {
+  test("dev login reaches meetups and admin provider screens", async ({ page }) => {
     await signInAsLocalDev(page, "/booking");
     await page.goto("/booking");
     await page.waitForLoadState("networkidle");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "My Bookings" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "My Meetups" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "Upcoming" })).toBeVisible();
 
     await page.goto("/admin/ai-provider");
@@ -74,12 +87,12 @@ test.describe("local smoke", () => {
 });
 
 test.describe("production smoke", () => {
-  test("hidden e2e login reaches authenticated booking flows", async ({ page }) => {
+  test("hidden e2e login reaches authenticated meetup flows", async ({ page }) => {
     test.skip(!process.env.PROD_BASE_URL, "PROD_BASE_URL is required for production smoke.");
 
     await signInWithProdE2E(page, "/booking");
     await page.goto("/booking");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByRole("heading", { name: "My Bookings" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "My Meetups" })).toBeVisible({ timeout: 15_000 });
   });
 });

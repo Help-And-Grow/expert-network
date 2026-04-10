@@ -74,9 +74,9 @@ export async function sendGreeting(telegramUsername: string): Promise<boolean> {
     `👋 *Welcome to Help & Grow!*`,
     ``,
     `Your Telegram account has been linked. You'll now receive:`,
-    `• Booking confirmations`,
-    `• Session reminders`,
-    `• Updates from your sessions`,
+    `• Meetup confirmations`,
+    `• Meetup reminders`,
+    `• Updates from your meetups`,
     ``,
     `The expert network for SG & SEA—tap below to explore.`,
   ].join("\n");
@@ -89,7 +89,7 @@ export async function sendGreeting(telegramUsername: string): Promise<boolean> {
 }
 
 /**
- * Notify an expert about a new booking.
+ * Notify an expert about a new meetup.
  */
 export async function notifyExpertBooking(params: {
   expertTelegramId?: string | null;
@@ -113,9 +113,9 @@ export async function notifyExpertBooking(params: {
   const dateStr = formatDate(params.startTime, params.timezone);
 
   const text = [
-    `📅 *New Booking!*`,
+    `📅 *New meetup!*`,
     ``,
-    `*${params.founderName}* has booked a ${params.sessionType.toLowerCase()} session with you.`,
+    `*${params.founderName}* scheduled a ${params.sessionType.toLowerCase()} meetup with you.`,
     ``,
     `🗓 ${dateStr}`,
     `💰 Deposit: ${params.depositAmount}`,
@@ -124,14 +124,14 @@ export async function notifyExpertBooking(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
+    [{ text: "📋 My Meetups", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
 }
 
 /**
- * Notify a mentee about their booking confirmation.
+ * Notify a player about their meetup confirmation.
  */
 export async function notifyFounderBooking(params: {
   founderTelegramId?: string | null;
@@ -155,25 +155,25 @@ export async function notifyFounderBooking(params: {
   const dateStr = formatDate(params.startTime, params.timezone);
 
   const text = [
-    `✅ *Booking Confirmed!*`,
+    `✅ *Meetup confirmed!*`,
     ``,
-    `Your ${params.sessionType.toLowerCase()} session with *${params.expertName}* is confirmed.`,
+    `Your ${params.sessionType.toLowerCase()} meetup with *${params.expertName}* is confirmed.`,
     ``,
     `🗓 ${dateStr}`,
     `💰 Deposit paid: ${params.depositAmount}`,
     ``,
-    `The remainder will be charged 24h after the session.`,
+    `The remainder will be charged 24h after the meetup.`,
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View My Bookings", web_app: { url: `${APP_URL}/booking` } }],
+    [{ text: "📋 My Meetups", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
 }
 
 /**
- * Notify a user that their booking has been cancelled.
+ * Notify a user that their meetup has been cancelled.
  */
 export async function notifyCancellation(params: {
   telegramId?: string | null;
@@ -192,9 +192,9 @@ export async function notifyCancellation(params: {
   const dateStr = formatDate(params.startTime, params.timezone);
 
   const lines = [
-    `❌ *Booking Cancelled*`,
+    `❌ *Meetup cancelled*`,
     ``,
-    `Your ${params.sessionType.toLowerCase()} session with *${params.otherPartyName}* has been cancelled by *${params.cancelledByName}*.`,
+    `Your ${params.sessionType.toLowerCase()} meetup with *${params.otherPartyName}* has been cancelled by *${params.cancelledByName}*.`,
     ``,
     `🗓 ${dateStr}`,
   ];
@@ -204,14 +204,14 @@ export async function notifyCancellation(params: {
   }
 
   await sendTelegramMessage(chatId, lines.join("\n"), [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
+    [{ text: "📋 My Meetups", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
 }
 
 /**
- * Notify a user that their booking has been rescheduled.
+ * Notify a user that their meetup has been rescheduled.
  */
 export async function notifyReschedule(params: {
   telegramId?: string | null;
@@ -230,15 +230,15 @@ export async function notifyReschedule(params: {
   const fmt = (d: Date) => formatDate(d, params.timezone);
 
   const text = [
-    `🔄 *Booking Rescheduled*`,
+    `🔄 *Meetup rescheduled*`,
     ``,
-    `Your ${params.sessionType.toLowerCase()} session with *${params.otherPartyName}* has been rescheduled by *${params.rescheduledByName}*.`,
+    `Your ${params.sessionType.toLowerCase()} meetup with *${params.otherPartyName}* has been rescheduled by *${params.rescheduledByName}*.`,
     ``,
     `~~${fmt(params.oldStartTime)}~~ → 🗓 *${fmt(params.newStartTime)}*`,
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
+    [{ text: "📋 My Meetups", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
@@ -270,21 +270,21 @@ export async function notifyLocationUpdate(params: {
   const text = [
     `${icon} *${locationLabel} Updated*`,
     ``,
-    `*${params.updatedByName}* updated the ${locationLabel.toLowerCase()} for your ${params.sessionType.toLowerCase()} session.`,
+    `*${params.updatedByName}* updated the ${locationLabel.toLowerCase()} for your ${params.sessionType.toLowerCase()} meetup.`,
     ``,
     `🗓 ${dateStr}`,
     `${icon} ${params.location}`,
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
+    [{ text: "📋 My Meetups", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
 }
 
 /**
- * Send a session reminder (e.g. 1 hour before).
+ * Send a meetup reminder (e.g. 1 hour before).
  */
 export async function sendSessionReminder(params: {
   telegramId?: string | null;
@@ -301,9 +301,9 @@ export async function sendSessionReminder(params: {
   const dateStr = formatDate(params.startTime, params.timezone);
 
   const text = [
-    `⏰ *Session Reminder*`,
+    `⏰ *Meetup reminder*`,
     ``,
-    `Your ${params.sessionType.toLowerCase()} session with *${params.expertName}* is coming up!`,
+    `Your ${params.sessionType.toLowerCase()} meetup with *${params.expertName}* is coming up!`,
     ``,
     `🗓 ${dateStr}`,
   ].join("\n");

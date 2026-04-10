@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
 
 import { Pause, Play, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+export type AudioPlayerHandle = {
+  pause: () => void;
+};
 
 interface AudioPlayerProps {
   src: string;
@@ -13,11 +17,24 @@ interface AudioPlayerProps {
   className?: string;
 }
 
-export function AudioPlayer({ src, label, className }: AudioPlayerProps) {
+export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(function AudioPlayer(
+  { src, label, className },
+  ref,
+) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      pause: () => {
+        audioRef.current?.pause();
+      },
+    }),
+    [],
+  );
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
@@ -99,4 +116,4 @@ export function AudioPlayer({ src, label, className }: AudioPlayerProps) {
       <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
     </div>
   );
-}
+});

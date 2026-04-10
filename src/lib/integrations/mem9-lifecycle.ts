@@ -155,7 +155,7 @@ export async function storeBookingEvent(event: BookingEvent): Promise<void> {
     if (!expert?.mem9SpaceId) return;
 
     const dateStr = event.startTime.toISOString().split("T")[0];
-    const content = `Booking: ${event.founderName} booked a ${event.sessionType.toLowerCase()} session on ${dateStr}. Status: ${event.status}.`;
+    const content = `Meetup: ${event.founderName} scheduled a ${event.sessionType.toLowerCase()} meetup on ${dateStr}. Status: ${event.status}.`;
     await memory.store(expert.mem9SpaceId, {
       content,
       tags: ["booking", event.status.toLowerCase()],
@@ -199,21 +199,21 @@ export async function storeReviewEvent(event: ReviewEvent): Promise<void> {
 
     const stars = "★".repeat(event.rating) + "☆".repeat(5 - event.rating);
     const comment = event.comment ? ` Feedback: "${event.comment}"` : "";
-    const content = `Client review from ${event.founderName}: ${stars} (${event.rating}/5).${comment}`;
+    const content = `Appreciation from ${event.founderName}: ${stars} (${event.rating}/5).${comment}`;
     await memory.store(expert.mem9SpaceId, {
       content,
-      tags: ["review", `rating:${event.rating}`],
+      tags: ["appreciation", `rating:${event.rating}`],
       source: `expert:${event.expertId}`,
     });
 
     await storeExpertMemoryChunk({
       expertId: event.expertId,
       content,
-      tags: ["review", `rating:${event.rating}`],
+      tags: ["appreciation", `rating:${event.rating}`],
       source: `expert:${event.expertId}`,
     });
 
-    console.log(`[mem9] Stored review for expert ${event.expertId}`);
+    console.log(`[mem9] Stored appreciation for expert ${event.expertId}`);
   } catch (err) {
     console.error("[mem9] storeReviewEvent failed:", err);
   }

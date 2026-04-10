@@ -169,7 +169,7 @@ function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
     "Use the introduction, services, retrieved memories, and user context as factual anchors whenever relevant.",
     "When the user asks for advice, tailor it to their stage, role, and likely scenario. If information is incomplete, make the best bounded assumption and state the most important factor you would confirm next.",
     "Whenever possible, demonstrate expertise with one precise angle, example, criterion, or tradeoff from your background.",
-    "Only suggest booking a full paid session when deeper diagnosis, execution design, or private detail is genuinely needed.",
+    "Only suggest scheduling a full paid meetup when deeper diagnosis, execution design, or private detail is genuinely needed.",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -222,7 +222,7 @@ async function loadUserVoiceContext(
   }
   if (priorBookings.length > 0) {
     lines.push(
-      `User has ${priorBookings.length} prior booking record(s) with this expert. Latest status: ${priorBookings[0]?.status}.`,
+      `User has ${priorBookings.length} prior meetup record(s) with this expert. Latest status: ${priorBookings[0]?.status}.`,
     );
   }
 
@@ -390,7 +390,7 @@ export async function processVoiceMessage(
   const conv = ensureConversation(userId, profile);
 
   if (conv.turnCount >= MAX_TURNS) {
-    throw new Error("Turn limit reached. Start a new conversation or book a full session.");
+    throw new Error("Turn limit reached. Start a new conversation or schedule a full meetup.");
   }
 
   const userText = await transcribeAudio(audioBase64, mimeType);
@@ -425,7 +425,7 @@ export async function processTextMessage(
   const conv = ensureConversation(userId, profile);
 
   if (conv.turnCount >= MAX_TURNS) {
-    throw new Error("Turn limit reached. Start a new conversation or book a full session.");
+    throw new Error("Turn limit reached. Start a new conversation or schedule a full meetup.");
   }
 
   const replyText = await generateReply(conv, expertId, userId, text);
@@ -454,7 +454,7 @@ export async function processVoiceDrafts(
 
   const conv = ensureConversation(userId, profile);
   if (conv.turnCount >= MAX_TURNS) {
-    throw new Error("Turn limit reached. Start a new conversation or book a full session.");
+    throw new Error("Turn limit reached. Start a new conversation or schedule a full meetup.");
   }
   if (clips.length === 0) {
     throw new Error("At least one audio clip is required.");

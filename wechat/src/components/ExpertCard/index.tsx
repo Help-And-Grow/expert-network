@@ -69,7 +69,7 @@ export default function ExpertCard({ expert }: Props) {
               ))}
             </View>
             <Text className="expert-card__review-count">
-              {expert.reviewCount} 条评价
+              {expert.reviewCount} 条认可
             </Text>
           </View>
         </View>

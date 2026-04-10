@@ -81,7 +81,7 @@ export async function GET(
       );
     }
 
-    // Calculate stats: Learned from XX+ mentors, helped YY+ mentees
+    // Calculate stats: Learned from XX+ coaches, helped YY+ players
     const [learnedFromCount, offeredHelpCount] = await Promise.all([
       prisma.booking.groupBy({
         by: ["expertId"],

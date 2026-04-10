@@ -28,7 +28,7 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/dashboard/index",
-        text: "预约",
+        text: "见面",
         iconPath: "assets/tab-bookings.png",
         selectedIconPath: "assets/tab-bookings-active.png",
       },

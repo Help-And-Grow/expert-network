@@ -41,7 +41,7 @@ function CheckoutSuccessContent() {
       })
       .catch(() => {
         setStatus("error");
-        setErrorMsg("Network error — please check your bookings.");
+        setErrorMsg("Network error — please check your meetups.");
       });
   }, [sessionId]);
 
@@ -66,7 +66,7 @@ function CheckoutSuccessContent() {
             </div>
             <h1 className="text-xl font-bold">Verification Issue</h1>
             <p className="text-muted-foreground text-sm">
-              {errorMsg || "We couldn't verify the booking. Your payment was successful — please check your bookings."}
+              {errorMsg || "We couldn't verify the meetup. Your payment was successful — please check your meetups."}
             </p>
             <Button
               onClick={() => router.push("/booking")}
@@ -99,7 +99,7 @@ function CheckoutSuccessContent() {
               onClick={() => router.push("/booking")}
               className="flex-1 gap-2"
             >
-              My Bookings
+              My Meetups
               <ArrowRight className="h-4 w-4" />
             </Button>
             <Button

@@ -28,7 +28,7 @@ function getClients() {
 }
 
 /**
- * Credit H&G tokens to a learner after a paid booking.
+ * Credit H&G tokens to a player after a paid meetup.
  * Token amount = total SGD paid (cents / 100), 1:1 SGD to tokens.
  * Mints on-chain if contract is configured, always records in DB ledger.
  */
@@ -64,7 +64,7 @@ export async function creditTokens(
         bookingId,
         type: "CREDIT",
         amount: tokenAmount,
-        description: `Earned from booking (${amountCents} cents SGD)`,
+        description: `Earned from meetup (${amountCents} cents SGD)`,
       },
     }),
     prisma.user.update({

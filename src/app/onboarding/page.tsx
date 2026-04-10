@@ -246,7 +246,7 @@ export default function OnboardingPage() {
           id: "greeting",
           role: "ai",
           content:
-            "Hey! Welcome to Help & Grow for Singapore & Southeast Asia. Everyone's both expert and learner here; let's set up your profile so others can find you. About 2 minutes.",
+            "Hey! Welcome to Help & Grow for Singapore & Southeast Asia. Everyone's both expert and player here — learn by doing, grow by helping. Let's set up your profile so others can find you. About 2 minutes.",
           type: "text",
         },
       ]);
@@ -399,7 +399,7 @@ export default function OnboardingPage() {
     addStepMessage("pricing", {
       id: "pricing",
       role: "ai",
-      content: `Set your hourly rate in SGD for ${parts.join(" and ")} sessions. This helps mentees know what to expect.`,
+      content: `Set your hourly rate in SGD for ${parts.join(" and ")} meetups. This helps others know what to expect.`,
       type: "input",
     });
   }, [currentStep, addStepMessage, sessionType]);
@@ -469,7 +469,7 @@ export default function OnboardingPage() {
       id: "stripe-kyc",
       role: "ai",
       content:
-        "To receive payments from session bookings, you need to set up a Stripe account. This is a quick identity verification required by our payment provider. You can also skip this and complete it later from your profile.",
+        "To receive payments from meetups, you need to set up a Stripe account. This is a quick identity verification required by our payment provider. You can also skip this and complete it later from your profile.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);

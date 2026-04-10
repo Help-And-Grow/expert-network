@@ -8,7 +8,7 @@ export default function ReviewPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to bookings since reviews are now inline appreciations
+    // Redirect to meetups list; appreciations are inline on each card
     router.replace("/booking");
   }, [router]);
 

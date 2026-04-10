@@ -51,7 +51,7 @@ const MatchRecommendationCard = memo(function MatchRecommendationCard({ rec }: {
             <p className="mt-1 text-sm text-muted-foreground">{rec.reason}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">
-                <Link href={`/experts/${rec.expertId}/book?from=match`}>Book Session</Link>
+                <Link href={`/experts/${rec.expertId}/book?from=match`}>Schedule meetup</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={`/experts/${rec.expertId}`}>View Profile</Link>

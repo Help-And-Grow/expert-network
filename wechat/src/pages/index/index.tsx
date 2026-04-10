@@ -27,7 +27,7 @@ export default function IndexPage() {
         <Text className="landing__title">帮助与成长</Text>
         <Text className="landing__subtitle">Expert Network</Text>
         <Text className="landing__desc">
-          在这里，专业经验以更高效的方式被看见、被连接、被兑现。你既能向合适的专家请教，也能把自己的能力沉淀为长期服务。
+          在这里，专业经验以更高效的方式被看见、被连接、被兑现。你既能向合适的人求助与交流，也能把自己的经验分享出去并沉淀为长期服务。
         </Text>
       </View>
 
@@ -54,9 +54,9 @@ export default function IndexPage() {
             <Text className="landing__feature-icon">🚀</Text>
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">学习与求助</Text>
+            <Text className="landing__feature-title">动手与互助</Text>
             <Text className="landing__feature-desc">
-              快速找到真正懂业务的人，先了解，再决定是否进入正式咨询
+              快速找到真正懂业务的人，先了解，再决定是否安排正式见面
             </Text>
           </View>
         </View>

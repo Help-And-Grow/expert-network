@@ -101,7 +101,7 @@ export default function ProfilePage() {
           </View>
           <View className="profile__stat profile__stat--border">
             <Text className="profile__stat-value">{expert.reviewCount}</Text>
-            <Text className="profile__stat-label">评价</Text>
+            <Text className="profile__stat-label">认可</Text>
           </View>
           <View className="profile__stat">
             <Text className="profile__stat-value">{expert.domains.length}</Text>
@@ -158,7 +158,7 @@ export default function ProfilePage() {
                 <Text className="profile__menu-icon">📅</Text>
               </View>
               <View className="profile__menu-content">
-                <Text className="profile__menu-label">管理可预约时间</Text>
+                <Text className="profile__menu-label">管理可安排见面的时间</Text>
                 <Text className="profile__menu-hint">设置可开放的咨询时段</Text>
               </View>
               <Text className="profile__menu-arrow">›</Text>
@@ -209,7 +209,7 @@ export default function ProfilePage() {
           onClick={() => {
             Taro.showModal({
               title: "关于 Help & Grow",
-              content: "Help & Grow 是一个面向真实服务与长期关系的专家网络：人人既是专家，也是学习者。你可以提供咨询服务，也可以预约他人，在实战中学习，在帮助中成长。",
+              content: "Help & Grow 是一个面向真实协作与长期关系的专家网络：人人既是教练也是玩家。你可以分享自己的经验，也可以向他人求助并安排见面，在实战中学习，在帮助中成长。",
               showCancel: false,
               confirmText: "我知道了",
             });

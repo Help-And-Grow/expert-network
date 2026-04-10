@@ -188,7 +188,7 @@ export default function ExpertPage() {
             ))}
           </View>
           <Text className="expert-profile__review-count">
-            {expert.reviewCount} 条评价
+            {expert.reviewCount} 条认可
           </Text>
         </View>
       </View>
@@ -251,7 +251,7 @@ export default function ExpertPage() {
         <View className="expert-profile__section expert-profile__section--highlight">
           <Text className="expert-profile__section-title">服务介绍资料</Text>
           <Text className="expert-profile__section-sub">
-            了解专家更详细的介绍、服务内容与工作方式，请先查看附件。若你希望继续深入了解或正式咨询，请复制网页主页链接，在浏览器登录后继续。
+            了解专家更详细的介绍、服务内容与工作方式，请先查看附件。若你希望继续深入了解或安排见面，请复制网页主页链接，在浏览器登录后继续。
           </Text>
           <View
             className="expert-profile__document"
@@ -310,7 +310,7 @@ export default function ExpertPage() {
             复制网页主页链接
           </View>
           <Text className="expert-profile__section-hint">
-            复制后请在浏览器打开，先登录，再回到当前专家主页继续浏览与预约。
+            复制后请在浏览器打开，先登录，再回到当前专家主页继续浏览并安排见面。
           </Text>
         </View>
       )}
@@ -336,13 +336,13 @@ export default function ExpertPage() {
         </View>
       )}
 
-      {/* Reviews */}
+      {/* Appreciations */}
       <View className="expert-profile__section">
         <Text className="expert-profile__section-title">
-          评价（{reviewsTotal}）
+          认可与感谢（{reviewsTotal}）
         </Text>
         {reviews.length === 0 ? (
-          <Text className="expert-profile__text-muted">暂无评价</Text>
+          <Text className="expert-profile__text-muted">暂无分享反馈</Text>
         ) : (
           <>
             {reviews.map((r) => (
@@ -387,7 +387,7 @@ export default function ExpertPage() {
                 hoverClass="expert-profile__load-more--hover"
                 onClick={() => fetchReviews(true)}
               >
-                {reviewsLoading ? "加载中..." : "加载更多评价"}
+                {reviewsLoading ? "加载中..." : "加载更多"}
               </View>
             )}
           </>

@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: "我的预约",
+  navigationBarTitleText: "我的见面",
   enablePullDownRefresh: true,
 });

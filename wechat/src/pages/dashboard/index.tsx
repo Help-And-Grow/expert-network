@@ -66,8 +66,8 @@ export default function DashboardPage() {
 
   const handleCancel = async (bookingId: string) => {
     const res = await Taro.showModal({
-      title: "取消预约",
-      content: "确认取消这笔预约吗？",
+      title: "取消见面",
+      content: "确认取消这次见面吗？",
       confirmColor: "#dc2626",
     });
     if (!res.confirm) return;
@@ -76,7 +76,7 @@ export default function DashboardPage() {
       Taro.showLoading({ title: "取消中..." });
       const apiRes = await post(`/api/bookings/${bookingId}`, {
         action: "cancel",
-        reason: "用户取消预约",
+        reason: "用户取消见面",
       });
       Taro.hideLoading();
       if (apiRes.statusCode === 200) {
@@ -155,13 +155,13 @@ export default function DashboardPage() {
           </Text>
           <Text className="dashboard__empty-text">
             {tab === "upcoming"
-              ? "暂无即将开始的预约"
-              : "暂无历史预约"}
+              ? "暂无即将开始的见面"
+              : "暂无历史见面"}
           </Text>
           <Text className="dashboard__empty-hint">
             {tab === "upcoming"
-              ? "先去浏览合适的专家主页，正式预约仍在网页完成"
-              : "已完成或已结束的咨询会显示在这里"}
+              ? "先去浏览合适的专家主页，正式安排仍在网页完成"
+              : "已完成或已结束的见面会显示在这里"}
           </Text>
           {tab === "upcoming" && (
             <View
@@ -261,7 +261,7 @@ export default function DashboardPage() {
                                 Taro.showModal({
                                   title: "改期",
                                   content:
-                                    "已复制网页预约链接。请在浏览器中打开，联系平台或重新下单完成改期。",
+                                    "已复制网页见面链接。请在浏览器中打开，联系平台或重新下单完成改期。",
                                   showCancel: false,
                                 });
                               },

@@ -193,7 +193,7 @@ export default function OnboardingPage() {
       () =>
         addMsg(
           "system",
-          "设置每周可预约时段。可选预设，或跳过稍后在「我的」里设置。"
+          "设置每周可安排见面的时段。可选预设，或跳过稍后在「我的」里设置。"
         ),
       400
     );

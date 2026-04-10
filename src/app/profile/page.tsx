@@ -869,7 +869,7 @@ export default function ProfilePage() {
                     Stripe account active
                   </p>
                   <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    You&apos;re set up to receive payments from session bookings.
+                    You&apos;re set up to receive payments from meetups.
                   </p>
                 </div>
               </div>
@@ -916,7 +916,7 @@ export default function ProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">
                 {telegramUsername ? (
-                  <>@{telegramUsername} — You&apos;ll receive booking notifications via Telegram.</>
+                  <>@{telegramUsername} — You&apos;ll receive meetup notifications via Telegram.</>
                 ) : (
                   <>Not set — Add your Telegram username to receive notifications and access the Mini App.</>
                 )}
@@ -1191,7 +1191,7 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Mentees pay a 50% deposit when booking. The remainder is charged 24h after the session.
+                  Players pay a 50% deposit when they schedule. The remainder is charged 24h after the meetup.
                 </p>
               </CardContent>
             </Card>

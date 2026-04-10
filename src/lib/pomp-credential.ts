@@ -58,7 +58,7 @@ export async function issuePOMPCredentials(bookingId: string) {
 
   const hours = (booking.endTime.getTime() - booking.startTime.getTime()) / 3600000;
   const expertName = booking.expert.user.nickName || booking.expert.user.name || "Expert";
-  const learnerName = booking.founder.nickName || booking.founder.name || "Learner";
+  const playerName = booking.founder.nickName || booking.founder.name || "Player";
   const topic = booking.sessionType;
 
   const sessionHash = keccak256(
@@ -72,7 +72,7 @@ export async function issuePOMPCredentials(bookingId: string) {
   const results: { role: string; uid: string; txHash: string }[] = [];
 
   for (const role of ["EXPERT", "LEARNER"] as const) {
-    const recipientName = role === "EXPERT" ? expertName : learnerName;
+    const recipientName = role === "EXPERT" ? expertName : playerName;
     const recipientRole = role === "EXPERT" ? "EXPERT" : "LEARNER";
 
     const encodedData = encoder.encodeData([

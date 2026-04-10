@@ -60,7 +60,7 @@ export default function OGImage() {
               lineHeight: 1.5,
             }}
           >
-            Expert &amp; learner · Singapore &amp; Southeast Asia
+            Expert &amp; player · Singapore &amp; Southeast Asia
           </div>
         </div>
       </div>
