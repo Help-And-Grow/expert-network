@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
+import { absoluteAppUrl } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
 import { DOMAINS } from "@/lib/constants";
 
 export const maxDuration = 30;
 
-function createServer() {
+function createServer(originRequest: Request) {
   const server = new McpServer({
     name: "expert-network",
     version: "1.0.0",
@@ -185,7 +186,7 @@ function createServer() {
         rating: expert.avgRating,
         reviewCount: expert.reviewCount,
         isVerified: expert.isVerified,
-        profileUrl: `https://expert-network.vercel.app/experts/${expert.id}`,
+        profileUrl: absoluteAppUrl(`/experts/${expert.id}`, originRequest),
       };
 
       return {
@@ -376,7 +377,7 @@ function createServer() {
           s.matchedDomains.length > 0
             ? `Matched domains: ${s.matchedDomains.join(", ")}`
             : `Relevant based on bio/experience`,
-        profileUrl: `https://expert-network.vercel.app/experts/${s.expert.id}`,
+        profileUrl: absoluteAppUrl(`/experts/${s.expert.id}`, originRequest),
       }));
 
       if (recommendations.length === 0) {
@@ -417,7 +418,7 @@ function createServer() {
 
 async function handleMcpRequest(req: Request): Promise<Response> {
   try {
-    const server = createServer();
+    const server = createServer(req);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

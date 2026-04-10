@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { absoluteAppUrl } from "@/lib/app-origin";
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       reason: s.matchedDomains.length > 0
         ? `Matched domains: ${s.matchedDomains.join(", ")}`
         : "Relevant based on bio/experience",
-      profileUrl: `https://expert-network.vercel.app/experts/${s.expert.id}`,
+      profileUrl: absoluteAppUrl(`/experts/${s.expert.id}`, request),
     }));
 
     if (recommendations.length === 0) {

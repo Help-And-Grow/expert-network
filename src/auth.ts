@@ -94,6 +94,56 @@ if (process.env.NODE_ENV === "development" && env.DEV_AUTH_EMAIL) {
   );
 }
 
+if (env.E2E_AUTH_EMAIL && env.E2E_AUTH_TOKEN) {
+  const e2eEmail = env.E2E_AUTH_EMAIL.trim().toLowerCase();
+  const e2eRole = env.E2E_AUTH_ROLE ?? "ADMIN";
+  providers.push(
+    Credentials({
+      id: "e2e-login",
+      name: "Production E2E",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        token: { label: "Token", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = String(credentials?.email ?? "").trim().toLowerCase();
+        const token = String(credentials?.token ?? "");
+        if (!email || !token) return null;
+        if (email !== e2eEmail || token !== env.E2E_AUTH_TOKEN) return null;
+
+        let user = await prisma.user.findUnique({
+          where: { email: e2eEmail },
+        });
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email: e2eEmail,
+              emailVerified: new Date(),
+              name: "E2E Admin",
+              nickName: "E2E",
+              role: e2eRole,
+            },
+          });
+        } else if (user.role !== e2eRole) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { role: e2eRole },
+          });
+        }
+
+        return {
+          id: user.id,
+          email: user.email ?? undefined,
+          name: user.name ?? undefined,
+          image: user.image ?? undefined,
+          role: user.role,
+          nickName: user.nickName ?? undefined,
+        };
+      },
+    }),
+  );
+}
+
 const authConfig = {
   providers,
   callbacks: {

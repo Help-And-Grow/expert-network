@@ -49,7 +49,7 @@ export default function ProfilePage() {
       };
     }
     return {
-      title: "Help & Grow · AI 原生专家网络",
+      title: "Help & Grow · 专家网络",
       path: "/pages/index/index",
     };
   });
@@ -209,7 +209,7 @@ export default function ProfilePage() {
           onClick={() => {
             Taro.showModal({
               title: "关于 Help & Grow",
-              content: "Help & Grow 是 AI 原生专家网络：人人既是专家，也是学习者。你可以提供咨询服务，也可以预约他人，在实战中学习，在帮助中成长。",
+              content: "Help & Grow 是一个面向真实服务与长期关系的专家网络：人人既是专家，也是学习者。你可以提供咨询服务，也可以预约他人，在实战中学习，在帮助中成长。",
               showCancel: false,
               confirmText: "我知道了",
             });
@@ -227,7 +227,7 @@ export default function ProfilePage() {
       </View>
 
       <View className="profile__footer">
-        <Text className="profile__footer-text">Help & Grow · AI 原生专家网络</Text>
+        <Text className="profile__footer-text">Help & Grow · 专家网络</Text>
       </View>
     </View>
   );

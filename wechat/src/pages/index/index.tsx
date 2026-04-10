@@ -25,7 +25,7 @@ export default function IndexPage() {
           <View className="landing__logo">H&G</View>
         </View>
         <Text className="landing__title">帮助与成长</Text>
-        <Text className="landing__subtitle">AI Native Expert Network</Text>
+        <Text className="landing__subtitle">Expert Network</Text>
         <Text className="landing__desc">
           在这里，专业经验以更高效的方式被看见、被连接、被兑现。你既能向合适的专家请教，也能把自己的能力沉淀为长期服务。
         </Text>

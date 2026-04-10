@@ -8,6 +8,9 @@
 name: WeChat mini program upload
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
@@ -55,4 +58,13 @@ jobs:
         env:
           WECHAT_CI_KEY_PATH: ${{ runner.temp }}/wechat-ci.key
         run: |
-          node scripts/wechat-upload.js "${{ inputs.version }}" "${{ inputs.description }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            DESC="${{ inputs.description }}"
+          else
+            VERSION="$(node -p "require('./wechat/package.json').version")"
+            DESC="main ${GITHUB_SHA::7}"
+          fi
+          echo "Uploading version: ${VERSION}"
+          echo "Description: ${DESC}"
+          node scripts/wechat-upload.js "${VERSION}" "${DESC}"

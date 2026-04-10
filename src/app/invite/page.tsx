@@ -64,7 +64,7 @@ function InviteContent() {
               Welcome to Help &amp; Grow
             </h1>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              The AI Native Expert Network — invite-only for now. Enter your code to get started.
+              An invite-only expert network for now. Enter your code to get started.
             </p>
           </div>
 

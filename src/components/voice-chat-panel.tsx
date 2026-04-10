@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 
 import {
   Mic,
@@ -186,8 +187,8 @@ export function VoiceChatPanel({
   const fallbackGreetingText = useMemo(
     () =>
       expertDomains.length > 0
-        ? `Hi! I'm AI ${firstName}. I specialize in ${expertDomains.slice(0, 2).join(" & ")}. Ask me anything — I'm here to give you a taste of what a full session feels like.`
-        : `Hi! I'm AI ${firstName}. Ask me anything about what I do — I'm here to give you a taste of what a full session feels like.`,
+        ? `Hi! I'm ${firstName}. I specialize in ${expertDomains.slice(0, 2).join(" & ")}. Ask me anything — this is a quick voice preview of how I think and respond.`
+        : `Hi! I'm ${firstName}. Ask me anything about what I do — this is a quick voice preview of how I think and respond.`,
     [firstName, expertDomains],
   );
 
@@ -421,9 +422,11 @@ export function VoiceChatPanel({
       <div className="flex items-center justify-between border-b px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
         <div className="flex items-center gap-3">
           {expertImage ? (
-            <img
+            <Image
               src={expertImage}
               alt={expertName}
+              width={36}
+              height={36}
               className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
             />
           ) : (
@@ -432,7 +435,7 @@ export function VoiceChatPanel({
             </div>
           )}
           <div>
-            <h3 className="text-sm font-semibold leading-tight">AI {expertName}</h3>
+            <h3 className="text-sm font-semibold leading-tight">{expertName}</h3>
             <p className="text-[11px] text-white/70 leading-tight">
               {turnsRemaining > 0
                 ? `${turnsRemaining} messages remaining · Free preview`
@@ -454,7 +457,7 @@ export function VoiceChatPanel({
           <div className="flex items-center gap-2.5 mr-auto">
             <div className="shrink-0">
               {expertImage ? (
-                <img src={expertImage} alt="" className="h-7 w-7 rounded-full object-cover" />
+                <Image src={expertImage} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
               ) : (
                 <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
                   {firstName.charAt(0)}
@@ -479,9 +482,11 @@ export function VoiceChatPanel({
             {msg.role === "assistant" && (
               <div className="shrink-0 mt-0.5">
                 {expertImage ? (
-                  <img
+                  <Image
                     src={expertImage}
                     alt=""
+                    width={28}
+                    height={28}
                     className="h-7 w-7 rounded-full object-cover"
                   />
                 ) : (
@@ -551,7 +556,7 @@ export function VoiceChatPanel({
           <div className="flex items-center gap-2.5 mr-auto">
             <div className="shrink-0">
               {expertImage ? (
-                <img src={expertImage} alt="" className="h-7 w-7 rounded-full object-cover" />
+                <Image src={expertImage} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
               ) : (
                 <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
                   {firstName.charAt(0)}

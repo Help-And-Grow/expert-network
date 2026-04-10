@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import type { SessionType } from "@/generated/prisma/client";
+import { absoluteAppUrl } from "@/lib/app-origin";
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       reviewCount: e.reviewCount,
       priceOnline: e.priceOnlineCents ? `${e.currency} ${(e.priceOnlineCents / 100).toFixed(2)}` : null,
       priceOffline: e.priceOfflineCents ? `${e.currency} ${(e.priceOfflineCents / 100).toFixed(2)}` : null,
-      profileUrl: `https://expert-network.vercel.app/experts/${e.id}`,
+      profileUrl: absoluteAppUrl(`/experts/${e.id}`, request),
     }));
 
     return NextResponse.json({ experts: results, total: results.length });

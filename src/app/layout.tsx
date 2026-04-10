@@ -2,6 +2,7 @@ import localFont from "next/font/local";
 import Script from "next/script";
 
 import { Providers } from "@/components/providers";
+import { env } from "@/lib/env";
 
 import "./globals.css";
 
@@ -19,21 +20,19 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const APP_URL = "https://expert-network.vercel.app";
-const TITLE = "Help & Grow — AI Native Expert Network";
+const APP_URL = env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+const TITLE = "Help & Grow — Expert Network";
 const DESCRIPTION =
-  "The AI Native Expert Network for Singapore & Southeast Asia: be both expert and learner—book sessions, share expertise, and grow together. Toward service as agent: always-on digital experts that learn from you and facilitate real work.";
+  "A network for real expertise across Singapore and Southeast Asia: be both expert and learner, book sessions, share what you know, and grow together.";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   keywords: [
     "Help and Grow",
-    "AI native expert network",
     "expert network",
     "Singapore",
     "Southeast Asia",
-    "AI startup",
     "mentorship",
     "advisory",
     "founders",

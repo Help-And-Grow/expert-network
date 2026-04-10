@@ -177,7 +177,7 @@ function DiscoverContent() {
               <div className="py-8 text-center text-muted-foreground text-sm">
                 <Sparkles className="h-10 w-10 mx-auto mb-3 text-indigo-500" />
                 <p>Describe what you&apos;re looking for and we&apos;ll find the right match.</p>
-                <p className="mt-1">e.g. &quot;I need help expanding my AI startup in Singapore&quot;</p>
+                <p className="mt-1">e.g. &quot;I need help expanding my startup in Singapore&quot;</p>
               </div>
             )}
             {chatMessages.map((m, i) => (

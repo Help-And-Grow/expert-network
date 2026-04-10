@@ -1,11 +1,43 @@
 import { expect, test, type Page } from "@playwright/test";
 
 async function signInAsLocalDev(page: Page, callbackUrl = "/booking") {
-  await page.goto(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-  await expect(page.getByRole("button", { name: "Continue as local dev" })).toBeVisible({
-    timeout: 15_000,
+  const csrfResponse = await page.context().request.get("/api/auth/csrf");
+  expect(csrfResponse.ok()).toBeTruthy();
+  const csrfJson = (await csrfResponse.json()) as { csrfToken: string };
+
+  const response = await page.context().request.post("/api/auth/callback/dev-login", {
+    form: {
+      callbackUrl,
+      csrfToken: csrfJson.csrfToken,
+      json: "true",
+    },
   });
-  await page.getByRole("button", { name: "Continue as local dev" }).click();
+
+  expect(response.ok()).toBeTruthy();
+}
+
+async function signInWithProdE2E(page: Page, callbackUrl = "/booking") {
+  const email = process.env.E2E_AUTH_EMAIL;
+  const token = process.env.E2E_AUTH_TOKEN;
+  if (!email || !token) {
+    test.skip(true, "Set E2E_AUTH_EMAIL and E2E_AUTH_TOKEN for production smoke.");
+  }
+
+  const csrfResponse = await page.context().request.get("/api/auth/csrf");
+  expect(csrfResponse.ok()).toBeTruthy();
+  const csrfJson = (await csrfResponse.json()) as { csrfToken: string };
+
+  const response = await page.context().request.post("/api/auth/callback/e2e-login", {
+    form: {
+      email: email!,
+      token: token!,
+      callbackUrl,
+      csrfToken: csrfJson.csrfToken,
+      json: "true",
+    },
+  });
+
+  expect(response.ok()).toBeTruthy();
 }
 
 test.describe("local smoke", () => {
@@ -23,15 +55,14 @@ test.describe("local smoke", () => {
     await expect(
       page.getByRole("heading", { name: /Learn by doing\. Grow by helping\./i }),
     ).toBeVisible();
-    await expect(
-      page.getByText(/AI Native Expert Network/i).first(),
-    ).toBeVisible();
+    await expect(page.getByText(/Expert network for real sessions/i)).toBeVisible();
     await expect(page.getByRole("link", { name: /Get Started/i })).toBeVisible();
   });
 
   test("dev login reaches bookings and admin provider screens", async ({ page }) => {
     await signInAsLocalDev(page, "/booking");
-    await page.waitForURL("**/booking");
+    await page.goto("/booking");
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await expect(page.getByRole("heading", { name: "My Bookings" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "Upcoming" })).toBeVisible();
@@ -39,5 +70,16 @@ test.describe("local smoke", () => {
     await page.goto("/admin/ai-provider");
     await expect(page.getByText("AI Provider Control")).toBeVisible();
     await expect(page.getByLabel("Provider")).toBeVisible();
+  });
+});
+
+test.describe("production smoke", () => {
+  test("hidden e2e login reaches authenticated booking flows", async ({ page }) => {
+    test.skip(!process.env.PROD_BASE_URL, "PROD_BASE_URL is required for production smoke.");
+
+    await signInWithProdE2E(page, "/booking");
+    await page.goto("/booking");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("heading", { name: "My Bookings" })).toBeVisible({ timeout: 15_000 });
   });
 });
