@@ -89,6 +89,8 @@ const envSchema = z
 
     GEMINI_TEXT_MODEL: z.string().optional(),
     GEMINI_IMAGE_MODEL: z.string().optional(),
+    /** Vertex AI region for image generation only. `gemini-2.5-flash-image` is not in every region; default `global` when unset. */
+    GEMINI_IMAGE_VERTEX_LOCATION: z.string().optional(),
 
     DASHSCOPE_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),

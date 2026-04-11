@@ -45,3 +45,54 @@ export function createGeminiClient(): GoogleGenAI {
   console.log("[Gemini] Using AI Studio API key");
   return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
 }
+
+/**
+ * Vertex `gemini-2.5-flash-image` is only available in certain regions (e.g. global, us-central1).
+ * Text/chat may use `GOOGLE_CLOUD_LOCATION=asia-southeast1` while image must call a supported endpoint.
+ * @see https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash-image
+ */
+export function createGeminiImageClient(): GoogleGenAI {
+  const project = env.GOOGLE_CLOUD_PROJECT?.trim();
+  if (project) {
+    setupServiceAccountAuth();
+    let location = (
+      env.GEMINI_IMAGE_VERTEX_LOCATION?.trim() ||
+      env.GOOGLE_CLOUD_LOCATION?.trim() ||
+      "global"
+    ).toLowerCase();
+    if (!isVertexImageModelRegion(location)) {
+      console.warn(
+        `[Gemini] "${location}" is not a known gemini-2.5-flash-image Vertex region; using "global" for image. Set GEMINI_IMAGE_VERTEX_LOCATION (e.g. global or us-central1).`,
+      );
+      location = "global";
+    }
+    console.log(
+      `[Gemini] Image generation Vertex (project=${project}, location=${location})`,
+    );
+    return new GoogleGenAI({ vertexai: true, project, location });
+  }
+
+  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
+}
+
+/** Regions listed for Gemini 2.5 Flash Image on Vertex AI (see Google Cloud model card). */
+const VERTEX_GEMINI_IMAGE_REGIONS = new Set([
+  "global",
+  "us-central1",
+  "us-east1",
+  "us-east4",
+  "us-east5",
+  "us-south1",
+  "us-west1",
+  "us-west4",
+  "europe-central2",
+  "europe-north1",
+  "europe-southwest1",
+  "europe-west1",
+  "europe-west4",
+  "europe-west8",
+]);
+
+function isVertexImageModelRegion(loc: string): boolean {
+  return VERTEX_GEMINI_IMAGE_REGIONS.has(loc.toLowerCase());
+}
