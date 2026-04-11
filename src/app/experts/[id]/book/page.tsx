@@ -20,6 +20,7 @@ import { useTelegram } from "@/components/telegram-provider";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/user-menu";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
@@ -595,10 +596,10 @@ export default function BookSessionPage() {
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">
               Meeting address <span className="text-xs text-muted-foreground/70">(optional — can add later)</span>
             </h2>
-            <Input
+            <AddressAutocompleteInput
               value={offlineAddress}
-              onChange={(e) => setOfflineAddress(e.target.value)}
-              placeholder="Enter the exact meeting place or Google Maps address"
+              onChange={setOfflineAddress}
+              placeholder="Type at least 4 characters (e.g. postal code or street), then pick a suggestion"
               className="min-h-[44px]"
             />
             {offlineAddress.trim() && (

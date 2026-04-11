@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +53,33 @@ interface BookingReview {
   expertSuggestion: string | null;
   suggestionAt: string | null;
   createdAt: string;
+}
+
+/** Optimistic rows use this id until the server response replaces them. */
+const PENDING_REVIEW_ID_PREFIX = "pending:";
+
+/** Normalize a Review JSON body from POST/PATCH so we can update the dashboard without a full refetch. */
+function parseBookingReviewFromApi(raw: unknown): BookingReview | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== "string") return null;
+  if (typeof o.rating !== "number" || !Number.isInteger(o.rating)) return null;
+  const comment = o.comment === null || typeof o.comment === "string" ? o.comment : null;
+  const expertSuggestion =
+    o.expertSuggestion === null || typeof o.expertSuggestion === "string"
+      ? o.expertSuggestion
+      : null;
+  const suggestionAt =
+    o.suggestionAt === null || typeof o.suggestionAt === "string" ? o.suggestionAt : null;
+  if (typeof o.createdAt !== "string") return null;
+  return {
+    id: o.id,
+    rating: o.rating,
+    comment,
+    expertSuggestion,
+    suggestionAt,
+    createdAt: o.createdAt,
+  };
 }
 
 interface Booking {
@@ -124,6 +152,68 @@ export default function DashboardPage() {
     setBookings(bookingsData?.bookings ?? []);
 
     setLoading(false);
+  }, []);
+
+  const applyReviewFromApi = useCallback((bookingId: string, raw: unknown) => {
+    const review = parseBookingReviewFromApi(raw);
+    if (!review) return;
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, review } : b))
+    );
+  }, []);
+
+  const applyOptimisticAppreciation = useCallback((bookingId: string, commentText: string) => {
+    const optimistic: BookingReview = {
+      id: `${PENDING_REVIEW_ID_PREFIX}${bookingId}`,
+      rating: 5,
+      comment: commentText,
+      expertSuggestion: null,
+      suggestionAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, review: optimistic } : b))
+    );
+  }, []);
+
+  const revertPendingReviewIfAny = useCallback((bookingId: string) => {
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === bookingId && b.review?.id.startsWith(PENDING_REVIEW_ID_PREFIX)
+          ? { ...b, review: null }
+          : b
+      )
+    );
+  }, []);
+
+  const applyOptimisticExpertSuggestion = useCallback((bookingId: string, text: string) => {
+    const now = new Date().toISOString();
+    setBookings((prev) =>
+      prev.map((b) => {
+        if (b.id !== bookingId) return b;
+        if (!b.review) {
+          return {
+            ...b,
+            review: {
+              id: `${PENDING_REVIEW_ID_PREFIX}${bookingId}`,
+              rating: 0,
+              comment: null,
+              expertSuggestion: text,
+              suggestionAt: now,
+              createdAt: now,
+            },
+          };
+        }
+        return {
+          ...b,
+          review: {
+            ...b.review,
+            expertSuggestion: text,
+            suggestionAt: now,
+          },
+        };
+      })
+    );
   }, []);
 
   useEffect(() => {
@@ -209,7 +299,20 @@ export default function DashboardPage() {
               {activeBookings.map((b) => {
                 const isMenteeForThis = b.founderId === userData?.id;
                 return (
-                  <BookingCard key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant} onUpdate={loadDashboard} currentUserId={userData?.id} isExpert={!isMenteeForThis} roleLabel={isMenteeForThis ? "Player" : "Coach"} />
+                  <BookingCard
+                    key={b.id}
+                    booking={b}
+                    showFounder={!isMenteeForThis}
+                    statusVariant={statusVariant}
+                    onUpdate={loadDashboard}
+                    applyReviewFromApi={applyReviewFromApi}
+                    applyOptimisticAppreciation={applyOptimisticAppreciation}
+                    revertPendingReviewIfAny={revertPendingReviewIfAny}
+                    applyOptimisticExpertSuggestion={applyOptimisticExpertSuggestion}
+                    currentUserId={userData?.id}
+                    isExpert={!isMenteeForThis}
+                    roleLabel={isMenteeForThis ? "Player" : "Coach"}
+                  />
                 );
               })}
             </div>
@@ -225,10 +328,17 @@ export default function DashboardPage() {
                 const isMenteeForThis = b.founderId === userData?.id;
                 return (
                   <BookingCard
-                    key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant}
+                    key={b.id}
+                    booking={b}
+                    showFounder={!isMenteeForThis}
+                    statusVariant={statusVariant}
                     showLeaveAppreciation={isMenteeForThis && b.status === "COMPLETED" && !b.review}
                     isExpert={!isMenteeForThis}
                     onUpdate={loadDashboard}
+                    applyReviewFromApi={applyReviewFromApi}
+                    applyOptimisticAppreciation={applyOptimisticAppreciation}
+                    revertPendingReviewIfAny={revertPendingReviewIfAny}
+                    applyOptimisticExpertSuggestion={applyOptimisticExpertSuggestion}
                     currentUserId={userData?.id}
                     roleLabel={isMenteeForThis ? "Player" : "Coach"}
                   />
@@ -245,7 +355,18 @@ export default function DashboardPage() {
 /* ============= Booking Card ============= */
 
 const BookingCard = memo(function BookingCard({
-  booking, showFounder, showLeaveAppreciation, statusVariant, onUpdate, currentUserId, isExpert, roleLabel,
+  booking,
+  showFounder,
+  showLeaveAppreciation,
+  statusVariant,
+  onUpdate,
+  applyReviewFromApi,
+  applyOptimisticAppreciation,
+  revertPendingReviewIfAny,
+  applyOptimisticExpertSuggestion,
+  currentUserId,
+  isExpert,
+  roleLabel,
 }: {
   booking: Booking;
   showFounder?: boolean;
@@ -253,9 +374,16 @@ const BookingCard = memo(function BookingCard({
   isExpert?: boolean;
   statusVariant: (s: string) => "default" | "secondary" | "destructive" | "outline";
   onUpdate: () => Promise<void>;
+  applyReviewFromApi: (bookingId: string, raw: unknown) => void;
+  applyOptimisticAppreciation: (bookingId: string, commentText: string) => void;
+  revertPendingReviewIfAny: (bookingId: string) => void;
+  applyOptimisticExpertSuggestion: (bookingId: string, text: string) => void;
   currentUserId?: string;
   roleLabel?: string;
 }) {
+  const [reviewSyncError, setReviewSyncError] = useState<string | null>(null);
+  const dismissReviewSyncError = useCallback(() => setReviewSyncError(null), []);
+
   const [tonConnectUI] = useTonConnectUI();
   const tonWallet = useTonWallet();
   const [showCancel, setShowCancel] = useState(false);
@@ -816,7 +944,19 @@ const BookingCard = memo(function BookingCard({
         {showLocation && (
           <div className="mt-3 space-y-2 rounded-lg border p-3">
             <p className="text-sm font-medium">{isOnline ? "Meeting Link" : "Address"}</p>
-            <Input placeholder={isOnline ? "https://zoom.us/j/..." : "123 Main St, Singapore"} value={locationValue} onChange={(e) => setLocationValue(e.target.value)} />
+            {isOnline ? (
+              <Input
+                placeholder="https://zoom.us/j/..."
+                value={locationValue}
+                onChange={(e) => setLocationValue(e.target.value)}
+              />
+            ) : (
+              <AddressAutocompleteInput
+                placeholder="Type 4+ characters (e.g. postal code), then choose an exact address"
+                value={locationValue}
+                onChange={setLocationValue}
+              />
+            )}
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSaveLocation} disabled={savingLocation}>
                 {savingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
@@ -827,15 +967,70 @@ const BookingCard = memo(function BookingCard({
         )}
 
         {showLeaveAppreciation && (
-          <PlayerAppreciationForm bookingId={booking.id} onUpdate={onUpdate} />
+          <PlayerAppreciationForm
+            bookingId={booking.id}
+            onUpdate={onUpdate}
+            onReviewFromApi={(data) => {
+              dismissReviewSyncError();
+              applyReviewFromApi(booking.id, data);
+            }}
+            onOptimisticAppreciation={(commentText) =>
+              applyOptimisticAppreciation(booking.id, commentText)
+            }
+            onSubmitFailed={(msg) => {
+              revertPendingReviewIfAny(booking.id);
+              setReviewSyncError(msg);
+            }}
+            onDismissReviewSyncError={dismissReviewSyncError}
+          />
         )}
 
         {booking.status === "COMPLETED" && booking.review && (
-          <ReviewSuggestionSection review={booking.review} isExpert={!!isExpert} bookingId={booking.id} onUpdate={onUpdate} />
+          <ReviewSuggestionSection
+            review={booking.review}
+            isExpert={!!isExpert}
+            bookingId={booking.id}
+            onUpdate={onUpdate}
+            onReviewFromApi={(data) => {
+              dismissReviewSyncError();
+              applyReviewFromApi(booking.id, data);
+            }}
+            onOptimisticExpertSuggestion={(text) =>
+              applyOptimisticExpertSuggestion(booking.id, text)
+            }
+            onExpertSubmitFailed={(msg) => {
+              revertPendingReviewIfAny(booking.id);
+              void onUpdate();
+              setReviewSyncError(msg);
+            }}
+            onDismissReviewSyncError={dismissReviewSyncError}
+          />
         )}
 
         {isExpert && booking.status === "COMPLETED" && !booking.review && (
-          <ExpertSuggestionForm bookingId={booking.id} onUpdate={onUpdate} />
+          <ExpertSuggestionForm
+            bookingId={booking.id}
+            onUpdate={onUpdate}
+            onReviewFromApi={(data) => {
+              dismissReviewSyncError();
+              applyReviewFromApi(booking.id, data);
+            }}
+            onOptimisticExpertSuggestion={(text) =>
+              applyOptimisticExpertSuggestion(booking.id, text)
+            }
+            onSubmitFailed={(msg) => {
+              revertPendingReviewIfAny(booking.id);
+              void onUpdate();
+              setReviewSyncError(msg);
+            }}
+            onDismissReviewSyncError={dismissReviewSyncError}
+          />
+        )}
+
+        {reviewSyncError && (
+          <p role="alert" className="mt-3 text-xs text-destructive">
+            {reviewSyncError}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -849,38 +1044,88 @@ function ReviewSuggestionSection({
   isExpert,
   bookingId,
   onUpdate,
+  onReviewFromApi,
+  onOptimisticExpertSuggestion,
+  onExpertSubmitFailed,
+  onDismissReviewSyncError,
 }: {
   review: BookingReview;
   isExpert: boolean;
   bookingId: string;
   onUpdate: () => Promise<void>;
+  onReviewFromApi: (raw: unknown) => void;
+  onOptimisticExpertSuggestion: (text: string) => void;
+  onExpertSubmitFailed: (msg: string) => void;
+  onDismissReviewSyncError: () => void;
 }) {
   const hasAppreciation = !!review.comment;
+  const reviewSyncPending = review.id.startsWith(PENDING_REVIEW_ID_PREFIX);
 
   return (
     <>
       <Separator className="my-3" />
 
       {hasAppreciation && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Player appreciation</p>
-          {review.comment && (
-            <p className="text-sm text-muted-foreground">{review.comment}</p>
-          )}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Heart className="h-3.5 w-3.5 shrink-0 text-pink-400" aria-hidden />
+              <p className="text-xs font-semibold uppercase tracking-wide text-pink-200/90">
+                Player appreciation
+              </p>
+            </div>
+            {reviewSyncPending && review.comment && (
+              <span className="text-[10px] font-medium text-muted-foreground">Saving…</span>
+            )}
+          </div>
+          <div
+            className={cn(
+              "rounded-xl border border-pink-400/25 bg-pink-500/[0.12] px-3 py-2.5 backdrop-blur-sm",
+              reviewSyncPending && review.comment && "border-pink-400/35"
+            )}
+          >
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+              {review.comment}
+            </p>
+          </div>
         </div>
       )}
 
       {review.expertSuggestion && (
-        <div className={cn("space-y-1.5", hasAppreciation && "mt-3")}>
-          <p className="text-xs font-medium text-muted-foreground">Coach shared follow-up</p>
-          <div className="rounded-lg border border-indigo-400/20 bg-indigo-500/10 px-3 py-2">
-            <p className="text-sm text-foreground">{review.expertSuggestion}</p>
+        <div className={cn("space-y-2", hasAppreciation && "mt-4")}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-indigo-400" aria-hidden />
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-200/90">
+                Coach shared follow-up
+              </p>
+            </div>
+            {reviewSyncPending && review.expertSuggestion && (
+              <span className="text-[10px] font-medium text-muted-foreground">Saving…</span>
+            )}
+          </div>
+          <div
+            className={cn(
+              "rounded-xl border border-indigo-400/25 bg-indigo-500/[0.12] px-3 py-2.5 backdrop-blur-sm",
+              reviewSyncPending && review.expertSuggestion && "border-indigo-400/35"
+            )}
+          >
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+              {review.expertSuggestion}
+            </p>
           </div>
         </div>
       )}
 
       {isExpert && !review.expertSuggestion && (
-        <ExpertSuggestionForm bookingId={bookingId} onUpdate={onUpdate} />
+        <ExpertSuggestionForm
+          bookingId={bookingId}
+          onUpdate={onUpdate}
+          onReviewFromApi={onReviewFromApi}
+          onOptimisticExpertSuggestion={onOptimisticExpertSuggestion}
+          onSubmitFailed={onExpertSubmitFailed}
+          onDismissReviewSyncError={onDismissReviewSyncError}
+        />
       )}
     </>
   );
@@ -891,9 +1136,17 @@ function ReviewSuggestionSection({
 function ExpertSuggestionForm({
   bookingId,
   onUpdate,
+  onReviewFromApi,
+  onOptimisticExpertSuggestion,
+  onSubmitFailed,
+  onDismissReviewSyncError,
 }: {
   bookingId: string;
   onUpdate: () => Promise<void>;
+  onReviewFromApi: (raw: unknown) => void;
+  onOptimisticExpertSuggestion: (text: string) => void;
+  onSubmitFailed: (msg: string) => void;
+  onDismissReviewSyncError: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [suggestion, setSuggestion] = useState("");
@@ -902,23 +1155,30 @@ function ExpertSuggestionForm({
 
   const handleSubmit = async () => {
     if (!suggestion.trim()) return;
+    const trimmed = suggestion.trim();
     setSubmitting(true);
     setError(null);
+    onOptimisticExpertSuggestion(trimmed);
+    setShowForm(false);
     try {
       const tgHeaders = getHeaders();
       const res = await fetch("/api/reviews", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
-        body: JSON.stringify({ bookingId, expertSuggestion: suggestion.trim() }),
+        body: JSON.stringify({ bookingId, expertSuggestion: trimmed }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to save suggestion");
+        throw new Error(
+          typeof data === "object" && data !== null && "error" in data && typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : "Failed to save suggestion"
+        );
       }
-      setShowForm(false);
-      await onUpdate();
+      onReviewFromApi(data);
+      void onUpdate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      onSubmitFailed(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setSubmitting(false);
     }
@@ -928,7 +1188,14 @@ function ExpertSuggestionForm({
     return (
       <>
         <Separator className="my-3" />
-        <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            onDismissReviewSyncError();
+            setShowForm(true);
+          }}
+        >
           <MessageSquarePlus className="mr-1 h-3.5 w-3.5" />
           Share follow-up ideas
         </Button>
@@ -937,8 +1204,8 @@ function ExpertSuggestionForm({
   }
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border p-3 bg-muted/30">
-      <p className="text-sm font-medium">Share follow-up ideas for your player</p>
+    <div className="surface-tint mt-3 space-y-2 p-3">
+      <p className="text-sm font-medium text-indigo-100">Share follow-up ideas for your player</p>
       <Textarea
         placeholder="Share recommended next steps, resources, or action items..."
         value={suggestion}
@@ -953,7 +1220,16 @@ function ExpertSuggestionForm({
         <Button size="sm" onClick={handleSubmit} disabled={!suggestion.trim() || submitting}>
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            onDismissReviewSyncError();
+            setShowForm(false);
+          }}
+        >
+          Cancel
+        </Button>
       </div>
     </div>
   );
@@ -964,9 +1240,17 @@ function ExpertSuggestionForm({
 function PlayerAppreciationForm({
   bookingId,
   onUpdate,
+  onReviewFromApi,
+  onOptimisticAppreciation,
+  onSubmitFailed,
+  onDismissReviewSyncError,
 }: {
   bookingId: string;
   onUpdate: () => Promise<void>;
+  onReviewFromApi: (raw: unknown) => void;
+  onOptimisticAppreciation: (commentText: string) => void;
+  onSubmitFailed: (msg: string) => void;
+  onDismissReviewSyncError: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [comment, setComment] = useState("");
@@ -975,23 +1259,30 @@ function PlayerAppreciationForm({
 
   const handleSubmit = async () => {
     if (!comment.trim()) return;
+    const trimmed = comment.trim();
     setSubmitting(true);
     setError(null);
+    onOptimisticAppreciation(trimmed);
+    setShowForm(false);
     try {
       const tgHeaders = getHeaders();
       const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
-        body: JSON.stringify({ bookingId, comment: comment.trim(), rating: 5 }), // Default 5 for appreciation
+        body: JSON.stringify({ bookingId, comment: trimmed, rating: 5 }), // Default 5 for appreciation
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to save appreciation");
+        throw new Error(
+          typeof data === "object" && data !== null && "error" in data && typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : "Failed to save appreciation"
+        );
       }
-      setShowForm(false);
-      await onUpdate();
+      onReviewFromApi(data);
+      void onUpdate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      onSubmitFailed(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setSubmitting(false);
     }
@@ -1001,7 +1292,15 @@ function PlayerAppreciationForm({
     return (
       <div className="mt-2">
         <Separator className="my-3" />
-        <Button variant="outline" size="sm" onClick={() => setShowForm(true)} className="border-pink-400/20 text-pink-200 hover:bg-pink-500/10 hover:text-pink-100">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            onDismissReviewSyncError();
+            setShowForm(true);
+          }}
+          className="border-pink-400/20 text-pink-200 hover:bg-pink-500/10 hover:text-pink-100"
+        >
           <Heart className="mr-1 h-3.5 w-3.5 fill-pink-600" />
           Send Appreciation
         </Button>
@@ -1010,7 +1309,7 @@ function PlayerAppreciationForm({
   }
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border border-pink-400/20 bg-pink-500/10 p-3">
+    <div className="mt-3 space-y-2 rounded-xl border border-pink-400/25 bg-pink-500/[0.12] p-3 backdrop-blur-sm">
       <div className="flex items-center gap-2">
         <MessageSquareHeart className="h-4 w-4 text-pink-500" />
         <p className="text-sm font-medium text-pink-100">Show your appreciation</p>
@@ -1029,7 +1328,16 @@ function PlayerAppreciationForm({
         <Button size="sm" onClick={handleSubmit} disabled={!comment.trim() || submitting} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send Appreciation"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            onDismissReviewSyncError();
+            setShowForm(false);
+          }}
+        >
+          Cancel
+        </Button>
       </div>
     </div>
   );
