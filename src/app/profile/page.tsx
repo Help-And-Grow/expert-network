@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 import {
   Loader2,
@@ -93,6 +94,7 @@ export default function ProfilePage() {
   const [savingServices, setSavingServices] = useState(false);
 
   const [uploading, setUploading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,7 +103,6 @@ export default function ProfilePage() {
   const toastRef = useRef<HTMLParagraphElement>(null);
 
   const [regenerating, setRegenerating] = useState(false);
-  const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [avatarCacheBuster, setAvatarCacheBuster] = useState("");
   const [generatingAudio, setGeneratingAudio] = useState(false);
@@ -200,7 +201,6 @@ export default function ProfilePage() {
       await saveSection({ avatarScript: introScript, bio });
       setEditingIntro(false);
       showMessage("Introduction saved!", "intro");
-      setShowRegeneratePrompt(true);
     } catch (err) {
       showMessage(err instanceof Error ? err.message : "Save failed", "intro", true, 5000);
     } finally {
@@ -239,7 +239,6 @@ export default function ProfilePage() {
       setServices(validServices);
       setEditingServices(false);
       showMessage("Services saved!", "services");
-      setShowRegeneratePrompt(true);
     } catch (err) {
       showMessage(err instanceof Error ? err.message : "Save failed", "services", true, 5000);
     } finally {
@@ -336,9 +335,8 @@ export default function ProfilePage() {
     }
   };
 
-  const handleRegenerateImage = async () => {
+  const handleGenerateImage = async () => {
     setRegenerating(true);
-    setShowRegeneratePrompt(false);
     try {
       const res = await fetch("/api/expert/regenerate-image", {
         method: "POST",
@@ -346,17 +344,17 @@ export default function ProfilePage() {
       if (!res.ok) {
         const data = (await res.json()) as { error?: string; detail?: string };
         const hint = data.detail ? `${data.error ?? "Failed"} — ${data.detail}` : data.error;
-        throw new Error(hint ?? "Failed to regenerate");
+        throw new Error(hint ?? "Failed to generate image");
       }
       const data = await res.json();
       setProfile((prev) =>
         prev ? { ...prev, hasAvatar: !!data.profileImage } : prev
       );
       setAvatarCacheBuster(`?t=${Date.now()}`);
-      showMessage("Profile image regenerated!", "image");
+      showMessage("Profile image generated!", "image");
     } catch (err) {
       showMessage(
-        err instanceof Error ? err.message : "Failed to regenerate image",
+        err instanceof Error ? err.message : "Failed to generate image",
         "image",
         true,
         5000
@@ -401,7 +399,7 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gender }),
       });
-      showMessage("Gender updated — regenerate voice intro to use the new default voice.", "voice");
+      showMessage("Gender updated.", "voice");
     } catch {
       showMessage("Failed to save gender", "voice", true, 5000);
     }
@@ -589,6 +587,21 @@ export default function ProfilePage() {
       </p>
     ) : null;
 
+  const handleDeleteAccount = async () => {
+    if (!confirm("Are you sure you want to delete your account? This action cannot be undone.")) return;
+    
+    setDeletingAccount(true);
+    try {
+      const res = await fetch("/api/user", { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete account");
+      
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Failed to delete account", "account", true, 5000);
+      setDeletingAccount(false);
+    }
+  };
+
   const isExpert = !!profile;
   const nickName =
     profile?.user?.nickName ??
@@ -661,39 +674,6 @@ export default function ProfilePage() {
       </header>
 
       <div className="space-y-6 p-4">
-        {showRegeneratePrompt && (
-          <Card className="border-indigo-200 dark:border-indigo-800">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground mb-3">
-                Regenerate your profile image based on the updated profile?
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  className="flex-1 gap-2"
-                  onClick={handleRegenerateImage}
-                  disabled={regenerating}
-                >
-                  {regenerating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                  Regenerate
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setShowRegeneratePrompt(false)}
-                >
-                  Skip
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {isExpert && !profile.isPublished && (
           <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
             <CardContent className="p-4 space-y-3">
@@ -899,24 +879,26 @@ export default function ProfilePage() {
                     <p className="text-sm text-muted-foreground">No profile image yet</p>
                   </div>
                 )}
-                <Button
-                  variant="outline"
-                  className="mt-3 w-full gap-2"
-                  onClick={handleRegenerateImage}
-                  disabled={regenerating}
-                >
-                  {regenerating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      {profile.hasAvatar ? "Regenerate Image" : "Generate Image"}
-                    </>
-                  )}
-                </Button>
+                {!profile.hasAvatar && (
+                  <Button
+                    variant="outline"
+                    className="mt-3 w-full gap-2"
+                    onClick={handleGenerateImage}
+                    disabled={regenerating}
+                  >
+                    {regenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Generate Image
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -974,33 +956,35 @@ export default function ProfilePage() {
                   />
                 )}
 
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={handleGenerateAudio}
-                  disabled={generatingAudio || !profile?.avatarScript}
-                >
-                  {generatingAudio ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Generating Audio...
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="h-4 w-4" />
-                      {profile?.hasAudio ? "Regenerate Voice Intro" : "Generate Voice Intro"}
-                    </>
-                  )}
-                </Button>
+                {!profile?.hasAudio && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handleGenerateAudio}
+                    disabled={generatingAudio || !profile?.avatarScript}
+                  >
+                    {generatingAudio ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating Audio...
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="h-4 w-4" />
+                        Generate Voice Intro
+                      </>
+                    )}
+                  </Button>
+                )}
 
-                {!profile?.avatarScript && (
+                {!profile?.avatarScript && !profile?.hasAudio && (
                   <p className="text-xs text-muted-foreground text-center">
                     Complete your introduction script first
                   </p>
                 )}
 
                 <p className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-xs text-muted-foreground text-center">
-                  MVP uses a system-managed default voice by gender. Edit the introduction script below, then regenerate the audio when you want to refresh it.
+                  MVP uses a system-managed default voice by gender.
                 </p>
               </CardContent>
             </Card>
@@ -1360,6 +1344,36 @@ export default function ProfilePage() {
             </Card>
           </>
         )}
+
+        <Card className="border-destructive/20 mt-8">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-destructive flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Danger Zone
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Once you delete your account, there is no going back. Please be certain.
+            </p>
+            {renderToast("account")}
+            <Button
+              variant="destructive"
+              className="w-full sm:w-auto"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Account"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
