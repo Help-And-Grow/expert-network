@@ -26,7 +26,6 @@ import { useSession } from "next-auth/react";
 import { AudioPlayer } from "@/components/audio-player";
 import { useTelegram } from "@/components/telegram-provider";
 import { useInviteGuard } from "@/hooks/use-invite-guard";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,

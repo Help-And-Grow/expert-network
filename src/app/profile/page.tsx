@@ -89,9 +89,6 @@ export default function ProfilePage() {
   const [editingIntro, setEditingIntro] = useState(false);
   const [savingIntro, setSavingIntro] = useState(false);
 
-  const [editingBio, setEditingBio] = useState(false);
-  const [savingBio, setSavingBio] = useState(false);
-
   const [editingServices, setEditingServices] = useState(false);
   const [savingServices, setSavingServices] = useState(false);
 
