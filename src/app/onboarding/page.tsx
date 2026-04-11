@@ -40,7 +40,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import {
-  DOMAINS,
   SOCIAL_PLATFORMS,
   ONBOARDING_STEPS,
 } from "@/lib/constants";
@@ -54,7 +53,6 @@ type Step =
   | "GENDER"
   | "WALLET"
   | "SOCIAL_LINKS"
-  | "DOMAINS"
   | "DOCUMENT_UPLOAD"
   | "SESSION_PREFS"
   | "PRICING"
@@ -100,7 +98,6 @@ function getProgressValue(step: Step): number {
     case "WALLET":
       return 20;
     case "SOCIAL_LINKS":
-    case "DOMAINS":
     case "DOCUMENT_UPLOAD":
     case "SESSION_PREFS":
       return 25;
@@ -135,7 +132,6 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState<Step>("GREETING");
   const [isTyping, setIsTyping] = useState(false);
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({});
-  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [sessionType, setSessionType] = useState<string>("");
   const [generatedProfile, setGeneratedProfile] =
     useState<GeneratedProfile | null>(null);
@@ -349,18 +345,6 @@ export default function OnboardingPage() {
       type: "input",
     });
   }, [currentStep, currentSocialIndex, addStepMessage]);
-
-  // Domains question
-  useEffect(() => {
-    if (currentStep !== "DOMAINS") return;
-    addStepMessage("domains", {
-      id: "domains",
-      role: "ai",
-      content:
-        "Great! Now, what areas do you specialize in? Select all that apply.",
-      type: "chips",
-    });
-  }, [currentStep, addStepMessage]);
 
   // Document upload question (now between links and session prefs)
   useEffect(() => {
@@ -679,29 +663,8 @@ export default function OnboardingPage() {
     if (currentSocialIndex < SOCIAL_PLATFORMS.length - 1) {
       setCurrentSocialIndex((i) => i + 1);
     } else {
-      setCurrentStep("DOMAINS");
+      setCurrentStep("DOCUMENT_UPLOAD");
     }
-  };
-
-  const handleDomainsContinue = async () => {
-    if (selectedDomains.length === 0) return;
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: "user-domains",
-        role: "user",
-        content: selectedDomains.join(", "),
-      },
-    ]);
-
-    try {
-      await saveOnboarding({ domains: selectedDomains });
-    } catch {
-      // Silently fail
-    }
-
-    setCurrentStep("DOCUMENT_UPLOAD");
   };
 
   const handleFileUpload = async (file: File) => {
@@ -935,13 +898,6 @@ export default function OnboardingPage() {
           <Card className="mx-auto max-w-lg overflow-hidden shadow-lg">
             <CardHeader className="space-y-3">
               <CardTitle className="text-xl">{nickName}</CardTitle>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedDomains.map((d) => (
-                  <Badge key={d} variant="secondary" className="text-xs">
-                    {d}
-                  </Badge>
-                ))}
-              </div>
 
               {generatedProfile.profileImage ? (
                 <div className="relative w-full aspect-square overflow-hidden rounded-xl bg-muted">
@@ -1333,41 +1289,6 @@ export default function OnboardingPage() {
                 Skip {platform.label}
               </Button>
             )}
-          </div>
-        )}
-
-        {currentStep === "DOMAINS" && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {DOMAINS.map((domain) => (
-                <Badge
-                  key={domain}
-                  variant={selectedDomains.includes(domain) ? "default" : "outline"}
-                  className={cn(
-                    "cursor-pointer px-4 py-2 text-sm transition min-h-[44px] flex items-center",
-                    selectedDomains.includes(domain)
-                      ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                      : "hover:bg-accent"
-                  )}
-                  onClick={() => {
-                    setSelectedDomains((prev) =>
-                      prev.includes(domain)
-                        ? prev.filter((d) => d !== domain)
-                        : [...prev, domain]
-                    );
-                  }}
-                >
-                  {domain}
-                </Badge>
-              ))}
-            </div>
-            <Button
-              onClick={handleDomainsContinue}
-              disabled={selectedDomains.length === 0}
-              className="min-h-[48px] w-full"
-            >
-              Continue
-            </Button>
           </div>
         )}
 

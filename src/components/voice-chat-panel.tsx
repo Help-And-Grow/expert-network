@@ -30,7 +30,6 @@ interface VoiceChatPanelProps {
   expertId: string;
   expertName: string;
   expertImage?: string | null;
-  expertDomains?: string[];
   expertServices?: { title: string }[] | null;
   open: boolean;
   onClose: () => void;
@@ -38,7 +37,6 @@ interface VoiceChatPanelProps {
 
 function generateStarters(
   name: string,
-  domains: string[],
   services?: { title: string }[] | null,
 ): string[] {
   const first = name.split(" ")[0];
@@ -48,12 +46,6 @@ function generateStarters(
     chips.push(`Tell me about your ${services[0].title.toLowerCase()} work`);
     if (services.length > 1)
       chips.push(`How does ${services[1].title.toLowerCase()} work with you?`);
-  }
-
-  if (domains.length > 0) {
-    chips.push(`What makes you different in ${domains[0]}?`);
-    if (domains.length > 1 && chips.length < 3)
-      chips.push(`How do ${domains[0]} and ${domains[1]} connect in your practice?`);
   }
 
   if (chips.length < 3) chips.push(`${first}, what should I ask you about?`);
@@ -84,7 +76,6 @@ export function VoiceChatPanel({
   expertId,
   expertName,
   expertImage,
-  expertDomains = [],
   expertServices,
   open,
   onClose,
@@ -185,10 +176,8 @@ export function VoiceChatPanel({
 
   const fallbackGreetingText = useMemo(
     () =>
-      expertDomains.length > 0
-        ? `Hi! I'm ${firstName}. I specialize in ${expertDomains.slice(0, 2).join(" & ")}. Ask me anything — this is a quick voice preview of how I think and respond.`
-        : `Hi! I'm ${firstName}. Ask me anything about what I do — this is a quick voice preview of how I think and respond.`,
-    [firstName, expertDomains],
+      `Hi! I'm ${firstName}. Ask me anything about what I do — this is a quick voice preview of how I think and respond.`,
+    [firstName],
   );
 
   // Reset when closed; fetch voice greeting when opened (proactive TTS)
@@ -410,7 +399,7 @@ export function VoiceChatPanel({
   if (!open) return null;
 
   const turnsRemaining = turnInfo.max - turnInfo.count;
-  const starters = generateStarters(expertName, expertDomains, expertServices);
+  const starters = generateStarters(expertName, expertServices);
 
   return (
     <div
