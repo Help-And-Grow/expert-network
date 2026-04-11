@@ -1,5 +1,6 @@
 # Requires repo secret E2E_DATABASE_URL (Postgres URL for `npm run db:push` + NextAuth/Prisma in CI).
-# If unset, the Playwright job is skipped so pushes do not fail the workflow (see job `if:` below).
+# If unset, later steps are skipped but the job still succeeds (no failure emails).
+# Do not use `job.if: secrets.*` here — when the only job is skipped, GitHub can fail the whole workflow with no jobs.
 
 name: UI smoke
 
@@ -14,20 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # If this were the only job, an unset secret would skip it and GitHub would fail the workflow
-  # with "no jobs" — still triggering failure emails. This job always runs so the workflow succeeds.
-  ui-smoke-gate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: E2E database secret
-        run: |
-          echo "UI smoke: Playwright runs in job playwright-smoke only when E2E_DATABASE_URL is set."
-          echo "Add that Actions secret on this repo (and on each fork/mirror that runs this workflow) to enable DB + Playwright."
-
   playwright-smoke:
-    needs: ui-smoke-gate
-    # Without this secret the Playwright job is skipped (no false failures from missing DB URL).
-    if: ${{ secrets.E2E_DATABASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -37,27 +25,43 @@ jobs:
       DEV_AUTH_EMAIL: admin-smoke@localhost
       DEV_AUTH_ROLE: ADMIN
     steps:
+      - name: Check E2E database secret
+        id: e2e
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::E2E_DATABASE_URL is not set — skipping Playwright. Add this repo Actions secret to enable UI smoke."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.e2e.outputs.run == 'true'
 
       - uses: actions/setup-node@v4
+        if: steps.e2e.outputs.run == 'true'
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: steps.e2e.outputs.run == 'true'
         run: npm ci
 
       - name: Install Playwright Chromium
+        if: steps.e2e.outputs.run == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Apply Prisma schema to e2e database
+        if: steps.e2e.outputs.run == 'true'
         run: npm run db:push
 
       - name: Run Playwright smoke tests
+        if: steps.e2e.outputs.run == 'true'
         run: npm run test:ui
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && steps.e2e.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report

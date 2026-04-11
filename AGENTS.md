@@ -15,7 +15,7 @@
 - **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://`
 - **Hosting**: Vercel (serverless)
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
-- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, the workflow runs only when repo secret **`E2E_DATABASE_URL`** is set (Postgres for `db:push` + auth); if unset, the job is skipped.
+- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
 
 ## Repository Layout
 
