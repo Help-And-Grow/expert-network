@@ -24,7 +24,9 @@ export class BytePlusProvider extends BaseAIProvider {
   protected async chat(prompt: string): Promise<string> {
     // Requires an Endpoint ID (or Model ID) from the BytePlus ModelArk console
     // e.g., ep-2026xxxxxx-yyyyy
-    const modelId = env.BYTEPLUS_MODEL_ID || "doubao-pro-32k";
+    // Defaulting to doubao-seed-1.6-flash for text understanding and generation 
+    // across WEB-BYTEPLUS and TELEGRAM.
+    const modelId = env.BYTEPLUS_MODEL_ID || "doubao-seed-1.6-flash";
     
     const response = await this.client.chat.completions.create({
       model: modelId,
