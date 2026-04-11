@@ -71,7 +71,7 @@ const envSchema = z
     RESEND_API_KEY: z.string().optional(),
 
     AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus"])
+      .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
       .default("qwen"),
 
     GEMINI_API_KEY: z.string().optional(),
@@ -80,6 +80,8 @@ const envSchema = z
     GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
     BYTEPLUS_API_KEY: z.string().optional(),
     BYTEPLUS_MODEL_ID: z.string().optional(),
+    VOLCENGINE_API_KEY: z.string().optional(),
+    VOLCENGINE_MODEL_ID: z.string().optional(),
 
     GEMINI_TEXT_MODEL: z.string().optional(),
     GEMINI_IMAGE_MODEL: z.string().optional(),

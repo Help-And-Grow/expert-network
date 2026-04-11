@@ -46,6 +46,11 @@ const PROVIDERS: Record<string, () => AIProvider> = {
     const { BytePlusProvider } = require("./byteplus") as typeof import("./byteplus");
     return new BytePlusProvider();
   },
+  volcengine: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { VolcengineProvider } = require("./volcengine") as typeof import("./volcengine");
+    return new VolcengineProvider();
+  },
 };
 
 // ---------------------------------------------------------------------------
