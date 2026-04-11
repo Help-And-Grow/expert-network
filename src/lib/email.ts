@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
 import { env } from "@/lib/env";
+import { buildGoogleMapsUrl } from "@/lib/google-maps";
 
 let _resend: Resend | null = null;
 function getResend(): Resend | null {
@@ -52,7 +53,7 @@ function confirmationHtml(p: BookingEmailParams, recipientRole: "expert" | "foun
     p.sessionType === "ONLINE" && p.meetingLink
       ? `<p><strong>Meeting Link:</strong> <a href="${p.meetingLink}" style="color:#4F46E5">${p.meetingLink}</a></p>`
       : p.sessionType === "OFFLINE" && p.offlineAddress
-        ? `<p><strong>Location:</strong> ${p.offlineAddress}</p>`
+        ? `<p><strong>Location:</strong> <a href="${buildGoogleMapsUrl(p.offlineAddress)}" style="color:#4F46E5;text-decoration:underline">${p.offlineAddress}</a></p>`
         : "";
 
   return `
@@ -90,7 +91,7 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
     p.sessionType === "ONLINE" && p.meetingLink
       ? `<p><strong>Meeting Link:</strong> <a href="${p.meetingLink}" style="color:#4F46E5">${p.meetingLink}</a></p>`
       : p.sessionType === "OFFLINE" && p.offlineAddress
-        ? `<p><strong>Location:</strong> ${p.offlineAddress}</p>`
+        ? `<p><strong>Location:</strong> <a href="${buildGoogleMapsUrl(p.offlineAddress)}" style="color:#4F46E5;text-decoration:underline">${p.offlineAddress}</a></p>`
         : "";
 
   return `
