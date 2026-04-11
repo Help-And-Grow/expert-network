@@ -1121,9 +1121,26 @@ export default function ProfilePage() {
                     )}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Players pay a 50% deposit when they schedule. The remainder is charged 24h after the meetup.
-                </p>
+                {(() => {
+                  const isOnlineActive = profile.sessionType !== "OFFLINE";
+                  const isOfflineActive = profile.sessionType !== "ONLINE";
+                  
+                  const isOnlineFree = editingPricing ? parseFloat(pOnline) === 0 : profile.priceOnlineCents === 0;
+                  const isOfflineFree = editingPricing ? parseFloat(pOffline) === 0 : profile.priceOfflineCents === 0;
+                  const hasFreeSession = (isOnlineActive && isOnlineFree) || (isOfflineActive && isOfflineFree);
+                  
+                  const isOnlinePaid = editingPricing ? parseFloat(pOnline) > 0 : (profile.priceOnlineCents ?? 0) > 0;
+                  const isOfflinePaid = editingPricing ? parseFloat(pOffline) > 0 : (profile.priceOfflineCents ?? 0) > 0;
+                  const hasPaidSession = (isOnlineActive && isOnlinePaid) || (isOfflineActive && isOfflinePaid);
+
+                  if (hasFreeSession || !hasPaidSession) return null;
+                  
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Players pay a 50% deposit when they schedule. The remainder is charged 24h after the meetup.
+                    </p>
+                  );
+                })()}
               </CardContent>
             </Card>
 
