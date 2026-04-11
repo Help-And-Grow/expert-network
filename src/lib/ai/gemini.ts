@@ -13,25 +13,50 @@ import {
   formatSocialLinks,
   buildProfilePromptWithNativeSearch,
   PDF_EXTRACTION_PROMPT,
+  SYSTEM_PROMPTS,
+  buildNormalizeQueryPrompt,
+  buildMatchExpertsPrompt,
+  buildImproveWritingPrompt,
 } from "./prompts";
-import { parseProfileResponse } from "./types";
+import {
+  parseProfileResponse,
+  cleanJsonResponse,
+  parseMatchResponse,
+} from "./types";
 
-import type { ProfileInput, ProfileOutput } from "./types";
+import type {
+  ProfileInput,
+  ProfileOutput,
+  NormalizedQuery,
+  MatchResult,
+} from "./types";
 
 
 export class GeminiProvider extends BaseAIProvider {
   private ai = createGeminiClient();
-  /** Separate Vertex region when text uses a region without gemini-2.5-flash-image. */
+  /** Separate Vertex region when text location lacks gemini-2.5-flash-image support. */
   private imageAi = createGeminiImageClient();
 
   constructor() {
     super();
   }
 
-  protected async chat(prompt: string): Promise<string> {
+  protected async chat(
+    prompt: string,
+    systemInstruction?: string
+  ): Promise<string> {
     const response = await this.ai.models.generateContent({
       model: getGeminiTextModel(),
       contents: prompt,
+      config: {
+        systemInstruction: systemInstruction,
+        safetySettings: [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { category: "HARM_CATEGORY_HATE_SPEECH" as any, threshold: "BLOCK_ONLY_HIGH" as any },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { category: "HARM_CATEGORY_HARASSMENT" as any, threshold: "BLOCK_ONLY_HIGH" as any },
+        ],
+      },
     });
     return response.text ?? "";
   }
@@ -55,7 +80,16 @@ export class GeminiProvider extends BaseAIProvider {
     const response = await this.ai.models.generateContent({
       model: getGeminiTextModel(),
       contents: prompt,
-      config: { tools: [{ googleSearch: {} }] },
+      config: {
+        systemInstruction: SYSTEM_PROMPTS.PROFILE_BUILDER,
+        tools: [{ googleSearch: {} }],
+        safetySettings: [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { category: "HARM_CATEGORY_HATE_SPEECH" as any, threshold: "BLOCK_ONLY_HIGH" as any },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { category: "HARM_CATEGORY_HARASSMENT" as any, threshold: "BLOCK_ONLY_HIGH" as any },
+        ],
+      },
     });
 
     const grounding = response.candidates?.[0]?.groundingMetadata;
@@ -140,5 +174,54 @@ export class GeminiProvider extends BaseAIProvider {
     });
 
     return response.text ?? "";
+  }
+
+  async normalizeQuery(query: string): Promise<NormalizedQuery> {
+    const prompt = buildNormalizeQueryPrompt(query);
+    const text = await this.chat(prompt, SYSTEM_PROMPTS.QUERY_NORMALIZER);
+    try {
+      const parsed = JSON.parse(cleanJsonResponse(text));
+      return {
+        english: typeof parsed.english === "string" ? parsed.english : query,
+        keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+        intent: ["specific_topic", "broad_exploration", "greeting"].includes(
+          parsed.intent
+        )
+          ? parsed.intent
+          : "specific_topic",
+        original: query,
+      };
+    } catch {
+      return {
+        english: query,
+        keywords: [],
+        intent: "specific_topic",
+        original: query,
+      };
+    }
+  }
+
+  async matchExperts(
+    query: string,
+    expertSummaries: string,
+    conversationHistory: { role: string; content: string }[],
+    normalizedQuery?: NormalizedQuery
+  ): Promise<MatchResult> {
+    const prompt = buildMatchExpertsPrompt(
+      query,
+      expertSummaries,
+      conversationHistory,
+      normalizedQuery
+    );
+    const text = await this.chat(prompt, SYSTEM_PROMPTS.MATCHMAKER);
+    return parseMatchResponse(text);
+  }
+
+  async improveWriting(
+    type: "intro" | "services",
+    content: string
+  ): Promise<string> {
+    const prompt = buildImproveWritingPrompt(type, content);
+    return (await this.chat(prompt, SYSTEM_PROMPTS.COPYWRITER)).trim();
   }
 }
