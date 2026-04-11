@@ -1,8 +1,11 @@
+import { Modality } from "@google/genai";
+
 import { env } from "@/lib/env";
 
 import { BaseAIProvider } from "./base-provider";
 import {
   createGeminiClient,
+  createGeminiImageClient,
   getGeminiImageModel,
   getGeminiTextModel,
 } from "./gemini-client";
@@ -18,6 +21,8 @@ import type { ProfileInput, ProfileOutput } from "./types";
 
 export class GeminiProvider extends BaseAIProvider {
   private ai = createGeminiClient();
+  /** Separate Vertex region when text uses a region without gemini-2.5-flash-image. */
+  private imageAi = createGeminiImageClient();
 
   constructor() {
     super();
@@ -78,14 +83,26 @@ export class GeminiProvider extends BaseAIProvider {
     }
 
     try {
-      const response = await this.ai.models.generateContent({
+      // Vertex / AI Studio: image models expect TEXT + IMAGE modalities (IMAGE-only often returns no inline image).
+      const response = await this.imageAi.models.generateContent({
         model: getGeminiImageModel(),
         contents: prompt,
-        config: { responseModalities: ["IMAGE"] },
+        config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
       });
 
-      const parts = response.candidates?.[0]?.content?.parts;
-      if (!parts) return null;
+      const candidate = response.candidates?.[0];
+      const parts = candidate?.content?.parts;
+      if (!parts?.length) {
+        console.error(
+          "[Gemini] Image response missing parts",
+          JSON.stringify({
+            finishReason: candidate?.finishReason,
+            finishMessage: candidate?.finishMessage,
+            blockReason: (candidate as { blockReason?: string }).blockReason,
+          }),
+        );
+        return null;
+      }
 
       for (const part of parts) {
         if (part.inlineData?.data) {
@@ -93,6 +110,11 @@ export class GeminiProvider extends BaseAIProvider {
           return `data:${mimeType};base64,${part.inlineData.data}`;
         }
       }
+      console.error("[Gemini] Image response had no inlineData part", {
+        partKinds: parts.map((p) =>
+          p.inlineData ? "inlineData" : p.text ? "text" : "other",
+        ),
+      });
       return null;
     } catch (error) {
       console.error("[Gemini] Image generation failed:", error);

@@ -375,8 +375,9 @@ export default function ProfilePage() {
         method: "POST",
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to regenerate");
+        const data = (await res.json()) as { error?: string; detail?: string };
+        const hint = data.detail ? `${data.error ?? "Failed"} — ${data.detail}` : data.error;
+        throw new Error(hint ?? "Failed to regenerate");
       }
       const data = await res.json();
       setProfile((prev) =>
