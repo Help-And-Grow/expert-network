@@ -11,6 +11,7 @@ The platform uses AI for expert matching, profile generation, image creation, te
 - **Qwen**: Best Chinese language support, cost-effective, good for SEA market
 - **Gemini**: Google Search grounding, strong reasoning
 - **OpenAI**: Broad capability, good English
+- **BytePlus (ModelArk)**: Cost-efficient model hosting. Specifically uses `doubao-seed-1.6-flash` for high-throughput text understanding and generation for **WEB-BYTEPLUS** and **TELEGRAM** endpoints.
 
 Need to switch providers without changing business logic.
 

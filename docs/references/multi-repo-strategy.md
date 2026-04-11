@@ -30,7 +30,7 @@ Instead of duplicating code, the Showcase repository powers multiple distinct cl
 We have established three dedicated Vercel projects:
 1. **`expert-network-alibabacloud`**: Uses the DashScope/Qwen provider (`AI_PROVIDER="qwen"`).
 2. **`expert-network-googlecloud`**: Uses the Vertex AI/Gemini provider (`AI_PROVIDER="gemini"`).
-3. **`expert-network-byteplus`**: Uses the ModelArk/Doubao provider (`AI_PROVIDER="byteplus"`).
+3. **`expert-network-byteplus`**: Uses the ModelArk/Doubao provider (`AI_PROVIDER="byteplus"`). Specifically configured to use `doubao-seed-1.6-flash` for high-throughput text understanding and generation on both Web and Telegram endpoints.
 
 ### Vercel dashboard URLs (avoid 404)
 
