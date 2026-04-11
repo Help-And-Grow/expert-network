@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function signInAsLocalDev(page: Page, callbackUrl = "/meetups") {
+async function signInAsLocalDev(page: Page, callbackUrl = "/booking") {
   const csrfResponse = await page.context().request.get("/api/auth/csrf");
   expect(csrfResponse.ok()).toBeTruthy();
   const csrfJson = (await csrfResponse.json()) as { csrfToken: string };
@@ -25,7 +25,7 @@ async function signInAsLocalDev(page: Page, callbackUrl = "/meetups") {
   ).toBeTruthy();
 }
 
-async function signInWithProdE2E(page: Page, callbackUrl = "/meetups") {
+async function signInWithProdE2E(page: Page, callbackUrl = "/booking") {
   const email = process.env.E2E_AUTH_EMAIL;
   const token = process.env.E2E_AUTH_TOKEN;
   if (!email || !token) {
@@ -55,6 +55,9 @@ async function signInWithProdE2E(page: Page, callbackUrl = "/meetups") {
 }
 
 test.describe("local smoke", () => {
+  // next dev compilation can take a while on the first request in CI
+  test.setTimeout(120_000);
+
   test("landing page and public health endpoints are reachable", async ({ page, request }) => {
     const health = await request.get("/api/health");
     expect(health.ok()).toBeTruthy();
@@ -74,11 +77,9 @@ test.describe("local smoke", () => {
   });
 
   test("dev login reaches meetups and admin provider screens", async ({ page }) => {
-    await signInAsLocalDev(page, "/meetups");
-    await page.goto("/meetups");
-    await page.waitForLoadState("networkidle");
-    await page.reload();
-    await expect(page.getByText("My Meetups")).toBeVisible({ timeout: 10_000 });
+    await signInAsLocalDev(page, "/booking");
+    await page.goto("/booking");
+    await expect(page.getByText("My Meetups")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("heading", { name: "Upcoming" })).toBeVisible();
 
     await page.goto("/admin/ai-provider");
@@ -91,9 +92,8 @@ test.describe("production smoke", () => {
   test("hidden e2e login reaches authenticated meetup flows", async ({ page }) => {
     test.skip(!process.env.PROD_BASE_URL, "PROD_BASE_URL is required for production smoke.");
 
-    await signInWithProdE2E(page, "/meetups");
-    await page.goto("/meetups");
-    await page.waitForLoadState("networkidle");
+    await signInWithProdE2E(page, "/booking");
+    await page.goto("/booking");
     await expect(page.getByText("My Meetups")).toBeVisible({ timeout: 15_000 });
   });
 });
