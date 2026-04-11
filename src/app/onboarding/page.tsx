@@ -38,7 +38,6 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceInputButton } from "@/components/voice-input-button";
-import { VoiceRecorder } from "@/components/voice-recorder";
 import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import {
   DOMAINS,
@@ -157,8 +156,6 @@ export default function OnboardingPage() {
   const [priceOnline, setPriceOnline] = useState("");
   const [priceOffline, setPriceOffline] = useState("");
   const [onboardSchedule, setOnboardSchedule] = useState<WeeklySchedule>({});
-  const [cloningVoice, setCloningVoice] = useState(false);
-  const [voiceCloned, setVoiceCloned] = useState(false);
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
   const [generatingDefaultAudio, setGeneratingDefaultAudio] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -399,21 +396,28 @@ export default function OnboardingPage() {
     addStepMessage("pricing", {
       id: "pricing",
       role: "ai",
-      content: `Set your hourly rate in SGD for ${parts.join(" and ")} meetups. This helps others know what to expect.`,
+      content: `Set your hourly rate in SGD for ${parts.join(" and ")} meetups. You can also enter 0 for free opening sessions.`,
       type: "input",
     });
   }, [currentStep, addStepMessage, sessionType]);
 
   const handlePricingSubmit = async () => {
-    const onlineCents = priceOnline ? Math.round(parseFloat(priceOnline) * 100) : undefined;
-    const offlineCents = priceOffline ? Math.round(parseFloat(priceOffline) * 100) : undefined;
+    const parsePrice = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const amount = Number.parseFloat(trimmed);
+      if (Number.isNaN(amount) || amount < 0) return null;
+      return Math.round(amount * 100);
+    };
+    const onlineCents = parsePrice(priceOnline);
+    const offlineCents = parsePrice(priceOffline);
 
-    if (sessionType !== "OFFLINE" && (!onlineCents || onlineCents <= 0)) return;
-    if (sessionType !== "ONLINE" && (!offlineCents || offlineCents <= 0)) return;
+    if (sessionType !== "OFFLINE" && onlineCents == null) return;
+    if (sessionType !== "ONLINE" && offlineCents == null) return;
 
     const parts: string[] = [];
-    if (onlineCents) parts.push(`Online: SGD ${priceOnline}/hr`);
-    if (offlineCents) parts.push(`Offline: SGD ${priceOffline}/hr`);
+    if (onlineCents !== undefined) parts.push(onlineCents === 0 ? "Online: Free opening sessions" : `Online: SGD ${priceOnline}/hr`);
+    if (offlineCents !== undefined) parts.push(offlineCents === 0 ? "Offline: Free opening sessions" : `Offline: SGD ${priceOffline}/hr`);
 
     setMessages((prev) => [
       ...prev,
@@ -422,8 +426,8 @@ export default function OnboardingPage() {
 
     try {
       const data: Record<string, number> = {};
-      if (onlineCents) data.priceOnlineCents = onlineCents;
-      if (offlineCents) data.priceOfflineCents = offlineCents;
+      if (typeof onlineCents === "number") data.priceOnlineCents = onlineCents;
+      if (typeof offlineCents === "number") data.priceOfflineCents = offlineCents;
       await saveOnboarding(data);
     } catch {
       // Silently fail
@@ -532,7 +536,7 @@ export default function OnboardingPage() {
       id: "voice-sample",
       role: "ai",
       content:
-        "Your profile is ready! To make your avatar speak in your own voice, record a short voice sample (10–30 seconds). Just speak naturally — read any text or introduce yourself. You can also skip this step.",
+        "Your profile is ready. We will generate a professional default voice introduction based on gender for MVP. You can continue now and preview it before publishing.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);
@@ -812,74 +816,6 @@ export default function OnboardingPage() {
         },
       ]);
       setCurrentStep("SESSION_PREFS");
-    }
-  };
-
-  const handleVoiceRecording = async (blob: Blob) => {
-    setCloningVoice(true);
-    setMessages((prev) => [
-      ...prev,
-      { id: "user-voice", role: "user", content: "Voice sample recorded" },
-    ]);
-
-    try {
-      const formData = new FormData();
-      formData.append("audio", blob, "voice.webm");
-
-      const cloneRes = await fetch("/api/expert/voice-clone", {
-        method: "POST",
-        headers: { ...tgHeaders },
-        body: formData,
-      });
-
-      if (!cloneRes.ok) {
-        const err = await cloneRes.json().catch(() => ({}));
-        throw new Error(err.error || "Voice cloning failed");
-      }
-
-      setVoiceCloned(true);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: "voice-cloned",
-          role: "ai",
-          content: "Voice cloned! Now generating your audio introduction...",
-          type: "text",
-        },
-      ]);
-
-      const audioRes = await fetch("/api/expert/generate-audio", {
-        method: "POST",
-        headers: { ...tgHeaders },
-      });
-
-      if (audioRes.ok) {
-        const audioData = await audioRes.json();
-        setAudioIntroUrl(audioData.audioIntroUrl ?? null);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: "audio-ready",
-            role: "ai",
-            content: "Your voice introduction is ready! Preview it below.",
-            type: "text",
-          },
-        ]);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Voice cloning failed";
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `voice-error-${Date.now()}`,
-          role: "ai",
-          content: `${msg}. You can try again or skip this step.`,
-          type: "text",
-        },
-      ]);
-    } finally {
-      setCloningVoice(false);
     }
   };
 
@@ -1642,15 +1578,6 @@ export default function OnboardingPage() {
 
         {currentStep === "VOICE_SAMPLE" && (
           <div className="space-y-3">
-            {!voiceCloned && (
-              <VoiceRecorder
-                onRecordingComplete={handleVoiceRecording}
-                disabled={cloningVoice}
-                minSeconds={10}
-                maxSeconds={60}
-              />
-            )}
-
             {audioIntroUrl && (
               <AudioPlayer
                 src={audioIntroUrl}
@@ -1659,20 +1586,17 @@ export default function OnboardingPage() {
             )}
 
             <Button
-              variant={voiceCloned ? "default" : "outline"}
-              className={cn(
-                "w-full min-h-[44px]",
-                voiceCloned && "bg-indigo-600 hover:bg-indigo-700"
-              )}
+              variant={audioIntroUrl ? "default" : "outline"}
+              className={cn("w-full min-h-[44px]", audioIntroUrl && "bg-indigo-600 hover:bg-indigo-700")}
               onClick={handleContinueToPreview}
-              disabled={cloningVoice || generatingDefaultAudio}
+              disabled={generatingDefaultAudio}
             >
-              {cloningVoice || generatingDefaultAudio ? (
+              {generatingDefaultAudio ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {generatingDefaultAudio ? "Generating voice intro..." : "Processing voice..."}
+                  Generating voice intro...
                 </>
-              ) : voiceCloned ? (
+              ) : audioIntroUrl ? (
                 <>
                   <Volume2 className="mr-2 h-4 w-4" />
                   Continue to Preview

@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { UserMenu } from "@/components/user-menu";
 import { useAuth } from "@/hooks/use-auth";
+import { buildGoogleMapsUrl } from "@/lib/google-maps";
 import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
@@ -579,9 +580,16 @@ const BookingCard = memo(function BookingCard({
               </span>
             </div>
             {!isOnline && (booking.offlineAddress || booking.meetingLink) && (
-              <p className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1">
-                <MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span>{booking.offlineAddress || booking.meetingLink}</span>
-              </p>
+              <a
+                href={buildGoogleMapsUrl(booking.offlineAddress || booking.meetingLink || "")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-flex items-start gap-1 text-xs text-primary hover:underline"
+              >
+                <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>{booking.offlineAddress || booking.meetingLink}</span>
+                <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" />
+              </a>
             )}
             {isOnline && booking.meetingLink && (
               <a

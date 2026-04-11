@@ -85,9 +85,6 @@ export default function ProfilePage() {
           </View>
         )}
         <Text className="profile__name">{displayName}</Text>
-        {user && user.email && (
-          <Text className="profile__email">{user.email}</Text>
-        )}
         {isExpert && (
           <View className="profile__role-badge">社区成员</View>
         )}

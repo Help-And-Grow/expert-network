@@ -8,7 +8,6 @@ export interface ExpertUser {
   name: string | null;
   nickName: string | null;
   image: string | null;
-  email: string | null;
 }
 
 export interface ExperienceCapabilities {
@@ -47,17 +46,12 @@ export interface Expert {
 
 export interface ExpertDetail extends Expert {
   servicesOffered: ServiceItem[] | null;
-  linkedIn: string | null;
-  website: string | null;
-  twitter: string | null;
-  substack: string | null;
-  instagram: string | null;
-  xiaohongshu: string | null;
   hasAvatar: boolean;
   hasAudio: boolean;
   hasClonedVoice: boolean;
   /** When true, show AI voice chat (default true; uses clone or built-in voice). */
   hasVoiceChat?: boolean;
+  viewerIsOwner?: boolean;
   avatarScript: string | null;
   documentName: string | null;
   experienceCapabilities?: ExperienceCapabilities;

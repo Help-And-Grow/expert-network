@@ -32,7 +32,6 @@ interface VoiceChatPanelProps {
   expertImage?: string | null;
   expertDomains?: string[];
   expertServices?: { title: string }[] | null;
-  hasClonedVoice?: boolean;
   open: boolean;
   onClose: () => void;
 }
@@ -87,7 +86,6 @@ export function VoiceChatPanel({
   expertImage,
   expertDomains = [],
   expertServices,
-  hasClonedVoice = true,
   open,
   onClose,
 }: VoiceChatPanelProps) {
@@ -540,7 +538,7 @@ export function VoiceChatPanel({
                   ) : (
                     <>
                       <Play className="h-3 w-3" />
-                      {hasClonedVoice ? `Play in ${firstName}'s voice` : "Play voice"}
+                      Play voice
                     </>
                   )}
                 </button>
@@ -607,12 +605,12 @@ export function VoiceChatPanel({
               Enjoyed the preview? Go deeper in a full session.
             </p>
             <Button
-              onClick={() => {
-                onClose();
-                window.location.href = `/book?expertId=${expertId}`;
-              }}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-            >
+                onClick={() => {
+                  onClose();
+                  window.location.href = `/experts/${expertId}/book?from=voice-preview`;
+                }}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              >
               <Calendar className="h-4 w-4 mr-2" />
               Schedule a meetup with {firstName}
             </Button>

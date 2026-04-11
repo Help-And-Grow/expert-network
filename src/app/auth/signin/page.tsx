@@ -34,10 +34,16 @@ function SignInForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [devLoading, setDevLoading] = useState(false);
   const [devAvailable, setDevAvailable] = useState(false);
+  const [googleAvailable, setGoogleAvailable] = useState(false);
+  const [magicLinkAvailable, setMagicLinkAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void getProviders().then((p) => setDevAvailable(Boolean(p?.["dev-login"])));
+    void getProviders().then((p) => {
+      setDevAvailable(Boolean(p?.["dev-login"]));
+      setGoogleAvailable(Boolean(p?.google));
+      setMagicLinkAvailable(Boolean(p?.nodemailer));
+    });
   }, []);
 
   useEffect(() => {
@@ -59,8 +65,7 @@ function SignInForm() {
     }
     setEmailLoading(true);
     try {
-      const providers = await getProviders();
-      if (!providers?.nodemailer) {
+      if (!magicLinkAvailable) {
         setError(
           "Email sign-in is not available (server mail is not configured). Use Google sign-in or ask an admin to set EMAIL_SERVER_* and EMAIL_FROM on the deployment.",
         );
@@ -100,6 +105,10 @@ function SignInForm() {
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    if (!googleAvailable) {
+      setError("Google sign-in is not configured on this deployment.");
+      return;
+    }
     setGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl });
@@ -169,64 +178,76 @@ function SignInForm() {
           </div>
         )}
 
-        <form onSubmit={handleMagicLink} className="space-y-3">
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+        {magicLinkAvailable && (
+          <form onSubmit={handleMagicLink} className="space-y-3">
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={emailLoading}
+                className="pl-9"
+                autoComplete="email"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
               disabled={emailLoading}
-              className="pl-9"
-              autoComplete="email"
-            />
+            >
+              {emailLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4" />
+                  Send Magic Link
+                </>
+              )}
+            </Button>
+          </form>
+        )}
+
+        {magicLinkAvailable && googleAvailable && (
+          <div className="relative">
+            <Separator className="my-4" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              or
+            </span>
           </div>
+        )}
+
+        {googleAvailable && (
           <Button
-            type="submit"
+            type="button"
+            variant="outline"
             className="w-full"
-            disabled={emailLoading}
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
           >
-            {emailLoading ? (
+            {googleLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Sending...
+                Connecting...
               </>
             ) : (
               <>
-                <Mail className="h-4 w-4" />
-                Send Magic Link
+                <Chrome className="h-4 w-4" />
+                Continue with Google
               </>
             )}
           </Button>
-        </form>
+        )}
 
-        <div className="relative">
-          <Separator className="my-4" />
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            or
-          </span>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading}
-        >
-          {googleLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <Chrome className="h-4 w-4" />
-              Continue with Google
-            </>
-          )}
-        </Button>
+        {!magicLinkAvailable && !googleAvailable && (
+          <p className="rounded-lg border border-border/80 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Sign-in options are not configured on this deployment yet.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

@@ -22,6 +22,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/user-menu";
+import { buildGoogleMapsUrl } from "@/lib/google-maps";
 import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
@@ -597,9 +598,20 @@ export default function BookSessionPage() {
             <Input
               value={offlineAddress}
               onChange={(e) => setOfflineAddress(e.target.value)}
-              placeholder="Enter the meeting location or address"
+              placeholder="Enter the exact meeting place or Google Maps address"
               className="min-h-[44px]"
             />
+            {offlineAddress.trim() && (
+              <a
+                href={buildGoogleMapsUrl(offlineAddress.trim())}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                Preview in Google Maps
+              </a>
+            )}
           </section>
         )}
 
@@ -718,6 +730,11 @@ export default function BookSessionPage() {
                   </span>
                 </div>
               </>
+            )}
+            {totalCents === 0 && (
+              <div className="surface-success rounded-lg px-3 py-2 text-sm">
+                This meetup is free. We skip deposit language here and confirm it directly.
+              </div>
             )}
           </section>
         )}

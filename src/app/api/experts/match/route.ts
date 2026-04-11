@@ -5,6 +5,7 @@ import type { NormalizedQuery } from "@/lib/ai";
 import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
 
 type MatchExpertRow = {
   id: string;
@@ -12,6 +13,7 @@ type MatchExpertRow = {
   sessionType: string;
   servicesOffered: unknown;
   domains: { domain: string }[];
+  userId: string;
   user: { nickName: string | null; name: string | null };
   reviewCount: number;
   avgRating: number;
@@ -88,6 +90,7 @@ function exploratoryFallback(experts: MatchExpertRow[]) {
 
 export async function POST(request: NextRequest) {
   try {
+    const viewerUserId = await resolveUserId(request).catch(() => null);
     const body = await request.json().catch(() => ({}));
     if (typeof body !== "object" || body === null) {
       return NextResponse.json(
@@ -126,7 +129,10 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Fetch expert pool
     const experts = await prisma.expert.findMany({
-      where: { isPublished: true },
+      where: {
+        isPublished: true,
+        ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
+      },
       include: {
         domains: true,
         user: { select: { nickName: true, name: true } },

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       domains: domainStrings(domainRows),
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
-      hasVoiceClone: !!expert.fishAudioModelId,
+      hasVoiceClone: false,
     });
   } catch (error) {
     console.error("[expert/profile GET]", error);

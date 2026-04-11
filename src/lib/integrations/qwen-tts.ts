@@ -47,7 +47,13 @@ export class QwenTTSProvider implements VoiceSynthesisProvider {
   }
 
   async synthesize(input: VoiceSynthesisInput): Promise<VoiceSynthesisResult> {
-    const voice = input.voiceId || "Ethan";
+    let voice = input.voiceId;
+    
+    // Fallback if the voice ID is a generic placeholder from our environment merge script
+    if (!voice || voice.includes("-voice") || voice === "default") {
+      voice = this.getDefaultVoiceId() || "Ethan";
+    }
+
     const isSystemVoice = SYSTEM_VOICES.has(voice);
     const model = isSystemVoice ? TTS_MODEL : TTS_VC_MODEL;
 

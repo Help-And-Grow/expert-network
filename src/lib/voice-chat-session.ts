@@ -6,11 +6,13 @@ import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
 import { defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
+import { createGeminiClient, getGeminiTextModel } from "@/lib/ai/gemini-client";
 
 const DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 const DASHSCOPE_GENERATION_URL =
   "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+const BYTEPLUS_BASE_URL = "https://ark.ap-southeast.bytepluses.com/api/v3/";
 
 const LLM_MODEL = "qwen-max";
 const ASR_MODEL = "qwen3-asr-flash";
@@ -58,6 +60,7 @@ export function resetConversation(userId: string, expertId: string): void {
 
 export interface ExpertVoiceChatProfile {
   id: string;
+  ownerUserId: string;
   name: string;
   bio: string | null;
   domains: string[];
@@ -96,12 +99,9 @@ function formatServicesOfferedJson(raw: unknown): string | null {
 }
 
 function resolveVoiceModelId(
-  fishAudioModelId: string | null,
+  _fishAudioModelId: string | null,
   gender: string | null,
 ): { voiceModelId: string; usesClonedVoice: boolean } {
-  if (fishAudioModelId) {
-    return { voiceModelId: fishAudioModelId, usesClonedVoice: true };
-  }
   const override = env.VOICE_CHAT_DEFAULT_VOICE?.trim();
   if (override) {
     return { voiceModelId: override, usesClonedVoice: false };
@@ -125,7 +125,7 @@ export async function loadExpertVoiceChatProfile(
       servicesOffered: true,
       domains: { select: { domain: true } },
       fishAudioModelId: true,
-      user: { select: { name: true, nickName: true } },
+      user: { select: { id: true, name: true, nickName: true } },
     },
   });
 
@@ -140,6 +140,7 @@ export async function loadExpertVoiceChatProfile(
 
   return {
     id: expert.id,
+    ownerUserId: expert.user.id,
     name: expert.user.nickName ?? expert.user.name ?? "Expert",
     bio: expert.bio,
     domains: domainStrings(expert.domains),
@@ -227,6 +228,15 @@ async function loadUserVoiceContext(
   return lines.length > 0 ? lines.join("\n") : null;
 }
 
+function ensureVoiceChatAllowed(
+  userId: string,
+  profile: ExpertVoiceChatProfile,
+): void {
+  if (profile.ownerUserId === userId) {
+    throw new Error("You cannot voice chat with your own expert profile.");
+  }
+}
+
 function ensureConversation(
   userId: string,
   profile: ExpertVoiceChatProfile,
@@ -287,6 +297,58 @@ export async function transcribeAudio(
   ).trim();
 }
 
+async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
+  const apiKey = env.DASHSCOPE_API_KEY;
+  if (!apiKey) {
+    throw new Error("DASHSCOPE_API_KEY is not set");
+  }
+
+  const qwen = new OpenAI({ apiKey, baseURL: DASHSCOPE_BASE_URL });
+  const response = await qwen.chat.completions.create({
+    model: LLM_MODEL,
+    messages,
+  });
+
+  return response.choices[0]?.message?.content ?? "";
+}
+
+async function generateBytePlusReply(messages: ChatMessage[]): Promise<string> {
+  if (!env.BYTEPLUS_API_KEY) {
+    return generateQwenReply(messages);
+  }
+
+  const client = new OpenAI({
+    apiKey: env.BYTEPLUS_API_KEY,
+    baseURL: BYTEPLUS_BASE_URL,
+  });
+  const response = await client.chat.completions.create({
+    model: env.BYTEPLUS_MODEL_ID || "doubao-pro-32k",
+    messages,
+  });
+
+  return response.choices[0]?.message?.content ?? "";
+}
+
+async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
+  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
+    return generateQwenReply(messages);
+  }
+
+  const prompt = [
+    "Continue this voice consultation as the expert. Reply only with the assistant's next message.",
+    "",
+    ...messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
+  ].join("\n");
+
+  const gemini = createGeminiClient();
+  const response = await gemini.models.generateContent({
+    model: getGeminiTextModel(),
+    contents: prompt,
+  });
+
+  return response.text ?? "";
+}
+
 const VOICE_CHAT_MEMORY_SNIPPETS = 6;
 const VOICE_CHAT_MEMORY_MAX_CHARS = 1_400;
 
@@ -296,9 +358,6 @@ async function generateReply(
   userId: string,
   userText: string,
 ): Promise<string> {
-  const apiKey = env.DASHSCOPE_API_KEY;
-  if (!apiKey) throw new Error("DASHSCOPE_API_KEY is not set");
-
   const snippets = await searchExpertMemories(
     expertId,
     userText,
@@ -327,13 +386,13 @@ async function generateReply(
 
   conv.history.push({ role: "user", content: userContent });
 
-  const qwen = new OpenAI({ apiKey, baseURL: DASHSCOPE_BASE_URL });
-  const response = await qwen.chat.completions.create({
-    model: LLM_MODEL,
-    messages: conv.history,
-  });
-
-  const reply = response.choices[0]?.message?.content ?? "";
+  const provider = env.AI_PROVIDER || "qwen";
+  const reply =
+    provider === "gemini"
+      ? await generateGeminiReply(conv.history)
+      : provider === "byteplus"
+        ? await generateBytePlusReply(conv.history)
+        : await generateQwenReply(conv.history);
   conv.history.push({ role: "assistant", content: reply });
   conv.turnCount++;
 
@@ -361,10 +420,12 @@ export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): str
 
 /** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */
 export async function getVoiceChatGreeting(
+  userId: string,
   expertId: string,
 ): Promise<{ text: string; replyAudioBase64: string; replyAudioFormat: string } | null> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) return null;
+  ensureVoiceChatAllowed(userId, profile);
   const text = buildVoiceChatGreetingText(profile);
   const { audioBase64, format } = await synthesizeVoice(text, profile.voiceModelId);
   return { text, replyAudioBase64: audioBase64, replyAudioFormat: format };
@@ -387,6 +448,7 @@ export async function processVoiceMessage(
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) throw new Error("Expert not found");
+  ensureVoiceChatAllowed(userId, profile);
 
   const conv = ensureConversation(userId, profile);
 
@@ -422,6 +484,7 @@ export async function processTextMessage(
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) throw new Error("Expert not found");
+  ensureVoiceChatAllowed(userId, profile);
 
   const conv = ensureConversation(userId, profile);
 
@@ -452,6 +515,7 @@ export async function processVoiceDrafts(
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) throw new Error("Expert not found");
+  ensureVoiceChatAllowed(userId, profile);
 
   const conv = ensureConversation(userId, profile);
   if (conv.turnCount >= MAX_TURNS) {

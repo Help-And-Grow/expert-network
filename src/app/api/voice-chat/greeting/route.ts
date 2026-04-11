@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await getVoiceChatGreeting(expertId);
+    const result = await getVoiceChatGreeting(userId, expertId);
     if (!result) {
       return NextResponse.json({ error: "Expert not found" }, { status: 404 });
     }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     console.error("[voice-chat/greeting]", msg);
     return NextResponse.json(
       { error: msg || "Failed to generate greeting" },
-      { status: 500 },
+      { status: msg.includes("own expert profile") ? 403 : 500 },
     );
   }
 }
