@@ -60,6 +60,10 @@ const envSchema = z
 
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+    /** Places API (New) server key for address autocomplete (bookings / meetup location). Enable "Places API (New)" in Google Cloud. */
+    GOOGLE_PLACES_API_KEY: z.string().optional(),
+    /** Comma-separated ISO country codes to bias autocomplete (default: sg). */
+    GOOGLE_PLACES_REGION_CODES: z.string().optional(),
 
     EMAIL_SERVER_HOST: z.string().optional(),
     EMAIL_SERVER_PORT: z.string().optional(),
