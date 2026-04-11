@@ -32,6 +32,38 @@ We have established three dedicated Vercel projects:
 2. **`expert-network-googlecloud`**: Uses the Vertex AI/Gemini provider (`AI_PROVIDER="gemini"`).
 3. **`expert-network-byteplus`**: Uses the ModelArk/Doubao provider (`AI_PROVIDER="byteplus"`).
 
+### Vercel dashboard URLs (avoid 404)
+
+Deployment pages use:
+
+`https://vercel.com/<team-slug>/<project-slug>`  
+`https://vercel.com/<team-slug>/<project-slug>/dpl_<id>`
+
+If **`<team-slug>`** is wrong, Vercel returns **404 NOT_FOUND** for the **dashboard** URL only. That does **not** change how `*.vercel.app` resolves; dashboard 404 and live-site 404 are different problems (see below).
+
+For the private origin repo **`jlzxwt8/expert-network`**, these projects are typically linked under team **`jlzxwt8s-projects`** (check **Vercel → team switcher → Project → Settings** if unsure).
+
+| Project | Production URL | Dashboard (when team is `jlzxwt8s-projects`) |
+|---------|----------------|-----------------------------------------------|
+| `expert-network` | https://expert-network.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network |
+| `expert-network-googlecloud` | https://expert-network-googlecloud.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network-googlecloud |
+| `expert-network-alibabacloud` | https://expert-network-alibabacloud.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network-alibabacloud |
+| `expert-network-byteplus` | https://expert-network-byteplus.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network-byteplus |
+
+Copy **deployment** links from the Deployments list; the id must look like **`dpl_…`**. Paths such as `/helpandgrow/expert-network-googlecloud/…` only work if that team actually owns the project.
+
+### Live site `*.vercel.app` returns 404 (`NOT_FOUND`) while deployment shows Ready
+
+If **`https://<project-slug>.vercel.app/`** returns **HTTP 404** with **`content-type: text/plain`**, body like `The page could not be found`, and **`x-vercel-error: NOT_FOUND`**, that response comes from **Vercel’s edge**, not from Next.js (a Next.js app 404 is usually HTML). The build can still be **Ready** in the UI.
+
+**Checklist (per project):**
+
+1. **Settings → Domains** — Confirm **`<project-slug>.vercel.app`** is attached to **this** project, shows **Valid**, and serves **Production**. Re-add the default domain if it is missing or conflicting.
+2. **Deployments** — Confirm a **Production** deployment exists for the expected branch (e.g. `main`). **Redeploy** after fixing domains if needed.
+3. **Git** — Confirm the connected repo and **Production Branch** match the deployment you expect.
+4. **Deployment Protection** — URLs like **`*-git-main-*.vercel.app`** may return **401 Authentication Required** for unauthenticated clients (including `curl` and sometimes the dashboard preview). That is separate from production-domain **404**; use [protection bypass](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation) for automation or adjust protection in **Project → Settings → Deployment Protection**.
+5. **Vercel CLI** — If `vercel project ls` shows no projects, the CLI scope may be the wrong team (e.g. `helpandgrow` vs **`jlzxwt8s-projects`**). Match the **team switcher** in the dashboard before running `vercel link` / env commands.
+
 ### How it works:
 All three Vercel projects are linked to the **same** GitHub repository branch (`Help-And-Grow/expert-network:main`). The codebase dynamically adapts its behavior based on the Vercel Environment Variables injected at runtime.
 

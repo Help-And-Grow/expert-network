@@ -53,7 +53,7 @@ See `docs/` for full details:
 | Design docs | [docs/design-docs/](docs/design-docs/) | Indexed design decisions |
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
-| References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) |
+| References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 

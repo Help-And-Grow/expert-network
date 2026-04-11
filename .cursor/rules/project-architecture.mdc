@@ -27,8 +27,13 @@ alwaysApply: true
 |-----------|-----|-------------|----------|
 | Origin (production) | expert-network.vercel.app | Qwen (DashScope) | PostgreSQL |
 | Hackathon | expert-network-hackathon.vercel.app | Gemini (Vertex AI) | Supabase PostgreSQL |
+| Google Cloud | expert-network-googlecloud.vercel.app | Gemini (Vertex AI) | PostgreSQL (per env) |
+| Alibaba Cloud | expert-network-alibabacloud.vercel.app | Qwen (DashScope) | PostgreSQL (per env) |
+| BytePlus | expert-network-byteplus.vercel.app | BytePlus / ModelArk | PostgreSQL (per env) |
 
 This codebase targets the **origin** deployment. Changes go to `main` branch → auto-deploy via Vercel.
+
+**Vercel dashboard:** URLs are `https://vercel.com/<team-slug>/<project>`. Wrong team → **404**. Private R&D projects usually live under **`jlzxwt8s-projects`**, not a marketing slug. If **`*.vercel.app`** returns plain-text **`NOT_FOUND`** (edge 404) while a deployment is Ready, fix **Project → Settings → Domains** and production assignment — see [multi-repo-strategy.md § Live site 404](docs/references/multi-repo-strategy.md).
 
 ## Database
 
