@@ -329,6 +329,25 @@ async function generateBytePlusReply(messages: ChatMessage[]): Promise<string> {
   return response.choices[0]?.message?.content ?? "";
 }
 
+const VOLCENGINE_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/";
+
+async function generateVolcengineReply(messages: ChatMessage[]): Promise<string> {
+  if (!env.VOLCENGINE_API_KEY) {
+    return generateQwenReply(messages);
+  }
+
+  const client = new OpenAI({
+    apiKey: env.VOLCENGINE_API_KEY,
+    baseURL: VOLCENGINE_BASE_URL,
+  });
+  const response = await client.chat.completions.create({
+    model: env.VOLCENGINE_MODEL_ID || "doubao-seed-1.6-flash",
+    messages,
+  });
+
+  return response.choices[0]?.message?.content ?? "";
+}
+
 async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
   if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
     return generateQwenReply(messages);
@@ -392,7 +411,9 @@ async function generateReply(
       ? await generateGeminiReply(conv.history)
       : provider === "byteplus"
         ? await generateBytePlusReply(conv.history)
-        : await generateQwenReply(conv.history);
+        : provider === "volcengine"
+          ? await generateVolcengineReply(conv.history)
+          : await generateQwenReply(conv.history);
   conv.history.push({ role: "assistant", content: reply });
   conv.turnCount++;
 
