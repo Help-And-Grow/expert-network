@@ -4,10 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import ExpertCard from "../../components/ExpertCard";
 import { get, post } from "../../shared/api";
+import {
+  type DiscoverMatchChatMessage,
+  discoverMatchMessagesToApiHistory,
+  loadDiscoverMatchFromWeChatStorage,
+  saveDiscoverMatchToWeChatStorage,
+} from "../../shared/discover-match-storage";
 import type {
   Expert,
   ExpertsResponse,
-  MatchRecommendation,
   MatchResponse,
 } from "../../shared/types";
 import "./index.scss";
@@ -107,10 +112,9 @@ export default function DiscoverPage() {
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState("");
   const [matching, setMatching] = useState(false);
-  const [activePrompt, setActivePrompt] = useState("");
-  const [matchRecommendations, setMatchRecommendations] = useState<MatchRecommendation[]>([]);
-  const [matchMessage, setMatchMessage] = useState("");
-  const [hasSearched, setHasSearched] = useState(false);
+  const [chatMessages, setChatMessages] = useState<DiscoverMatchChatMessage[]>(() => {
+    return loadDiscoverMatchFromWeChatStorage() ?? [];
+  });
 
   const fetchFeaturedExperts = useCallback(async () => {
     setFeaturedLoading(true);
@@ -134,34 +138,56 @@ export default function DiscoverPage() {
 
   const runMatch = useCallback(async (query: string) => {
     if (!query || matching) return;
-    setActivePrompt(query);
+    const withUser: DiscoverMatchChatMessage[] = [...chatMessages, { role: "user", content: query }];
+    setChatMessages(withUser);
     setMatching(true);
-    setHasSearched(true);
-    setMatchRecommendations([]);
-    setMatchMessage("");
+
+    const history = discoverMatchMessagesToApiHistory(withUser);
 
     try {
       const res = await post<MatchResponse>("/api/experts/match", {
         query,
-        history: [],
+        history,
       });
 
       if (res.statusCode === 200) {
-        setMatchRecommendations(res.data.recommendations ?? []);
-        setMatchMessage(normalizeNoMatchMessage(res.data.noMatchMessage));
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            recommendations: res.data.recommendations ?? [],
+            noMatchMessage: res.data.noMatchMessage,
+          },
+        ]);
       } else {
-        setMatchMessage("这次匹配没有成功，请稍后再试。");
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            noMatchMessage: "这次匹配没有成功，请稍后再试。",
+          },
+        ]);
       }
     } catch {
-      setMatchMessage("这次匹配没有成功，请稍后再试。");
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          noMatchMessage: "这次匹配没有成功，请稍后再试。",
+        },
+      ]);
     } finally {
       setMatching(false);
     }
-  }, [matching]);
+  }, [matching, chatMessages]);
 
   const openExpert = useCallback((expertId: string) => {
     Taro.navigateTo({ url: `/pages/expert/index?id=${expertId}` });
   }, []);
+
+  useEffect(() => {
+    saveDiscoverMatchToWeChatStorage(chatMessages);
+  }, [chatMessages]);
 
   useLoad(() => {
     Taro.setNavigationBarTitle({ title: "发现专家" });
@@ -172,11 +198,16 @@ export default function DiscoverPage() {
     Taro.setNavigationBarTitle({ title: "发现专家" });
   });
 
-  const resultTitle = useMemo(() => {
-    if (!hasSearched) return "本周精选";
-    if (matchRecommendations.length > 0) return "优先推荐";
-    return "继续看看这些专家";
-  }, [hasSearched, matchRecommendations.length]);
+  const activeQuickPrompt = useMemo(() => {
+    const lastUser = [...chatMessages].reverse().find((m) => m.role === "user" && m.content);
+    const c = lastUser?.content ?? "";
+    return (QUICK_MATCH_PROMPTS as readonly string[]).includes(c) ? c : "";
+  }, [chatMessages]);
+
+  const featuredSectionTitle = useMemo(() => {
+    if (chatMessages.length === 0) return "本周精选";
+    return "更多专家";
+  }, [chatMessages.length]);
 
   if (hasInvite === false || hasInvite === null) {
     return (
@@ -214,14 +245,14 @@ export default function DiscoverPage() {
       <View className="discover__section">
         <Text className="discover__section-title">快捷匹配</Text>
         <Text className="discover__section-sub">
-          先选一个接近当前问题的场景，系统会给出一组优先建议。
+          先选一个接近当前问题的场景，系统会给出一组优先建议。从专家主页返回本页后，对话与推荐仍会保留。
         </Text>
         <View className="discover__prompt-grid">
           {QUICK_MATCH_PROMPTS.map((prompt) => (
             <View
               key={prompt}
               className={`discover__prompt-chip ${
-                activePrompt === prompt ? "discover__prompt-chip--active" : ""
+                activeQuickPrompt === prompt ? "discover__prompt-chip--active" : ""
               }`}
               hoverClass="discover__prompt-chip--hover"
               onClick={() => runMatch(prompt)}
@@ -232,54 +263,69 @@ export default function DiscoverPage() {
         </View>
       </View>
 
+      {(chatMessages.length > 0 || matching) && (
+        <View className="discover__section">
+          <View className="discover__section-head">
+            <Text className="discover__section-title">匹配对话</Text>
+            {matching && <Text className="discover__section-note">匹配中...</Text>}
+          </View>
+          {chatMessages.map((m, turnIdx) => (
+            <View key={`turn-${turnIdx}`} className="discover__thread-turn">
+              {m.role === "user" && m.content && (
+                <View className="discover__user-turn">
+                  <Text className="discover__thread-label">你的描述</Text>
+                  <Text className="discover__user-turn-text">{m.content}</Text>
+                </View>
+              )}
+              {m.role === "assistant" && (
+                <View className="discover__assistant-turn">
+                  {m.recommendations && m.recommendations.length > 0 ? (
+                    <View className="discover__match-list">
+                      {m.recommendations.map((item) => (
+                        <View key={item.expertId} className="discover__match-card">
+                          <View className="discover__match-avatar">
+                            {item.name
+                              .split(" ")
+                              .map((part) => part[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </View>
+                          <View className="discover__match-body">
+                            <Text className="discover__match-name">{item.name}</Text>
+                            <Text className="discover__match-reason">
+                              {normalizeRecommendationReason(item.reason)}
+                            </Text>
+                            <View
+                              className="discover__match-btn"
+                              hoverClass="discover__match-btn--hover"
+                              onClick={() => openExpert(item.expertId)}
+                            >
+                              查看专家主页
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : m.noMatchMessage ? (
+                    <View className="discover__empty-state discover__empty-state--inline">
+                      <Text className="discover__empty-title">本轮匹配说明</Text>
+                      <Text className="discover__empty-desc">
+                        {normalizeNoMatchMessage(m.noMatchMessage)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+
       <View className="discover__section">
         <View className="discover__section-head">
-          <Text className="discover__section-title">{resultTitle}</Text>
-          {matching && <Text className="discover__section-note">匹配中...</Text>}
+          <Text className="discover__section-title">{featuredSectionTitle}</Text>
         </View>
-        {hasSearched && activePrompt && (
-          <Text className="discover__section-sub">
-            当前问题：{activePrompt}
-          </Text>
-        )}
-
-        {matchRecommendations.length > 0 && (
-          <View className="discover__match-list">
-            {matchRecommendations.map((item) => (
-              <View key={item.expertId} className="discover__match-card">
-                <View className="discover__match-avatar">
-                  {item.name
-                    .split(" ")
-                    .map((part) => part[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)}
-                </View>
-                <View className="discover__match-body">
-                  <Text className="discover__match-name">{item.name}</Text>
-                  <Text className="discover__match-reason">
-                    {normalizeRecommendationReason(item.reason)}
-                  </Text>
-                  <View
-                    className="discover__match-btn"
-                    hoverClass="discover__match-btn--hover"
-                    onClick={() => openExpert(item.expertId)}
-                  >
-                    查看专家主页
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {hasSearched && !matching && matchRecommendations.length === 0 && (
-          <View className="discover__empty-state">
-            <Text className="discover__empty-title">这次还没有完全匹配的结果</Text>
-            <Text className="discover__empty-desc">{matchMessage}</Text>
-          </View>
-        )}
-
         {featuredLoading ? (
           <View className="discover__skeleton-list">
             {[1, 2, 3].map((item) => (
