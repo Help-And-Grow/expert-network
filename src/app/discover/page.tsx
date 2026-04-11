@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,37 @@ interface MatchResponse {
   noMatchMessage?: string;
 }
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content?: string;
+  recommendations?: MatchRecommendation[];
+  noMatchMessage?: string;
+};
+
+const DISCOVER_CHAT_STORAGE_KEY = "hg-discover-match-chat-v1";
+
+function loadDiscoverChatFromSession(): { chatMessages: ChatMessage[]; chatInput: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(DISCOVER_CHAT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { chatMessages?: unknown; chatInput?: unknown };
+    if (!Array.isArray(parsed.chatMessages) || typeof parsed.chatInput !== "string") return null;
+    return { chatMessages: parsed.chatMessages as ChatMessage[], chatInput: parsed.chatInput };
+  } catch {
+    return null;
+  }
+}
+
+function saveDiscoverChatToSession(chatMessages: ChatMessage[], chatInput: string) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(DISCOVER_CHAT_STORAGE_KEY, JSON.stringify({ chatMessages, chatInput }));
+  } catch {
+    // quota or private mode
+  }
+}
+
 const MatchRecommendationCard = memo(function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
   const initials = rec.name
     .split(" ")
@@ -37,7 +68,7 @@ const MatchRecommendationCard = memo(function MatchRecommendationCard({ rec }: {
     .slice(0, 2);
 
   return (
-    <Card className="overflow-hidden border-indigo-200 dark:border-indigo-800">
+    <Card className="overflow-hidden border-indigo-400/20">
       <CardContent className="p-4">
         <div className="flex gap-4">
           <div
@@ -74,11 +105,24 @@ function DiscoverContent() {
   const { checked: inviteChecked, hasInvite } = useInviteGuard();
   const router = useRouter();
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<
-    { role: "user" | "assistant"; content?: string; recommendations?: MatchRecommendation[]; noMatchMessage?: string }[]
-  >([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [sessionRestored, setSessionRestored] = useState(false);
+
+  useLayoutEffect(() => {
+    const saved = loadDiscoverChatFromSession();
+    if (saved) {
+      setChatMessages(saved.chatMessages);
+      setChatInput(saved.chatInput);
+    }
+    setSessionRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRestored) return;
+    saveDiscoverChatToSession(chatMessages, chatInput);
+  }, [chatMessages, chatInput, sessionRestored]);
 
   useEffect(() => {
     if (tgReady && !isTelegram && sessionStatus === "unauthenticated") {
@@ -91,17 +135,23 @@ function DiscoverContent() {
     if (!q || chatLoading) return;
 
     setChatInput("");
-    setChatMessages((prev) => [...prev, { role: "user", content: q }]);
+    const withUser: ChatMessage[] = [...chatMessages, { role: "user", content: q }];
+    setChatMessages(withUser);
     setChatLoading(true);
 
-    const history = chatMessages
-      .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
+    const history = withUser
+      .filter(
+        (m) =>
+          m.role === "user" ||
+          (m.role === "assistant" &&
+            (Boolean(m.content) || Boolean(m.recommendations?.length) || Boolean(m.noMatchMessage))),
+      )
       .map((m) => ({
         role: m.role,
         content:
           m.role === "user"
             ? m.content!
-            : m.recommendations
+            : m.recommendations?.length
               ? `Recommended: ${m.recommendations.map((r) => r.name).join(", ")}`
               : m.noMatchMessage ?? "",
       }));
@@ -149,7 +199,7 @@ function DiscoverContent() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-lg mx-auto flex flex-col pb-24">
+    <div className="app-shell min-h-screen w-full max-w-lg mx-auto flex flex-col pb-24">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center justify-between">
@@ -200,7 +250,7 @@ function DiscoverContent() {
                         <MatchRecommendationCard key={rec.expertId} rec={rec} />
                       ))
                     ) : m.noMatchMessage ? (
-                      <div className="rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+                      <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground">
                         {m.noMatchMessage}
                       </div>
                     ) : null}
