@@ -14,8 +14,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # If this were the only job, an unset secret would skip it and GitHub would fail the workflow
+  # with "no jobs" — still triggering failure emails. This job always runs so the workflow succeeds.
+  ui-smoke-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: E2E database secret
+        run: |
+          echo "UI smoke: Playwright runs in job playwright-smoke only when E2E_DATABASE_URL is set."
+          echo "Add that Actions secret on this repo (and on each fork/mirror that runs this workflow) to enable DB + Playwright."
+
   playwright-smoke:
-    # Without this secret the first step used to exit 1 on every push/PR (noisy failure emails).
+    needs: ui-smoke-gate
+    # Without this secret the Playwright job is skipped (no false failures from missing DB URL).
     if: ${{ secrets.E2E_DATABASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
