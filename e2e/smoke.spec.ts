@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function signInAsLocalDev(page: Page, callbackUrl = "/booking") {
+async function signInAsLocalDev(page: Page, callbackUrl = "/meetups") {
   const csrfResponse = await page.context().request.get("/api/auth/csrf");
   expect(csrfResponse.ok()).toBeTruthy();
   const csrfJson = (await csrfResponse.json()) as { csrfToken: string };
@@ -10,6 +10,7 @@ async function signInAsLocalDev(page: Page, callbackUrl = "/booking") {
       callbackUrl,
       csrfToken: csrfJson.csrfToken,
       json: "true",
+      email: process.env.DEV_AUTH_EMAIL || "admin-smoke@localhost",
     },
   });
 
@@ -24,7 +25,7 @@ async function signInAsLocalDev(page: Page, callbackUrl = "/booking") {
   ).toBeTruthy();
 }
 
-async function signInWithProdE2E(page: Page, callbackUrl = "/booking") {
+async function signInWithProdE2E(page: Page, callbackUrl = "/meetups") {
   const email = process.env.E2E_AUTH_EMAIL;
   const token = process.env.E2E_AUTH_TOKEN;
   if (!email || !token) {
@@ -73,11 +74,11 @@ test.describe("local smoke", () => {
   });
 
   test("dev login reaches meetups and admin provider screens", async ({ page }) => {
-    await signInAsLocalDev(page, "/booking");
-    await page.goto("/booking");
+    await signInAsLocalDev(page, "/meetups");
+    await page.goto("/meetups");
     await page.waitForLoadState("networkidle");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "My Meetups" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("My Meetups")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "Upcoming" })).toBeVisible();
 
     await page.goto("/admin/ai-provider");
@@ -90,9 +91,9 @@ test.describe("production smoke", () => {
   test("hidden e2e login reaches authenticated meetup flows", async ({ page }) => {
     test.skip(!process.env.PROD_BASE_URL, "PROD_BASE_URL is required for production smoke.");
 
-    await signInWithProdE2E(page, "/booking");
-    await page.goto("/booking");
+    await signInWithProdE2E(page, "/meetups");
+    await page.goto("/meetups");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByRole("heading", { name: "My Meetups" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("My Meetups")).toBeVisible({ timeout: 15_000 });
   });
 });

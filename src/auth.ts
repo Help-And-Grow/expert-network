@@ -53,7 +53,7 @@ if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
 }
 
 /** One-click local sign-in when `next dev` + DEV_AUTH_EMAIL (never enabled in production builds). */
-if (process.env.NODE_ENV === "development" && env.DEV_AUTH_EMAIL) {
+if ((process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && env.DEV_AUTH_EMAIL) {
   const devEmail = env.DEV_AUTH_EMAIL.trim().toLowerCase();
   const devRole = env.DEV_AUTH_ROLE ?? "FOUNDER";
   providers.push(
