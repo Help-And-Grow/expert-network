@@ -416,7 +416,7 @@ export function VoiceChatPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-background"
+      className="app-shell fixed inset-0 z-50 flex flex-col bg-background"
       onPointerDownCapture={onPanelPointerDownCapture}
     >
       {/* Header with expert identity */}
@@ -472,7 +472,7 @@ export function VoiceChatPanel({
               {expertImage ? (
                 <Image src={expertImage} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
               ) : (
-                <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500/15 text-xs font-bold text-indigo-200">
                   {firstName.charAt(0)}
                 </div>
               )}
@@ -514,7 +514,7 @@ export function VoiceChatPanel({
                 "rounded-2xl px-3.5 py-2.5 text-sm",
                 msg.role === "user"
                   ? "bg-indigo-600 text-white rounded-tr-sm"
-                  : "bg-muted rounded-tl-sm",
+                  : "rounded-tl-sm border border-border/80 bg-card/80",
               )}
             >
               <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -526,7 +526,7 @@ export function VoiceChatPanel({
                     "mt-1.5 flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-colors",
                     msg.role === "user"
                       ? "bg-white/20 hover:bg-white/30 text-white"
-                      : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700",
+                      : "bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25",
                     tapToPlayMessageId === msg.id &&
                       "ring-2 ring-amber-400 ring-offset-1 animate-pulse",
                   )}
@@ -557,7 +557,7 @@ export function VoiceChatPanel({
               <button
                 key={chip}
                 onClick={() => sendText(chip)}
-                className="text-left text-sm px-3.5 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 transition-colors"
+                className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3.5 py-2.5 text-left text-sm text-indigo-100 transition-colors hover:bg-indigo-500/20"
               >
                 {chip}
               </button>
@@ -571,7 +571,7 @@ export function VoiceChatPanel({
               {expertImage ? (
                 <Image src={expertImage} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
               ) : (
-                <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500/15 text-xs font-bold text-indigo-200">
                   {firstName.charAt(0)}
                 </div>
               )}
@@ -586,14 +586,14 @@ export function VoiceChatPanel({
 
       {/* Error */}
       {error && (
-        <div className="px-4 py-2 bg-red-50 border-t border-red-200">
-          <p className="text-xs text-red-600">{error}</p>
+        <div className="border-t border-rose-400/20 bg-rose-500/10 px-4 py-2">
+          <p className="text-xs text-rose-200">{error}</p>
         </div>
       )}
 
       {tapToPlayMessageId && (
-        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
-          <p className="text-xs text-amber-950 text-center">
+        <div className="border-t border-amber-400/20 bg-amber-500/10 px-4 py-2">
+          <p className="text-center text-xs text-amber-100">
             Auto-play was blocked. Tap <strong>Play voice</strong> on the message above, or tap anywhere on this screen to try again.
           </p>
         </div>

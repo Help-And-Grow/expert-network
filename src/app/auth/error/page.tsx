@@ -35,8 +35,8 @@ export default async function AuthErrorPage({
     ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES.Default;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4">
-      <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
+    <div className="app-shell flex min-h-screen flex-col items-center justify-center p-4">
+      <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center pb-4">
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <AlertCircle className="h-6 w-6 text-destructive" />

@@ -47,7 +47,7 @@ function CheckoutSuccessContent() {
 
   if (status === "verifying") {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+      <div className="app-shell flex min-h-dvh items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mx-auto" />
           <p className="text-muted-foreground">Confirming your payment...</p>
@@ -58,11 +58,11 @@ function CheckoutSuccessContent() {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50 p-4">
+      <div className="app-shell flex min-h-dvh items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-8 pb-6 text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
-              <AlertCircle className="h-8 w-8 text-amber-600" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15">
+              <AlertCircle className="h-8 w-8 text-amber-300" />
             </div>
             <h1 className="text-xl font-bold">Verification Issue</h1>
             <p className="text-muted-foreground text-sm">
@@ -82,11 +82,11 @@ function CheckoutSuccessContent() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-slate-50 p-4">
+    <div className="app-shell flex min-h-dvh items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-6 text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-            <CheckCircle className="h-8 w-8 text-emerald-600" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
+            <CheckCircle className="h-8 w-8 text-emerald-300" />
           </div>
           <h1 className="text-xl font-bold">Deposit Paid!</h1>
           <p className="text-muted-foreground text-sm">
@@ -120,7 +120,7 @@ export default function CheckoutSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <div className="app-shell flex min-h-dvh items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
         </div>
       }

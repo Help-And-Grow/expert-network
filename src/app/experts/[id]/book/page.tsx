@@ -528,7 +528,7 @@ export default function BookSessionPage() {
     !submitting;
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg bg-background">
+    <div className="app-shell mx-auto min-h-screen max-w-lg bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between">
           <div>
@@ -582,7 +582,7 @@ export default function BookSessionPage() {
 
         {sessionType === "ONLINE" && (
           <section>
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-3 text-sm text-indigo-700">
+            <div className="surface-tint rounded-lg px-4 py-3 text-sm">
               <Monitor className="inline h-4 w-4 mr-1.5 -mt-0.5" />
               A video meeting link will be generated automatically when your meetup is confirmed.
             </div>
@@ -686,7 +686,7 @@ export default function BookSessionPage() {
         </section>
 
         {selectedSlots.length > 0 && (
-          <section className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
+          <section className="surface-tint space-y-2 p-4">
             <h3 className="font-semibold text-sm">
               {totalCents > 0 ? "Payment Summary" : "Meetup summary"}
             </h3>
@@ -704,10 +704,10 @@ export default function BookSessionPage() {
             </div>
             {totalCents > 0 && (
               <>
-                <hr className="border-indigo-200" />
+                <hr className="border-indigo-300/20" />
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Deposit (50%) — due now</span>
-                  <span className="font-bold text-indigo-700">
+                  <span className="font-bold text-indigo-100">
                     {expertPricing?.currency || "SGD"} {(depositCents / 100).toFixed(2)}
                   </span>
                 </div>
@@ -729,7 +729,7 @@ export default function BookSessionPage() {
         )}
 
         {payNowPending && !submitting ? (
-          <Card className="border-2 border-emerald-200 bg-emerald-50/50">
+          <Card className="border-emerald-400/20 bg-emerald-500/10">
             <CardContent className="p-4 space-y-3">
               <div className="space-y-1 text-center">
                 <h3 className="font-semibold text-base">Pay with PayNow (Singapore)</h3>
@@ -740,7 +740,7 @@ export default function BookSessionPage() {
                   Receiver: {payNowPending.receiver.companyName} · UEN {payNowPending.receiver.uen}
                 </p>
               </div>
-              <div className="mx-auto w-fit rounded-lg bg-white p-2 shadow-sm">
+              <div className="mx-auto w-fit rounded-2xl bg-white p-3 shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={payNowPending.qrDataUrl}
@@ -782,7 +782,7 @@ export default function BookSessionPage() {
             </CardContent>
           </Card>
         ) : tonPending && !submitting ? (
-          <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+          <div className="surface-tint space-y-3 rounded-lg p-4">
             <div className="text-center space-y-1">
               <Loader2 className="h-8 w-8 mx-auto text-indigo-600 animate-spin" />
               <h3 className="font-semibold text-base">Waiting for payment</h3>

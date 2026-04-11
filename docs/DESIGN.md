@@ -7,6 +7,7 @@
 - **Ethos**: Everyone is **expert, player, and coach**; **learning by doing**, **growing by helping**; prefer **sharing** over lecturing
 - **Regional context**: Strong Singapore & SEA roots (not the only headline)
 - See [BRAND.md](BRAND.md) for full copy
+- **Theme direction**: **dark-first** by default on web, with optional light mode as a future variant
 - **Primary color**: Indigo 600 (`#4f46e5`) / gradient `from-indigo-600 to-purple-600`
 - **Accent**: Emerald for success, Amber for warnings, Rose for errors
 
@@ -15,13 +16,14 @@
 - **Primitives**: shadcn/ui (Radix-based) in `src/components/ui/`
 - **Icons**: Lucide React
 - **Animation**: Framer Motion for page transitions and interactive elements
-- **Typography**: System font stack with `font-sans`
+- **Typography**: Geist Sans / Geist Mono via `next/font/local`
 
 ## Layout Patterns
 
 - **Pages**: Full-width with `max-w-7xl` container, `px-4 sm:px-6 lg:px-8` padding
-- **Cards**: Rounded borders (`rounded-xl`), subtle shadows, hover states
+- **Cards**: Rounded borders (`rounded-2xl`), translucent dark surfaces, soft elevation, backdrop blur
 - **Mobile**: Mobile-first responsive design, bottom-safe-area padding for mini programs
+- **Shell**: Ambient dark background with subtle indigo/cyan radial lighting; avoid flat solid fills unless used for contained panels
 
 ## WeChat Mini Program Design
 
@@ -35,10 +37,23 @@
 
 | Token | Value | Usage |
 |-------|-------|-------|
+| `background` | `hsl(224 41% 8%)` | App shell and page background |
+| `card` | `hsl(225 32% 12%)` | Elevated cards, modals, panels |
+| `popover` | `hsl(225 30% 11%)` | Menus, dropdowns, overlays |
 | `primary` | `#4f46e5` | Buttons, links, active states |
-| `primary-gradient` | `indigo-600 → purple-600` | Hero sections, CTAs |
-| `surface` | `#f8fafc` (slate-50) | Page backgrounds |
-| `card` | `#ffffff` | Card backgrounds |
-| `text-primary` | `#0f172a` (slate-900) | Headings |
-| `text-secondary` | `#64748b` (slate-500) | Descriptions, meta |
-| `border` | `#e2e8f0` (slate-200) | Dividers, card borders |
+| `primary-gradient` | `indigo-600 → purple-600` | Hero sections, CTAs, voice-entry moments |
+| `muted` | `hsl(223 24% 15%)` | Secondary surfaces and chips |
+| `text-primary` | `hsl(210 40% 98%)` | Headings, main labels |
+| `text-secondary` | `hsl(215 20% 72%)` | Descriptions, meta |
+| `border` | `hsl(223 21% 23%)` | Dividers, panel outlines |
+| `success` | `emerald-400 on emerald-500/10` | Positive states and confirmations |
+| `warning` | `amber-300 on amber-500/10` | Warnings, pending states |
+| `danger` | `rose-300 on rose-500/10` | Errors, destructive flows |
+
+## Dark Theme Rules
+
+- Default web rendering should assume `.dark` on the root HTML element.
+- Prefer semantic tokens like `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, and `border-border` over hard-coded slate/white utilities.
+- Prefer shared dark surface helpers (`surface-card`, `surface-glass`, tinted alert panels) over ad hoc `bg-white`, `bg-slate-50`, or `shadow-lg` combinations.
+- When a component needs emphasis, use contrast by elevation, border, blur, or brand tint instead of switching back to light mode.
+- If a page still needs a bright asset area, isolate it inside a contained card rather than making the whole page light.

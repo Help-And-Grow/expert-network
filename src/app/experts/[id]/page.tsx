@@ -290,7 +290,7 @@ export default function ExpertProfilePage() {
   const hasMoreReviews = reviews.length < reviewsTotal;
 
   return (
-    <div className="min-h-screen w-full max-w-lg mx-auto pb-28">
+    <div className="app-shell min-h-screen w-full max-w-lg mx-auto pb-28">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3">
         <div className="flex items-center justify-between">
           <button
@@ -318,7 +318,7 @@ export default function ExpertProfilePage() {
           />
         )}
         <div className="relative">
-          <div className={`aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center transition-all duration-300 ${isAudioPlaying ? "ring-4 ring-indigo-400/50 ring-offset-2" : ""}`}>
+          <div className={`aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center transition-all duration-300 ${isAudioPlaying ? "ring-4 ring-indigo-400/50 ring-offset-2 ring-offset-background" : ""}`}>
             {expert.hasAvatar ? (
               <Image
                 src={`/api/experts/${id}/avatar`}
@@ -328,7 +328,7 @@ export default function ExpertProfilePage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-indigo-300">
+              <div className="flex flex-col items-center justify-center text-indigo-200">
                 <Sparkles className="h-16 w-16 mb-2" />
                 <span className="text-sm">Avatar coming soon</span>
               </div>
@@ -349,7 +349,7 @@ export default function ExpertProfilePage() {
               className={`absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-lg transition-all ${
                 isAudioPlaying
                   ? "bg-indigo-600 text-white"
-                  : "bg-white/90 text-slate-800 backdrop-blur hover:bg-white"
+                  : "border border-white/10 bg-card/85 text-foreground backdrop-blur hover:bg-card"
               }`}
             >
               {isAudioPlaying ? (
@@ -380,18 +380,18 @@ export default function ExpertProfilePage() {
             ))}
           </div>
           <div className="mt-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-300">
               <Shield className="h-4 w-4" />
               <span>Learned from {expert.learnedFromCount}+ coaches</span>
             </div>
-            <div className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-indigo-300">
               <Sparkles className="h-4 w-4" />
               <span>Offered help to {expert.offeredHelpCount}+ players</span>
             </div>
           </div>
           {expert.isVerified && (
             <Badge
-              className="mt-2 gap-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+              className="mt-2 gap-1 border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
             >
               <Shield className="h-3 w-3" />
               Verified Community Member
@@ -422,9 +422,9 @@ export default function ExpertProfilePage() {
               if (vcConfig.asyncEnabled) setShowVoiceChat(true);
               else setShowRealtimeChat(true);
             }}
-            className="group relative w-full cursor-pointer rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-[1px] transition-shadow hover:shadow-lg hover:shadow-indigo-200"
+            className="group relative w-full cursor-pointer rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-[1px] transition-shadow hover:shadow-lg hover:shadow-indigo-950/50"
           >
-            <div className="flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5">
+            <div className="flex items-center gap-3.5 rounded-2xl bg-slate-950/85 px-4 py-3.5">
               <div className="relative shrink-0">
                 {expert.user.image ? (
                   <Image
@@ -432,7 +432,7 @@ export default function ExpertProfilePage() {
                     alt=""
                     width={44}
                     height={44}
-                    className="h-11 w-11 rounded-full object-cover ring-2 ring-indigo-100"
+                    className="h-11 w-11 rounded-full object-cover ring-2 ring-indigo-300/20"
                   />
                 ) : (
                   <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
@@ -458,7 +458,7 @@ export default function ExpertProfilePage() {
                       : "Free voice preview — get a feel for the expert"}
                 </p>
               </div>
-              <div className="shrink-0 flex items-center gap-1.5 text-indigo-600">
+              <div className="shrink-0 flex items-center gap-1.5 text-indigo-300">
                 <Sparkles className="h-4 w-4 group-hover:animate-pulse" />
               </div>
             </div>
@@ -472,7 +472,7 @@ export default function ExpertProfilePage() {
                 pushVoiceChatHistory();
                 setShowRealtimeChat(true);
               }}
-              className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-indigo-600 transition-colors"
+              className="mt-2 w-full text-center text-xs text-muted-foreground transition-colors hover:text-indigo-300"
             >
               Or try a{" "}
               <span className="font-medium underline underline-offset-2">
@@ -540,7 +540,7 @@ export default function ExpertProfilePage() {
 
       {/* Service introduction document (in-platform; no external social links on this page) */}
       {expert.documentName && (
-        <section className="mt-8 rounded-xl border border-indigo-100 bg-indigo-50/40 dark:bg-indigo-950/20 p-4">
+        <section className="surface-tint mt-8 p-4">
           <h2 className="text-lg font-semibold text-foreground mb-1">
             Service introduction
           </h2>
@@ -550,7 +550,7 @@ export default function ExpertProfilePage() {
           <a
             href={`/api/experts/${id}/document`}
             download
-            className="flex items-center gap-3 rounded-lg border border-background bg-background px-4 py-3 text-sm font-medium hover:bg-accent transition-colors"
+            className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium transition-colors hover:bg-slate-900"
           >
             <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />
             <span className="truncate flex-1">{expert.documentName}</span>
@@ -637,8 +637,8 @@ export default function ExpertProfilePage() {
                         </p>
                       )}
                       {r.expertSuggestion && (
-                        <div className="mt-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 border border-indigo-100 dark:border-indigo-900/50">
-                          <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-0.5 uppercase tracking-wide">Coach follow-up</p>
+                        <div className="mt-2 rounded-lg border border-indigo-400/20 bg-indigo-500/10 px-3 py-2">
+                          <p className="mb-0.5 text-xs font-bold uppercase tracking-wide text-indigo-200">Coach follow-up</p>
                           <p className="text-sm text-foreground">{r.expertSuggestion}</p>
                         </div>
                       )}

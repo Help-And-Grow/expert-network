@@ -47,7 +47,7 @@ export function HomeContent() {
   const showExpertLoading = expertLoading || (isLoggedIn && hasExpert === null);
 
   return (
-    <div className="min-h-screen w-full max-w-lg mx-auto flex flex-col">
+    <div className="app-shell min-h-screen w-full max-w-lg mx-auto flex flex-col">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-6 pt-12 pb-16 md:pt-16 md:pb-24">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent" />
@@ -138,24 +138,24 @@ export function HomeContent() {
       </section>
 
       {/* Use Cases Section */}
-      <section className="px-6 py-16 md:py-20 bg-slate-50 dark:bg-slate-900/50">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 text-center">
+      <section className="border-t border-white/5 bg-transparent px-6 py-16 md:py-20">
+        <h2 className="mb-2 text-center text-2xl font-bold text-white">
           Why Help &amp; Grow
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 text-center">
+        <p className="mb-8 text-center text-sm text-slate-400">
           One network for expertise—whether you&apos;re finding help or offering it
         </p>
         <div className="grid gap-6">
-          <div className="rounded-xl bg-white dark:bg-slate-800/80 p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700/50">
+          <div className="surface-card p-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-3">
-                <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+              <div className="rounded-lg bg-indigo-500/15 p-3">
+                <Users className="h-6 w-6 text-indigo-300" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                <h3 className="mb-1 font-semibold text-white">
                   Coach and player, together
                 </h3>
-                <p className="text-slate-600 dark:text-slate-400 text-sm">
+                <p className="text-sm text-slate-300">
                   You bring expertise others need—and you learn from people who&apos;ve been there.
                   Share part of what you know as a service; learn from others when you need it. We brew a
                   culture of learning by doing and growing by helping.
@@ -163,16 +163,16 @@ export function HomeContent() {
               </div>
             </div>
           </div>
-          <div className="rounded-xl bg-white dark:bg-slate-800/80 p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700/50">
+          <div className="surface-card p-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-3">
-                <Sparkles className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <div className="rounded-lg bg-amber-500/15 p-3">
+                <Sparkles className="h-6 w-6 text-amber-300" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                <h3 className="mb-1 font-semibold text-white">
                   Service as agent (our north star)
                 </h3>
-                <p className="text-slate-600 dark:text-slate-400 text-sm">
+                <p className="text-sm text-slate-300">
                   We&apos;re building toward a digital version of you that keeps learning—from
                   social context, meetings, reflections, and memos—stays online, evolves with you,
                   answers questions on the platform, and helps you facilitate real sessions.
@@ -180,16 +180,16 @@ export function HomeContent() {
               </div>
             </div>
           </div>
-          <div className="rounded-xl bg-white dark:bg-slate-800/80 p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700/50">
+          <div className="surface-card p-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-lg bg-emerald-100 dark:bg-emerald-900/30 p-3">
-                <TrendingUp className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="rounded-lg bg-emerald-500/15 p-3">
+                <TrendingUp className="h-6 w-6 text-emerald-300" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                <h3 className="mb-1 font-semibold text-white">
                   Human expertise, rooted in SEA
                 </h3>
-                <p className="text-slate-600 dark:text-slate-400 text-sm">
+                <p className="text-sm text-slate-300">
                   Describe what you need in plain language; we route you to the right people.
                   Founders, operators, and investors use the same rails—localisation, talent, BD,
                   fundraising, and more across Singapore &amp; Southeast Asia.
@@ -201,8 +201,8 @@ export function HomeContent() {
       </section>
 
       {/* How It Works */}
-      <section className="px-6 py-16 md:py-20 bg-white dark:bg-slate-900">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">
+      <section className="border-t border-white/5 bg-transparent px-6 py-16 md:py-20">
+        <h2 className="mb-8 text-center text-2xl font-bold text-white">
           How It Works
         </h2>
         <div className="space-y-8">
@@ -211,11 +211,11 @@ export function HomeContent() {
               1
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+              <h3 className="mb-1 flex items-center gap-2 font-semibold text-white">
                 <Users className="h-4 w-4 text-indigo-500" />
                 Chat to find the right expert
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 text-sm">
+              <p className="text-sm text-slate-300">
                 Describe what you need; we match you with people offering relevant expertise
                 across Singapore and Southeast Asia—players and coaches in one network.
               </p>
@@ -226,11 +226,11 @@ export function HomeContent() {
               2
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+              <h3 className="mb-1 flex items-center gap-2 font-semibold text-white">
                 <MessageSquare className="h-4 w-4 text-indigo-500" />
                 Schedule a meetup
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 text-sm">
+              <p className="text-sm text-slate-300">
                 Pick a time for an online or in-person meeting. Flexible 30-min
                 slots, from free to paid.
               </p>
@@ -241,11 +241,11 @@ export function HomeContent() {
               3
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+              <h3 className="mb-1 flex items-center gap-2 font-semibold text-white">
                 <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Grow Together
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 text-sm">
+              <p className="text-sm text-slate-300">
                 Turn sessions into momentum—insights you can apply, relationships that compound,
                 and proof of help that travels with you on the network.
               </p>
@@ -263,9 +263,9 @@ export function HomeContent() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto px-6 py-8 bg-slate-100 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800">
-        <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-          <span className="font-semibold text-slate-700 dark:text-slate-300">
+      <footer className="mt-auto border-t border-white/5 bg-transparent px-6 py-8">
+        <p className="text-center text-sm text-slate-400">
+          <span className="font-semibold text-slate-200">
             Help &amp; Grow
           </span>{" "}
           — Expert Network · Singapore &amp; Southeast Asia

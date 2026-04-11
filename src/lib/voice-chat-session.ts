@@ -4,10 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
-import {
-  defaultQwenTtsVoiceId,
-  QwenTTSProvider,
-} from "@/lib/integrations/qwen-tts";
+import { getVoiceSynthesis } from "@/lib/integrations/config";
+import { defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
 
 const DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
@@ -346,7 +344,10 @@ async function synthesizeVoice(
   text: string,
   voiceModelId: string,
 ): Promise<{ audioBase64: string; format: string }> {
-  const tts = new QwenTTSProvider();
+  const tts = await getVoiceSynthesis();
+  if (!tts) {
+    throw new Error("No TTS provider configured (missing API keys).");
+  }
   return tts.synthesize({ text, voiceId: voiceModelId });
 }
 
