@@ -18,7 +18,6 @@ import {
   Pause,
 } from "lucide-react";
 
-import { AudioPlayer, type AudioPlayerHandle } from "@/components/audio-player";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +32,6 @@ interface ExpertUser {
   name: string | null;
   nickName: string | null;
   image: string | null;
-  email: string | null;
 }
 
 interface ServiceItem {
@@ -50,16 +48,11 @@ interface Expert {
   isVerified: boolean;
   avgRating: number;
   reviewCount: number;
-  linkedIn: string | null;
-  website: string | null;
-  twitter: string | null;
-  substack: string | null;
-  instagram: string | null;
-  xiaohongshu: string | null;
   hasAvatar: boolean;
   hasAudio: boolean;
   hasClonedVoice: boolean;
   hasVoiceChat: boolean;
+  viewerIsOwner?: boolean;
   avatarScript: string | null;
   documentName: string | null;
   priceOnlineCents: number | null;
@@ -131,7 +124,6 @@ export default function ExpertProfilePage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const introPlayerRef = useRef<AudioPlayerHandle>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [showRealtimeChat, setShowRealtimeChat] = useState(false);
@@ -208,7 +200,6 @@ export default function ExpertProfilePage() {
 
   const pausePublicIntroAudio = useCallback(() => {
     audioRef.current?.pause();
-    introPlayerRef.current?.pause();
   }, []);
 
   useEffect(() => {
@@ -288,6 +279,11 @@ export default function ExpertProfilePage() {
   const name = expert.user.nickName ?? expert.user.name ?? "Expert";
   const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
   const hasMoreReviews = reviews.length < reviewsTotal;
+  const visibleRates = [expert.priceOnlineCents, expert.priceOfflineCents].filter(
+    (value): value is number => value != null,
+  );
+  const hasFreeMeetup = visibleRates.some((value) => value === 0);
+  const hasPaidMeetup = visibleRates.some((value) => value > 0);
 
   return (
     <div className="app-shell min-h-screen w-full max-w-lg mx-auto pb-28">
@@ -372,13 +368,6 @@ export default function ExpertProfilePage() {
         </div>
         <div className="mt-4">
           <h1 className="text-2xl font-bold text-foreground">{name}</h1>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {expert.domains.map((d) => (
-              <Badge key={d} variant="secondary">
-                {d}
-              </Badge>
-            ))}
-          </div>
           <div className="mt-3 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-300">
               <Shield className="h-4 w-4" />
@@ -400,19 +389,8 @@ export default function ExpertProfilePage() {
         </div>
       </section>
 
-      {/* Voice Introduction */}
-      {expert.hasAudio && (
-        <section className="mt-6">
-          <AudioPlayer
-            ref={introPlayerRef}
-            src={`/api/experts/${id}/audio`}
-            label={`${name}'s voice introduction`}
-          />
-        </section>
-      )}
-
       {/* Voice preview — vivid entry */}
-      {expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
+      {!expert.viewerIsOwner && expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
         <section className="mt-5">
           <div
             onClick={() => {
@@ -451,11 +429,9 @@ export default function ExpertProfilePage() {
                   Talk to {name.split(" ")[0]}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
-                  {expert.hasClonedVoice
-                    ? "Free voice preview — hear how they respond"
-                    : vcConfig.realtimeBackend === "agora"
-                      ? "Free live voice preview — voice first, words on screen"
-                      : "Free voice preview — get a feel for the expert"}
+                  {vcConfig.realtimeBackend === "agora"
+                    ? "Free live voice preview with replayable replies"
+                    : "Free voice preview with replayable replies"}
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-1.5 text-indigo-300">
@@ -484,6 +460,15 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
+      {expert.viewerIsOwner && (
+        <section className="surface-tint mt-5 rounded-2xl p-4">
+          <p className="text-sm font-medium text-foreground">This is your public page.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Voice preview and booking are hidden here so you do not chat with or book yourself.
+          </p>
+        </section>
+      )}
+
       {showVoiceChat && (
         <VoiceChatPanel
           expertId={expert.id}
@@ -491,7 +476,6 @@ export default function ExpertProfilePage() {
           expertImage={expert.user.image}
           expertDomains={expert.domains}
           expertServices={expert.servicesOffered}
-          hasClonedVoice={expert.hasClonedVoice}
           open={showVoiceChat}
           onClose={closeVoiceChatOverlay}
         />
@@ -596,7 +580,11 @@ export default function ExpertProfilePage() {
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            50% deposit when you schedule. Remainder charged 24h after the meetup.
+            {hasFreeMeetup
+              ? "Free meetups get a brighter MVP treatment here. No deposit is needed before you confirm."
+              : hasPaidMeetup
+                ? "50% deposit when you schedule. Remainder charged 24h after the meetup."
+                : ""}
           </p>
         </section>
       )}
@@ -672,22 +660,24 @@ export default function ExpertProfilePage() {
       </div>
 
       {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t safe-area-inset-bottom">
-        <div className="max-w-lg mx-auto px-4 py-4 flex gap-3">
-          <Button asChild className="flex-1 h-12 text-base font-semibold" size="lg">
-            <Link href={`/experts/${id}/book?type=ONLINE&from=profile`} className="flex items-center justify-center gap-2">
-              <Monitor className="h-5 w-5" />
-              Meet online
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="flex-1 h-12 text-base font-semibold" size="lg">
-            <Link href={`/experts/${id}/book?type=OFFLINE&from=profile`} className="flex items-center justify-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Meet in person
-            </Link>
-          </Button>
+      {!expert.viewerIsOwner && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t safe-area-inset-bottom">
+          <div className="max-w-lg mx-auto px-4 py-4 flex gap-3">
+            <Button asChild className="flex-1 h-12 text-base font-semibold" size="lg">
+              <Link href={`/experts/${id}/book?type=ONLINE&from=profile`} className="flex items-center justify-center gap-2">
+                <Monitor className="h-5 w-5" />
+                Meet online
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="flex-1 h-12 text-base font-semibold" size="lg">
+              <Link href={`/experts/${id}/book?type=OFFLINE&from=profile`} className="flex items-center justify-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Meet in person
+              </Link>
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

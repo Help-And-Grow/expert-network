@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 
     const where = {
       isPublished: true,
+      userId: { not: userId },
       ...(domains && domains.length > 0
         ? { domains: { some: { domain: { in: domains } } } }
         : {}),
@@ -73,7 +74,6 @@ export async function GET(request: NextRequest) {
               name: true,
               nickName: true,
               image: true,
-              email: true,
             },
           },
         },

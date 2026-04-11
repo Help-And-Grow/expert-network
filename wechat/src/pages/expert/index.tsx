@@ -1,9 +1,8 @@
 import { View, Text, Image } from "@tarojs/components";
 import Taro, { useLoad, useRouter, useShareAppMessage, useShareTimeline } from "@tarojs/taro";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { get } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
-import AudioPlayer from "../../components/AudioPlayer";
 import VoiceChat from "../../components/VoiceChat";
 import type {
   ExpertDetail,
@@ -11,7 +10,7 @@ import type {
   Review,
   ReviewsResponse,
 } from "../../shared/types";
-import { getDomainLabel } from "../../shared/types";
+import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
 import { buildWebProfileLoginUrl } from "../../shared/web-booking";
 import "./index.scss";
 
@@ -25,7 +24,9 @@ export default function ExpertPage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showVoiceChat, setShowVoiceChat] = useState(false);
+  const [introPlaying, setIntroPlaying] = useState(false);
   const reviewsRef = useRef<Review[]>([]);
+  const introAudioRef = useRef<Taro.InnerAudioContext | null>(null);
   reviewsRef.current = reviews;
 
   const fetchExpert = useCallback(async () => {
@@ -97,6 +98,14 @@ export default function ExpertPage() {
     };
   });
 
+  useEffect(() => {
+    return () => {
+      introAudioRef.current?.stop();
+      introAudioRef.current?.destroy();
+      introAudioRef.current = null;
+    };
+  }, []);
+
   if (loading) {
     return (
       <View className="expert-profile">
@@ -139,10 +148,48 @@ export default function ExpertPage() {
   const loginFirstProfileUrl =
     experience?.web.loginFirstProfileUrl ?? buildWebProfileLoginUrl(expertId);
 
+  const toggleIntroPlayback = useCallback(async () => {
+    if (!expert?.hasAudio) return;
+
+    if (introPlaying) {
+      introAudioRef.current?.stop();
+      setIntroPlaying(false);
+      return;
+    }
+
+    try {
+      const localPath = await prepareAudioForInnerAudio(
+        `/api/experts/${expertId}/audio`,
+        `expert-intro-${expertId}`,
+      );
+
+      introAudioRef.current?.stop();
+      introAudioRef.current?.destroy();
+
+      const ctx = Taro.createInnerAudioContext();
+      ctx.obeyMuteSwitch = false;
+      ctx.src = localPath;
+      ctx.onEnded(() => setIntroPlaying(false));
+      ctx.onStop(() => setIntroPlaying(false));
+      ctx.onPause(() => setIntroPlaying(false));
+      ctx.onError(() => {
+        setIntroPlaying(false);
+        Taro.showToast({ title: "语音播放失败", icon: "none" });
+      });
+      introAudioRef.current = ctx;
+      ctx.play();
+      setIntroPlaying(true);
+    } catch {
+      setIntroPlaying(false);
+      Taro.showToast({ title: "语音加载失败", icon: "none" });
+    }
+  }, [expert?.hasAudio, expertId, introPlaying]);
+
   return (
     <View className="expert-profile">
       {/* Compact Hero */}
       <View className="expert-profile__hero">
+        <View className="expert-profile__avatar-wrap">
         {expert.hasAvatar ? (
           <Image
             className="expert-profile__avatar-img"
@@ -161,6 +208,19 @@ export default function ExpertPage() {
             </Text>
           </View>
         )}
+          {expert.hasAudio && (
+            <View
+              className="expert-profile__intro-btn"
+              hoverClass="expert-profile__intro-btn--hover"
+              onClick={toggleIntroPlayback}
+            >
+              <Text className="expert-profile__intro-btn-icon">{introPlaying ? "⏸" : "▶"}</Text>
+              <Text className="expert-profile__intro-btn-text">
+                {introPlaying ? "暂停介绍" : "听介绍"}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Name & Info */}
@@ -169,11 +229,6 @@ export default function ExpertPage() {
         {expert.isVerified && (
           <View className="expert-profile__verified">✓ 已认证</View>
         )}
-        <View className="expert-profile__domains">
-          {expert.domains.map((d) => (
-            <View key={d} className="expert-profile__domain-chip">{getDomainLabel(d)}</View>
-          ))}
-        </View>
         <View className="expert-profile__rating">
           <View className="expert-profile__stars">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -193,20 +248,18 @@ export default function ExpertPage() {
         </View>
       </View>
 
-      {(experience?.voiceIntroAvailable ?? expert.hasAudio) && (
+      {expert.viewerIsOwner && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">先听一段介绍</Text>
-          <Text className="expert-profile__section-sub">
-            用一段语音，先感受 {name} 的表达方式、专业判断和服务气质。
-          </Text>
-          <AudioPlayer
-            src={`/api/experts/${expertId}/audio`}
-            label={`${name} 的语音介绍`}
-          />
+          <View className="expert-profile__owner-note">
+            <Text className="expert-profile__owner-note-title">这是你的公开主页</Text>
+            <Text className="expert-profile__owner-note-text">
+              为避免自己和自己匹配、语音聊天或预约，这些入口在这里会隐藏。
+            </Text>
+          </View>
         </View>
       )}
 
-      {(expert.hasVoiceChat ?? true) && (
+      {!expert.viewerIsOwner && (expert.hasVoiceChat ?? true) && (
         <View className="expert-profile__section">
           <Text className="expert-profile__section-title">与 {name} 对话</Text>
           <Text className="expert-profile__section-sub">
@@ -239,10 +292,9 @@ export default function ExpertPage() {
       )}
 
       {/* Voice Chat Modal */}
-        <VoiceChat
+      <VoiceChat
         expertId={expertId}
         expertName={name}
-        hasClonedVoice={expert.hasClonedVoice}
         visible={showVoiceChat}
         onClose={() => setShowVoiceChat(false)}
       />

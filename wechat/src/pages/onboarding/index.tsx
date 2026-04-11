@@ -3,7 +3,6 @@ import Taro from "@tarojs/taro";
 import { useState, useRef, useCallback } from "react";
 import { get, post, request as apiRequest } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
-import VoiceRecorder from "../../components/VoiceRecorder";
 import { DOMAINS, getDomainLabel } from "../../shared/types";
 import "./index.scss";
 
@@ -106,15 +105,18 @@ export default function OnboardingPage() {
         setFormData((p) => ({ ...p, gender: text.toLowerCase() }));
         saveToServer({ gender: text.toLowerCase() });
         setStep("social_links");
-        setTimeout(() => addMsg("system", "请填写你的 LinkedIn 链接（必填）："), 400);
+        setTimeout(() => addMsg("system", "如果你愿意，可以填写一个 LinkedIn 链接；也可以直接跳过。"), 400);
         break;
 
       case "social_links":
         if (!formData.linkedIn) {
-          setFormData((p) => ({ ...p, linkedIn: text }));
-          saveToServer({ linkedIn: text });
+          const normalized = text.trim().toLowerCase();
+          const value =
+            normalized === "skip" || text.trim() === "跳过" ? "" : text.trim();
+          setFormData((p) => ({ ...p, linkedIn: value }));
+          if (value) saveToServer({ linkedIn: value });
           setTimeout(
-            () => addMsg("system", "请填写个人官网（可选），或点下方「跳过官网」。"),
+            () => addMsg("system", "如果有个人官网，也可以填写；没有的话直接跳过。"),
             400
           );
         } else {
@@ -152,15 +154,15 @@ export default function OnboardingPage() {
           addMsg("user", "跳过");
         }
         setStep("domains");
-        setTimeout(() => addMsg("system", "请选择你的擅长领域："), 400);
+        setTimeout(() => addMsg("system", "如果你愿意，可以选择几个擅长方向；也可以直接下一步。"), 400);
         break;
       }
 
       case "pricing":
         if (!formData.priceOnline) {
           const cents = parseInt(text) * 100;
-          if (isNaN(cents) || cents <= 0) {
-            setTimeout(() => addMsg("system", "请输入有效金额（示例：100）："), 200);
+          if (isNaN(cents) || cents < 0) {
+            setTimeout(() => addMsg("system", "请输入有效金额（示例：100，或输入 0 表示免费）："), 200);
             return;
           }
           setFormData((p) => ({ ...p, priceOnline: String(cents) }));
@@ -172,8 +174,8 @@ export default function OnboardingPage() {
           }
         } else {
           const cents = parseInt(text) * 100;
-          if (isNaN(cents) || cents <= 0) {
-            setTimeout(() => addMsg("system", "请输入有效金额："), 200);
+          if (isNaN(cents) || cents < 0) {
+            setTimeout(() => addMsg("system", "请输入有效金额，或输入 0 表示免费："), 200);
             return;
           }
           setFormData((p) => ({ ...p, priceOffline: String(cents) }));
@@ -231,7 +233,7 @@ export default function OnboardingPage() {
     setFormData((p) => ({ ...p, gender }));
     saveToServer({ gender });
     setStep("social_links");
-    setTimeout(() => addMsg("system", "请填写你的 LinkedIn 链接（必填）："), 400);
+    setTimeout(() => addMsg("system", "如果你愿意，可以填写一个 LinkedIn 链接；也可以直接跳过。"), 400);
   };
 
   const toggleDomain = (domain: string) => {
@@ -241,11 +243,7 @@ export default function OnboardingPage() {
   };
 
   const confirmDomains = () => {
-    if (selectedDomains.length === 0) {
-      Taro.showToast({ title: "请至少选择一个领域", icon: "none" });
-      return;
-    }
-    addMsg("user", selectedDomains.join(", "));
+    addMsg("user", selectedDomains.length > 0 ? selectedDomains.join(", ") : "暂不设置领域");
     saveToServer({ domains: selectedDomains });
     setStep("session_prefs");
     setTimeout(() => addMsg("system", "你提供哪种咨询方式？"), 400);
@@ -344,7 +342,7 @@ export default function OnboardingPage() {
           () =>
             addMsg(
               "system",
-              "主页草稿已生成。你可以录制一段 10-60 秒语音介绍，让潜在用户更快建立信任。"
+              "主页草稿已生成。MVP 会按性别为你生成一段默认语音介绍，你可以直接继续。"
             ),
           800
         );
@@ -359,56 +357,8 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleVoiceComplete = async (filePath: string) => {
-    addMsg("user", "🎙 已完成录音");
-    Taro.showLoading({ title: "处理中..." });
-
-    try {
-      const token = getToken();
-      const API_BASE = getApiBase();
-      const uploadRes = await Taro.uploadFile({
-        url: `${API_BASE}/api/expert/voice-clone`,
-        filePath,
-        name: "audio",
-        header: token ? { "x-wechat-token": token } : {},
-      });
-
-      if (uploadRes.statusCode === 200) {
-        await post("/api/expert/generate-audio", {});
-        addMsg("system", "语音介绍已生成，你的专家主页已准备就绪。");
-      } else {
-        addMsg("system", "语音处理失败，但主页已可使用。");
-      }
-    } catch {
-      addMsg("system", "语音处理失败，但主页已可使用。");
-    } finally {
-      Taro.hideLoading();
-    }
-
-    try {
-      const pr = await get<{ expert?: { id: string } | null }>("/api/profile");
-      if (pr.statusCode === 200 && pr.data?.expert?.id) {
-        setPreviewExpertId(pr.data.expert.id);
-      }
-    } catch {
-      /* ignore */
-    }
-
-    setStep("preview");
-    setTimeout(
-      () =>
-        addMsg(
-          "system",
-          documentReadyForPublish
-            ? "请先预览主页，确认后即可发布。"
-            : "请先预览主页。若你准备正式发布，请先补充服务介绍 PDF。"
-        ),
-      400
-    );
-  };
-
   const skipVoice = async () => {
-    addMsg("user", "跳过录音");
+    addMsg("user", "生成默认语音并继续");
     Taro.showLoading({ title: "生成默认语音中..." });
     try {
       await post("/api/expert/generate-audio", {});
@@ -584,7 +534,7 @@ export default function OnboardingPage() {
               </View>
             ))}
             <View className="onboarding__confirm-btn" hoverClass="onboarding__confirm-btn--hover" onClick={confirmDomains}>
-              下一步
+              下一步（可跳过）
             </View>
           </View>
         )}
@@ -618,6 +568,18 @@ export default function OnboardingPage() {
               onClick={skipWebsite}
             >
               跳过官网
+            </View>
+          </View>
+        )}
+
+        {step === "social_links" && !formData.linkedIn && (
+          <View className="onboarding__options">
+            <View
+              className="onboarding__option"
+              hoverClass="onboarding__option--hover"
+              onClick={() => processInput("跳过")}
+            >
+              跳过 LinkedIn
             </View>
           </View>
         )}
@@ -690,9 +652,8 @@ export default function OnboardingPage() {
         {/* Voice sample */}
         {step === "voice_sample" && (
           <View className="onboarding__voice-section">
-            <VoiceRecorder onRecordingComplete={handleVoiceComplete} />
             <View className="onboarding__skip-voice" onClick={skipVoice}>
-              跳过录音
+              生成默认语音并继续
             </View>
           </View>
         )}

@@ -34,7 +34,14 @@ export class FishAudioProvider implements VoiceSynthesisProvider {
   }
 
   async synthesize(input: VoiceSynthesisInput): Promise<VoiceSynthesisResult> {
-    const voiceId = input.voiceId;
+    let voiceId = input.voiceId;
+    
+    // If the voiceId is a generic placeholder from our environment merge script,
+    // fallback to the configured default voice for this provider.
+    if (!voiceId || voiceId.includes("-voice") || voiceId === "default") {
+      voiceId = this.getDefaultVoiceId() || undefined;
+    }
+
     const format = input.format ?? "mp3";
 
     const body: Record<string, unknown> = {

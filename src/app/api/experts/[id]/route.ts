@@ -4,6 +4,9 @@ import type { ExperienceCapabilities } from "@expert-network/shared-api";
 
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
+
+export const dynamic = "force-dynamic";
 
 function buildExperienceCapabilities(origin: string, expertId: string, hasAudio: boolean): ExperienceCapabilities {
   const publicProfilePath = `/experts/${expertId}?from=wechat`;
@@ -54,7 +57,6 @@ export async function GET(
             name: true,
             nickName: true,
             image: true,
-            email: true,
           },
         },
         reviews: {
@@ -100,7 +102,22 @@ export async function GET(
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { documentData: _dd, avatarVideoUrl: _av, audioIntroUrl: _ai, domains: domainRows, ...rest } = expert;
+    const viewerUserId = await resolveUserId(request).catch(() => null);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {
+      documentData: _dd,
+      avatarVideoUrl: _av,
+      audioIntroUrl: _ai,
+      fishAudioModelId: _fm,
+      linkedIn: _li,
+      website: _ws,
+      twitter: _tw,
+      substack: _ss,
+      instagram: _ig,
+      xiaohongshu: _xh,
+      domains: domainRows,
+      ...rest
+    } = expert;
     const origin = new URL(request.url).origin;
     const experienceCapabilities = buildExperienceCapabilities(
       origin,
@@ -113,9 +130,10 @@ export async function GET(
       domains: domainStrings(domainRows),
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
-      hasClonedVoice: !!expert.fishAudioModelId,
+      hasClonedVoice: false,
       /** Voice chat works with clone or built-in default voice */
       hasVoiceChat: true,
+      viewerIsOwner: viewerUserId === expert.user.id,
       experienceCapabilities,
       learnedFromCount,
       offeredHelpCount,

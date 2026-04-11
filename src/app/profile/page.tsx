@@ -19,7 +19,6 @@ import {
   Pencil,
   Check,
   Volume2,
-  Mic,
   DollarSign,
   Send,
   Clock,
@@ -34,7 +33,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { UserMenu } from "@/components/user-menu";
-import { VoiceRecorder } from "@/components/voice-recorder";
 import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import { useAuth } from "@/hooks/use-auth";
 import { DOMAINS } from "@/lib/constants";
@@ -113,8 +111,6 @@ export default function ProfilePage() {
   const [avatarCacheBuster, setAvatarCacheBuster] = useState("");
   const [generatingAudio, setGeneratingAudio] = useState(false);
   const [audioCacheBuster, setAudioCacheBuster] = useState("");
-  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
-  const [cloningVoice, setCloningVoice] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -422,37 +418,6 @@ export default function ProfilePage() {
       );
     } finally {
       setGeneratingAudio(false);
-    }
-  };
-
-  const handleVoiceReRecord = async (blob: Blob) => {
-    setCloningVoice(true);
-    try {
-      const formData = new FormData();
-      formData.append("audio", blob, "voice.webm");
-
-      const cloneRes = await fetch("/api/expert/voice-clone", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!cloneRes.ok) {
-        const err = await cloneRes.json().catch(() => ({}));
-        throw new Error(err.error || "Voice cloning failed");
-      }
-
-      setProfile((prev) => (prev ? { ...prev, hasVoiceClone: true } : prev));
-      setShowVoiceRecorder(false);
-      showMessage("Voice updated! Click 'Regenerate Voice Intro' to apply it.", "voice");
-    } catch (err) {
-      showMessage(
-        err instanceof Error ? err.message : "Voice cloning failed",
-        "voice",
-        true,
-        5000
-      );
-    } finally {
-      setCloningVoice(false);
     }
   };
 
@@ -1063,43 +1028,8 @@ export default function ProfilePage() {
                   </p>
                 )}
 
-                {showVoiceRecorder ? (
-                  <div className="rounded-lg border p-4 space-y-3">
-                    <p className="text-sm text-muted-foreground text-center">
-                      Record a new voice sample (10–30s of natural speech)
-                    </p>
-                    <VoiceRecorder
-                      onRecordingComplete={handleVoiceReRecord}
-                      disabled={cloningVoice}
-                      minSeconds={10}
-                      maxSeconds={60}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setShowVoiceRecorder(false)}
-                      disabled={cloningVoice}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full gap-2 text-muted-foreground"
-                    onClick={() => setShowVoiceRecorder(true)}
-                  >
-                    <Mic className="h-3.5 w-3.5" />
-                    {profile?.hasVoiceClone ? "Re-record Voice" : "Record Your Voice"}
-                  </Button>
-                )}
-
-                <p className="text-xs text-muted-foreground text-center">
-                  {profile?.hasVoiceClone
-                    ? "Edit the introduction script below, then click Regenerate to update the audio."
-                    : "Record your voice to personalize the AI narration, or use the default voice."}
+                <p className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-xs text-muted-foreground text-center">
+                  MVP uses a system-managed default voice by gender. Edit the introduction script below, then regenerate the audio when you want to refresh it.
                 </p>
               </CardContent>
             </Card>

@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
   if (!profile) {
     return NextResponse.json({ error: "Expert not found." }, { status: 404 });
   }
+  if (profile.ownerUserId === userId) {
+    return NextResponse.json(
+      { error: "You cannot voice chat with your own expert profile." },
+      { status: 403 },
+    );
+  }
 
   const channelName = `vc-${expertId}-${nanoid(8)}`;
   const userUid = Math.floor(Math.random() * 100000) + 1;

@@ -39,10 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const voiceId =
-      expert.fishAudioModelId ??
-      voiceSynthesis.getDefaultVoiceId?.(expert.gender) ??
-      undefined;
+    const voiceId = voiceSynthesis.getDefaultVoiceId?.(expert.gender) ?? undefined;
 
     const result = await voiceSynthesis.synthesize({
       text: script,
