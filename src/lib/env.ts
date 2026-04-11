@@ -89,6 +89,10 @@ const envSchema = z
 
     GEMINI_TEXT_MODEL: z.string().optional(),
     GEMINI_IMAGE_MODEL: z.string().optional(),
+    /** Gemini native TTS model (Vertex / AI Studio). */
+    GEMINI_TTS_MODEL: z.string().optional(),
+    GEMINI_TTS_VOICE_MALE: z.string().optional(),
+    GEMINI_TTS_VOICE_FEMALE: z.string().optional(),
     /** Vertex AI region for image generation only. `gemini-2.5-flash-image` is not in every region; default `global` when unset. */
     GEMINI_IMAGE_VERTEX_LOCATION: z.string().optional(),
 
