@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f172a",
+  themeColor: "#090d18",
 };
 
 export default function RootLayout({
@@ -66,7 +66,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
@@ -74,9 +74,9 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} app-shell font-sans antialiased`}
       >
-        <Providers><main>{children}</main></Providers>
+        <Providers><main className="min-h-screen">{children}</main></Providers>
       </body>
     </html>
   );

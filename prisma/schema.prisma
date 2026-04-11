@@ -7,23 +7,20 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── NextAuth Models ───
-
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -47,7 +44,206 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ─── Domain Models ───
+model User {
+  id                String        @id @default(cuid())
+  name              String?
+  nickName          String?
+  email             String?       @unique
+  emailVerified     DateTime?
+  image             String?
+  role              UserRole      @default(FOUNDER)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  telegramId        String?       @unique
+  telegramUsername  String?
+  wechatOpenId      String?       @unique
+  wechatUnionId     String?
+  inviteCode        String?
+  tokenBalance      Int           @default(0)
+  accounts          Account[]
+  bookingsAsFounder Booking[]     @relation("FounderBookings")
+  expert            Expert?
+  reviews           Review[]
+  sessions          Session[]
+  tokenLedger       TokenLedger[]
+}
+
+model Expert {
+  id                  String           @id @default(cuid())
+  userId              String           @unique
+  linkedIn            String?
+  website             String?
+  twitter             String?
+  substack            String?
+  instagram           String?
+  xiaohongshu         String?
+  gender              String?
+  tonWalletAddress    String?
+  tonWalletType       String?
+  tonMnemonicEnc      String?
+  priceOnlineCents    Int?
+  priceOfflineCents   Int?
+  currency            String           @default("SGD")
+  stripeAccountId     String?
+  stripeAccountStatus String?          @default("none")
+  /// WeChat Pay sub-merchant id (特约商户号) when using service-provider / profit-sharing mode
+  wechatSubMchId      String?
+  weeklySchedule      Json?
+  sessionType         SessionType      @default(BOTH)
+  bio                 String?
+  audioIntroUrl       String?
+  fishAudioModelId    String?
+  mem9SpaceId         String?
+  servicesOffered     Json?
+  documentName        String?
+  documentData        String?
+  avatarVideoUrl      String?
+  avatarScript        String?
+  onboardingStep      OnboardingStep   @default(SOCIAL_LINKS)
+  isPublished         Boolean          @default(false)
+  isVerified          Boolean          @default(false)
+  avgRating           Float            @default(0)
+  reviewCount         Int              @default(0)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  availableSlots      AvailableSlot[]
+  bookings            Booking[]
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domains             ExpertDomain[]
+  pompCredentials     POMPCredential[]
+  reviews             Review[]
+}
+
+model ExpertDomain {
+  id       String @id @default(cuid())
+  expertId String
+  domain   String
+  expert   Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@unique([expertId, domain])
+  @@index([expertId])
+}
+
+model AvailableSlot {
+  id        String   @id @default(cuid())
+  expertId  String
+  startTime DateTime
+  endTime   DateTime
+  isBooked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  expert    Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@index([expertId, startTime])
+}
+
+model Booking {
+  id                      String           @id @default(cuid())
+  expertId                String
+  founderId               String
+  sessionType             SessionType
+  startTime               DateTime
+  endTime                 DateTime
+  timezone                String           @default("Asia/Singapore")
+  meetingLink             String?
+  offlineAddress          String?
+  status                  BookingStatus    @default(PENDING)
+  cancelledBy             String?
+  cancelReason            String?
+  totalAmountCents        Int?
+  depositAmountCents      Int?
+  tokenDiscount           Int?             @default(0)
+  tokensRedeemed          Int?             @default(0)
+  currency                String           @default("SGD")
+  paymentMethod           String?
+  paymentStatus           String           @default("pending")
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+  wechatTransactionId     String?
+  stripeCustomerId        String?
+  stripePaymentMethodId   String?
+  stripeRemainderPIId     String?
+  paynowReference         String?
+  paynowPayerReference    String?
+  paynowSubmittedAt       DateTime?
+  paynowConfirmedAt       DateTime?
+  tonDepositTxHash        String?
+  tonRemainderTxHash      String?
+  remainderChargedAt      DateTime?
+  /// WeChat profit-sharing: pending | success | failed | skipped (null = not applicable or not yet processed)
+  wechatProfitShareStatus String?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  expert                  Expert           @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  founder                 User             @relation("FounderBookings", fields: [founderId], references: [id], onDelete: Cascade)
+  pompCredentials         POMPCredential[]
+  review                  Review?
+  tokenLedgerEntries      TokenLedger[]
+
+  @@index([expertId, startTime])
+  @@index([founderId])
+}
+
+model Review {
+  id               String    @id @default(cuid())
+  bookingId        String    @unique
+  expertId         String
+  founderId        String
+  rating           Int
+  comment          String?
+  expertSuggestion String?
+  suggestionAt     DateTime?
+  createdAt        DateTime  @default(now())
+  booking          Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  expert           Expert    @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  founder          User      @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  @@index([expertId])
+  @@index([founderId])
+  @@index([bookingId])
+}
+
+model InvitationCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  maxUses   Int       @default(10)
+  usedCount Int       @default(0)
+  createdBy String?
+  note      String?
+  expiresAt DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+}
+
+model POMPCredential {
+  id             String   @id @default(cuid())
+  expertId       String
+  bookingId      String
+  recipientRole  String
+  attestationUID String   @unique
+  recipient      String?
+  hours          Float
+  createdAt      DateTime @default(now())
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  expert         Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, recipientRole])
+  @@index([expertId])
+}
+
+model TokenLedger {
+  id          String   @id @default(cuid())
+  userId      String
+  bookingId   String?
+  type        String
+  amount      Int
+  description String?
+  createdAt   DateTime @default(now())
+  booking     Booking? @relation(fields: [bookingId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([bookingId])
+}
 
 enum UserRole {
   EXPERT
@@ -75,244 +271,4 @@ enum OnboardingStep {
   AI_GENERATION
   PREVIEW
   PUBLISHED
-}
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  nickName      String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          UserRole  @default(FOUNDER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  telegramId       String?  @unique
-  telegramUsername  String?
-
-  wechatOpenId     String?  @unique
-  wechatUnionId    String?
-
-  inviteCode       String?
-  tokenBalance     Int       @default(0)
-
-  accounts Account[]
-  sessions Session[]
-  expert   Expert?
-  bookingsAsFounder Booking[] @relation("FounderBookings")
-  reviews  Review[]
-  tokenLedger TokenLedger[]
-}
-
-model Expert {
-  id              String         @id @default(cuid())
-  userId          String         @unique
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Social links
-  linkedIn        String?
-  website         String?
-  twitter         String?
-  substack        String?
-  instagram       String?
-  xiaohongshu     String?
-
-  // Personal info
-  gender          String?
-
-  // TON wallet
-  tonWalletAddress  String?
-  tonWalletType     String?
-  tonMnemonicEnc    String?  @db.Text
-
-  // Pricing (SGD cents per hour)
-  priceOnlineCents  Int?
-  priceOfflineCents Int?
-  currency          String         @default("SGD")
-  stripeAccountId     String?
-  stripeAccountStatus String?  @default("none") // none | onboarding | active | restricted
-
-  /// WeChat Pay sub-merchant id (特约商户号) when using service-provider / profit-sharing mode
-  wechatSubMchId      String?
-
-  // Weekly availability schedule (JSON: { "mon": [{"start":"10:00","end":"15:00"}], ... })
-  weeklySchedule  Json?
-
-  // Professional info
-  domains         ExpertDomain[]
-  sessionType     SessionType    @default(BOTH)
-  bio             String?        @db.Text
-  audioIntroUrl   String?        @db.Text
-  fishAudioModelId String?
-  mem9SpaceId     String?
-  servicesOffered Json?
-
-  // Uploaded document
-  documentName    String?
-  documentData    String?        @db.Text
-
-  // AI-generated content
-  avatarVideoUrl  String?        @db.Text
-  avatarScript    String?        @db.Text
-
-  // Onboarding state
-  onboardingStep  OnboardingStep @default(SOCIAL_LINKS)
-  isPublished     Boolean        @default(false)
-  isVerified      Boolean        @default(false)
-
-  // Ratings
-  avgRating       Float          @default(0)
-  reviewCount     Int            @default(0)
-
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  bookings        Booking[]
-  reviews         Review[]
-  availableSlots  AvailableSlot[]
-  pompCredentials POMPCredential[]
-}
-
-model ExpertDomain {
-  id       String @id @default(cuid())
-  expertId String
-  expert   Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  domain   String
-
-  @@unique([expertId, domain])
-  @@index([expertId])
-}
-
-model AvailableSlot {
-  id        String   @id @default(cuid())
-  expertId  String
-  expert    Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  startTime DateTime
-  endTime   DateTime
-  isBooked  Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-
-  @@index([expertId, startTime])
-}
-
-model Booking {
-  id          String        @id @default(cuid())
-  expertId    String
-  expert      Expert        @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  founderId   String
-  founder     User          @relation("FounderBookings", fields: [founderId], references: [id], onDelete: Cascade)
-
-  sessionType    SessionType
-  startTime      DateTime
-  endTime        DateTime
-  timezone       String        @default("Asia/Singapore")
-  meetingLink    String?
-  offlineAddress String?
-  status         BookingStatus @default(PENDING)
-  cancelledBy    String?
-  cancelReason   String?
-
-  // Payment
-  totalAmountCents        Int?
-  depositAmountCents      Int?
-  tokenDiscount           Int?      @default(0)
-  tokensRedeemed          Int?      @default(0)
-  currency                String   @default("SGD")
-  paymentMethod           String?
-  paymentStatus           String   @default("pending")
-  stripeCheckoutSessionId String?
-  stripePaymentIntentId   String?
-  wechatTransactionId     String?
-  stripeCustomerId        String?
-  stripePaymentMethodId   String?
-  stripeRemainderPIId     String?
-  paynowReference         String?
-  paynowPayerReference    String?
-  paynowSubmittedAt       DateTime?
-  paynowConfirmedAt       DateTime?
-  tonDepositTxHash        String?
-  tonRemainderTxHash      String?
-  remainderChargedAt      DateTime?
-
-  /// WeChat profit-sharing: pending | success | failed | skipped (null = not applicable or not yet processed)
-  wechatProfitShareStatus String?
-
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  review      Review?
-  pompCredentials POMPCredential[]
-  tokenLedgerEntries TokenLedger[]
-
-  @@index([expertId, startTime])
-  @@index([founderId])
-}
-
-model Review {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  expertId  String
-  expert    Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  founderId String
-  founder   User     @relation(fields: [founderId], references: [id], onDelete: Cascade)
-
-  rating    Int
-  comment   String?  @db.Text
-
-  expertSuggestion String? @db.Text
-  suggestionAt     DateTime?
-
-  createdAt DateTime @default(now())
-
-  @@index([expertId])
-  @@index([founderId])
-  @@index([bookingId])
-}
-
-model InvitationCode {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  maxUses   Int       @default(10)
-  usedCount Int       @default(0)
-  createdBy String?
-  note      String?
-  expiresAt DateTime?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-}
-
-model POMPCredential {
-  id             String   @id @default(cuid())
-  expertId       String
-  expert         Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  bookingId      String
-  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-
-  recipientRole  String
-  attestationUID String   @unique
-  recipient      String?
-  hours          Float
-
-  createdAt      DateTime @default(now())
-
-  @@unique([bookingId, recipientRole])
-  @@index([expertId])
-}
-
-model TokenLedger {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookingId   String?
-  booking     Booking? @relation(fields: [bookingId], references: [id])
-  type        String
-  amount      Int
-  description String?
-  createdAt   DateTime @default(now())
-
-  @@index([userId])
-  @@index([bookingId])
 }

@@ -419,7 +419,7 @@ export function VoiceChatModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onPointerDownCapture={onModalPointerDownCapture}
     >
-      <div className="mx-4 w-full max-w-md overflow-hidden rounded-2xl bg-background shadow-2xl">
+      <div className="surface-card mx-4 w-full max-w-md overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 text-center text-white">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
             <Phone className="h-7 w-7" />
@@ -477,8 +477,8 @@ export function VoiceChatModal({
         )}
 
         {backend === "agora" && callState === "connected" && (
-          <div className="border-t bg-slate-50/70 px-4 py-4">
-            <div className="mb-3 flex items-center justify-between text-xs text-slate-600">
+          <div className="border-t border-border/80 bg-card/70 px-4 py-4">
+            <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 Turns {turnInfo.count}/{turnInfo.max}
               </span>
@@ -492,7 +492,7 @@ export function VoiceChatModal({
                   className={cn(
                     "rounded-2xl px-3 py-2 text-sm shadow-sm",
                     message.role === "assistant"
-                      ? "bg-white text-slate-800"
+                      ? "border border-border/80 bg-background/80 text-foreground"
                       : "bg-indigo-600 text-white",
                   )}
                 >
@@ -508,7 +508,7 @@ export function VoiceChatModal({
                 </div>
               ))}
               {messages.length === 0 && (
-                <div className="rounded-2xl bg-white px-3 py-3 text-sm text-slate-500 shadow-sm">
+                <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3 text-sm text-muted-foreground shadow-sm">
                   The expert avatar will greet you here and reply with voice plus transcript.
                 </div>
               )}

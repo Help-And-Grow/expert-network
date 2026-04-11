@@ -959,7 +959,7 @@ export default function OnboardingPage() {
 
   if (isTelegram && !authDone) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+      <div className="app-shell flex min-h-dvh items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
     );
@@ -967,7 +967,7 @@ export default function OnboardingPage() {
 
   if (!isTelegram && status === "loading") {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+      <div className="app-shell flex min-h-dvh items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
     );
@@ -979,7 +979,7 @@ export default function OnboardingPage() {
 
   if (!inviteChecked || !hasInvite) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+      <div className="app-shell flex min-h-dvh items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
     );
@@ -991,8 +991,8 @@ export default function OnboardingPage() {
   // PREVIEW: Full-screen profile card
   if (currentStep === "PREVIEW" && generatedProfile) {
     return (
-      <div className="flex min-h-dvh flex-col bg-slate-50">
-        <div className="sticky top-0 z-10 border-b bg-white/95 px-4 py-3 backdrop-blur">
+      <div className="app-shell flex min-h-dvh flex-col">
+        <div className="sticky top-0 z-10 border-b bg-background/90 px-4 py-3 backdrop-blur">
           <h1 className="text-center text-lg font-semibold">Profile Preview</h1>
         </div>
         <div className="flex-1 overflow-y-auto p-4 pb-8">
@@ -1008,7 +1008,7 @@ export default function OnboardingPage() {
               </div>
 
               {generatedProfile.profileImage ? (
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-100">
+                <div className="relative w-full aspect-square overflow-hidden rounded-xl bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={generatedProfile.profileImage}
@@ -1017,8 +1017,8 @@ export default function OnboardingPage() {
                   />
                 </div>
               ) : (
-                <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                  <Sparkles className="h-16 w-16 text-indigo-300" />
+                <div className="flex w-full aspect-square items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20">
+                  <Sparkles className="h-16 w-16 text-indigo-200" />
                 </div>
               )}
               {audioIntroUrl && (
@@ -1160,9 +1160,9 @@ export default function OnboardingPage() {
 
   // Chat interface
   return (
-    <div className="flex flex-col h-dvh max-w-lg mx-auto bg-slate-50">
+    <div className="app-shell flex h-dvh max-w-lg mx-auto flex-col">
       {/* Progress bar */}
-      <div className="shrink-0 border-b bg-white px-4 py-3">
+      <div className="shrink-0 border-b bg-background/90 px-4 py-3 backdrop-blur">
         <div className="mb-2 flex items-center justify-between gap-1 text-xs font-medium">
           {ONBOARDING_STEPS.map((step, i) => (
             <span
@@ -1203,7 +1203,7 @@ export default function OnboardingPage() {
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
                     msg.role === "ai"
-                      ? "rounded-bl-md bg-slate-200 text-slate-900 chat-bubble-animate"
+                      ? "rounded-bl-md border border-border/80 bg-card/80 text-foreground chat-bubble-animate"
                       : "rounded-br-md bg-indigo-600 text-white chat-bubble-animate"
                   )}
                 >
@@ -1215,8 +1215,8 @@ export default function OnboardingPage() {
 
           {isTyping && (
             <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-md bg-slate-200 px-4 py-3">
-                <span className="typing-dots text-slate-600">typing</span>
+              <div className="rounded-2xl rounded-bl-md border border-border/80 bg-card/80 px-4 py-3">
+                <span className="typing-dots text-muted-foreground">typing</span>
               </div>
             </div>
           )}
@@ -1226,7 +1226,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t bg-white px-4 py-4 mobile-safe-bottom">
+      <div className="shrink-0 border-t bg-background/90 px-4 py-4 backdrop-blur mobile-safe-bottom">
         {currentStep === "NICKNAME" && (
           <div className="flex gap-2">
             <Input
@@ -1312,7 +1312,7 @@ export default function OnboardingPage() {
           <div className="space-y-3">
             {walletAddress || tonWallet ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4">
+                <div className="surface-success flex items-center gap-2 rounded-xl border p-4">
                   <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Wallet Connected</p>
@@ -1411,7 +1411,7 @@ export default function OnboardingPage() {
                     "cursor-pointer px-4 py-2 text-sm transition min-h-[44px] flex items-center",
                     selectedDomains.includes(domain)
                       ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                      : "hover:bg-slate-100"
+                      : "hover:bg-accent"
                   )}
                   onClick={() => {
                     setSelectedDomains((prev) =>
@@ -1490,8 +1490,8 @@ export default function OnboardingPage() {
                 className={cn(
                   "w-full rounded-xl border-2 p-4 text-left transition min-h-[56px] flex flex-col items-start",
                   sessionType === opt.value
-                    ? "border-indigo-600 bg-indigo-50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
+                    ? "border-indigo-500 bg-indigo-500/15"
+                    : "border-input bg-card/70 hover:border-border"
                 )}
               >
                 <span className="font-semibold">{opt.label}</span>
@@ -1582,7 +1582,7 @@ export default function OnboardingPage() {
         {currentStep === "STRIPE_KYC" && (
           <div className="space-y-3">
             {stripeKycDone ? (
-              <div className="flex items-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4">
+              <div className="surface-success flex items-center gap-2 rounded-xl border p-4">
                 <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-emerald-800">

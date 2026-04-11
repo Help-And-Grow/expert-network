@@ -53,12 +53,12 @@ function InviteContent() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4">
+    <div className="app-shell flex min-h-dvh items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardContent className="pt-8 pb-6 space-y-6">
           <div className="text-center space-y-2">
-            <div className="mx-auto w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center">
-              <ShieldCheck className="h-7 w-7 text-indigo-600" />
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/15">
+              <ShieldCheck className="h-7 w-7 text-indigo-300" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
               Welcome to Help &amp; Grow

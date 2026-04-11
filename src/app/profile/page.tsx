@@ -646,7 +646,7 @@ export default function ProfilePage() {
         className={`text-sm text-center rounded-lg px-4 py-2 ${
           sectionMsg.isError
             ? "bg-destructive/10 text-destructive"
-            : "bg-emerald-500/10 text-emerald-700"
+            : "bg-emerald-500/10 text-emerald-200"
         }`}
       >
         {sectionMsg.text}
@@ -662,7 +662,7 @@ export default function ProfilePage() {
   const telegramUsername = profile?.user?.telegramUsername ?? null;
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg bg-background pb-12">
+    <div className="app-shell mx-auto min-h-screen max-w-lg bg-background pb-12">
       <header className="border-b px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">

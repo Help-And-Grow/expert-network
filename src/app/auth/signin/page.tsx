@@ -110,7 +110,7 @@ function SignInForm() {
   };
 
   return (
-    <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
+    <Card className="w-full max-w-md">
       <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
           Help &amp; Grow
@@ -163,7 +163,7 @@ function SignInForm() {
         {devAvailable && (
           <div className="relative">
             <Separator className="my-4" />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               or
             </span>
           </div>
@@ -203,7 +203,7 @@ function SignInForm() {
 
         <div className="relative">
           <Separator className="my-4" />
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             or
           </span>
         </div>
@@ -234,7 +234,7 @@ function SignInForm() {
 
 function SignInFallback() {
   return (
-    <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
+    <Card className="w-full max-w-md">
       <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
           Help &amp; Grow
@@ -250,7 +250,7 @@ function SignInFallback() {
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4">
+    <div className="app-shell flex min-h-screen flex-col items-center justify-center p-4">
       <Suspense fallback={<SignInFallback />}>
         <SignInForm />
       </Suspense>

@@ -55,7 +55,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-xl border bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3",
+        "surface-tint flex items-center gap-3 px-4 py-3",
         className
       )}
     >
@@ -94,12 +94,12 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
 
       <div className="flex-1 min-w-0">
         {label && (
-          <p className="text-sm font-medium text-slate-700 truncate">
+          <p className="text-sm font-medium text-foreground truncate">
             {label}
           </p>
         )}
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+          <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full bg-indigo-500 transition-all duration-200"
               style={{

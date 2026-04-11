@@ -117,7 +117,7 @@ export default function BookingSuccessPage() {
   const isOnline = booking.sessionType === "ONLINE";
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg bg-background">
+    <div className="app-shell mx-auto min-h-screen max-w-lg bg-background">
       <main className="flex flex-col items-center px-6 py-12">
         <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
           <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
