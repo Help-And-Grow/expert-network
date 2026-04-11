@@ -35,7 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserMenu } from "@/components/user-menu";
 import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import { useAuth } from "@/hooks/use-auth";
-import { DOMAINS } from "@/lib/constants";
+
 import { getTelegramInitData } from "@/lib/telegram";
 
 interface ServiceItem {
@@ -45,7 +45,6 @@ interface ServiceItem {
 
 interface ExpertProfile {
   id: string;
-  domains: string[];
   bio: string | null;
   avatarScript: string | null;
   servicesOffered: ServiceItem[] | null;
@@ -83,16 +82,15 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [sectionMsg, setSectionMsg] = useState<{ text: string; section: string; isError: boolean } | null>(null);
 
-  const [domains, setDomains] = useState<string[]>([]);
   const [bio, setBio] = useState("");
   const [introScript, setIntroScript] = useState("");
   const [services, setServices] = useState<ServiceItem[]>([]);
 
-  const [editingDomains, setEditingDomains] = useState(false);
-  const [savingDomains, setSavingDomains] = useState(false);
-
   const [editingIntro, setEditingIntro] = useState(false);
   const [savingIntro, setSavingIntro] = useState(false);
+
+  const [editingBio, setEditingBio] = useState(false);
+  const [savingBio, setSavingBio] = useState(false);
 
   const [editingServices, setEditingServices] = useState(false);
   const [savingServices, setSavingServices] = useState(false);
@@ -146,8 +144,7 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error("Failed to fetch profile");
       const data: ExpertProfile = await res.json();
       setProfile(data);
-      setDomains(data.domains);
-      setBio(data.bio ?? "");
+      setBio(data.bio || "");
       setIntroScript(data.avatarScript ?? "");
       setServices(
         (data.servicesOffered as ServiceItem[] | null) ?? []
@@ -198,31 +195,6 @@ export default function ProfilePage() {
       throw new Error(d.error ?? "Failed to save");
     }
     return res.json();
-  };
-
-  const handleSaveDomains = async () => {
-    setSavingDomains(true);
-    try {
-      await saveSection({ domains });
-      setEditingDomains(false);
-      showMessage("Service domains saved!", "domains");
-      setShowRegeneratePrompt(true);
-    } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", "domains", true, 5000);
-    } finally {
-      setSavingDomains(false);
-    }
-  };
-
-  const handleCancelDomains = () => {
-    setDomains(profile?.domains ?? []);
-    setEditingDomains(false);
-  };
-
-  const toggleDomain = (domain: string) => {
-    setDomains((prev) =>
-      prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]
-    );
   };
 
   const handleSaveIntro = async () => {
@@ -1173,68 +1145,6 @@ export default function ProfilePage() {
                   showHint
                 />
                 {renderToast("availability")}
-              </CardContent>
-            </Card>
-
-            {/* Service Domains */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Service Domains</CardTitle>
-                  {!editingDomains ? (
-                    <Button variant="ghost" size="sm" onClick={() => setEditingDomains(true)} className="gap-1">
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
-                  ) : (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleCancelDomains}
-                        className="gap-1"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSaveDomains}
-                        disabled={savingDomains}
-                        className="gap-1"
-                      >
-                        {savingDomains ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5" />
-                        )}
-                        Save
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {renderToast("domains")}
-                <div className="space-y-2">
-                  {DOMAINS.map((d) => (
-                    <label
-                      key={d}
-                      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
-                        editingDomains ? "cursor-pointer hover:bg-accent" : "cursor-default opacity-80"
-                      } ${domains.includes(d) ? "border-primary bg-primary/5" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={domains.includes(d)}
-                        onChange={() => editingDomains && toggleDomain(d)}
-                        disabled={!editingDomains}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className={domains.includes(d) ? "font-medium" : ""}>{d}</span>
-                    </label>
-                  ))}
-                </div>
               </CardContent>
             </Card>
 

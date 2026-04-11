@@ -41,7 +41,6 @@ interface ServiceItem {
 
 interface Expert {
   id: string;
-  domains: string[];
   sessionType: string;
   bio: string | null;
   servicesOffered: ServiceItem[] | null;
@@ -369,10 +368,6 @@ export default function ExpertProfilePage() {
         <div className="mt-4">
           <h1 className="text-2xl font-bold text-foreground">{name}</h1>
           <div className="mt-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-300">
-              <Shield className="h-4 w-4" />
-              <span>Learned from {expert.learnedFromCount}+ coaches</span>
-            </div>
             <div className="flex items-center gap-1.5 text-sm font-medium text-indigo-300">
               <Sparkles className="h-4 w-4" />
               <span>Offered help to {expert.offeredHelpCount}+ players</span>
@@ -460,21 +455,11 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
-      {expert.viewerIsOwner && (
-        <section className="surface-tint mt-5 rounded-2xl p-4">
-          <p className="text-sm font-medium text-foreground">This is your public page.</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Voice preview and booking are hidden here so you do not chat with or book yourself.
-          </p>
-        </section>
-      )}
-
       {showVoiceChat && (
         <VoiceChatPanel
           expertId={expert.id}
           expertName={name}
           expertImage={expert.user.image}
-          expertDomains={expert.domains}
           expertServices={expert.servicesOffered}
           open={showVoiceChat}
           onClose={closeVoiceChatOverlay}
