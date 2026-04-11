@@ -15,10 +15,33 @@ import type {
 // Feature flags (server-side, read from env)
 // ---------------------------------------------------------------------------
 
+const aiProvider = (process.env.AI_PROVIDER || "qwen").trim().toLowerCase();
+const geminiVoiceReady = Boolean(
+  process.env.GOOGLE_CLOUD_PROJECT?.trim() || process.env.GEMINI_API_KEY?.trim(),
+);
+const hasFish = Boolean(process.env.FISH_AUDIO_API_KEY);
+const hasDash = Boolean(process.env.DASHSCOPE_API_KEY);
+
+/** Prefer Gemini TTS on Gemini deployments even if a merged DashScope key exists. */
+let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
+if (hasFish) {
+  voiceSynthesisProvider = "fish-audio";
+} else if (aiProvider === "gemini" && geminiVoiceReady) {
+  voiceSynthesisProvider = "gemini-tts";
+} else if (hasDash) {
+  voiceSynthesisProvider = "qwen-tts";
+} else if (geminiVoiceReady) {
+  voiceSynthesisProvider = "gemini-tts";
+} else {
+  voiceSynthesisProvider = "qwen-tts";
+}
+
+const voiceSynthesisEnabled = hasFish || hasDash || geminiVoiceReady;
+
 export const integrations = {
   voiceSynthesis: {
-    enabled: !!process.env.FISH_AUDIO_API_KEY || !!process.env.DASHSCOPE_API_KEY,
-    provider: process.env.FISH_AUDIO_API_KEY ? "fish-audio" : "qwen-tts",
+    enabled: voiceSynthesisEnabled,
+    provider: voiceSynthesisProvider,
   },
   memory: {
     enabled: !!process.env.MEM9_SPACE_ID || !!process.env.MEM9_ENABLED,
@@ -45,6 +68,9 @@ export async function getVoiceSynthesis(): Promise<VoiceSynthesisProvider | null
     if (integrations.voiceSynthesis.provider === "fish-audio") {
       const { FishAudioProvider } = await import("./fish-audio");
       _voiceSynthesis = new FishAudioProvider();
+    } else if (integrations.voiceSynthesis.provider === "gemini-tts") {
+      const { GeminiTtsProvider } = await import("./gemini-tts");
+      _voiceSynthesis = new GeminiTtsProvider();
     } else {
       const { QwenTTSProvider } = await import("./qwen-tts");
       _voiceSynthesis = new QwenTTSProvider();

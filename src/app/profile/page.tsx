@@ -404,8 +404,9 @@ export default function ProfilePage() {
         method: "POST",
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to generate audio");
+        const data = (await res.json()) as { error?: string; detail?: string };
+        const hint = data.detail ? `${data.error ?? "Failed"} — ${data.detail}` : data.error;
+        throw new Error(hint ?? "Failed to generate audio");
       }
       setProfile((prev) => (prev ? { ...prev, hasAudio: true } : prev));
       setAudioCacheBuster(`?t=${Date.now()}`);
