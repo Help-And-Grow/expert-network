@@ -41,16 +41,16 @@ Deployment pages use:
 
 If **`<team-slug>`** is wrong, Vercel returns **404 NOT_FOUND** for the **dashboard** URL only. That does **not** change how `*.vercel.app` resolves; dashboard 404 and live-site 404 are different problems (see below).
 
-For the private origin repo **`jlzxwt8/expert-network`**, these projects are typically linked under team **`jlzxwt8s-projects`** (check **Vercel → team switcher → Project → Settings** if unsure).
+Vercel teams can differ from GitHub orgs. The **team switcher** in the dashboard is authoritative: projects may live under **`jlzxwt8s-projects`**, **`helpandgrow`**, or another team you were invited to.
 
-| Project | Production URL | Dashboard (when team is `jlzxwt8s-projects`) |
-|---------|----------------|-----------------------------------------------|
-| `expert-network` | https://expert-network.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network |
-| `expert-network-googlecloud` | https://expert-network-googlecloud.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network-googlecloud |
-| `expert-network-alibabacloud` | https://expert-network-alibabacloud.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network-alibabacloud |
-| `expert-network-byteplus` | https://expert-network-byteplus.vercel.app | https://vercel.com/jlzxwt8s-projects/expert-network-byteplus |
+| Project | Production URL | Example dashboard path |
+|---------|----------------|-------------------------|
+| `expert-network` | https://expert-network.vercel.app | `https://vercel.com/<team-slug>/expert-network` |
+| `expert-network-googlecloud` | https://expert-network-googlecloud.vercel.app | `https://vercel.com/<team-slug>/expert-network-googlecloud` |
+| `expert-network-alibabacloud` | https://expert-network-alibabacloud.vercel.app | `https://vercel.com/<team-slug>/expert-network-alibabacloud` |
+| `expert-network-byteplus` | https://expert-network-byteplus.vercel.app | `https://vercel.com/<team-slug>/expert-network-byteplus` |
 
-Copy **deployment** links from the Deployments list; the id must look like **`dpl_…`**. Paths such as `/helpandgrow/expert-network-googlecloud/…` only work if that team actually owns the project.
+Copy **deployment** links from the Deployments list; the id must look like **`dpl_…`**. **Branch/deployment** hostnames embed the owning team, e.g. `…-git-main-helpandgrow.vercel.app` or `…-git-main-jlzxwt8s-projects.vercel.app` — use the suffix shown on **your** deployment card.
 
 ### Live site `*.vercel.app` returns 404 (`NOT_FOUND`) while deployment shows Ready
 
@@ -63,6 +63,7 @@ If **`https://<project-slug>.vercel.app/`** returns **HTTP 404** with **`content
 3. **Git** — Confirm the connected repo and **Production Branch** match the deployment you expect.
 4. **Deployment Protection** — URLs like **`*-git-main-*.vercel.app`** may return **401 Authentication Required** for unauthenticated clients (including `curl` and sometimes the dashboard preview). That is separate from production-domain **404**; use [protection bypass](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation) for automation or adjust protection in **Project → Settings → Deployment Protection**.
 5. **Vercel CLI** — If `vercel project ls` shows no projects, the CLI scope may be the wrong team (e.g. `helpandgrow` vs **`jlzxwt8s-projects`**). Match the **team switcher** in the dashboard before running `vercel link` / env commands.
+6. **Redeploy did not help** — Compare **Project → Settings → General** (Root Directory, Framework Preset, Build / Output settings) with a project that works (e.g. `expert-network`). Open the production deployment → confirm **Functions** / build output lists Next routes. If the domain is **Valid**, production is **Ready**, and unauthenticated requests still get **`x-vercel-error: NOT_FOUND`** on **`project.vercel.app`**, contact **Vercel support** with that header’s **`x-vercel-id`** — this is platform routing, not application HTML.
 
 ### How it works:
 All three Vercel projects are linked to the **same** GitHub repository branch (`Help-And-Grow/expert-network:main`). The codebase dynamically adapts its behavior based on the Vercel Environment Variables injected at runtime.
