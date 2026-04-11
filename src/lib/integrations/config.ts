@@ -22,18 +22,16 @@ const geminiVoiceReady = Boolean(
 const hasFish = Boolean(process.env.FISH_AUDIO_API_KEY);
 const hasDash = Boolean(process.env.DASHSCOPE_API_KEY);
 
-/** Prefer Gemini TTS on Gemini deployments even if a merged DashScope key exists. */
+/** Prefer Gemini TTS if available to avoid DashScope quota limits, then fallback to Qwen or Fish. */
 let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
-if (hasFish) {
-  voiceSynthesisProvider = "fish-audio";
-} else if (aiProvider === "gemini" && geminiVoiceReady) {
+if (geminiVoiceReady) {
   voiceSynthesisProvider = "gemini-tts";
+} else if (hasFish) {
+  voiceSynthesisProvider = "fish-audio";
 } else if (hasDash) {
   voiceSynthesisProvider = "qwen-tts";
-} else if (geminiVoiceReady) {
-  voiceSynthesisProvider = "gemini-tts";
 } else {
-  voiceSynthesisProvider = "qwen-tts";
+  voiceSynthesisProvider = "qwen-tts"; // fallback to trigger missing key errors
 }
 
 const voiceSynthesisEnabled = hasFish || hasDash || geminiVoiceReady;
