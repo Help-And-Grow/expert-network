@@ -248,6 +248,45 @@
     animation: discover-shimmer 1.4s infinite linear;
   }
 
+  &__thread-turn {
+    margin-top: 24px;
+
+    &:first-of-type {
+      margin-top: 12px;
+    }
+  }
+
+  &__user-turn {
+    margin-bottom: 20px;
+    padding: 20px 22px;
+    border-radius: 22px;
+    background: rgba(31, 63, 255, 0.08);
+    border: 1px solid rgba(31, 63, 255, 0.12);
+  }
+
+  &__thread-label {
+    display: block;
+    font-size: 22px;
+    color: #6b7280;
+    margin-bottom: 8px;
+  }
+
+  &__user-turn-text {
+    display: block;
+    font-size: 26px;
+    line-height: 1.55;
+    color: #1e1b4b;
+  }
+
+  &__assistant-turn {
+    margin-bottom: 8px;
+  }
+
+  &__empty-state--inline {
+    margin-top: 12px;
+    margin-bottom: 8px;
+  }
+
   &__footer-note {
     margin-top: 18px;
     padding: 8px 12px 0;

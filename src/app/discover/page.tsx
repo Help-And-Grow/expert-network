@@ -15,51 +15,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/user-menu";
 import { VoiceInputButton } from "@/components/voice-input-button";
-
-interface MatchRecommendation {
-  expertId: string;
-  name: string;
-  reason: string;
-  sessionTypes: string[];
-}
+import {
+  type DiscoverMatchChatMessage,
+  type DiscoverMatchRecommendation,
+  discoverMatchMessagesToApiHistory,
+  loadDiscoverMatchFromSessionStorage,
+  saveDiscoverMatchToSessionStorage,
+} from "@/lib/discover-match-storage";
 
 interface MatchResponse {
-  recommendations: MatchRecommendation[];
+  recommendations: DiscoverMatchRecommendation[];
   noMatchMessage?: string;
 }
 
-type ChatMessage = {
-  role: "user" | "assistant";
-  content?: string;
-  recommendations?: MatchRecommendation[];
-  noMatchMessage?: string;
-};
-
-const DISCOVER_CHAT_STORAGE_KEY = "hg-discover-match-chat-v1";
-
-function loadDiscoverChatFromSession(): { chatMessages: ChatMessage[]; chatInput: string } | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(DISCOVER_CHAT_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { chatMessages?: unknown; chatInput?: unknown };
-    if (!Array.isArray(parsed.chatMessages) || typeof parsed.chatInput !== "string") return null;
-    return { chatMessages: parsed.chatMessages as ChatMessage[], chatInput: parsed.chatInput };
-  } catch {
-    return null;
-  }
-}
-
-function saveDiscoverChatToSession(chatMessages: ChatMessage[], chatInput: string) {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(DISCOVER_CHAT_STORAGE_KEY, JSON.stringify({ chatMessages, chatInput }));
-  } catch {
-    // quota or private mode
-  }
-}
-
-const MatchRecommendationCard = memo(function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
+const MatchRecommendationCard = memo(function MatchRecommendationCard({
+  rec,
+}: {
+  rec: DiscoverMatchRecommendation;
+}) {
   const initials = rec.name
     .split(" ")
     .map((n) => n[0])
@@ -105,13 +78,13 @@ function DiscoverContent() {
   const { checked: inviteChecked, hasInvite } = useInviteGuard();
   const router = useRouter();
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<DiscoverMatchChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [sessionRestored, setSessionRestored] = useState(false);
 
   useLayoutEffect(() => {
-    const saved = loadDiscoverChatFromSession();
+    const saved = loadDiscoverMatchFromSessionStorage();
     if (saved) {
       setChatMessages(saved.chatMessages);
       setChatInput(saved.chatInput);
@@ -121,7 +94,7 @@ function DiscoverContent() {
 
   useEffect(() => {
     if (!sessionRestored) return;
-    saveDiscoverChatToSession(chatMessages, chatInput);
+    saveDiscoverMatchToSessionStorage({ chatMessages, chatInput });
   }, [chatMessages, chatInput, sessionRestored]);
 
   useEffect(() => {
@@ -135,26 +108,11 @@ function DiscoverContent() {
     if (!q || chatLoading) return;
 
     setChatInput("");
-    const withUser: ChatMessage[] = [...chatMessages, { role: "user", content: q }];
+    const withUser: DiscoverMatchChatMessage[] = [...chatMessages, { role: "user", content: q }];
     setChatMessages(withUser);
     setChatLoading(true);
 
-    const history = withUser
-      .filter(
-        (m) =>
-          m.role === "user" ||
-          (m.role === "assistant" &&
-            (Boolean(m.content) || Boolean(m.recommendations?.length) || Boolean(m.noMatchMessage))),
-      )
-      .map((m) => ({
-        role: m.role,
-        content:
-          m.role === "user"
-            ? m.content!
-            : m.recommendations?.length
-              ? `Recommended: ${m.recommendations.map((r) => r.name).join(", ")}`
-              : m.noMatchMessage ?? "",
-      }));
+    const history = discoverMatchMessagesToApiHistory(withUser);
 
     try {
       const res = await fetch("/api/experts/match", {
