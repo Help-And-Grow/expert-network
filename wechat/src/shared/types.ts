@@ -134,6 +134,14 @@ export interface Booking {
     domains: string[];
   };
   founder: ExpertUser;
+  review?: {
+    id: string;
+    rating: number;
+    comment: string | null;
+    expertSuggestion: string | null;
+    suggestionAt: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export interface BookingsResponse {

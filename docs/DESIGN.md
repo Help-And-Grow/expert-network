@@ -57,3 +57,13 @@
 - Prefer shared dark surface helpers (`surface-card`, `surface-glass`, tinted alert panels) over ad hoc `bg-white`, `bg-slate-50`, or `shadow-lg` combinations.
 - When a component needs emphasis, use contrast by elevation, border, blur, or brand tint instead of switching back to light mode.
 - If a page still needs a bright asset area, isolate it inside a contained card rather than making the whole page light.
+
+## MVP Product Rules
+
+- Public profiles must not expose direct contact identifiers such as email, Telegram ID, WeChat ID, or social handles.
+- Treat owner-state as a separate mode: when the viewer is the expert, hide match, booking, and voice-chat actions instead of showing disabled controls.
+- Voice clone is out of MVP scope. Use one bottom-right profile-image audio entry point plus replay controls inside chat, backed by a system-selected professional voice by gender.
+- Post-meetup feedback uses two distinct surfaces:
+  - appreciation: warm/pink, written by the player
+  - coach follow-up: indigo, written by the coach
+- Free pricing should feel like a pleasant unlock, not a payment edge case. Remove deposit language from zero-price experiences.

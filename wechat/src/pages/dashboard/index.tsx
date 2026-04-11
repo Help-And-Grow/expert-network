@@ -235,6 +235,20 @@ export default function DashboardPage() {
                   </View>
                 )}
 
+                {booking.review?.comment && (
+                  <View className="dashboard__feedback dashboard__feedback--appreciation">
+                    <Text className="dashboard__feedback-label">💗 Player appreciation</Text>
+                    <Text className="dashboard__feedback-text">{booking.review.comment}</Text>
+                  </View>
+                )}
+
+                {booking.review?.expertSuggestion && (
+                  <View className="dashboard__feedback dashboard__feedback--suggestion">
+                    <Text className="dashboard__feedback-label">✨ Coach follow-up</Text>
+                    <Text className="dashboard__feedback-text">{booking.review.expertSuggestion}</Text>
+                  </View>
+                )}
+
                 {(booking.status === "CONFIRMED" || booking.status === "PENDING") && (() => {
                   const msUntil = new Date(booking.startTime).getTime() - Date.now();
                   const canRescheduleCancel = msUntil >= 2 * 60 * 60 * 1000;
