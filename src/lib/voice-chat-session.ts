@@ -322,7 +322,7 @@ async function generateBytePlusReply(messages: ChatMessage[]): Promise<string> {
     baseURL: BYTEPLUS_BASE_URL,
   });
   const response = await client.chat.completions.create({
-    model: env.BYTEPLUS_MODEL_ID || "doubao-pro-32k",
+    model: env.BYTEPLUS_MODEL_ID || "doubao-seed-1.6-flash",
     messages,
   });
 
