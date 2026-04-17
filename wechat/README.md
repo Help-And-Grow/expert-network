@@ -30,6 +30,7 @@ Mini Program code runs **on the user’s phone** (or the WeChat DevTools simulat
 
 - WeChat **does not reliably play `data:audio/...;base64,...`** in `InnerAudioContext`.  
 - TTS replies are written to a **temp file** under `USER_DATA_PATH` before play (`wechat/src/shared/wechat-audio.ts`).  
+- Async voice chat uses **Gemini** for transcription / reply / preferred TTS; if audio is unavailable, the expert reply still shows as text instead of hard-failing.  
 - Voice intro uses `downloadFile` + local file; if download fails, check **downloadFile** domain whitelist.
 
 ## Env
