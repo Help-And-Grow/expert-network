@@ -31,7 +31,8 @@
     "vercel:env:byteplus": "node scripts/vercel-merge-env.mjs byteplus /tmp/vercel-origin-production.env /tmp/vercel-byteplus-production.env /tmp/vercel-byteplus-merged.env",
     "postinstall": "node scripts/switch-db.mjs && prisma generate",
     "wechat:build": "npm run build:weapp --prefix wechat",
-    "wechat:upload": "npm run wechat:build && node scripts/run-wechat-upload.cjs"
+    "wechat:upload": "npm run wechat:build && node scripts/run-wechat-upload.cjs",
+    "wechat:upload:local": "bash scripts/wechat-upload-local.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
