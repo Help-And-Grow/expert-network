@@ -1,17 +1,38 @@
 import { View, Text, Image } from "@tarojs/components";
-import Taro, { useLoad, useRouter, useShareAppMessage, useShareTimeline } from "@tarojs/taro";
+import Taro, {
+  useDidShow,
+  useLoad,
+  useRouter,
+  useShareAppMessage,
+  useShareTimeline,
+} from "@tarojs/taro";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { get } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
+import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
 import { buildWebProfileLoginUrl } from "../../shared/web-booking";
 import "./index.scss";
 
+function resolveExpertIdFromLaunch(loadOpts?: Record<string, unknown>): string {
+  const fromOpts = normalizeRouteId(loadOpts?.id as string | string[] | undefined);
+  if (fromOpts) return fromOpts;
+  try {
+    const p = Taro.getCurrentInstance()?.router?.params?.id;
+    return normalizeRouteId(p as string | string[] | undefined);
+  } catch {
+    return "";
+  }
+}
+
 export default function ExpertPage() {
   const router = useRouter();
-  const expertId = router.params.id || "";
+  const [expertId, setExpertId] = useState(() =>
+    normalizeRouteId(router.params?.id as string | string[] | undefined) ||
+      resolveExpertIdFromLaunch(),
+  );
   const [expert, setExpert] = useState<ExpertDetail | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
@@ -72,10 +93,42 @@ export default function ExpertPage() {
     [expertId]
   );
 
-  useLoad(() => {
-    fetchExpert().then(() => fetchReviews());
+  useLoad((opts) => {
+    const next = resolveExpertIdFromLaunch(opts as Record<string, unknown>);
+    if (next) {
+      setExpertId((prev) => (prev === next ? prev : next));
+    }
     Taro.showShareMenu({ withShareTicket: true });
   });
+
+  useDidShow(() => {
+    const next = resolveExpertIdFromLaunch();
+    if (next) {
+      setExpertId((prev) => (prev === next ? prev : next));
+    }
+  });
+
+  /** Load expert when route id is known; WeChat often omits useRouter().params on first paint. */
+  useEffect(() => {
+    if (!expertId) return;
+    void fetchExpert().then(() => fetchReviews(false));
+  }, [expertId, fetchExpert, fetchReviews]);
+
+  /** If id is still missing after route hooks, stop loading and show an error. */
+  useEffect(() => {
+    if (expertId) return;
+    const timer = setTimeout(() => {
+      const late = resolveExpertIdFromLaunch();
+      if (late) {
+        setExpertId(late);
+        return;
+      }
+      setLoading(false);
+      setExpert(null);
+      setError("无法打开主页：缺少专家信息。请返回「我的」下拉刷新后再试。");
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [expertId]);
 
   useShareAppMessage(() => {
     const name = expert?.user.nickName ?? expert?.user.name ?? "专家";

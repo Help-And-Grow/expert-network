@@ -113,11 +113,19 @@ export default function ProfilePage() {
             <View
               className="profile__menu-item"
               hoverClass="profile__menu-item--hover"
-              onClick={() =>
+              onClick={() => {
+                const id = expert?.id;
+                if (!id) {
+                  Taro.showToast({
+                    title: "无法打开，请下拉刷新后再试",
+                    icon: "none",
+                  });
+                  return;
+                }
                 Taro.navigateTo({
-                  url: `/pages/expert/index?id=${expert && expert.id}`,
-                })
-              }
+                  url: `/pages/expert/index?id=${encodeURIComponent(id)}`,
+                });
+              }}
             >
               <View className="profile__menu-icon-wrap profile__menu-icon-wrap--blue">
                 <Text className="profile__menu-icon">👤</Text>
