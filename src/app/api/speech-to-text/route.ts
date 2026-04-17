@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { env } from "@/lib/env";
 
 const DASHSCOPE_URL =
   "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
@@ -12,7 +13,7 @@ const ASR_MODEL = "qwen3-asr-flash";
  */
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.DASHSCOPE_API_KEY;
+    const apiKey = env.DASHSCOPE_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: "Speech recognition is not configured" },

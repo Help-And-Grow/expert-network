@@ -277,3 +277,10 @@ Return ONLY a JSON object, no markdown code fences.`;
 
 export const PDF_EXTRACTION_PROMPT =
   "Extract all text content from this PDF document. Return ONLY the extracted text, preserving the structure (headings, lists, paragraphs). Do not add any commentary or explanation.";
+
+export const SYSTEM_PROMPTS = {
+  PROFILE_BUILDER: "You are an expert profile writer for Help & Grow. You format text exactly as requested and never fabricate facts. Return valid JSON only.",
+  QUERY_NORMALIZER: "You are a query analysis assistant. Your job is to extract intent and keywords from user input.",
+  MATCHMAKER: "You are an AI matchmaking assistant connecting users with experts based on relevance.",
+  COPYWRITER: "You are a professional copywriter. Your task is to improve the tone, clarity, and impact of the provided text while keeping its original meaning.",
+};

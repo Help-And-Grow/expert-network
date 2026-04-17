@@ -6,23 +6,39 @@ import { creditTokens } from "@/lib/hg-token";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
-import { verifyWebhookSignature, retrievePaymentIntent, getAccountStatus } from "@/lib/stripe";
+import {
+  verifyWebhookSignature,
+  retrievePaymentIntent,
+  getAccountStatus,
+  getWebhookSecret,
+} from "@/lib/stripe";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 
 export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   const sig = request.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!sig || !webhookSecret) {
+  if (!sig) {
     console.error("[webhooks/stripe] Missing:", {
       hasSignature: !!sig,
-      hasSecret: !!webhookSecret,
+      hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
     });
     return NextResponse.json(
-      { error: "Missing signature or webhook secret" },
+      { error: "Missing stripe signature" },
       { status: 400 }
+    );
+  }
+
+  let webhookSecret: string;
+  try {
+    webhookSecret = getWebhookSecret();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[webhooks/stripe] Invalid webhook secret:", message);
+    return NextResponse.json(
+      { error: "Invalid webhook secret configuration" },
+      { status: 500 }
     );
   }
 

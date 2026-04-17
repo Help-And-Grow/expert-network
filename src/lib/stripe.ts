@@ -11,10 +11,42 @@
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
+function normalizeSecretEnvValue(value: string): string {
+  let normalized = value.trim();
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+
+  // Some dashboards / copy-paste flows accidentally append the literal characters `\n`.
+  normalized = normalized.replace(/(?:\\n|\\r|\\t)+$/g, "").trim();
+  return normalized;
+}
+
+function getRequiredSecret(name: "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET"): string {
+  const raw = process.env[name];
+  if (!raw) throw new Error(`${name} is not set`);
+
+  const value = normalizeSecretEnvValue(raw);
+  if (!value) throw new Error(`${name} is empty`);
+
+  if (/[\\\s]/.test(value)) {
+    throw new Error(
+      `${name} contains unexpected whitespace or escape characters; re-save it without extra quotes or newlines`
+    );
+  }
+
+  return value;
+}
+
 function getKey(): string {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
-  return key;
+  return getRequiredSecret("STRIPE_SECRET_KEY");
+}
+
+export function getWebhookSecret(): string {
+  return getRequiredSecret("STRIPE_WEBHOOK_SECRET");
 }
 
 async function stripeRequest<T = Record<string, unknown>>(

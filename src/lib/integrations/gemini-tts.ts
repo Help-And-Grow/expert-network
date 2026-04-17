@@ -40,12 +40,12 @@ const QWENISH_TO_GEMINI: Record<string, string> = {
 function resolveVoiceName(voiceId?: string | null): string {
   const fromEnvFemale = env.GEMINI_TTS_VOICE_FEMALE?.trim();
   const fromEnvMale = env.GEMINI_TTS_VOICE_MALE?.trim();
-  let v = voiceId?.trim();
+  const v = voiceId?.trim();
   if (!v || v === "default" || v.includes("-voice")) {
     return fromEnvMale || "Charon";
   }
   const mapped = QWENISH_TO_GEMINI[v];
-  if (mapped) return mapped;
+  if (mapped) return mapped === "Kore" ? (fromEnvFemale || "Kore") : (fromEnvMale || "Charon");
   return v;
 }
 
