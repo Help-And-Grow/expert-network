@@ -15,7 +15,6 @@ import {
   Sparkles,
   ArrowLeft,
   Trash2,
-  Plus,
   ExternalLink,
   Pencil,
   Check,
@@ -39,16 +38,10 @@ import { useAuth } from "@/hooks/use-auth";
 
 import { getTelegramInitData } from "@/lib/telegram";
 
-interface ServiceItem {
-  title: string;
-  description: string;
-}
-
 interface ExpertProfile {
   id: string;
   bio: string | null;
   avatarScript: string | null;
-  servicesOffered: ServiceItem[] | null;
   hasAvatar: boolean;
   hasAudio: boolean;
   hasVoiceClone: boolean;
@@ -85,13 +78,9 @@ export default function ProfilePage() {
 
   const [bio, setBio] = useState("");
   const [introScript, setIntroScript] = useState("");
-  const [services, setServices] = useState<ServiceItem[]>([]);
 
   const [editingIntro, setEditingIntro] = useState(false);
   const [savingIntro, setSavingIntro] = useState(false);
-
-  const [editingServices, setEditingServices] = useState(false);
-  const [savingServices, setSavingServices] = useState(false);
 
   const [uploading, setUploading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -99,7 +88,6 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [improvingIntro, setImprovingIntro] = useState(false);
-  const [improvingServices, setImprovingServices] = useState(false);
   const toastRef = useRef<HTMLParagraphElement>(null);
 
   const [regenerating, setRegenerating] = useState(false);
@@ -144,9 +132,6 @@ export default function ProfilePage() {
       setProfile(data);
       setBio(data.bio || "");
       setIntroScript(data.avatarScript ?? "");
-      setServices(
-        (data.servicesOffered as ServiceItem[] | null) ?? []
-      );
       setUploadedFileName(data.documentName ?? null);
       setPOnline(data.priceOnlineCents != null ? String(data.priceOnlineCents / 100) : "");
       setPOffline(data.priceOfflineCents != null ? String(data.priceOfflineCents / 100) : "");
@@ -196,7 +181,7 @@ export default function ProfilePage() {
   };
 
   const postExpertImprove = useCallback(
-    async (payload: { type: "intro" | "services"; content: unknown }) => {
+    async (payload: { type: "intro"; content: unknown }) => {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
@@ -241,43 +226,6 @@ export default function ProfilePage() {
     setEditingIntro(false);
   };
 
-  const handleAddService = () => {
-    setServices((prev) => [...prev, { title: "", description: "" }]);
-    if (!editingServices) setEditingServices(true);
-  };
-
-  const handleServiceChange = (index: number, field: "title" | "description", value: string) => {
-    setServices((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-  };
-
-  const handleRemoveService = (index: number) => {
-    setServices((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSaveServices = async () => {
-    setSavingServices(true);
-    try {
-      const validServices = services.filter((s) => s.title.trim());
-      await saveSection({ servicesOffered: validServices });
-      setServices(validServices);
-      setEditingServices(false);
-      showMessage("Services saved!", "services");
-    } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", "services", true, 5000);
-    } finally {
-      setSavingServices(false);
-    }
-  };
-
-  const handleCancelServices = () => {
-    setServices((profile?.servicesOffered as ServiceItem[] | null) ?? []);
-    setEditingServices(false);
-  };
-
   const handleImproveIntro = async () => {
     if (!introScript.trim()) return;
     setImprovingIntro(true);
@@ -296,28 +244,6 @@ export default function ProfilePage() {
       showMessage(err instanceof Error ? err.message : "AI improvement failed", "intro", true, 5000);
     } finally {
       setImprovingIntro(false);
-    }
-  };
-
-  const handleImproveServices = async () => {
-    const valid = services.filter((s) => s.title.trim());
-    if (valid.length === 0) return;
-    setImprovingServices(true);
-    try {
-      const res = await postExpertImprove({ type: "services", content: valid });
-      const data = await res.json();
-      if (!res.ok) {
-        const parts = [data.error, data.detail].filter(
-          (s: unknown) => typeof s === "string" && (s as string).trim(),
-        ) as string[];
-        throw new Error(parts.join(" — "));
-      }
-      setServices(data.improved);
-      showMessage("Services improved by AI!", "services");
-    } catch (err) {
-      showMessage(err instanceof Error ? err.message : "AI improvement failed", "services", true, 5000);
-    } finally {
-      setImprovingServices(false);
     }
   };
 
@@ -1215,107 +1141,6 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[4rem]">
                     {introScript || "No introduction yet. Click Edit to add one."}
                   </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Services Offered */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Services Offered</CardTitle>
-                  <div className="flex gap-1">
-                    {!editingServices ? (
-                      <Button variant="ghost" size="sm" onClick={() => setEditingServices(true)} className="gap-1">
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
-                      </Button>
-                    ) : (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={handleCancelServices} className="gap-1">
-                          <X className="h-3.5 w-3.5" />
-                          Cancel
-                        </Button>
-                        <Button size="sm" onClick={handleSaveServices} disabled={savingServices} className="gap-1">
-                          {savingServices ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Check className="h-3.5 w-3.5" />
-                          )}
-                          Save
-                        </Button>
-                      </>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={handleAddService} className="gap-1">
-                      <Plus className="h-3.5 w-3.5" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {renderToast("services")}
-                {services.length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No services yet. Click Add to create one.
-                  </p>
-                )}
-                {services.map((service, index) => (
-                  <div key={index} className="rounded-lg border p-3">
-                    {editingServices ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">
-                            Service {index + 1}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => handleRemoveService(index)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </div>
-                        <Input
-                          value={service.title}
-                          onChange={(e) => handleServiceChange(index, "title", e.target.value)}
-                          placeholder="Service title"
-                          className="text-sm"
-                        />
-                        <Textarea
-                          value={service.description}
-                          onChange={(e) => handleServiceChange(index, "description", e.target.value)}
-                          placeholder="Brief description..."
-                          rows={2}
-                          className="text-sm"
-                        />
-                      </div>
-                    ) : (
-                      <div>
-                        <h4 className="font-medium text-sm">{service.title}</h4>
-                        {service.description && (
-                          <p className="mt-1 text-sm text-muted-foreground">{service.description}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {editingServices && services.some((s) => s.title.trim()) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5"
-                    onClick={handleImproveServices}
-                    disabled={improvingServices}
-                  >
-                    {improvingServices ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5" />
-                    )}
-                    Improve with AI
-                  </Button>
                 )}
               </CardContent>
             </Card>
