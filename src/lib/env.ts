@@ -11,7 +11,10 @@ function sanitizedProcessEnv(): Record<string, string | undefined> {
     const v = raw[key];
     if (v === undefined) continue;
     // Vercel / .env files sometimes include trailing newlines (e.g. `async\n`).
-    const trimmed = v.trim();
+    let trimmed = v.trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
     out[key] = trimmed === "" ? undefined : trimmed;
   }
   return out;
@@ -181,8 +184,18 @@ const envSchema = z
 
 let _env: z.infer<typeof envSchema>;
 
-if (process.env.SKIP_ENV_VALIDATION === "1" || process.env.npm_lifecycle_event === "build") {
-  _env = process.env as unknown as z.infer<typeof envSchema>;
+function shouldSkipEnvValidation(): boolean {
+  if (process.env.SKIP_ENV_VALIDATION === "1") return true;
+  if (process.env.npm_lifecycle_event === "build") return true;
+  // `next build` (and some worker processes) do not always inherit `npm_lifecycle_event`
+  // when invoked as `npx next build` or from tooling. Use bracket access so the phase is
+  // read at runtime rather than inlined (see vercel/next.js discussions/48736).
+  const nextPhase = process.env["NEXT_PHASE"];
+  return nextPhase === "phase-production-build" || nextPhase === "phase-export";
+}
+
+if (shouldSkipEnvValidation()) {
+  _env = sanitizedProcessEnv() as unknown as z.infer<typeof envSchema>;
 } else {
   const result = envSchema.safeParse(sanitizedProcessEnv());
   if (!result.success) {
@@ -192,7 +205,7 @@ if (process.env.SKIP_ENV_VALIDATION === "1" || process.env.npm_lifecycle_event =
     if (process.env.NODE_ENV === "production") {
       throw new Error(`Invalid environment variables: ${detail}`);
     }
-    _env = process.env as unknown as z.infer<typeof envSchema>;
+    _env = sanitizedProcessEnv() as unknown as z.infer<typeof envSchema>;
   } else {
     _env = result.data;
   }

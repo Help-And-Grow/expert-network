@@ -15,12 +15,15 @@ import type {
 // Feature flags (server-side, read from env)
 // ---------------------------------------------------------------------------
 
-const aiProvider = (process.env.AI_PROVIDER || "qwen").trim().toLowerCase();
+import { env } from "@/lib/env";
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const aiProvider = (env.AI_PROVIDER || "qwen").trim().toLowerCase();
 const geminiVoiceReady = Boolean(
-  process.env.GOOGLE_CLOUD_PROJECT?.trim() || process.env.GEMINI_API_KEY?.trim(),
+  env.GOOGLE_CLOUD_PROJECT?.trim() || env.GEMINI_API_KEY?.trim(),
 );
-const hasFish = Boolean(process.env.FISH_AUDIO_API_KEY);
-const hasDash = Boolean(process.env.DASHSCOPE_API_KEY);
+const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
+const hasDash = Boolean(env.DASHSCOPE_API_KEY);
 
 /** Prefer Gemini TTS if available to avoid DashScope quota limits, then fallback to Qwen or Fish. */
 let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";

@@ -7,6 +7,7 @@
 import { randomUUID } from "crypto";
 
 import { Pool } from "pg";
+import { env } from "@/lib/env";
 
 let pool: Pool | null | undefined;
 
@@ -30,7 +31,7 @@ function getPool(): Pool | null {
 }
 
 async function fetchOpenAiEmbedding(text: string): Promise<number[] | null> {
-  const key = process.env.OPENAI_API_KEY;
+  const key = env.OPENAI_API_KEY;
   if (!key) return null;
   const input = text.slice(0, 8000);
   const res = await fetch("https://api.openai.com/v1/embeddings", {

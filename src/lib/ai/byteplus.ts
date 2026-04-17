@@ -35,6 +35,7 @@ export class BytePlusProvider extends BaseAIProvider {
     return response.choices[0]?.message?.content ?? "";
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected async generateImageRaw(_prompt: string): Promise<string | null> {
     console.warn("[BytePlus] Image generation is currently not supported via the standard chat interface. Please configure a dedicated vision model endpoint.");
     return null;

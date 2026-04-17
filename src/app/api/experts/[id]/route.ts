@@ -103,7 +103,7 @@ export async function GET(
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const viewerUserId = await resolveUserId(request).catch(() => null);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     const {
       documentData: _dd,
       avatarVideoUrl: _av,
@@ -118,6 +118,7 @@ export async function GET(
       domains: domainRows,
       ...rest
     } = expert;
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     const origin = new URL(request.url).origin;
     const experienceCapabilities = buildExperienceCapabilities(
       origin,
