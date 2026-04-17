@@ -31,6 +31,27 @@ import type {
   MatchResult,
 } from "./types";
 
+/** Transient capacity / rate errors from Vertex or AI Studio — safe to retry. */
+const GEMINI_CHAT_MAX_ATTEMPTS = 4;
+const GEMINI_RETRY_BASE_MS = 800;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableGeminiTransportError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (
+    /503\b|504\b|429\b|UNAVAILABLE|RESOURCE_EXHAUSTED|DEADLINE_EXCEEDED|high demand|overloaded|temporarily unavailable|EAI_AGAIN/i.test(
+      msg,
+    )
+  ) {
+    return true;
+  }
+  const anyErr = err as { status?: number; code?: number; error?: { code?: number } };
+  const code = anyErr?.status ?? anyErr?.code ?? anyErr?.error?.code;
+  return code === 503 || code === 429 || code === 504;
+}
 
 export class GeminiProvider extends BaseAIProvider {
   private ai = createGeminiClient();
@@ -57,40 +78,62 @@ export class GeminiProvider extends BaseAIProvider {
       config.systemInstruction = systemInstruction;
     }
 
-    const response = await this.ai.models.generateContent({
-      model: getGeminiTextModel(),
-      contents: prompt,
-      config: config as Parameters<
-        typeof this.ai.models.generateContent
-      >[0]["config"],
-    });
+    const model = getGeminiTextModel();
+    const genConfig = config as Parameters<
+      typeof this.ai.models.generateContent
+    >[0]["config"];
 
-    let text = "";
-    try {
-      text = response.text ?? "";
-    } catch {
-      const cand = response.candidates?.[0] as
-        | { finishReason?: string; blockReason?: string }
-        | undefined;
-      const fr = cand?.finishReason ?? cand?.blockReason ?? "unknown";
-      throw new Error(
-        `[Gemini] Could not read response text (finishReason=${fr}).`,
-      );
-    }
+    for (let attempt = 0; attempt < GEMINI_CHAT_MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await this.ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: genConfig,
+        });
 
-    const finishReason = (response.candidates?.[0] as { finishReason?: string } | undefined)
-      ?.finishReason;
-    if (!text.trim()) {
-      if (finishReason && finishReason !== "STOP") {
-        throw new Error(
-          `[Gemini] No output text (finishReason=${finishReason}). Try shortening or rephrasing your content.`,
-        );
+        let text = "";
+        try {
+          text = response.text ?? "";
+        } catch {
+          const cand = response.candidates?.[0] as
+            | { finishReason?: string; blockReason?: string }
+            | undefined;
+          const fr = cand?.finishReason ?? cand?.blockReason ?? "unknown";
+          throw new Error(
+            `[Gemini] Could not read response text (finishReason=${fr}).`,
+          );
+        }
+
+        const finishReason = (response.candidates?.[0] as { finishReason?: string } | undefined)
+          ?.finishReason;
+        if (!text.trim()) {
+          if (finishReason && finishReason !== "STOP") {
+            throw new Error(
+              `[Gemini] No output text (finishReason=${finishReason}). Try shortening or rephrasing your content.`,
+            );
+          }
+          throw new Error(
+            "[Gemini] Model returned empty text. Verify GEMINI_API_KEY or Vertex (GOOGLE_CLOUD_PROJECT + Vertex AI API + service account).",
+          );
+        }
+        return text;
+      } catch (err) {
+        const retryable =
+          isRetryableGeminiTransportError(err) && attempt < GEMINI_CHAT_MAX_ATTEMPTS - 1;
+        if (retryable) {
+          const delay = GEMINI_RETRY_BASE_MS * 2 ** attempt;
+          console.warn(
+            `[Gemini] generateContent attempt ${attempt + 1}/${GEMINI_CHAT_MAX_ATTEMPTS} failed; retrying in ${delay}ms`,
+            err instanceof Error ? err.message : err,
+          );
+          await sleep(delay);
+          continue;
+        }
+        throw err;
       }
-      throw new Error(
-        "[Gemini] Model returned empty text. Verify GEMINI_API_KEY or Vertex (GOOGLE_CLOUD_PROJECT + Vertex AI API + service account).",
-      );
     }
-    return text;
+
+    throw new Error("[Gemini] generateContent exhausted retries");
   }
 
   /**

@@ -96,7 +96,24 @@ export async function POST(request: NextRequest) {
       message.includes("RESOURCE_EXHAUSTED") ||
       message.includes("quota");
 
+    const isModelUnavailable =
+      message.includes("UNAVAILABLE") ||
+      message.includes("high demand") ||
+      message.includes('"code":503') ||
+      message.includes('"status":"UNAVAILABLE"') ||
+      /\b503\b/.test(message);
+
     const detail = clientSafeDetail(message);
+    if (isModelUnavailable) {
+      return NextResponse.json(
+        {
+          error:
+            "Google's AI is temporarily overloaded. Wait a minute and try again, or try outside peak hours.",
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: isRateLimit
