@@ -1,25 +1,12 @@
-import OpenAI from "openai";
-
 import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
-import {
-  getVoiceSynthesis,
-  getVoiceSynthesisConfigIssue,
-  getVoiceTranscriptionConfigIssue,
-} from "@/lib/integrations/config";
-import { defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
 import { createGeminiClient, getGeminiTextModel } from "@/lib/ai/gemini-client";
-
-const DASHSCOPE_BASE_URL =
-  "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
-const DASHSCOPE_GENERATION_URL =
-  "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
-const BYTEPLUS_BASE_URL = "https://ark.ap-southeast.bytepluses.com/api/v3/";
-
-const LLM_MODEL = "qwen-max";
-const ASR_MODEL = "qwen3-asr-flash";
+import {
+  GeminiTtsProvider,
+  defaultGeminiTtsVoiceId,
+} from "@/lib/integrations/gemini-tts";
 
 export const MAX_TURNS = 5;
 
@@ -72,9 +59,9 @@ export interface ExpertVoiceChatProfile {
   avatarScript: string | null;
   /** Human-readable lines derived from servicesOffered JSON. */
   servicesOfferedSummary: string | null;
-  /** Fish clone / VC model id, or a built-in Qwen voice name (e.g. Ethan). */
+  /** Gemini TTS voice id used when the expert does not have a custom voice asset. */
   voiceModelId: string;
-  /** True when using expert's DashScope voice clone; false = system default voice. */
+  /** Reserved for future expert-specific cloned voices; false = system-managed Gemini voice. */
   usesClonedVoice: boolean;
 }
 
@@ -111,7 +98,7 @@ function resolveVoiceModelId(
     return { voiceModelId: override, usesClonedVoice: false };
   }
   return {
-    voiceModelId: defaultQwenTtsVoiceId(gender),
+    voiceModelId: defaultGeminiTtsVoiceId(gender),
     usesClonedVoice: false,
   };
 }
@@ -262,108 +249,57 @@ function ensureConversation(
   return conv;
 }
 
+function ensureGeminiVoiceChatConfigured(): void {
+  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
+    throw new Error(
+      "Voice chat now uses Google Gemini across web, Telegram, and WeChat. Set GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT."
+    );
+  }
+}
+
+function normalizeGeminiAudioMimeType(mimeType: string): string {
+  const normalized = mimeType.toLowerCase().split(";")[0]?.trim() || "";
+  if (normalized === "audio/mpeg" || normalized === "audio/mp3") return "audio/mp3";
+  if (normalized === "audio/ogg") return "audio/ogg";
+  if (normalized === "audio/aac" || normalized === "audio/wav") {
+    return normalized;
+  }
+  if (normalized === "audio/flac" || normalized === "audio/aiff") {
+    return normalized;
+  }
+  throw new Error(
+    `Voice input format "${mimeType}" is not supported by Gemini. Please try again.`
+  );
+}
+
 export async function transcribeAudio(
   audioBase64: string,
   mimeType: string,
 ): Promise<string> {
-  const configIssue = getVoiceTranscriptionConfigIssue();
-  if (configIssue) throw new Error(configIssue);
+  ensureGeminiVoiceChatConfigured();
 
-  const apiKey = env.DASHSCOPE_API_KEY;
-  if (!apiKey) throw new Error("DASHSCOPE_API_KEY is not set");
-
-  const dataUri = `data:${mimeType};base64,${audioBase64}`;
-
-  const res = await fetch(DASHSCOPE_GENERATION_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: ASR_MODEL,
-      input: {
-        messages: [
-          { role: "system", content: [{ text: "" }] },
-          { role: "user", content: [{ audio: dataUri }] },
-        ],
+  const gemini = createGeminiClient();
+  const response = await gemini.models.generateContent({
+    model: getGeminiTextModel(),
+    contents: [
+      {
+        text:
+          "Transcribe the user's spoken message exactly in the original language. Return only the transcript text. Do not summarize or translate.",
       },
-    }),
+      {
+        inlineData: {
+          mimeType: normalizeGeminiAudioMimeType(mimeType),
+          data: audioBase64,
+        },
+      },
+    ],
   });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    if (res.status === 401) {
-      throw new Error(
-        "DashScope ASR rejected DASHSCOPE_API_KEY (401). BytePlus ModelArk keys do not work for speech recognition; set a valid DashScope key for voice input."
-      );
-    }
-    throw new Error(`ASR failed (${res.status}): ${errText.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  return (
-    data?.output?.choices?.[0]?.message?.content?.[0]?.text ??
-    data?.output?.text ??
-    ""
-  ).trim();
-}
-
-async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
-  const apiKey = env.DASHSCOPE_API_KEY;
-  if (!apiKey) {
-    throw new Error("DASHSCOPE_API_KEY is not set");
-  }
-
-  const qwen = new OpenAI({ apiKey, baseURL: DASHSCOPE_BASE_URL });
-  const response = await qwen.chat.completions.create({
-    model: LLM_MODEL,
-    messages,
-  });
-
-  return response.choices[0]?.message?.content ?? "";
-}
-
-async function generateBytePlusReply(messages: ChatMessage[]): Promise<string> {
-  if (!env.BYTEPLUS_API_KEY) {
-    return generateQwenReply(messages);
-  }
-
-  const client = new OpenAI({
-    apiKey: env.BYTEPLUS_API_KEY,
-    baseURL: BYTEPLUS_BASE_URL,
-  });
-  const response = await client.chat.completions.create({
-    model: env.BYTEPLUS_MODEL_ID || "doubao-seed-1.6-flash",
-    messages,
-  });
-
-  return response.choices[0]?.message?.content ?? "";
-}
-
-const VOLCENGINE_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/";
-
-async function generateVolcengineReply(messages: ChatMessage[]): Promise<string> {
-  if (!env.VOLCENGINE_API_KEY) {
-    return generateQwenReply(messages);
-  }
-
-  const client = new OpenAI({
-    apiKey: env.VOLCENGINE_API_KEY,
-    baseURL: VOLCENGINE_BASE_URL,
-  });
-  const response = await client.chat.completions.create({
-    model: env.VOLCENGINE_MODEL_ID || "doubao-seed-1.6-flash",
-    messages,
-  });
-
-  return response.choices[0]?.message?.content ?? "";
+  return (response.text ?? "").trim();
 }
 
 async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
-  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
-    return generateQwenReply(messages);
-  }
+  ensureGeminiVoiceChatConfigured();
 
   const prompt = [
     "Continue this voice consultation as the expert. Reply only with the assistant's next message.",
@@ -416,35 +352,28 @@ async function generateReply(
       .join("\n\n");
 
   conv.history.push({ role: "user", content: userContent });
-
-  const provider = env.AI_PROVIDER || "qwen";
-  const reply =
-    provider === "gemini"
-      ? await generateGeminiReply(conv.history)
-      : provider === "byteplus"
-        ? await generateBytePlusReply(conv.history)
-        : provider === "volcengine"
-          ? await generateVolcengineReply(conv.history)
-          : await generateQwenReply(conv.history);
+  const reply = await generateGeminiReply(conv.history);
   conv.history.push({ role: "assistant", content: reply });
   conv.turnCount++;
 
   return reply;
 }
 
+let geminiTtsProvider: GeminiTtsProvider | null = null;
+
+function getGeminiVoiceSynthesis(): GeminiTtsProvider {
+  if (!geminiTtsProvider) {
+    geminiTtsProvider = new GeminiTtsProvider();
+  }
+  return geminiTtsProvider;
+}
+
 async function synthesizeVoice(
   text: string,
   voiceModelId: string,
 ): Promise<{ audioBase64: string; format: string }> {
-  const configIssue = getVoiceSynthesisConfigIssue();
-  if (configIssue) {
-    throw new Error(configIssue);
-  }
-  const tts = await getVoiceSynthesis();
-  if (!tts) {
-    throw new Error("No TTS provider configured (missing API keys).");
-  }
-  return tts.synthesize({ text, voiceId: voiceModelId });
+  ensureGeminiVoiceChatConfigured();
+  return getGeminiVoiceSynthesis().synthesize({ text, voiceId: voiceModelId });
 }
 
 async function synthesizeVoiceIfAvailable(

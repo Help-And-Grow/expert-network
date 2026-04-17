@@ -195,6 +195,32 @@ export default function ProfilePage() {
     return res.json();
   };
 
+  const postExpertImprove = useCallback(
+    async (payload: { type: "intro" | "services"; content: unknown }) => {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+      };
+      const request = () =>
+        fetch("/api/expert/improve", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      let res = await request();
+      if (res.status === 401 && telegramInitData) {
+        await fetch("/api/auth/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData: telegramInitData }),
+        }).catch(() => {});
+        res = await request();
+      }
+      return res;
+    },
+    [telegramInitData],
+  );
+
   const handleSaveIntro = async () => {
     setSavingIntro(true);
     try {
@@ -255,11 +281,7 @@ export default function ProfilePage() {
     if (!introScript.trim()) return;
     setImprovingIntro(true);
     try {
-      const res = await fetch("/api/expert/improve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "intro", content: introScript }),
-      });
+      const res = await postExpertImprove({ type: "intro", content: introScript });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setIntroScript(data.improved);
@@ -276,11 +298,7 @@ export default function ProfilePage() {
     if (valid.length === 0) return;
     setImprovingServices(true);
     try {
-      const res = await fetch("/api/expert/improve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "services", content: valid }),
-      });
+      const res = await postExpertImprove({ type: "services", content: valid });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setServices(data.improved);

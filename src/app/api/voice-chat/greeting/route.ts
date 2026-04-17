@@ -13,7 +13,7 @@ export const maxDuration = 30;
 /**
  * POST /api/voice-chat/greeting
  * Body: { expertId }
- * Returns synthesized welcome audio (same voice as chat) + text. Does not use a turn.
+ * Returns welcome text plus optional synthesized audio. Does not use a turn.
  */
 export async function POST(request: NextRequest) {
   const canServeGreeting =
