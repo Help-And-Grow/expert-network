@@ -3,6 +3,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { improveWriting } from "@/lib/ai";
 import { resolveUserId } from "@/lib/request-auth";
 
+function clientSafeDetail(message: string, max = 450): string {
+  return message
+    .replace(/\bAIza[\w-]{20,}\b/g, "[key]")
+    .replace(/\bsk_live_[\w]{20,}\b/gi, "[key]")
+    .replace(/\bsk_test_[\w]{20,}\b/gi, "[key]")
+    .slice(0, max);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const userId = await resolveUserId(request);
@@ -29,9 +37,20 @@ export async function POST(request: NextRequest) {
 
     const contentStr = typeof content === "string" ? content : JSON.stringify(content);
     const improved = await improveWriting(type, contentStr);
+    const trimmed = improved.trim();
+
+    if (type === "intro" && !trimmed) {
+      return NextResponse.json(
+        {
+          error:
+            "The AI returned no text (often safety filters or an empty model response). Try editing the script and try again.",
+        },
+        { status: 422 },
+      );
+    }
 
     if (type === "services") {
-      const cleaned = improved.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const cleaned = trimmed.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         return NextResponse.json({ improved: JSON.parse(jsonMatch[0]) });
@@ -42,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ improved });
+    return NextResponse.json({ improved: trimmed });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[expert/improve POST]", message, error);
@@ -52,11 +71,13 @@ export async function POST(request: NextRequest) {
       message.includes("RESOURCE_EXHAUSTED") ||
       message.includes("quota");
 
+    const detail = clientSafeDetail(message);
     return NextResponse.json(
       {
         error: isRateLimit
           ? "AI quota exceeded. Please try again later."
           : `Failed to improve content. Please try again.`,
+        detail,
       },
       { status: isRateLimit ? 429 : 500 }
     );
