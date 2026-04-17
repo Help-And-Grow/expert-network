@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export async function GET(request: NextRequest) {
   const userId = await resolveUserId(request);
@@ -32,13 +33,14 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  const vendorSite = isVendorAiStackSiteRequest(request);
   const expertData = expert
     ? {
         id: expert.id,
-        domains: expert.domains.map((d) => d.domain),
+        domains: vendorSite ? [] : expert.domains.map((d) => d.domain),
         sessionType: expert.sessionType,
         bio: expert.bio,
-        servicesOffered: expert.servicesOffered,
+        servicesOffered: vendorSite ? null : expert.servicesOffered,
         isVerified: expert.isVerified,
         avgRating: expert.avgRating,
         reviewCount: expert.reviewCount,

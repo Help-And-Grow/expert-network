@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { absoluteAppUrl } from "@/lib/app-origin";
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
 
@@ -53,14 +54,17 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
 
+    const vendorSite = isVendorAiStackSiteRequest(request);
     const recommendations = scored.map((s) => ({
       id: s.expert.id,
       name: s.expert.user.nickName || s.expert.user.name || "Expert",
-      domains: domainStrings(s.expert.domains),
+      domains: vendorSite ? [] : domainStrings(s.expert.domains),
       rating: s.expert.avgRating,
-      reason: s.matchedDomains.length > 0
-        ? `Matched domains: ${s.matchedDomains.join(", ")}`
-        : "Relevant based on bio/experience",
+      reason: vendorSite
+        ? "Relevant based on your search."
+        : s.matchedDomains.length > 0
+          ? `Matched domains: ${s.matchedDomains.join(", ")}`
+          : "Relevant based on bio/experience",
       profileUrl: absoluteAppUrl(`/experts/${s.expert.id}`, request),
     }));
 

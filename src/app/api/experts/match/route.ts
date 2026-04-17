@@ -6,6 +6,7 @@ import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 type MatchExpertRow = {
   id: string;
@@ -21,7 +22,8 @@ type MatchExpertRow = {
 
 function keywordMatch(
   nq: NormalizedQuery,
-  experts: MatchExpertRow[]
+  experts: MatchExpertRow[],
+  vendorSite: boolean,
 ) {
   const allTerms = [
     nq.english.toLowerCase(),
@@ -61,13 +63,15 @@ function keywordMatch(
     recommendations: scored.map((r) => ({
       expertId: r.expert.id,
       name: r.expert.user.nickName ?? r.expert.user.name ?? "Expert",
-      reason: `Matches your search based on their expertise in ${domainStrings(r.expert.domains).join(", ")}.`,
+      reason: vendorSite
+        ? "Matches your search based on their profile."
+        : `Matches your search based on their expertise in ${domainStrings(r.expert.domains).join(", ")}.`,
       sessionTypes: [r.expert.sessionType],
     })),
   };
 }
 
-function exploratoryFallback(experts: MatchExpertRow[]) {
+function exploratoryFallback(experts: MatchExpertRow[], vendorSite: boolean) {
   const top = [...experts]
     .sort(
       (a, b) =>
@@ -80,7 +84,9 @@ function exploratoryFallback(experts: MatchExpertRow[]) {
     recommendations: top.map((e) => ({
       expertId: e.id,
       name: e.user.nickName ?? e.user.name ?? "Expert",
-      reason: `Active expert on Help & Grow (${domainStrings(e.domains).join(", ") || "multiple areas"}). Add more detail to your search for a tighter match.`,
+      reason: vendorSite
+        ? "Active expert on Help & Grow. Add more detail to your search for a tighter match."
+        : `Active expert on Help & Grow (${domainStrings(e.domains).join(", ") || "multiple areas"}). Add more detail to your search for a tighter match.`,
       sessionTypes: [e.sessionType],
     })),
     noMatchMessage:
@@ -90,6 +96,7 @@ function exploratoryFallback(experts: MatchExpertRow[]) {
 
 export async function POST(request: NextRequest) {
   try {
+    const vendorSite = isVendorAiStackSiteRequest(request);
     const viewerUserId = await resolveUserId(request).catch(() => null);
     const body = await request.json().catch(() => ({}));
     if (typeof body !== "object" || body === null) {
@@ -172,7 +179,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Step 5: Keyword fallback using LLM-generated keywords
-      const keyword = keywordMatch(nq, experts);
+      const keyword = keywordMatch(nq, experts, vendorSite);
       if (keyword.recommendations.length > 0) {
         return NextResponse.json({
           recommendations: keyword.recommendations,
@@ -182,7 +189,7 @@ export async function POST(request: NextRequest) {
 
       // Step 6: Only show exploratory fallback for greetings/broad queries, not specific unmatched topics
       if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
-        return NextResponse.json(exploratoryFallback(experts));
+        return NextResponse.json(exploratoryFallback(experts, vendorSite));
       }
 
       return NextResponse.json({
@@ -193,12 +200,12 @@ export async function POST(request: NextRequest) {
       });
     } catch (aiError) {
       console.error("[experts/match] AI matching failed, keyword fallback:", aiError);
-      const fallback = keywordMatch(nq, experts);
+      const fallback = keywordMatch(nq, experts, vendorSite);
       if (fallback.recommendations.length > 0) {
         return NextResponse.json(fallback);
       }
       if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
-        return NextResponse.json(exploratoryFallback(experts));
+        return NextResponse.json(exploratoryFallback(experts, vendorSite));
       }
       return NextResponse.json({
         recommendations: [],
