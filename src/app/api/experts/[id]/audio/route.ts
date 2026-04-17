@@ -27,21 +27,23 @@ export async function GET(
       return NextResponse.json({ error: "Invalid audio data" }, { status: 500 });
     }
 
-    const [, mime, b64Raw] = match;
+    const [, mimeRaw, b64Raw] = match;
     const b64 = b64Raw.replace(/\s+/g, "");
     const buffer = Buffer.from(b64, "base64");
 
-    const etag = `"${createHash("md5").update(b64.slice(0, 200)).digest("hex")}"`;
-    if (request.headers.get("if-none-match") === etag) {
-      return new NextResponse(null, { status: 304 });
-    }
+    // Browsers expect IANA type for MP3; `audio/mp3` often fails to decode / report duration.
+    const mime =
+      mimeRaw.toLowerCase() === "audio/mp3" ? "audio/mpeg" : mimeRaw;
+
+    // Full-body ETag only (no 304): empty 304 responses break <audio> in common browsers.
+    const etag = `"${createHash("md5").update(buffer).digest("hex")}"`;
 
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": mime,
         "Content-Length": String(buffer.length),
-        "Cache-Control": "public, no-cache, must-revalidate",
-        "ETag": etag,
+        "Cache-Control": "private, max-age=3600",
+        ETag: etag,
       },
     });
   } catch (error) {

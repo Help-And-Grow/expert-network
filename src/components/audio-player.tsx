@@ -1,6 +1,13 @@
 "use client";
 
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import { Pause, Play, Volume2 } from "lucide-react";
 
@@ -25,6 +32,28 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const syncDuration = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    const d = el.duration;
+    if (Number.isFinite(d) && d > 0) {
+      setDuration(d);
+      setLoadError(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoadError(null);
+    setDuration(0);
+    setProgress(0);
+    setIsPlaying(false);
+    const el = audioRef.current;
+    if (el) {
+      el.load();
+    }
+  }, [src]);
 
   useImperativeHandle(
     ref,
@@ -38,13 +67,17 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || loadError) return;
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play();
+      void audio.play().catch((err: unknown) => {
+        console.warn("[AudioPlayer] play() rejected", err);
+        setLoadError("Playback was blocked or the file could not be played. Try refreshing.");
+        setIsPlaying(false);
+      });
     }
-  }, [isPlaying]);
+  }, [isPlaying, loadError]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -62,10 +95,11 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
-        onLoadedMetadata={() => {
-          if (audioRef.current) setDuration(audioRef.current.duration);
-        }}
+        preload="auto"
+        onLoadedMetadata={syncDuration}
+        onLoadedData={syncDuration}
+        onCanPlay={syncDuration}
+        onDurationChange={syncDuration}
         onTimeUpdate={() => {
           if (audioRef.current) {
             setProgress(audioRef.current.currentTime);
@@ -76,6 +110,15 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
         onEnded={() => {
           setIsPlaying(false);
           setProgress(0);
+        }}
+        onError={() => {
+          const mediaErr = audioRef.current?.error;
+          // Ignore abort from `load()` / src swap during React updates.
+          if (mediaErr?.code === MediaError.MEDIA_ERR_ABORTED) return;
+          console.warn("[AudioPlayer] error", mediaErr?.code, mediaErr?.message);
+          setLoadError("Could not load this audio file.");
+          setDuration(0);
+          setIsPlaying(false);
         }}
       />
 
@@ -97,6 +140,9 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
           <p className="text-sm font-medium text-foreground truncate">
             {label}
           </p>
+        )}
+        {loadError && (
+          <p className="text-xs text-destructive mt-0.5">{loadError}</p>
         )}
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/10">
