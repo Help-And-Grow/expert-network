@@ -663,8 +663,8 @@ export default function ProfilePage() {
           </Card>
         )}
 
-        {/* Stripe KYC Banner */}
-        {isExpert && profile.stripeAccountStatus !== "active" && (
+        {/* Stripe KYC Banner — web only; Telegram Mini App uses TON */}
+        {isExpert && !isTelegram && profile.stripeAccountStatus !== "active" && (
           <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
             <CardContent className="p-4 space-y-3">
               {renderToast("stripe")}
@@ -727,8 +727,8 @@ export default function ProfilePage() {
           </Card>
         )}
 
-        {/* Stripe Connected — success indicator */}
-        {isExpert && profile.stripeAccountStatus === "active" && (
+        {/* Stripe Connected — web only; Telegram Mini App uses TON */}
+        {isExpert && !isTelegram && profile.stripeAccountStatus === "active" && (
           <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
