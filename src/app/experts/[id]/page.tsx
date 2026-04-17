@@ -458,7 +458,7 @@ export default function ExpertProfilePage() {
           expertId={expert.id}
           expertName={name}
           expertImage={expert.user.image}
-          expertServices={expert.servicesOffered}
+          expertServices={null}
           open={showVoiceChat}
           onClose={closeVoiceChatOverlay}
         />
