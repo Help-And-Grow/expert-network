@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
       speed: 1.0,
     });
 
-    const dataUrl = `data:audio/${result.format};base64,${result.audioBase64}`;
+    const format = (result.format || "wav").toLowerCase();
+    const mime =
+      format === "mp3" || format === "mpeg" ? "audio/mpeg" : `audio/${format}`;
+    const dataUrl = `data:${mime};base64,${result.audioBase64}`;
 
     await prisma.expert.update({
       where: { id: expert.id },

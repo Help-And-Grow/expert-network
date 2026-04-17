@@ -37,6 +37,21 @@ const QWENISH_TO_GEMINI: Record<string, string> = {
   Nofish: "Charon",
 };
 
+/** Gemini SDK may return base64 as string or raw bytes. */
+function inlineAudioToBase64(data: unknown): string | null {
+  if (typeof data === "string") {
+    const s = data.replace(/\s+/g, "");
+    return s.length ? s : null;
+  }
+  if (data instanceof Uint8Array) {
+    return Buffer.from(data).toString("base64");
+  }
+  if (Buffer.isBuffer(data)) {
+    return data.toString("base64");
+  }
+  return null;
+}
+
 function resolveVoiceName(voiceId?: string | null): string {
   const fromEnvFemale = env.GEMINI_TTS_VOICE_FEMALE?.trim();
   const fromEnvMale = env.GEMINI_TTS_VOICE_MALE?.trim();
@@ -118,8 +133,9 @@ export class GeminiTtsProvider implements VoiceSynthesisProvider {
       }
 
       for (const part of parts) {
-        const data = part.inlineData?.data;
-        if (!data) continue;
+        const raw = part.inlineData?.data;
+        const audioBase64 = inlineAudioToBase64(raw);
+        if (!audioBase64) continue;
         const mime = (part.inlineData?.mimeType || "audio/wav").toLowerCase();
         const format = mime.includes("mpeg") || mime.includes("mp3")
           ? "mp3"
@@ -128,7 +144,7 @@ export class GeminiTtsProvider implements VoiceSynthesisProvider {
             : mime.includes("ogg")
               ? "ogg"
               : "wav";
-        return { audioBase64: data, format };
+        return { audioBase64, format };
       }
 
       throw new Error("Gemini TTS response had no inline audio data");
