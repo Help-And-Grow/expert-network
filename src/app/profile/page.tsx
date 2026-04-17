@@ -291,6 +291,7 @@ export default function ProfilePage() {
   };
 
   const handleGenerateImage = async () => {
+    const hadAvatar = !!profile?.hasAvatar;
     setRegenerating(true);
     try {
       const res = await fetch("/api/expert/regenerate-image", {
@@ -306,7 +307,10 @@ export default function ProfilePage() {
         prev ? { ...prev, hasAvatar: !!data.profileImage } : prev
       );
       setAvatarCacheBuster(`?t=${Date.now()}`);
-      showMessage("Profile image generated!", "image");
+      showMessage(
+        hadAvatar ? "Profile image regenerated!" : "Profile image generated!",
+        "image",
+      );
     } catch (err) {
       showMessage(
         err instanceof Error ? err.message : "Failed to generate image",
@@ -320,6 +324,7 @@ export default function ProfilePage() {
   };
 
   const handleGenerateAudio = async () => {
+    const hadAudio = !!profile?.hasAudio;
     setGeneratingAudio(true);
     try {
       const res = await fetch("/api/expert/generate-audio", {
@@ -332,7 +337,10 @@ export default function ProfilePage() {
       }
       setProfile((prev) => (prev ? { ...prev, hasAudio: true } : prev));
       setAudioCacheBuster(`?t=${Date.now()}`);
-      showMessage("Voice introduction generated!", "voice");
+      showMessage(
+        hadAudio ? "Voice introduction regenerated!" : "Voice introduction generated!",
+        "voice",
+      );
     } catch (err) {
       showMessage(
         err instanceof Error ? err.message : "Failed to generate audio",
@@ -834,26 +842,24 @@ export default function ProfilePage() {
                     <p className="text-sm text-muted-foreground">No profile image yet</p>
                   </div>
                 )}
-                {!profile.hasAvatar && (
-                  <Button
-                    variant="outline"
-                    className="mt-3 w-full gap-2"
-                    onClick={handleGenerateImage}
-                    disabled={regenerating}
-                  >
-                    {regenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Generate Image
-                      </>
-                    )}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full gap-2"
+                  onClick={handleGenerateImage}
+                  disabled={regenerating}
+                >
+                  {regenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      {profile.hasAvatar ? "Regenerate Image" : "Generate Image"}
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
 
@@ -911,12 +917,12 @@ export default function ProfilePage() {
                   />
                 )}
 
-                {!profile?.hasAudio && (
+                {profile?.avatarScript && (
                   <Button
                     variant="outline"
                     className="w-full gap-2"
                     onClick={handleGenerateAudio}
-                    disabled={generatingAudio || !profile?.avatarScript}
+                    disabled={generatingAudio}
                   >
                     {generatingAudio ? (
                       <>
@@ -926,13 +932,13 @@ export default function ProfilePage() {
                     ) : (
                       <>
                         <Volume2 className="h-4 w-4" />
-                        Generate Voice Intro
+                        {profile.hasAudio ? "Regenerate Voice Intro" : "Generate Voice Intro"}
                       </>
                     )}
                   </Button>
                 )}
 
-                {!profile?.avatarScript && !profile?.hasAudio && (
+                {!profile?.avatarScript && (
                   <p className="text-xs text-muted-foreground text-center">
                     Complete your introduction script first
                   </p>
