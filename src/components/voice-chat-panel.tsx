@@ -59,24 +59,6 @@ function generateStarters(
   return chips.slice(0, 3);
 }
 
-function SpeakingWaveform() {
-  return (
-    <span className="inline-flex items-center gap-[3px] h-4 ml-1.5">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span
-          key={i}
-          className="inline-block w-[3px] rounded-full bg-indigo-500 animate-[wave_0.8s_ease-in-out_infinite_alternate]"
-          style={{
-            height: `${8 + Math.random() * 10}px`,
-            animationDelay: `${i * 120}ms`,
-          }}
-        />
-      ))}
-      <style>{`@keyframes wave{0%{transform:scaleY(.4)}100%{transform:scaleY(1)}}`}</style>
-    </span>
-  );
-}
-
 export function VoiceChatPanel({
   expertId,
   expertName,
@@ -587,42 +569,45 @@ export function VoiceChatPanel({
                       type="button"
                       onClick={() => togglePlayback(msg)}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors",
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors",
                         msg.role === "user"
                           ? "bg-white/20 text-white hover:bg-white/30"
                           : "bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25",
                       )}
+                      aria-label={
+                        playingId === msg.id && playbackModeRef.current === "audio"
+                          ? "Pause voice reply"
+                          : "Play voice reply"
+                      }
+                      title={
+                        playingId === msg.id && playbackModeRef.current === "audio"
+                          ? "Pause"
+                          : "Play expert voice"
+                      }
                     >
                       {playingId === msg.id && playbackModeRef.current === "audio" ? (
-                        <>
-                          <Pause className="h-3 w-3" />
-                          Speaking
-                          <SpeakingWaveform />
-                        </>
+                        <Pause className="h-3.5 w-3.5" />
                       ) : (
-                        <>
-                          <Play className="h-3 w-3" />
-                          Play voice
-                        </>
+                        <Play className="h-3.5 w-3.5 ml-0.5" />
                       )}
                     </button>
                   )}
 
                   {msg.role === "assistant" && deviceVoiceSupported && (
-                      <button
-                        type="button"
-                        onClick={() => toggleDeviceVoice(msg)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-indigo-100 transition-colors hover:bg-white/16"
-                        aria-label="Read aloud with device voice"
-                        title="Read aloud with device voice"
-                      >
-                        {playingId === msg.id && playbackModeRef.current === "device" ? (
-                          <Pause className="h-3.5 w-3.5" />
-                        ) : (
-                          <Volume2 className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleDeviceVoice(msg)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-indigo-100 transition-colors hover:bg-white/16"
+                      aria-label="Read aloud with device voice"
+                      title="Read aloud with device voice"
+                    >
+                      {playingId === msg.id && playbackModeRef.current === "device" ? (
+                        <Pause className="h-3.5 w-3.5" />
+                      ) : (
+                        <Volume2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

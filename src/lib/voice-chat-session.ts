@@ -93,8 +93,10 @@ function resolveVoiceModelId(
   _fishAudioModelId: string | null,
   gender: string | null,
 ): { voiceModelId: string; usesClonedVoice: boolean } {
+  const trimmedGender = gender?.trim() ?? "";
   const override = env.VOICE_CHAT_DEFAULT_VOICE?.trim();
-  if (override) {
+  // Same rule as profile intro TTS: explicit male/female (any case) wins over fleet env default.
+  if (!trimmedGender && override) {
     return { voiceModelId: override, usesClonedVoice: false };
   }
   return {
