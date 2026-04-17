@@ -1,4 +1,7 @@
 {
+  "env": {
+    "AI_PROVIDER": "gemini"
+  },
   "crons": [
     {
       "path": "/api/cron/charge-remainder",
