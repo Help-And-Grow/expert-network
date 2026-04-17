@@ -1,6 +1,7 @@
 import { Modality } from "@google/genai";
 
 import { createGeminiImageClient } from "@/lib/ai/gemini-client";
+import { isFemaleExpertGender } from "@/lib/expert-voice-gender";
 import { env } from "@/lib/env";
 
 import type {
@@ -67,7 +68,7 @@ function resolveVoiceName(voiceId?: string | null): string {
 export function defaultGeminiTtsVoiceId(gender?: string | null): string {
   const f = env.GEMINI_TTS_VOICE_FEMALE?.trim() || "Kore";
   const m = env.GEMINI_TTS_VOICE_MALE?.trim() || "Charon";
-  return gender === "female" ? f : m;
+  return isFemaleExpertGender(gender) ? f : m;
 }
 
 /**

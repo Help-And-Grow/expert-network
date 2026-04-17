@@ -1,3 +1,4 @@
+import { isFemaleExpertGender } from "@/lib/expert-voice-gender";
 import { env } from "@/lib/env";
 import type {
   VoiceSynthesisProvider,
@@ -22,7 +23,7 @@ const SYSTEM_VOICES = new Set([
 
 /** Built-in Qwen3-TTS voice when no expert voice clone exists. */
 export function defaultQwenTtsVoiceId(gender?: string | null): string {
-  return gender === "female" ? "Cherry" : "Ethan";
+  return isFemaleExpertGender(gender) ? "Cherry" : "Ethan";
 }
 
 /**
