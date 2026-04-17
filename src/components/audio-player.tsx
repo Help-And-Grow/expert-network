@@ -24,11 +24,21 @@ interface AudioPlayerProps {
   className?: string;
 }
 
+function resolveFetchUrl(src: string): string {
+  const t = src.trim();
+  if (t.startsWith("http://") || t.startsWith("https://")) return t;
+  if (typeof window === "undefined") return t;
+  return new URL(t, window.location.origin).href;
+}
+
 export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(function AudioPlayer(
   { src, label, className },
   ref,
 ) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const blobUrlRef = useRef<string | null>(null);
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -49,10 +59,62 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     setDuration(0);
     setProgress(0);
     setIsPlaying(false);
-    const el = audioRef.current;
-    if (el) {
-      el.load();
+    setMediaLoading(true);
+    setResolvedSrc(null);
+
+    const trimmed = src.trim();
+    if (!trimmed) {
+      setMediaLoading(false);
+      setLoadError("Could not load this audio file.");
+      return;
     }
+
+    if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+      setResolvedSrc(trimmed);
+      setMediaLoading(false);
+      return;
+    }
+
+    const ac = new AbortController();
+
+    const revoke = () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+
+    revoke();
+
+    void (async () => {
+      try {
+        const res = await fetch(resolveFetchUrl(trimmed), {
+          credentials: "include",
+          signal: ac.signal,
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        if (ac.signal.aborted) return;
+        const objectUrl = URL.createObjectURL(blob);
+        blobUrlRef.current = objectUrl;
+        setResolvedSrc(objectUrl);
+      } catch (e: unknown) {
+        if (ac.signal.aborted || (e instanceof DOMException && e.name === "AbortError")) return;
+        console.warn("[AudioPlayer] fetch failed", e);
+        setLoadError("Could not load this audio file.");
+      } finally {
+        if (!ac.signal.aborted) {
+          setMediaLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      ac.abort();
+      revoke();
+    };
   }, [src]);
 
   useImperativeHandle(
@@ -65,53 +127,19 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     [],
   );
 
-  const playWhenReady = useCallback((audio: HTMLAudioElement) => {
-    const run = () =>
-      audio.play().catch((err: unknown) => {
+  const toggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || loadError || !resolvedSrc || mediaLoading) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      void audio.play().catch((err: unknown) => {
         console.warn("[AudioPlayer] play() rejected", err);
         setLoadError("Playback was blocked or the file could not be played. Try refreshing.");
         setIsPlaying(false);
       });
-
-    const tryPlay = () => {
-      if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-        void run();
-        return true;
-      }
-      return false;
-    };
-
-    if (tryPlay()) return;
-
-    const onCanPlay = () => {
-      audio.removeEventListener("canplay", onCanPlay);
-      audio.removeEventListener("error", onError);
-      void run();
-    };
-    const onError = () => {
-      audio.removeEventListener("canplay", onCanPlay);
-      audio.removeEventListener("error", onError);
-    };
-    audio.addEventListener("canplay", onCanPlay, { once: true });
-    audio.addEventListener("error", onError, { once: true });
-
-    queueMicrotask(() => {
-      if (tryPlay()) {
-        audio.removeEventListener("canplay", onCanPlay);
-        audio.removeEventListener("error", onError);
-      }
-    });
-  }, []);
-
-  const toggle = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || loadError) return;
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      playWhenReady(audio);
     }
-  }, [isPlaying, loadError, playWhenReady]);
+  }, [isPlaying, loadError, resolvedSrc, mediaLoading]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -128,7 +156,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     >
       <audio
         ref={audioRef}
-        src={src}
+        src={resolvedSrc ?? undefined}
         preload="auto"
         onLoadedMetadata={syncDuration}
         onLoadedData={syncDuration}
@@ -147,7 +175,6 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
         }}
         onError={() => {
           const mediaErr = audioRef.current?.error;
-          // Ignore abort from `load()` / src swap during React updates.
           if (mediaErr?.code === MediaError.MEDIA_ERR_ABORTED) return;
           console.warn("[AudioPlayer] error", mediaErr?.code, mediaErr?.message);
           setLoadError("Could not load this audio file.");
@@ -161,6 +188,8 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
         size="icon"
         className="h-10 w-10 shrink-0 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white"
         onClick={toggle}
+        disabled={Boolean(loadError) || mediaLoading || !resolvedSrc}
+        aria-busy={mediaLoading}
       >
         {isPlaying ? (
           <Pause className="h-4 w-4" />
@@ -174,6 +203,9 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
           <p className="text-sm font-medium text-foreground truncate">
             {label}
           </p>
+        )}
+        {mediaLoading && !loadError && (
+          <p className="text-xs text-muted-foreground mt-0.5">Loading audio…</p>
         )}
         {loadError && (
           <p className="text-xs text-destructive mt-0.5">{loadError}</p>
