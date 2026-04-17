@@ -1,8 +1,7 @@
-import { View, Text, ScrollView } from "@tarojs/components";
+import { View, Text, ScrollView, Input } from "@tarojs/components";
 import Taro, { useDidShow, useLoad } from "@tarojs/taro";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import ExpertCard from "../../components/ExpertCard";
 import { get, post } from "../../shared/api";
 import {
   type DiscoverMatchChatMessage,
@@ -10,11 +9,7 @@ import {
   loadDiscoverMatchFromWeChatStorage,
   saveDiscoverMatchToWeChatStorage,
 } from "../../shared/discover-match-storage";
-import type {
-  Expert,
-  ExpertsResponse,
-  MatchResponse,
-} from "../../shared/types";
+import type { MatchResponse } from "../../shared/types";
 import "./index.scss";
 
 const QUICK_MATCH_PROMPTS = [
@@ -30,11 +25,11 @@ function hasChineseText(value?: string): boolean {
 
 function normalizeNoMatchMessage(message?: string): string {
   if (!message) {
-    return "暂时还没有找到完全贴合的专家。你可以先浏览精选主页，或稍后补充更具体的背景。";
+    return "暂时还没有找到完全贴合的专家。可以补充更具体的背景后再试。";
   }
   return hasChineseText(message)
     ? message
-    : "暂时还没有找到完全贴合的专家。你可以先浏览精选主页，或稍后补充更具体的背景。";
+    : "暂时还没有找到完全贴合的专家。可以补充更具体的背景后再试。";
 }
 
 function normalizeRecommendationReason(reason?: string): string {
@@ -108,37 +103,17 @@ function useInviteGuard() {
 
 export default function DiscoverPage() {
   const hasInvite = useInviteGuard();
-  const [featuredExperts, setFeaturedExperts] = useState<Expert[]>([]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
-  const [featuredError, setFeaturedError] = useState("");
   const [matching, setMatching] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [scrollIntoView, setScrollIntoView] = useState("");
   const [chatMessages, setChatMessages] = useState<DiscoverMatchChatMessage[]>(() => {
     return loadDiscoverMatchFromWeChatStorage() ?? [];
   });
 
-  const fetchFeaturedExperts = useCallback(async () => {
-    setFeaturedLoading(true);
-    setFeaturedError("");
-    try {
-      const res = await get<ExpertsResponse>("/api/experts", {
-        take: 6,
-        sort: "reviews",
-      });
-      if (res.statusCode === 200) {
-        setFeaturedExperts(res.data.experts ?? []);
-      } else {
-        setFeaturedError("精选专家暂时不可用，请稍后重试。");
-      }
-    } catch {
-      setFeaturedError("精选专家暂时不可用，请稍后重试。");
-    } finally {
-      setFeaturedLoading(false);
-    }
-  }, []);
-
   const runMatch = useCallback(async (query: string) => {
-    if (!query || matching) return;
-    const withUser: DiscoverMatchChatMessage[] = [...chatMessages, { role: "user", content: query }];
+    const q = query.trim();
+    if (!q || matching) return;
+    const withUser: DiscoverMatchChatMessage[] = [...chatMessages, { role: "user", content: q }];
     setChatMessages(withUser);
     setMatching(true);
 
@@ -146,7 +121,7 @@ export default function DiscoverPage() {
 
     try {
       const res = await post<MatchResponse>("/api/experts/match", {
-        query,
+        query: q,
         history,
       });
 
@@ -185,17 +160,29 @@ export default function DiscoverPage() {
     Taro.navigateTo({ url: `/pages/expert/index?id=${expertId}` });
   }, []);
 
+  const sendDraft = useCallback(() => {
+    const t = draft.trim();
+    if (!t) return;
+    setDraft("");
+    void runMatch(t);
+  }, [draft, runMatch]);
+
   useEffect(() => {
     saveDiscoverMatchToWeChatStorage(chatMessages);
   }, [chatMessages]);
 
+  useEffect(() => {
+    setScrollIntoView("discover-anchor");
+    const t = setTimeout(() => setScrollIntoView(""), 200);
+    return () => clearTimeout(t);
+  }, [chatMessages.length, matching]);
+
   useLoad(() => {
-    Taro.setNavigationBarTitle({ title: "发现专家" });
-    void fetchFeaturedExperts();
+    Taro.setNavigationBarTitle({ title: "发现" });
   });
 
   useDidShow(() => {
-    Taro.setNavigationBarTitle({ title: "发现专家" });
+    Taro.setNavigationBarTitle({ title: "发现" });
   });
 
   const activeQuickPrompt = useMemo(() => {
@@ -203,11 +190,6 @@ export default function DiscoverPage() {
     const c = lastUser?.content ?? "";
     return (QUICK_MATCH_PROMPTS as readonly string[]).includes(c) ? c : "";
   }, [chatMessages]);
-
-  const featuredSectionTitle = useMemo(() => {
-    if (chatMessages.length === 0) return "本周精选";
-    return "更多专家";
-  }, [chatMessages.length]);
 
   if (hasInvite === false || hasInvite === null) {
     return (
@@ -220,139 +202,121 @@ export default function DiscoverPage() {
   }
 
   return (
-    <ScrollView scrollY className="discover">
-      <View className="discover__hero">
-        <Text className="discover__eyebrow">Expert Concierge</Text>
-        <Text className="discover__title">先找到对的人，再安排一次见面。</Text>
-        <Text className="discover__desc">
-          先浏览可信的专家主页、听一段语音介绍，再决定是否进入网页完成登录并安排见面。
-        </Text>
-      </View>
-
-      <View className="discover__voice-card">
-        <View className="discover__voice-card-head">
-          <Text className="discover__voice-card-badge">语音礼宾</Text>
-          <Text className="discover__voice-card-status">即将开放</Text>
-        </View>
-        <Text className="discover__voice-card-title">
-          用语音描述你的阶段、问题与目标，我们会优先为你整理合适的专家线索。
-        </Text>
-        <Text className="discover__voice-card-desc">
-          当前 demo 先开放精选推荐与快捷匹配。实时语音礼宾将在后续订阅版本上线。
-        </Text>
-      </View>
-
-      <View className="discover__section">
-        <Text className="discover__section-title">快捷匹配</Text>
-        <Text className="discover__section-sub">
-          先选一个接近当前问题的场景，系统会给出一组优先建议。从专家主页返回本页后，对话与推荐仍会保留。
-        </Text>
-        <View className="discover__prompt-grid">
-          {QUICK_MATCH_PROMPTS.map((prompt) => (
-            <View
-              key={prompt}
-              className={`discover__prompt-chip ${
-                activeQuickPrompt === prompt ? "discover__prompt-chip--active" : ""
-              }`}
-              hoverClass="discover__prompt-chip--hover"
-              onClick={() => runMatch(prompt)}
-            >
-              {prompt}
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {(chatMessages.length > 0 || matching) && (
-        <View className="discover__section">
-          <View className="discover__section-head">
-            <Text className="discover__section-title">匹配对话</Text>
-            {matching && <Text className="discover__section-note">匹配中...</Text>}
-          </View>
-          {chatMessages.map((m, turnIdx) => (
-            <View key={`turn-${turnIdx}`} className="discover__thread-turn">
-              {m.role === "user" && m.content && (
-                <View className="discover__user-turn">
-                  <Text className="discover__thread-label">你的描述</Text>
-                  <Text className="discover__user-turn-text">{m.content}</Text>
-                </View>
-              )}
-              {m.role === "assistant" && (
-                <View className="discover__assistant-turn">
-                  {m.recommendations && m.recommendations.length > 0 ? (
-                    <View className="discover__match-list">
-                      {m.recommendations.map((item) => (
-                        <View key={item.expertId} className="discover__match-card">
-                          <View className="discover__match-avatar">
-                            {item.name
-                              .split(" ")
-                              .map((part) => part[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2)}
-                          </View>
-                          <View className="discover__match-body">
-                            <Text className="discover__match-name">{item.name}</Text>
-                            <Text className="discover__match-reason">
-                              {normalizeRecommendationReason(item.reason)}
-                            </Text>
-                            <View
-                              className="discover__match-btn"
-                              hoverClass="discover__match-btn--hover"
-                              onClick={() => openExpert(item.expertId)}
-                            >
-                              查看专家主页
-                            </View>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  ) : m.noMatchMessage ? (
-                    <View className="discover__empty-state discover__empty-state--inline">
-                      <Text className="discover__empty-title">本轮匹配说明</Text>
-                      <Text className="discover__empty-desc">
-                        {normalizeNoMatchMessage(m.noMatchMessage)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              )}
-            </View>
-          ))}
-        </View>
-      )}
-
-      <View className="discover__section">
-        <View className="discover__section-head">
-          <Text className="discover__section-title">{featuredSectionTitle}</Text>
-        </View>
-        {featuredLoading ? (
-          <View className="discover__skeleton-list">
-            {[1, 2, 3].map((item) => (
-              <View key={item} className="discover__skeleton-card" />
-            ))}
-          </View>
-        ) : featuredExperts.length > 0 ? (
-          <View className="discover__featured-list">
-            {featuredExperts.map((expert) => (
-              <ExpertCard key={expert.id} expert={expert} />
-            ))}
-          </View>
-        ) : (
-          <View className="discover__empty-state">
-            <Text className="discover__empty-title">暂无可展示的专家</Text>
-            <Text className="discover__empty-desc">
-              {featuredError || "请稍后再回来看看。"}
+    <View className="discover discover--chat">
+      <ScrollView
+        scrollY
+        className="discover__messages"
+        scrollIntoView={scrollIntoView}
+        scrollWithAnimation
+      >
+        {chatMessages.length === 0 && !matching && (
+          <View className="discover__chat-hint">
+            <Text className="discover__chat-hint-title">专家匹配</Text>
+            <Text className="discover__chat-hint-desc">
+              用一句话描述你的问题或场景；也可以先选下方示例，再补充细节。
             </Text>
           </View>
         )}
-      </View>
 
-      <View className="discover__footer-note">
-        <Text className="discover__footer-note-text">
-          正式见面、支付与排期仍在网页完成。小程序当前优先服务发现、了解与初步判断。
-        </Text>
+        {chatMessages.map((m, turnIdx) => (
+          <View key={`turn-${turnIdx}`} className="discover__thread-turn">
+            {m.role === "user" && m.content && (
+              <View className="discover__bubble discover__bubble--user">
+                <Text className="discover__bubble-text">{m.content}</Text>
+              </View>
+            )}
+            {m.role === "assistant" && (
+              <View className="discover__bubble discover__bubble--assistant">
+                {m.recommendations && m.recommendations.length > 0 ? (
+                  <View className="discover__match-list">
+                    {m.recommendations.map((item) => (
+                      <View key={item.expertId} className="discover__match-card">
+                        <View className="discover__match-avatar">
+                          {item.name
+                            .split(" ")
+                            .map((part) => part[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </View>
+                        <View className="discover__match-body">
+                          <Text className="discover__match-name">{item.name}</Text>
+                          <Text className="discover__match-reason">
+                            {normalizeRecommendationReason(item.reason)}
+                          </Text>
+                          <View
+                            className="discover__match-btn"
+                            hoverClass="discover__match-btn--hover"
+                            onClick={() => openExpert(item.expertId)}
+                          >
+                            查看专家主页
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : m.noMatchMessage ? (
+                  <View className="discover__empty-state discover__empty-state--inline">
+                    <Text className="discover__empty-title">本轮说明</Text>
+                    <Text className="discover__empty-desc">
+                      {normalizeNoMatchMessage(m.noMatchMessage)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+          </View>
+        ))}
+
+        {matching && (
+          <View className="discover__typing">
+            <Text className="discover__typing-text">正在匹配…</Text>
+          </View>
+        )}
+
+        <View id="discover-anchor" className="discover__anchor" />
+        <View className="discover__footer-note">
+          <Text className="discover__footer-note-text">
+            正式见面与排期请在网页端完成。
+          </Text>
+        </View>
+      </ScrollView>
+
+      <ScrollView scrollX className="discover__quick-scroll">
+        <View className="discover__quick-inner">
+          {QUICK_MATCH_PROMPTS.map((prompt) => (
+            <View
+              key={prompt}
+              className={`discover__quick-chip ${
+                activeQuickPrompt === prompt ? "discover__quick-chip--active" : ""
+              }`}
+              hoverClass="discover__quick-chip--hover"
+              onClick={() => runMatch(prompt)}
+            >
+              <Text className="discover__quick-chip-text">{prompt}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      <View className="discover__composer">
+        <Input
+          className="discover__composer-input"
+          type="text"
+          value={draft}
+          placeholder="说说你的问题或场景…"
+          confirmType="send"
+          onInput={(e) => setDraft(e.detail.value)}
+          onConfirm={sendDraft}
+        />
+        <View
+          className="discover__composer-send"
+          hoverClass="discover__composer-send--hover"
+          onClick={sendDraft}
+        >
+          <Text className="discover__composer-send-text">发送</Text>
+        </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }

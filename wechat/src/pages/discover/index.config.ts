@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: "发现专家",
+  navigationBarTitleText: "发现",
   enablePullDownRefresh: false,
 });
