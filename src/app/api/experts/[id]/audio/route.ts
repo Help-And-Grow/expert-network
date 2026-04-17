@@ -58,7 +58,8 @@ function expandInitialRangeForDecoders(
   size: number,
 ): { start: number; end: number } {
   if (size <= 0) return parsed;
-  let { start, end } = parsed;
+  const { start } = parsed;
+  let { end } = parsed;
   const minSpan = Math.min(65536, size);
   const span = end - start + 1;
   if (start === 0 && span < minSpan && end < size - 1) {
