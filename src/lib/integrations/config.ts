@@ -44,9 +44,26 @@ const geminiVoiceReady = Boolean(
 const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
 const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
 
-/** Prefer Gemini TTS if available to avoid DashScope quota limits, then fallback to Qwen or Fish. */
+/**
+ * Select TTS provider respecting AI_PROVIDER first, then falling back by key availability.
+ * - qwen  → always qwen-tts (DashScope)
+ * - byteplus → qwen-tts (DashScope ASR/TTS) unless only Gemini/Fish keys present
+ * - gemini → gemini-tts if ready, else fish, else qwen
+ * - others → gemini if ready, else fish, else qwen
+ */
 let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
-if (geminiVoiceReady) {
+if (aiProvider === "qwen" || aiProvider === "byteplus") {
+  // These providers use DashScope for TTS; never auto-select Gemini TTS
+  if (hasDash) {
+    voiceSynthesisProvider = "qwen-tts";
+  } else if (hasFish) {
+    voiceSynthesisProvider = "fish-audio";
+  } else if (geminiVoiceReady) {
+    voiceSynthesisProvider = "gemini-tts";
+  } else {
+    voiceSynthesisProvider = "qwen-tts"; // will surface missing key error
+  }
+} else if (geminiVoiceReady) {
   voiceSynthesisProvider = "gemini-tts";
 } else if (hasFish) {
   voiceSynthesisProvider = "fish-audio";
@@ -71,13 +88,21 @@ export function getVoiceTranscriptionConfigIssue(): string | null {
 }
 
 export function getVoiceSynthesisConfigIssue(): string | null {
+  if (aiProvider === "qwen" || aiProvider === "byteplus") {
+    // These providers require DashScope for TTS
+    const dashscopeIssue = getDashscopeKeyIssue();
+    if (dashscopeIssue) return dashscopeIssue;
+    if (hasDash) return null;
+    if (hasFish) return null; // fish-audio fallback
+    if (aiProvider === "byteplus") {
+      return "BytePlus ModelArk powers the text reply only. Voice audio requires FISH_AUDIO_API_KEY or a real DASHSCOPE_API_KEY.";
+    }
+    return "Voice audio requires DASHSCOPE_API_KEY for Qwen TTS.";
+  }
   if (geminiVoiceReady || hasFish) return null;
   const dashscopeIssue = getDashscopeKeyIssue();
   if (dashscopeIssue) return dashscopeIssue;
   if (hasDash) return null;
-  if (aiProvider === "byteplus") {
-    return "BytePlus ModelArk powers the text reply only. Voice audio requires GEMINI_API_KEY / GOOGLE_CLOUD_PROJECT, FISH_AUDIO_API_KEY, or a real DASHSCOPE_API_KEY.";
-  }
   return "Voice audio is not configured.";
 }
 
