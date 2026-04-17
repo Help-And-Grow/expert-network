@@ -4,12 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { get } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
-import type {
-  ExpertDetail,
-  ServiceItem,
-  Review,
-  ReviewsResponse,
-} from "../../shared/types";
+import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
 import { buildWebProfileLoginUrl } from "../../shared/web-booking";
 import "./index.scss";
@@ -138,7 +133,6 @@ export default function ExpertPage() {
   }
 
   const name = expert.user.nickName || expert.user.name || "成员";
-  const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
   const hasMoreReviews = reviews.length < reviewsTotal;
   const API_BASE = getApiBase();
   const experience = expert.experienceCapabilities;
@@ -374,19 +368,6 @@ export default function ExpertPage() {
           {expert.avatarScript || "暂未填写介绍"}
         </Text>
       </View>
-
-      {/* Services */}
-      {services.length > 0 && (
-        <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">可提供服务</Text>
-          {services.map((s, i) => (
-            <View key={i} className="expert-profile__service-card">
-              <Text className="expert-profile__service-title">{s.title}</Text>
-              <Text className="expert-profile__service-desc">{s.description}</Text>
-            </View>
-          ))}
-        </View>
-      )}
 
       {/* Appreciations */}
       <View className="expert-profile__section">
