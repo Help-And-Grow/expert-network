@@ -51,7 +51,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       replyText: result.text,
-      replyAudio: `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`,
+      replyAudio:
+        result.replyAudioBase64 && result.replyAudioFormat
+          ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+          : null,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

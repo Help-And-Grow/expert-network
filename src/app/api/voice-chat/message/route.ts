@@ -82,7 +82,10 @@ async function handleVoiceMessage(request: NextRequest, userId: string) {
   return NextResponse.json({
     userText: result.userText,
     replyText: result.replyText,
-    replyAudio: `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`,
+    replyAudio:
+      result.replyAudioBase64 && result.replyAudioFormat
+        ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+        : null,
     turnCount: result.turnCount,
     maxTurns: result.maxTurns,
   });
@@ -137,7 +140,10 @@ async function handleTextMessage(request: NextRequest, userId: string) {
   return NextResponse.json({
     userText: result.userText,
     replyText: result.replyText,
-    replyAudio: `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`,
+    replyAudio:
+      result.replyAudioBase64 && result.replyAudioFormat
+        ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+        : null,
     turnCount: result.turnCount,
     maxTurns: result.maxTurns,
   });

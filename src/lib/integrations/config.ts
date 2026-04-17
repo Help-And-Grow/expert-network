@@ -17,13 +17,32 @@ import type {
 
 import { env } from "@/lib/env";
 
+function readConfiguredKey(value?: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+const dashscopeKey = readConfiguredKey(env.DASHSCOPE_API_KEY);
+const byteplusKey = readConfiguredKey(env.BYTEPLUS_API_KEY);
+const volcengineKey = readConfiguredKey(env.VOLCENGINE_API_KEY);
+
+function getDashscopeKeyIssue(): string | null {
+  if (dashscopeKey && byteplusKey && dashscopeKey === byteplusKey) {
+    return "DASHSCOPE_API_KEY matches BYTEPLUS_API_KEY. BytePlus ModelArk keys only power the text model here; voice chat transcription and Qwen TTS still require a real DashScope key.";
+  }
+  if (dashscopeKey && volcengineKey && dashscopeKey === volcengineKey) {
+    return "DASHSCOPE_API_KEY matches VOLCENGINE_API_KEY. Volcengine ModelArk keys do not work for DashScope ASR/TTS.";
+  }
+  return null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const aiProvider = (env.AI_PROVIDER || "qwen").trim().toLowerCase();
 const geminiVoiceReady = Boolean(
   env.GOOGLE_CLOUD_PROJECT?.trim() || env.GEMINI_API_KEY?.trim(),
 );
 const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
-const hasDash = Boolean(env.DASHSCOPE_API_KEY);
+const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
 
 /** Prefer Gemini TTS if available to avoid DashScope quota limits, then fallback to Qwen or Fish. */
 let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
@@ -38,6 +57,29 @@ if (geminiVoiceReady) {
 }
 
 const voiceSynthesisEnabled = hasFish || hasDash || geminiVoiceReady;
+
+export function getVoiceTranscriptionConfigIssue(): string | null {
+  const dashscopeIssue = getDashscopeKeyIssue();
+  if (dashscopeIssue) return dashscopeIssue;
+  if (!dashscopeKey) {
+    if (aiProvider === "byteplus") {
+      return "BytePlus voice input still requires DASHSCOPE_API_KEY for DashScope ASR. BYTEPLUS_API_KEY only powers the text reply.";
+    }
+    return "Voice input requires DASHSCOPE_API_KEY for DashScope ASR.";
+  }
+  return null;
+}
+
+export function getVoiceSynthesisConfigIssue(): string | null {
+  if (geminiVoiceReady || hasFish) return null;
+  const dashscopeIssue = getDashscopeKeyIssue();
+  if (dashscopeIssue) return dashscopeIssue;
+  if (hasDash) return null;
+  if (aiProvider === "byteplus") {
+    return "BytePlus ModelArk powers the text reply only. Voice audio requires GEMINI_API_KEY / GOOGLE_CLOUD_PROJECT, FISH_AUDIO_API_KEY, or a real DASHSCOPE_API_KEY.";
+  }
+  return "Voice audio is not configured.";
+}
 
 export const integrations = {
   voiceSynthesis: {

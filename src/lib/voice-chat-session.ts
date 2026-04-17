@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
-import { getVoiceSynthesis } from "@/lib/integrations/config";
+import {
+  getVoiceSynthesis,
+  getVoiceSynthesisConfigIssue,
+  getVoiceTranscriptionConfigIssue,
+} from "@/lib/integrations/config";
 import { defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
 import { createGeminiClient, getGeminiTextModel } from "@/lib/ai/gemini-client";
 
@@ -262,6 +266,9 @@ export async function transcribeAudio(
   audioBase64: string,
   mimeType: string,
 ): Promise<string> {
+  const configIssue = getVoiceTranscriptionConfigIssue();
+  if (configIssue) throw new Error(configIssue);
+
   const apiKey = env.DASHSCOPE_API_KEY;
   if (!apiKey) throw new Error("DASHSCOPE_API_KEY is not set");
 
@@ -286,6 +293,11 @@ export async function transcribeAudio(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
+    if (res.status === 401) {
+      throw new Error(
+        "DashScope ASR rejected DASHSCOPE_API_KEY (401). BytePlus ModelArk keys do not work for speech recognition; set a valid DashScope key for voice input."
+      );
+    }
     throw new Error(`ASR failed (${res.status}): ${errText.slice(0, 200)}`);
   }
 
@@ -424,11 +436,28 @@ async function synthesizeVoice(
   text: string,
   voiceModelId: string,
 ): Promise<{ audioBase64: string; format: string }> {
+  const configIssue = getVoiceSynthesisConfigIssue();
+  if (configIssue) {
+    throw new Error(configIssue);
+  }
   const tts = await getVoiceSynthesis();
   if (!tts) {
     throw new Error("No TTS provider configured (missing API keys).");
   }
   return tts.synthesize({ text, voiceId: voiceModelId });
+}
+
+async function synthesizeVoiceIfAvailable(
+  text: string,
+  voiceModelId: string,
+): Promise<{ audioBase64: string; format: string } | null> {
+  try {
+    return await synthesizeVoice(text, voiceModelId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[voice-chat] Voice synthesis unavailable:", message);
+    return null;
+  }
 }
 
 export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): string {
@@ -443,20 +472,24 @@ export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): str
 export async function getVoiceChatGreeting(
   userId: string,
   expertId: string,
-): Promise<{ text: string; replyAudioBase64: string; replyAudioFormat: string } | null> {
+): Promise<{ text: string; replyAudioBase64?: string; replyAudioFormat?: string } | null> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) return null;
   ensureVoiceChatAllowed(userId, profile);
   const text = buildVoiceChatGreetingText(profile);
-  const { audioBase64, format } = await synthesizeVoice(text, profile.voiceModelId);
-  return { text, replyAudioBase64: audioBase64, replyAudioFormat: format };
+  const audio = await synthesizeVoiceIfAvailable(text, profile.voiceModelId);
+  return {
+    text,
+    replyAudioBase64: audio?.audioBase64,
+    replyAudioFormat: audio?.format,
+  };
 }
 
 export interface VoiceChatResult {
   userText: string;
   replyText: string;
-  replyAudioBase64: string;
-  replyAudioFormat: string;
+  replyAudioBase64?: string;
+  replyAudioFormat?: string;
   turnCount: number;
   maxTurns: number;
 }
@@ -483,7 +516,7 @@ export async function processVoiceMessage(
   }
 
   const replyText = await generateReply(conv, expertId, userId, userText);
-  const { audioBase64: replyAudio, format } = await synthesizeVoice(
+  const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
   );
@@ -491,8 +524,8 @@ export async function processVoiceMessage(
   return {
     userText,
     replyText,
-    replyAudioBase64: replyAudio,
-    replyAudioFormat: format,
+    replyAudioBase64: audio?.audioBase64,
+    replyAudioFormat: audio?.format,
     turnCount: conv.turnCount,
     maxTurns: MAX_TURNS,
   };
@@ -514,7 +547,7 @@ export async function processTextMessage(
   }
 
   const replyText = await generateReply(conv, expertId, userId, text);
-  const { audioBase64: replyAudio, format } = await synthesizeVoice(
+  const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
   );
@@ -522,8 +555,8 @@ export async function processTextMessage(
   return {
     userText: text,
     replyText,
-    replyAudioBase64: replyAudio,
-    replyAudioFormat: format,
+    replyAudioBase64: audio?.audioBase64,
+    replyAudioFormat: audio?.format,
     turnCount: conv.turnCount,
     maxTurns: MAX_TURNS,
   };
@@ -558,7 +591,7 @@ export async function processVoiceDrafts(
   }
 
   const replyText = await generateReply(conv, expertId, userId, userText);
-  const { audioBase64: replyAudio, format } = await synthesizeVoice(
+  const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
   );
@@ -566,8 +599,8 @@ export async function processVoiceDrafts(
   return {
     userText,
     replyText,
-    replyAudioBase64: replyAudio,
-    replyAudioFormat: format,
+    replyAudioBase64: audio?.audioBase64,
+    replyAudioFormat: audio?.format,
     turnCount: conv.turnCount,
     maxTurns: MAX_TURNS,
   };
