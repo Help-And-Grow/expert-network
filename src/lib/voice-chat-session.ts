@@ -236,7 +236,12 @@ function ensureConversation(
 ): ConversationState {
   const key = conversationKey(userId, profile.id);
   let conv = conversations.get(key);
-  if (conv && Date.now() - conv.createdAt < 30 * 60 * 1000) return conv;
+  if (conv && Date.now() - conv.createdAt < 30 * 60 * 1000) {
+    if (conv.voiceModelId !== profile.voiceModelId) {
+      conv.voiceModelId = profile.voiceModelId;
+    }
+    return conv;
+  }
 
   const systemPrompt = buildSystemPrompt(profile);
   conv = {
