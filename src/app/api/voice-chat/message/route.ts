@@ -17,7 +17,7 @@ export const maxDuration = 30;
 /**
  * POST /api/voice-chat/message
  *
- * Accepts voice or text, returns AI reply as text + audio.
+ * Accepts voice or text, returns AI reply as text + optional audio.
  * Used by async voice chat and the Agora-backed realtime mode.
  */
 export async function POST(request: NextRequest) {
@@ -126,7 +126,10 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     return NextResponse.json({
       userText: result.userText,
       replyText: result.replyText,
-      replyAudio: `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`,
+      replyAudio:
+        result.replyAudioBase64 && result.replyAudioFormat
+          ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+          : null,
       turnCount: result.turnCount,
       maxTurns: result.maxTurns,
     });

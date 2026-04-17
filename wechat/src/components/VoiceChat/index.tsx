@@ -37,7 +37,7 @@ interface DraftClip {
 interface ChatResponse {
   userText: string;
   replyText: string;
-  replyAudio: string;
+  replyAudio?: string | null;
   turnCount: number;
   maxTurns: number;
 }
@@ -180,33 +180,41 @@ export default function VoiceChat(props: VoiceChatProps) {
     void (async () => {
       setGreetingLoading(true);
       try {
-        const res = await post<{ replyText: string; replyAudio: string }>(
+        const res = await post<{ replyText: string; replyAudio?: string | null }>(
           "/api/voice-chat/greeting",
           { expertId },
         );
-        if (cancelled || res.statusCode !== 200) return;
+        if (cancelled || res.statusCode !== 200 || !res.data.replyText) return;
 
-        const localPath = await prepareAudioForInnerAudio(
-          res.data.replyAudio,
-          greetingMessageId,
-        );
+        const localPath = res.data.replyAudio
+          ? await prepareAudioForInnerAudio(
+              res.data.replyAudio,
+              greetingMessageId,
+            )
+          : null;
         if (cancelled) return;
 
         const greetingMessage: Message = {
           id: greetingMessageId,
           role: "assistant",
-          title: `${expertName} 的欢迎语音`,
-          note: "打开后会自动播放一次，你也可以随时重听。",
-          audioUrl: res.data.replyAudio,
-          localAudioPath: localPath,
+          title: res.data.replyAudio
+            ? `${expertName} 的欢迎语音`
+            : `${expertName} 的欢迎消息`,
+          note: res.data.replyAudio
+            ? "打开后会自动播放一次，你也可以随时重听。"
+            : res.data.replyText,
+          audioUrl: res.data.replyAudio ?? undefined,
+          localAudioPath: localPath ?? undefined,
         };
 
         setMessages([greetingMessage]);
-        setTimeout(() => {
-          if (!cancelled) {
-            playLocalAudio(localPath, greetingMessageId);
-          }
-        }, 180);
+        if (localPath) {
+          setTimeout(() => {
+            if (!cancelled) {
+              playLocalAudio(localPath, greetingMessageId);
+            }
+          }, 180);
+        }
       } catch (err) {
         logToVercel("error", "voice-chat/greeting", err);
         Taro.showToast({ title: "欢迎语音加载失败", icon: "none" });
@@ -353,27 +361,35 @@ export default function VoiceChat(props: VoiceChatProps) {
       };
 
       const replyMessageId = nextMessageId();
-      const localPath = await prepareAudioForInnerAudio(
-        res.data.replyAudio,
-        replyMessageId,
-      );
+      const localPath = res.data.replyAudio
+        ? await prepareAudioForInnerAudio(
+            res.data.replyAudio,
+            replyMessageId,
+          )
+        : null;
 
       const replyMessage: Message = {
         id: replyMessageId,
         role: "assistant",
-        title: `${expertName} 的语音回复`,
-        note: "已自动播放。若你想再听一遍，可点击重新播放。",
-        audioUrl: res.data.replyAudio,
-        localAudioPath: localPath,
+        title: res.data.replyAudio
+          ? `${expertName} 的语音回复`
+          : `${expertName} 的回复`,
+        note: res.data.replyAudio
+          ? "已自动播放。若你想再听一遍，可点击重新播放。"
+          : res.data.replyText,
+        audioUrl: res.data.replyAudio ?? undefined,
+        localAudioPath: localPath ?? undefined,
       };
 
       setMessages((prev) => [...prev, userMessage, replyMessage]);
       setTurnInfo({ count: res.data.turnCount, max: res.data.maxTurns });
       setDraftClips([]);
 
-      setTimeout(() => {
-        playLocalAudio(localPath, replyMessageId);
-      }, 150);
+      if (localPath) {
+        setTimeout(() => {
+          playLocalAudio(localPath, replyMessageId);
+        }, 150);
+      }
     } catch (err) {
       logToVercel("error", "VoiceChat submitDrafts", err);
       const message = err instanceof Error ? err.message : "发送失败";

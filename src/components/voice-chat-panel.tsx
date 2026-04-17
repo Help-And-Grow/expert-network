@@ -8,6 +8,7 @@ import {
   Square,
   Play,
   Pause,
+  Volume2,
   Loader2,
   X,
   Send,
@@ -17,6 +18,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import {
+  getPreferredGeminiRecordingMimeType,
+  normalizeRecordedAudioForGemini,
+} from "@/lib/browser-audio";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -90,13 +95,14 @@ export function VoiceChatPanel({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [showStarters, setShowStarters] = useState(true);
   const [greetingLoading, setGreetingLoading] = useState(false);
-  const [tapToPlayMessageId, setTapToPlayMessageId] = useState<string | null>(null);
+  const [deviceVoiceSupported, setDeviceVoiceSupported] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const pendingAutoplayRef = useRef<{ src: string; msgId: string } | null>(null);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const playbackModeRef = useRef<"audio" | "device" | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
 
@@ -116,12 +122,18 @@ export function VoiceChatPanel({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  useEffect(() => {
+    setDeviceVoiceSupported(
+      typeof window !== "undefined" && "speechSynthesis" in window,
+    );
+  }, []);
+
   /** Browsers block Audio.play() after async fetch unless audio is "unlocked" by a gesture. */
   const unlockAudioPlayback = useCallback(() => {
     resumeSharedAudioContext();
   }, []);
 
-  const playExpertAudio = useCallback((src: string, msgId: string) => {
+  const stopPlayback = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.onended = null;
       audioRef.current.onpause = null;
@@ -129,7 +141,19 @@ export function VoiceChatPanel({
       audioRef.current.pause();
       audioRef.current.removeAttribute("src");
       audioRef.current.load();
+      audioRef.current = null;
     }
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    speechRef.current = null;
+    playbackModeRef.current = null;
+    setPlayingId(null);
+  }, []);
+
+  const playExpertAudio = useCallback((src: string, msgId: string) => {
+    stopPlayback();
 
     const audio = document.createElement("audio");
     audio.setAttribute("playsinline", "true");
@@ -137,41 +161,70 @@ export function VoiceChatPanel({
     audio.preload = "auto";
     audio.src = src;
     audioRef.current = audio;
+    playbackModeRef.current = "audio";
 
     setPlayingId(msgId);
-    const clearPlaying = () => setPlayingId(null);
+    const clearPlaying = () => {
+      if (playbackModeRef.current === "audio") {
+        playbackModeRef.current = null;
+        setPlayingId(null);
+      }
+    };
 
     audio.onended = clearPlaying;
     audio.onpause = clearPlaying;
-
-    const onFail = () => {
-      clearPlaying();
-      pendingAutoplayRef.current = { src, msgId };
-      setTapToPlayMessageId(msgId);
-    };
-
-    audio.onerror = onFail;
+    audio.onerror = clearPlaying;
 
     void audio
       .play()
-      .then(() => {
-        pendingAutoplayRef.current = null;
-        setTapToPlayMessageId(null);
-      })
-      .catch(onFail);
-  }, []);
+      .catch(() => {
+        clearPlaying();
+      });
+  }, [stopPlayback]);
+
+  const speakWithDeviceVoice = useCallback(
+    (text: string, msgId: string) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+      stopPlayback();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+      utterance.onend = () => {
+        if (playbackModeRef.current === "device") {
+          playbackModeRef.current = null;
+          speechRef.current = null;
+          setPlayingId(null);
+        }
+      };
+      utterance.onerror = () => {
+        if (playbackModeRef.current === "device") {
+          playbackModeRef.current = null;
+          speechRef.current = null;
+          setPlayingId(null);
+        }
+      };
+
+      speechRef.current = utterance;
+      playbackModeRef.current = "device";
+      setPlayingId(msgId);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    },
+    [stopPlayback],
+  );
+
+  useEffect(() => () => {
+    stopPlayback();
+  }, [stopPlayback]);
 
   const onPanelPointerDownCapture = useCallback(
     (e: React.PointerEvent) => {
       // Avoid double-firing when user taps Play / Send (button handles playback).
       if ((e.target as HTMLElement).closest("button, a")) return;
       unlockAudioPlayback();
-      const pending = pendingAutoplayRef.current;
-      if (pending) {
-        playExpertAudio(pending.src, pending.msgId);
-      }
     },
-    [unlockAudioPlayback, playExpertAudio],
+    [unlockAudioPlayback],
   );
 
   const fallbackGreetingText = useMemo(
@@ -188,10 +241,7 @@ export function VoiceChatPanel({
       setError(null);
       setGreetingLoading(false);
       msgIdRef.current = 0;
-      audioRef.current?.pause();
-      setPlayingId(null);
-      setTapToPlayMessageId(null);
-      pendingAutoplayRef.current = null;
+      stopPlayback();
       return;
     }
 
@@ -213,7 +263,7 @@ export function VoiceChatPanel({
         };
         if (cancelled) return;
 
-        if (res.ok && data.replyText && data.replyAudio) {
+        if (res.ok && data.replyText) {
           const id = nextId();
           setMessages([
             {
@@ -223,7 +273,7 @@ export function VoiceChatPanel({
               audioSrc: data.replyAudio,
             },
           ]);
-          if (!cancelled) playExpertAudio(data.replyAudio!, id);
+          if (!cancelled && data.replyAudio) playExpertAudio(data.replyAudio, id);
         } else {
           const id = nextId();
           setMessages([
@@ -243,17 +293,18 @@ export function VoiceChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, expertId, fallbackGreetingText, playExpertAudio]);
+  }, [open, expertId, fallbackGreetingText, playExpertAudio, stopPlayback]);
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
       unlockAudioPlayback();
+      stopPlayback();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const mimeType = getPreferredGeminiRecordingMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -262,7 +313,9 @@ export function VoiceChatPanel({
 
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const blob = new Blob(chunksRef.current, {
+          type: recorder.mimeType || mimeType || "audio/webm",
+        });
         sendVoice(blob);
       };
 
@@ -283,7 +336,7 @@ export function VoiceChatPanel({
       setError("Microphone access denied");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unlockAudioPlayback]);
+  }, [stopPlayback, unlockAudioPlayback]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -300,8 +353,14 @@ export function VoiceChatPanel({
       setMessages((prev) => [...prev, userMsg]);
 
       try {
+        const preparedAudio = await normalizeRecordedAudioForGemini(blob);
         const formData = new FormData();
-        formData.append("audio", blob);
+        const extension = preparedAudio.type.includes("ogg")
+          ? "ogg"
+          : preparedAudio.type.includes("mp3") || preparedAudio.type.includes("mpeg")
+            ? "mp3"
+            : "wav";
+        formData.append("audio", preparedAudio, `voice-turn.${extension}`);
         formData.append("expertId", expertId);
 
         const res = await fetch("/api/voice-chat/message", {
@@ -326,7 +385,9 @@ export function VoiceChatPanel({
         };
         setMessages((prev) => [...prev, aiMsg]);
         setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-        playExpertAudio(data.replyAudio, aiMsg.id);
+        if (data.replyAudio) {
+          playExpertAudio(data.replyAudio, aiMsg.id);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
         setError(msg);
@@ -369,7 +430,9 @@ export function VoiceChatPanel({
       };
       setMessages((prev) => [...prev, aiMsg]);
       setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-      playExpertAudio(data.replyAudio, aiMsg.id);
+      if (data.replyAudio) {
+        playExpertAudio(data.replyAudio, aiMsg.id);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
@@ -383,14 +446,25 @@ export function VoiceChatPanel({
     (msg: Message) => {
       if (!msg.audioSrc) return;
       unlockAudioPlayback();
-      if (playingId === msg.id) {
-        audioRef.current?.pause();
-        setPlayingId(null);
+      if (playingId === msg.id && playbackModeRef.current === "audio") {
+        stopPlayback();
       } else {
         playExpertAudio(msg.audioSrc, msg.id);
       }
     },
-    [playingId, playExpertAudio, unlockAudioPlayback],
+    [playingId, playExpertAudio, stopPlayback, unlockAudioPlayback],
+  );
+
+  const toggleDeviceVoice = useCallback(
+    (msg: Message) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      if (playingId === msg.id && playbackModeRef.current === "device") {
+        stopPlayback();
+        return;
+      }
+      speakWithDeviceVoice(msg.text, msg.id);
+    },
+    [playingId, speakWithDeviceVoice, stopPlayback],
   );
 
   const formatTime = (s: number) =>
@@ -506,31 +580,50 @@ export function VoiceChatPanel({
             >
               <p className="whitespace-pre-wrap">{msg.text}</p>
 
-              {msg.audioSrc && (
-                <button
-                  onClick={() => togglePlayback(msg)}
-                  className={cn(
-                    "mt-1.5 flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-colors",
-                    msg.role === "user"
-                      ? "bg-white/20 hover:bg-white/30 text-white"
-                      : "bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25",
-                    tapToPlayMessageId === msg.id &&
-                      "ring-2 ring-amber-400 ring-offset-1 animate-pulse",
+              {(msg.audioSrc || (msg.role === "assistant" && deviceVoiceSupported)) && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  {msg.audioSrc && (
+                    <button
+                      type="button"
+                      onClick={() => togglePlayback(msg)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors",
+                        msg.role === "user"
+                          ? "bg-white/20 text-white hover:bg-white/30"
+                          : "bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25",
+                      )}
+                    >
+                      {playingId === msg.id && playbackModeRef.current === "audio" ? (
+                        <>
+                          <Pause className="h-3 w-3" />
+                          Speaking
+                          <SpeakingWaveform />
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-3 w-3" />
+                          Play voice
+                        </>
+                      )}
+                    </button>
                   )}
-                >
-                  {playingId === msg.id ? (
-                    <>
-                      <Pause className="h-3 w-3" />
-                      Speaking
-                      <SpeakingWaveform />
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-3 w-3" />
-                      Play voice
-                    </>
-                  )}
-                </button>
+
+                  {msg.role === "assistant" && deviceVoiceSupported && (
+                      <button
+                        type="button"
+                        onClick={() => toggleDeviceVoice(msg)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-indigo-100 transition-colors hover:bg-white/16"
+                        aria-label="Read aloud with device voice"
+                        title="Read aloud with device voice"
+                      >
+                        {playingId === msg.id && playbackModeRef.current === "device" ? (
+                          <Pause className="h-3.5 w-3.5" />
+                        ) : (
+                          <Volume2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
+                </div>
               )}
             </div>
           </div>
@@ -575,14 +668,6 @@ export function VoiceChatPanel({
       {error && (
         <div className="border-t border-rose-400/20 bg-rose-500/10 px-4 py-2">
           <p className="text-xs text-rose-200">{error}</p>
-        </div>
-      )}
-
-      {tapToPlayMessageId && (
-        <div className="border-t border-amber-400/20 bg-amber-500/10 px-4 py-2">
-          <p className="text-center text-xs text-amber-100">
-            Auto-play was blocked. Tap <strong>Play voice</strong> on the message above, or tap anywhere on this screen to try again.
-          </p>
         </div>
       )}
 

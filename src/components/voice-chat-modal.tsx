@@ -6,6 +6,10 @@ import { Loader2, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import {
+  getPreferredGeminiRecordingMimeType,
+  normalizeRecordedAudioForGemini,
+} from "@/lib/browser-audio";
 import { cn } from "@/lib/utils";
 
 type IAgoraRTCClient = import("agora-rtc-sdk-ng").IAgoraRTCClient;
@@ -47,7 +51,6 @@ export function VoiceChatModal({
   const [recording, setRecording] = useState(false);
   const [processingTurn, setProcessingTurn] = useState(false);
   const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
-  const [tapToPlayMessageId, setTapToPlayMessageId] = useState<string | null>(null);
 
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const trackRef = useRef<IMicrophoneAudioTrack | null>(null);
@@ -57,7 +60,6 @@ export function VoiceChatModal({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const msgIdRef = useRef(0);
-  const pendingAutoplayRef = useRef<{ src: string; msgId: string } | null>(null);
   const endingRef = useRef(false);
   const endCallRef = useRef<() => Promise<void>>(async () => {});
 
@@ -99,7 +101,7 @@ export function VoiceChatModal({
     }
   }, []);
 
-  const playAssistantAudio = useCallback((src: string, msgId: string) => {
+  const playAssistantAudio = useCallback((src: string, _msgId: string) => {
     if (audioRef.current) {
       audioRef.current.onended = null;
       audioRef.current.onpause = null;
@@ -116,23 +118,14 @@ export function VoiceChatModal({
     audio.src = src;
     audioRef.current = audio;
 
-    const clearPending = () => setTapToPlayMessageId(null);
-    audio.onended = clearPending;
-    audio.onpause = clearPending;
-    audio.onerror = () => {
-      pendingAutoplayRef.current = { src, msgId };
-      setTapToPlayMessageId(msgId);
-    };
+    audio.onended = () => {};
+    audio.onpause = () => {};
+    audio.onerror = () => {};
 
     void audio
       .play()
-      .then(() => {
-        pendingAutoplayRef.current = null;
-        setTapToPlayMessageId(null);
-      })
       .catch(() => {
-        pendingAutoplayRef.current = { src, msgId };
-        setTapToPlayMessageId(msgId);
+        // Keep the transcript bubble; do not interrupt the flow with autoplay prompts.
       });
   }, []);
 
@@ -298,9 +291,15 @@ export function VoiceChatModal({
       setError(null);
 
       try {
+        const preparedAudio = await normalizeRecordedAudioForGemini(blob);
         const form = new FormData();
         form.set("expertId", expertId);
-        form.set("audio", blob, "voice-turn.webm");
+        const extension = preparedAudio.type.includes("ogg")
+          ? "ogg"
+          : preparedAudio.type.includes("mp3") || preparedAudio.type.includes("mpeg")
+            ? "mp3"
+            : "wav";
+        form.set("audio", preparedAudio, `voice-turn.${extension}`);
 
         const res = await fetch("/api/voice-chat/message", {
           method: "POST",
@@ -365,11 +364,7 @@ export function VoiceChatModal({
     }
 
     const streamTrack = trackRef.current.getMediaStreamTrack();
-    const mimeType =
-      typeof MediaRecorder !== "undefined" &&
-      MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : "";
+    const mimeType = getPreferredGeminiRecordingMimeType();
 
     const recorder = mimeType
       ? new MediaRecorder(new MediaStream([streamTrack]), { mimeType })
@@ -403,12 +398,8 @@ export function VoiceChatModal({
     (event: React.PointerEvent) => {
       if ((event.target as HTMLElement).closest("button, a")) return;
       resumeSharedAudioContext();
-      const pending = pendingAutoplayRef.current;
-      if (pending) {
-        playAssistantAudio(pending.src, pending.msgId);
-      }
     },
-    [playAssistantAudio],
+    [],
   );
 
   const remaining = Math.max(0, maxDuration - elapsed);
@@ -497,14 +488,6 @@ export function VoiceChatModal({
                   )}
                 >
                   <p>{message.text}</p>
-                  {message.audioSrc && tapToPlayMessageId === message.id && (
-                    <button
-                      className="mt-2 rounded-full border border-current px-2 py-1 text-[11px]"
-                      onClick={() => playAssistantAudio(message.audioSrc!, message.id)}
-                    >
-                      Tap to play audio
-                    </button>
-                  )}
                 </div>
               ))}
               {messages.length === 0 && (
