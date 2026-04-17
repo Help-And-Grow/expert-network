@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { improveWriting } from "@/lib/ai";
+import { env } from "@/lib/env";
 import { resolveUserId } from "@/lib/request-auth";
 
 function clientSafeDetail(message: string, max = 450): string {
@@ -9,6 +10,30 @@ function clientSafeDetail(message: string, max = 450): string {
     .replace(/\bsk_live_[\w]{20,}\b/gi, "[key]")
     .replace(/\bsk_test_[\w]{20,}\b/gi, "[key]")
     .slice(0, max);
+}
+
+async function improveWritingResilient(
+  type: "intro" | "services",
+  content: string,
+): Promise<string> {
+  try {
+    return await improveWriting(type, content);
+  } catch (primaryError) {
+    const hasGeminiFallback =
+      Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim()) &&
+      (env.AI_PROVIDER || "qwen") !== "gemini";
+
+    if (!hasGeminiFallback) {
+      throw primaryError;
+    }
+
+    try {
+      const { GeminiProvider } = await import("@/lib/ai/gemini");
+      return await new GeminiProvider().improveWriting(type, content);
+    } catch {
+      throw primaryError;
+    }
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -36,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const contentStr = typeof content === "string" ? content : JSON.stringify(content);
-    const improved = await improveWriting(type, contentStr);
+    const improved = await improveWritingResilient(type, contentStr);
     const trimmed = improved.trim();
 
     if (type === "intro" && !trimmed) {

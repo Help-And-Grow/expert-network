@@ -36,7 +36,6 @@ interface ExpertUser {
 
 interface ServiceItem {
   title: string;
-  description: string;
 }
 
 interface Expert {
@@ -276,7 +275,6 @@ export default function ExpertProfilePage() {
   }
 
   const name = expert.user.nickName ?? expert.user.name ?? "Expert";
-  const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
   const hasMoreReviews = reviews.length < reviewsTotal;
   const visibleRates = [expert.priceOnlineCents, expert.priceOfflineCents].filter(
     (value): value is number => value != null,
@@ -485,27 +483,6 @@ export default function ExpertProfilePage() {
           <p className="text-muted-foreground">No introduction available.</p>
         )}
       </section>
-
-      {/* Services */}
-      {services.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold text-foreground mb-3">
-            Services offered
-          </h2>
-          <div className="space-y-3">
-            {services.map((s, i) => (
-              <Card key={i}>
-                <CardContent className="p-4">
-                  <h3 className="font-medium text-foreground">{s.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {s.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Service introduction document (in-platform; no external social links on this page) */}
       {expert.documentName && (
