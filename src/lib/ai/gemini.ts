@@ -45,20 +45,52 @@ export class GeminiProvider extends BaseAIProvider {
     prompt: string,
     systemInstruction?: string
   ): Promise<string> {
+    const safetySettings = [
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { category: "HARM_CATEGORY_HATE_SPEECH" as any, threshold: "BLOCK_ONLY_HIGH" as any },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { category: "HARM_CATEGORY_HARASSMENT" as any, threshold: "BLOCK_ONLY_HIGH" as any },
+    ] as const;
+
+    const config: Record<string, unknown> = { safetySettings: [...safetySettings] };
+    if (systemInstruction) {
+      config.systemInstruction = systemInstruction;
+    }
+
     const response = await this.ai.models.generateContent({
       model: getGeminiTextModel(),
       contents: prompt,
-      config: {
-        systemInstruction: systemInstruction,
-        safetySettings: [
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { category: "HARM_CATEGORY_HATE_SPEECH" as any, threshold: "BLOCK_ONLY_HIGH" as any },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { category: "HARM_CATEGORY_HARASSMENT" as any, threshold: "BLOCK_ONLY_HIGH" as any },
-        ],
-      },
+      config: config as Parameters<
+        typeof this.ai.models.generateContent
+      >[0]["config"],
     });
-    return response.text ?? "";
+
+    let text = "";
+    try {
+      text = response.text ?? "";
+    } catch {
+      const cand = response.candidates?.[0] as
+        | { finishReason?: string; blockReason?: string }
+        | undefined;
+      const fr = cand?.finishReason ?? cand?.blockReason ?? "unknown";
+      throw new Error(
+        `[Gemini] Could not read response text (finishReason=${fr}).`,
+      );
+    }
+
+    const finishReason = (response.candidates?.[0] as { finishReason?: string } | undefined)
+      ?.finishReason;
+    if (!text.trim()) {
+      if (finishReason && finishReason !== "STOP") {
+        throw new Error(
+          `[Gemini] No output text (finishReason=${finishReason}). Try shortening or rephrasing your content.`,
+        );
+      }
+      throw new Error(
+        "[Gemini] Model returned empty text. Verify GEMINI_API_KEY or Vertex (GOOGLE_CLOUD_PROJECT + Vertex AI API + service account).",
+      );
+    }
+    return text;
   }
 
   /**

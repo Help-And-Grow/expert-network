@@ -204,6 +204,7 @@ export default function ProfilePage() {
       const request = () =>
         fetch("/api/expert/improve", {
           method: "POST",
+          credentials: "include",
           headers,
           body: JSON.stringify(payload),
         });
@@ -283,7 +284,12 @@ export default function ProfilePage() {
     try {
       const res = await postExpertImprove({ type: "intro", content: introScript });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        const parts = [data.error, data.detail].filter(
+          (s: unknown) => typeof s === "string" && (s as string).trim(),
+        ) as string[];
+        throw new Error(parts.join(" — "));
+      }
       setIntroScript(data.improved);
       showMessage("Introduction improved by AI!", "intro");
     } catch (err) {
@@ -300,7 +306,12 @@ export default function ProfilePage() {
     try {
       const res = await postExpertImprove({ type: "services", content: valid });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        const parts = [data.error, data.detail].filter(
+          (s: unknown) => typeof s === "string" && (s as string).trim(),
+        ) as string[];
+        throw new Error(parts.join(" — "));
+      }
       setServices(data.improved);
       showMessage("Services improved by AI!", "services");
     } catch (err) {
