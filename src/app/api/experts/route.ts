@@ -4,6 +4,7 @@ import type { SessionType } from "@/generated/prisma/client";
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
 
@@ -81,9 +82,14 @@ export async function GET(request: NextRequest) {
       prisma.expert.count({ where }),
     ]);
 
+    const vendorSite = isVendorAiStackSiteRequest(request);
     const result = experts.map((e) => {
-      const { domains: domainRows, ...rest } = e;
-      return { ...rest, domains: domainStrings(domainRows) };
+      const { domains: domainRows, servicesOffered, ...rest } = e;
+      return {
+        ...rest,
+        domains: vendorSite ? [] : domainStrings(domainRows),
+        servicesOffered: vendorSite ? null : servicesOffered,
+      };
     });
 
     return NextResponse.json({

@@ -3,6 +3,7 @@ import type { SessionType } from "@/generated/prisma/client";
 import { absoluteAppUrl } from "@/lib/app-origin";
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +48,13 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
+    const vendorSite = isVendorAiStackSiteRequest(request);
     const results = experts.map((e) => ({
       id: e.id,
       name: e.user.nickName || e.user.name || "Expert",
       image: e.user.image,
       bio: e.bio?.slice(0, 300) || "",
-      domains: domainStrings(e.domains),
+      domains: vendorSite ? [] : domainStrings(e.domains),
       sessionType: e.sessionType,
       rating: e.avgRating,
       reviewCount: e.reviewCount,

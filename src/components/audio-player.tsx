@@ -65,19 +65,53 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     [],
   );
 
+  const playWhenReady = useCallback((audio: HTMLAudioElement) => {
+    const run = () =>
+      audio.play().catch((err: unknown) => {
+        console.warn("[AudioPlayer] play() rejected", err);
+        setLoadError("Playback was blocked or the file could not be played. Try refreshing.");
+        setIsPlaying(false);
+      });
+
+    const tryPlay = () => {
+      if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        void run();
+        return true;
+      }
+      return false;
+    };
+
+    if (tryPlay()) return;
+
+    const onCanPlay = () => {
+      audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("error", onError);
+      void run();
+    };
+    const onError = () => {
+      audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("error", onError);
+    };
+    audio.addEventListener("canplay", onCanPlay, { once: true });
+    audio.addEventListener("error", onError, { once: true });
+
+    queueMicrotask(() => {
+      if (tryPlay()) {
+        audio.removeEventListener("canplay", onCanPlay);
+        audio.removeEventListener("error", onError);
+      }
+    });
+  }, []);
+
   const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || loadError) return;
     if (isPlaying) {
       audio.pause();
     } else {
-      void audio.play().catch((err: unknown) => {
-        console.warn("[AudioPlayer] play() rejected", err);
-        setLoadError("Playback was blocked or the file could not be played. Try refreshing.");
-        setIsPlaying(false);
-      });
+      playWhenReady(audio);
     }
-  }, [isPlaying, loadError]);
+  }, [isPlaying, loadError, playWhenReady]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);

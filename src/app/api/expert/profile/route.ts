@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { domainStrings, setExpertDomains } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,11 +24,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Expert profile not found" }, { status: 404 });
     }
 
+    const vendorSite = isVendorAiStackSiteRequest(request);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { avatarVideoUrl: _av, audioIntroUrl: _ai, documentData: _dd, fishAudioModelId: _fm, tonMnemonicEnc: _tm, domains: domainRows, ...rest } = expert;
+    const {
+      avatarVideoUrl: _av,
+      audioIntroUrl: _ai,
+      documentData: _dd,
+      fishAudioModelId: _fm,
+      tonMnemonicEnc: _tm,
+      domains: domainRows,
+      servicesOffered,
+      ...rest
+    } = expert;
     return NextResponse.json({
       ...rest,
-      domains: domainStrings(domainRows),
+      domains: vendorSite ? [] : domainStrings(domainRows),
+      servicesOffered: vendorSite ? null : servicesOffered,
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
       hasVoiceClone: false,
@@ -102,8 +114,13 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    const { domains: domainRows, ...rest } = updated!;
-    return NextResponse.json({ ...rest, domains: domainStrings(domainRows) });
+    const vendorSite = isVendorAiStackSiteRequest(request);
+    const { domains: domainRows, servicesOffered, ...rest } = updated!;
+    return NextResponse.json({
+      ...rest,
+      domains: vendorSite ? [] : domainStrings(domainRows),
+      servicesOffered: vendorSite ? null : servicesOffered,
+    });
   } catch (error) {
     console.error("[expert/profile PATCH]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

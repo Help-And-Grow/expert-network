@@ -5,6 +5,7 @@ import type { ExperienceCapabilities } from "@expert-network/shared-api";
 import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +117,7 @@ export async function GET(
       instagram: _ig,
       xiaohongshu: _xh,
       domains: domainRows,
+      servicesOffered,
       ...rest
     } = expert;
     /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -126,9 +128,11 @@ export async function GET(
       !!expert.audioIntroUrl,
     );
 
-    return NextResponse.json({
+    const vendorSite = isVendorAiStackSiteRequest(request);
+    const payload = {
       ...rest,
-      domains: domainStrings(domainRows),
+      domains: vendorSite ? [] : domainStrings(domainRows),
+      servicesOffered: vendorSite ? null : servicesOffered,
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
       hasClonedVoice: false,
@@ -138,7 +142,9 @@ export async function GET(
       experienceCapabilities,
       learnedFromCount,
       offeredHelpCount,
-    });
+    };
+
+    return NextResponse.json(payload);
 
   } catch (error) {
     console.error("[experts/[id] GET]", error);
