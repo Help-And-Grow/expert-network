@@ -73,6 +73,18 @@ function provider(): AIProvider {
   return _provider;
 }
 
+/** One-off provider instance (e.g. vendor demo overrides) — does not use the env singleton. */
+export function createAIProviderForName(name: string): AIProvider {
+  const n = name.trim().toLowerCase();
+  const factory = PROVIDERS[n];
+  if (!factory) {
+    throw new Error(
+      `Unknown AI provider "${name}". Available: ${Object.keys(PROVIDERS).join(", ")}`,
+    );
+  }
+  return factory();
+}
+
 // ---------------------------------------------------------------------------
 // Public API — unchanged, consumers keep importing these functions
 // ---------------------------------------------------------------------------

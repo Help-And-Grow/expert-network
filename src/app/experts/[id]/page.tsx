@@ -214,6 +214,8 @@ export default function ExpertProfilePage() {
     }
 
     const directSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+    /** Telegram WebView: fetch full 200 body (`full=1`) — 206 partial blobs can fail decode for object URLs. */
+    const fetchIntroSrc = `/api/experts/${id}/audio?full=1&t=${Date.now()}`;
     if (!isTelegramMiniApp()) {
       revoke();
       setIntroSrc(directSrc);
@@ -226,8 +228,10 @@ export default function ExpertProfilePage() {
 
     void (async () => {
       try {
-        const res = await fetch(directSrc, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await fetch(fetchIntroSrc, { cache: "no-store" });
+        if (res.status < 200 || res.status >= 300) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const blob = await res.blob();
         if (cancelled) return;
         const objectUrl = URL.createObjectURL(blob);

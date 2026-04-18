@@ -2,11 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
+import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
 import { createGeminiClient, getGeminiTextModel } from "@/lib/ai/gemini-client";
 import {
   GeminiTtsProvider,
   defaultGeminiTtsVoiceId,
 } from "@/lib/integrations/gemini-tts";
+import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
+import { isGoogleCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
 
 export const MAX_TURNS = 5;
 
@@ -59,6 +62,8 @@ export interface ExpertVoiceChatProfile {
   avatarScript: string | null;
   /** Human-readable lines derived from servicesOffered JSON. */
   servicesOfferedSummary: string | null;
+  /** Expert gender (used for Qwen built-in voice on Google Cloud demo speech stack). */
+  gender: string | null;
   /** Gemini TTS voice id used when the expert does not have a custom voice asset. */
   voiceModelId: string;
   /** Reserved for future expert-specific cloned voices; false = system-managed Gemini voice. */
@@ -139,6 +144,7 @@ export async function loadExpertVoiceChatProfile(
     domains: domainStrings(expert.domains),
     avatarScript: expert.avatarScript,
     servicesOfferedSummary,
+    gender: expert.gender,
     voiceModelId,
     usesClonedVoice,
   };
@@ -256,10 +262,17 @@ function ensureConversation(
   return conv;
 }
 
-function ensureGeminiVoiceChatConfigured(): void {
+/** expert-network-googlecloud: speech I/O on DashScope; LLM replies still on Gemini. */
+function voiceChatUsesAlibabaSpeechIo(): boolean {
+  return (
+    isGoogleCloudVendorDemoDeployment() && Boolean(env.DASHSCOPE_API_KEY?.trim())
+  );
+}
+
+function ensureGeminiConfiguredForLlm(): void {
   if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
     throw new Error(
-      "Voice chat now uses Google Gemini across web, Telegram, and WeChat. Set GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT."
+      "Voice chat replies require GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT (Gemini).",
     );
   }
 }
@@ -283,7 +296,11 @@ export async function transcribeAudio(
   audioBase64: string,
   mimeType: string,
 ): Promise<string> {
-  ensureGeminiVoiceChatConfigured();
+  if (voiceChatUsesAlibabaSpeechIo()) {
+    return transcribeDashScopeAsr(audioBase64, mimeType);
+  }
+
+  ensureGeminiConfiguredForLlm();
 
   const gemini = createGeminiClient();
   const response = await gemini.models.generateContent({
@@ -306,7 +323,7 @@ export async function transcribeAudio(
 }
 
 async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
-  ensureGeminiVoiceChatConfigured();
+  ensureGeminiConfiguredForLlm();
 
   const prompt = [
     "Continue this voice consultation as the expert. Reply only with the assistant's next message.",
@@ -378,17 +395,24 @@ function getGeminiVoiceSynthesis(): GeminiTtsProvider {
 async function synthesizeVoice(
   text: string,
   voiceModelId: string,
+  gender?: string | null,
 ): Promise<{ audioBase64: string; format: string }> {
-  ensureGeminiVoiceChatConfigured();
+  if (voiceChatUsesAlibabaSpeechIo()) {
+    const provider = new QwenTTSProvider();
+    const voiceId = defaultQwenTtsVoiceId(gender ?? undefined);
+    return provider.synthesize({ text, voiceId });
+  }
+  ensureGeminiConfiguredForLlm();
   return getGeminiVoiceSynthesis().synthesize({ text, voiceId: voiceModelId });
 }
 
 async function synthesizeVoiceIfAvailable(
   text: string,
   voiceModelId: string,
+  gender?: string | null,
 ): Promise<{ audioBase64: string; format: string } | null> {
   try {
-    return await synthesizeVoice(text, voiceModelId);
+    return await synthesizeVoice(text, voiceModelId, gender);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[voice-chat] Voice synthesis unavailable:", message);
@@ -421,7 +445,11 @@ export async function getVoiceChatGreeting(
   if (!profile) return null;
   ensureVoiceChatAllowed(userId, profile);
   const text = buildVoiceChatGreetingText(profile);
-  const audio = await synthesizeVoiceIfAvailable(text, profile.voiceModelId);
+  const audio = await synthesizeVoiceIfAvailable(
+    text,
+    profile.voiceModelId,
+    profile.gender,
+  );
   return {
     text,
     replyAudioBase64: audio?.audioBase64,
@@ -473,6 +501,7 @@ export async function processVoiceMessage(
   const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
+    profile.gender,
   );
 
   return {
@@ -508,6 +537,7 @@ export async function processTextMessage(
       : await synthesizeVoiceIfAvailable(
           replyText,
           conv.voiceModelId,
+          profile.gender,
         );
 
   return {
@@ -552,6 +582,7 @@ export async function processVoiceDrafts(
   const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
+    profile.gender,
   );
 
   return {

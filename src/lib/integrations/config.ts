@@ -16,6 +16,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 import { env } from "@/lib/env";
+import { isGoogleCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
 
 function readConfiguredKey(value?: string | null): string | null {
   const normalized = value?.trim();
@@ -44,15 +45,22 @@ const geminiVoiceReady = Boolean(
 const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
 const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
 
+/** Alibaba DashScope for speech I/O (vs Gemini TTS) — includes Google Cloud vendor demo with Gemini LLM. */
+const voiceStackPrefersDashScope =
+  aiProvider === "qwen" ||
+  aiProvider === "byteplus" ||
+  (isGoogleCloudVendorDemoDeployment() && aiProvider === "gemini");
+
 /**
  * Select TTS provider respecting AI_PROVIDER first, then falling back by key availability.
  * - qwen  → always qwen-tts (DashScope)
  * - byteplus → qwen-tts (DashScope ASR/TTS) unless only Gemini/Fish keys present
+ * - expert-network-googlecloud + gemini → qwen-tts when DashScope is configured (Gemini LLM only)
  * - gemini → gemini-tts if ready, else fish, else qwen
  * - others → gemini if ready, else fish, else qwen
  */
 let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
-if (aiProvider === "qwen" || aiProvider === "byteplus") {
+if (voiceStackPrefersDashScope) {
   // These providers use DashScope for TTS; never auto-select Gemini TTS
   if (hasDash) {
     voiceSynthesisProvider = "qwen-tts";
@@ -82,13 +90,16 @@ export function getVoiceTranscriptionConfigIssue(): string | null {
     if (aiProvider === "byteplus") {
       return "BytePlus voice input still requires DASHSCOPE_API_KEY for DashScope ASR. BYTEPLUS_API_KEY only powers the text reply.";
     }
+    if (isGoogleCloudVendorDemoDeployment() && aiProvider === "gemini") {
+      return "expert-network-googlecloud uses Gemini for LLM but DashScope (DASHSCOPE_API_KEY) for speech recognition.";
+    }
     return "Voice input requires DASHSCOPE_API_KEY for DashScope ASR.";
   }
   return null;
 }
 
 export function getVoiceSynthesisConfigIssue(): string | null {
-  if (aiProvider === "qwen" || aiProvider === "byteplus") {
+  if (voiceStackPrefersDashScope) {
     // These providers require DashScope for TTS
     const dashscopeIssue = getDashscopeKeyIssue();
     if (dashscopeIssue) return dashscopeIssue;

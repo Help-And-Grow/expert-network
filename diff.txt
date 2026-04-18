@@ -1,0 +1,802 @@
+diff --git a/.env.example b/.env.example
+index a05609f..c4e3f10 100644
+--- a/.env.example
++++ b/.env.example
+@@ -80,8 +80,13 @@ PAYNOW_COMPANY_NAME="Help & Grow"
+ # true => sender can edit amount; false => amount locked from booking
+ PAYNOW_EDITABLE_AMOUNT="false"
+ 
+-# AI Provider — "qwen" (default, Alibaba DashScope) | "dedalus" | "gemini" | "openai" | "zai" | "byteplus"
++# AI Provider — "qwen" (default, Alibaba DashScope) | "dedalus" | "gemini" | "openai" | "zai" | "byteplus" | "volcengine"
+ AI_PROVIDER="qwen"
++# Local dev only: mimic expert-network-googlecloud (Gemini LLM + DashScope STT/TTS in voice chat).
++#VENDOR_GOOGLECLOUD_DEMO_VOICE_SPLIT="1"
++# Mimic expert-network-alibabacloud / byteplus vendor demos (profile image primary provider override).
++#VENDOR_ALIBABACLOUD_DEMO="1"
++#VENDOR_BYTEPLUS_DEMO="1"
+ 
+ # --- Gemini (required when AI_PROVIDER=gemini) ---
+ # Also needed for Google Search grounding & PDF extraction in qwen/openai modes.
+@@ -102,8 +107,9 @@ GEMINI_IMAGE_MODEL="gemini-2.5-flash-image"
+ #   Get your key at https://aistudio.google.com
+ GEMINI_API_KEY=""
+ 
+-# Gemini voice chat (transcription, replies, and preferred TTS across Web / Telegram / WeChat)
+-# Voice chat now requires Gemini to be configured with either Vertex or AI Studio credentials.
++# Gemini voice chat — on most deployments async voice uses Gemini for STT, reply text, and TTS.
++# expert-network-googlecloud: set AI_PROVIDER=gemini plus GEMINI_* and still set DASHSCOPE_API_KEY for Qwen ASR/TTS on speech I/O.
++# Voice chat requires Gemini credentials unless you only use text turns without async voice.
+ #GEMINI_TTS_MODEL="gemini-2.5-flash-preview-tts"
+ #GEMINI_TTS_VOICE_MALE="Charon"
+ #GEMINI_TTS_VOICE_FEMALE="Kore"
+diff --git a/AGENTS.md b/AGENTS.md
+index ed62705..1880157 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -60,7 +60,7 @@ See `docs/` for full details:
+ ## Key Conventions
+ 
+ 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
+-2. **AI providers**: Swappable via `AI_PROVIDER` env var (`dedalus`, `gemini`, `qwen`, `openai`, `zai`, `ollama`). Default when unset: **`qwen`**. The containerized local stack defaults to **`ollama`**. See `src/lib/ai/index.ts`.
++2. **AI providers**: Swappable via `AI_PROVIDER` env var (`dedalus`, `gemini`, `qwen`, `openai`, `zai`, `ollama`, `byteplus`, `volcengine`). Default when unset: **`qwen`** (Alibaba Cloud Qwen / DashScope for the canonical **expert-network** deployment). The **expert-network-googlecloud** Vercel demo uses **Gemini** for LLM-driven routes while keeping **DashScope (Qwen3-ASR / Qwen3-TTS)** for async voice speech I/O; set both `GEMINI_*`/`GOOGLE_CLOUD_PROJECT` and `DASHSCOPE_API_KEY` there. The **expert-network-alibabacloud** and **expert-network-byteplus** Vercel demos **force** profile-image primary routing to **Qwen** / **BytePlus** respectively (so a mistaken copied `AI_PROVIDER=gemini` on the Alibaba demo does not break regenerate-image). The containerized local stack defaults to **`ollama`**. See `src/lib/ai/index.ts` and `src/lib/vendor-ai-stack-site.ts` (`isGoogleCloudVendorDemoDeployment`, `isAlibabaCloudVendorDemoDeployment`, `isByteplusVendorDemoDeployment`).
+ 3. **Expert memory backend**: `MEMORY_BACKEND=mem9|pgvector|hybrid`. Local/on-prem defaults should be **`pgvector`** with `EMBEDDING_PROVIDER=ollama`; mem9 remains optional for cloud/hybrid runs. See `src/lib/integrations/mem9-lifecycle.ts` and `src/lib/integrations/pgvector-memory.ts`.
+ 4. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
+ 5. **Database switching**: Run `node scripts/switch-db.mjs` — Prisma is PostgreSQL-only and the script enforces `provider = "postgresql"` in `prisma/schema.prisma`.
+@@ -73,7 +73,7 @@ See `docs/` for full details:
+ 12. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (Postgres via `HICLAW_POSTGRES_URL`, falling back to `DATABASE_URL`), **waitingRoom**. Local-first defaults are **Ollama + Postgres/pgvector**; mem9 is optional and the service falls back to `expert_memory_embeddings` when mem9 is off. Details: [`hiclaw/README.md`](hiclaw/README.md).
+ 13. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates HiClaw `sessions` in Postgres (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from the same store.
+ 14. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; **player** H&G balance via wagmi + ledger API.
+-15. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): Gemini handles transcription, reply generation, and preferred TTS across Web, Telegram Mini App, and WeChat Mini Program, with **5-reply free cap**, `POST /api/voice-chat/message`; opening voice greeting (TTS, no turn) `POST /api/voice-chat/greeting`. Web/Telegram silently skip blocked autoplay and keep manual replay available; WeChat keeps grouped voice drafts (up to 3 clips) with one confirmed send per question bundle. **Realtime**: timed **AI chat** with a **3-min cap**, `POST /api/voice-chat/start` + `/stop`, plus text turns through `POST /api/voice-chat/message` with audio disabled for that surface. Config endpoint: `GET /api/voice-chat/config`. Realtime chat requires Gemini to be configured (`GEMINI_API_KEY` or `GOOGLE_CLOUD_PROJECT`).
++15. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): on most deployments **Gemini** handles transcription, reply generation, and TTS in `src/lib/voice-chat-session.ts`, with **5-reply free cap**, `POST /api/voice-chat/message`; opening voice greeting `POST /api/voice-chat/greeting`. On **expert-network-googlecloud** only, **DashScope** handles **STT + reply TTS** while **Gemini** still generates reply text. Web/Telegram silently skip blocked autoplay and keep manual replay available; WeChat keeps grouped voice drafts (up to 3 clips) with one confirmed send per question bundle. **Realtime**: timed **AI chat** with a **3-min cap**, `POST /api/voice-chat/start` + `/stop`, plus text turns through `POST /api/voice-chat/message` with audio disabled for that surface. Config endpoint: `GET /api/voice-chat/config`. Realtime start still requires Gemini configured (`GEMINI_API_KEY` or `GOOGLE_CLOUD_PROJECT`); the Google Cloud demo additionally needs `DASHSCOPE_API_KEY` when using async voice with the Alibaba speech stack.
+ 16. **Expert detail contract**: `/api/experts/[id]` keeps legacy flags (`hasAudio`, `hasVoiceChat`, `hasClonedVoice`) but now also returns `experienceCapabilities` for voice-intro availability, async voice quota, premium realtime status, and canonical web continuation URLs.
+ 
+ ## Documentation (key changes)
+diff --git a/src/app/api/experts/[id]/audio/route.ts b/src/app/api/experts/[id]/audio/route.ts
+index 013e570..24ae178 100644
+--- a/src/app/api/experts/[id]/audio/route.ts
++++ b/src/app/api/experts/[id]/audio/route.ts
+@@ -68,6 +68,89 @@ function expandInitialRangeForDecoders(
+   return { start, end };
+ }
+ 
++function sniffAudioMimeFromBuffer(buffer: Buffer): string | null {
++  if (buffer.length < 4) return null;
++  if (
++    buffer.length >= 12 &&
++    buffer[0] === 0x52 &&
++    buffer[1] === 0x49 &&
++    buffer[2] === 0x46 &&
++    buffer[3] === 0x46 &&
++    buffer[8] === 0x57 &&
++    buffer[9] === 0x41 &&
++    buffer[10] === 0x56 &&
++    buffer[11] === 0x45
++  ) {
++    return "audio/wav";
++  }
++  if (
++    (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) ||
++    (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
++  ) {
++    return "audio/mpeg";
++  }
++  if (
++    buffer.length >= 4 &&
++    buffer[0] === 0x4f &&
++    buffer[1] === 0x67 &&
++    buffer[2] === 0x67 &&
++    buffer[3] === 0x53
++  ) {
++    return "audio/ogg";
++  }
++  if (
++    buffer.length >= 4 &&
++    buffer[0] === 0x1a &&
++    buffer[1] === 0x45 &&
++    buffer[2] === 0xdf &&
++    buffer[3] === 0xa3
++  ) {
++    return "audio/webm";
++  }
++  if (
++    buffer.length >= 8 &&
++    buffer[4] === 0x66 &&
++    buffer[5] === 0x74 &&
++    buffer[6] === 0x79 &&
++    buffer[7] === 0x70
++  ) {
++    return "audio/mp4";
++  }
++  return null;
++}
++
++/**
++ * Parse stored intro blob — tolerant of `Data:`, `BASE64`, odd MIME labels, and legacy rows
++ * where the declared type is not audio/* but the payload is decodable audio.
++ */
++function parseStoredAudioIntro(
++  raw: string | null | undefined,
++): { mime: string; buffer: Buffer } | null {
++  if (!raw?.trim()) return null;
++  const s = raw.trim();
++  const lower = s.toLowerCase();
++  if (!lower.startsWith("data:")) return null;
++  const marker = ";base64,";
++  const bi = lower.indexOf(marker);
++  if (bi < 0) return null;
++
++  const header = s.slice(0, bi);
++  const mimeDeclared = header.slice(5).split(";")[0]?.trim() ?? "";
++  const b64 = s.slice(bi + marker.length).replace(/\s+/g, "");
++  const buffer = Buffer.from(b64, "base64");
++  if (buffer.length === 0) return null;
++
++  let mime = mimeDeclared;
++  if (!/^audio\//i.test(mime)) {
++    const sniffed = sniffAudioMimeFromBuffer(buffer);
++    if (!sniffed) return null;
++    mime = sniffed;
++  }
++
++  if (mime.toLowerCase() === "audio/mp3") mime = "audio/mpeg";
++  return { mime, buffer };
++}
++
+ export async function GET(
+   request: NextRequest,
+   { params }: { params: Promise<{ id: string }> }
+@@ -83,35 +166,41 @@ export async function GET(
+       return NextResponse.json({ error: "No audio intro" }, { status: 404 });
+     }
+ 
+-    // Support audio/mp3, audio/mpeg, audio/mp4, etc. (base64 may wrap)
+-    const match = expert.audioIntroUrl.match(
+-      /^data:(audio\/[^;]+);base64,([\s\S]+)$/
+-    );
+-    if (!match) {
++    const parsedIntro = parseStoredAudioIntro(expert.audioIntroUrl);
++    if (!parsedIntro) {
+       return NextResponse.json({ error: "Invalid audio data" }, { status: 500 });
+     }
+ 
+-    const [, mimeRaw, b64Raw] = match;
+-    const b64 = b64Raw.replace(/\s+/g, "");
+-    const buffer = Buffer.from(b64, "base64");
+-    if (buffer.length === 0) {
+-      return NextResponse.json({ error: "Empty audio intro" }, { status: 404 });
+-    }
+-
+-    // Browsers expect IANA type for MP3; `audio/mp3` often fails to decode / report duration.
+-    const mime =
+-      mimeRaw.toLowerCase() === "audio/mp3" ? "audio/mpeg" : mimeRaw;
++    const { mime, buffer } = parsedIntro;
++    const body = new Uint8Array(buffer);
+ 
+     // Full-body ETag only (no 304): empty 304 responses break <audio> in common browsers.
+     const etag = `"${createHash("md5").update(buffer).digest("hex")}"`;
+-    const size = buffer.length;
++    const size = body.length;
++
++    /** Fetch+blob clients (Telegram WebView, AudioPlayer) — always 200 full body; avoids 206+blob edge cases. */
++    const forceFullBody =
++      request.nextUrl.searchParams.get("full") === "1" ||
++      request.nextUrl.searchParams.get("full") === "true";
++
++    if (forceFullBody) {
++      return new NextResponse(body, {
++        headers: {
++          "Content-Type": mime,
++          "Content-Length": String(size),
++          "Accept-Ranges": "bytes",
++          "Cache-Control": "private, max-age=3600",
++          ETag: etag,
++        },
++      });
++    }
+ 
+     const rangeHeader = request.headers.get("range");
+     const parsed = parseByteRange(rangeHeader, size);
+ 
+     if (parsed) {
+       const { start, end } = expandInitialRangeForDecoders(parsed, size);
+-      const chunk = buffer.subarray(start, end + 1);
++      const chunk = body.subarray(start, end + 1);
+       return new NextResponse(chunk, {
+         status: 206,
+         headers: {
+@@ -125,7 +214,7 @@ export async function GET(
+       });
+     }
+ 
+-    return new NextResponse(buffer, {
++    return new NextResponse(body, {
+       headers: {
+         "Content-Type": mime,
+         "Content-Length": String(size),
+diff --git a/src/app/api/speech-to-text/route.ts b/src/app/api/speech-to-text/route.ts
+index f546d8a..59dfc37 100644
+--- a/src/app/api/speech-to-text/route.ts
++++ b/src/app/api/speech-to-text/route.ts
+@@ -1,9 +1,6 @@
+ import { type NextRequest, NextResponse } from "next/server";
+ import { env } from "@/lib/env";
+-
+-const DASHSCOPE_URL =
+-  "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+-const ASR_MODEL = "qwen3-asr-flash";
++import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
+ 
+ /**
+  * POST /api/speech-to-text
+@@ -13,68 +10,32 @@ const ASR_MODEL = "qwen3-asr-flash";
+  */
+ export async function POST(request: NextRequest) {
+   try {
+-    const apiKey = env.DASHSCOPE_API_KEY;
+-    if (!apiKey) {
++    if (!env.DASHSCOPE_API_KEY?.trim()) {
+       return NextResponse.json(
+         { error: "Speech recognition is not configured" },
+-        { status: 503 }
++        { status: 503 },
+       );
+     }
+ 
+     const formData = await request.formData();
+     const audioFile = formData.get("audio");
+     if (!audioFile || !(audioFile instanceof Blob)) {
+-      return NextResponse.json(
+-        { error: "Missing audio file" },
+-        { status: 400 }
+-      );
++      return NextResponse.json({ error: "Missing audio file" }, { status: 400 });
+     }
+ 
+     const arrayBuf = await audioFile.arrayBuffer();
+     const base64Audio = Buffer.from(arrayBuf).toString("base64");
+     const mimeType = audioFile.type || "audio/webm";
+-    const dataUri = `data:${mimeType};base64,${base64Audio}`;
+-
+-    const res = await fetch(DASHSCOPE_URL, {
+-      method: "POST",
+-      headers: {
+-        Authorization: `Bearer ${apiKey}`,
+-        "Content-Type": "application/json",
+-      },
+-      body: JSON.stringify({
+-        model: ASR_MODEL,
+-        input: {
+-          messages: [
+-            { role: "system", content: [{ text: "" }] },
+-            { role: "user", content: [{ audio: dataUri }] },
+-          ],
+-        },
+-      }),
+-    });
+-
+-    if (!res.ok) {
+-      const errText = await res.text().catch(() => "");
+-      console.error("[speech-to-text]", res.status, errText.slice(0, 500));
+-      return NextResponse.json(
+-        { error: "Speech recognition failed", detail: errText.slice(0, 200) },
+-        { status: 502 }
+-      );
+-    }
+-
+-    const data = await res.json();
+-
+-    const text =
+-      data?.output?.choices?.[0]?.message?.content?.[0]?.text ??
+-      data?.output?.text ??
+-      "";
+ 
+-    return NextResponse.json({ text: text.trim() });
++    const text = await transcribeDashScopeAsr(base64Audio, mimeType);
++    return NextResponse.json({ text });
+   } catch (error) {
+     const message = error instanceof Error ? error.message : String(error);
+     console.error("[speech-to-text POST]", message, error);
++    const status = message.includes("DashScope ASR failed") ? 502 : 500;
+     return NextResponse.json(
+-      { error: "Internal server error", detail: message },
+-      { status: 500 }
++      { error: status === 502 ? "Speech recognition failed" : "Internal server error", detail: message },
++      { status },
+     );
+   }
+ }
+diff --git a/src/app/experts/[id]/page.tsx b/src/app/experts/[id]/page.tsx
+index 1370610..c8debb0 100644
+--- a/src/app/experts/[id]/page.tsx
++++ b/src/app/experts/[id]/page.tsx
+@@ -214,6 +214,8 @@ export default function ExpertProfilePage() {
+     }
+ 
+     const directSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
++    /** Telegram WebView: fetch full 200 body (`full=1`) — 206 partial blobs can fail decode for object URLs. */
++    const fetchIntroSrc = `/api/experts/${id}/audio?full=1&t=${Date.now()}`;
+     if (!isTelegramMiniApp()) {
+       revoke();
+       setIntroSrc(directSrc);
+@@ -226,8 +228,10 @@ export default function ExpertProfilePage() {
+ 
+     void (async () => {
+       try {
+-        const res = await fetch(directSrc, { cache: "no-store" });
+-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
++        const res = await fetch(fetchIntroSrc, { cache: "no-store" });
++        if (res.status < 200 || res.status >= 300) {
++          throw new Error(`HTTP ${res.status}`);
++        }
+         const blob = await res.blob();
+         if (cancelled) return;
+         const objectUrl = URL.createObjectURL(blob);
+diff --git a/src/app/profile/page.tsx b/src/app/profile/page.tsx
+index 8f15756..2ff3675 100644
+--- a/src/app/profile/page.tsx
++++ b/src/app/profile/page.tsx
+@@ -130,6 +130,9 @@ export default function ProfilePage() {
+       if (!res.ok) throw new Error("Failed to fetch profile");
+       const data: ExpertProfile = await res.json();
+       setProfile(data);
++      if (data.hasAudio) {
++        setAudioCacheBuster(`?full=1&t=${Date.now()}`);
++      }
+       setBio(data.bio || "");
+       setIntroScript(data.avatarScript ?? "");
+       setUploadedFileName(data.documentName ?? null);
+@@ -336,7 +339,7 @@ export default function ProfilePage() {
+         throw new Error(hint ?? "Failed to generate audio");
+       }
+       setProfile((prev) => (prev ? { ...prev, hasAudio: true } : prev));
+-      setAudioCacheBuster(`?t=${Date.now()}`);
++      setAudioCacheBuster(`?full=1&t=${Date.now()}`);
+       showMessage(
+         hadAudio ? "Voice introduction regenerated!" : "Voice introduction generated!",
+         "voice",
+diff --git a/src/components/audio-player.tsx b/src/components/audio-player.tsx
+index 24254fe..031819a 100644
+--- a/src/components/audio-player.tsx
++++ b/src/components/audio-player.tsx
+@@ -87,12 +87,20 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
+     revoke();
+ 
+     void (async () => {
++      const directWithFull = (): string => {
++        const u = new URL(resolveFetchUrl(trimmed));
++        u.searchParams.set("full", "1");
++        return u.href;
++      };
++
+       try {
+-        const res = await fetch(resolveFetchUrl(trimmed), {
++        const fetchUrl = new URL(resolveFetchUrl(trimmed));
++        fetchUrl.searchParams.set("full", "1");
++        const res = await fetch(fetchUrl.href, {
+           credentials: "include",
+           signal: ac.signal,
+         });
+-        if (!res.ok) {
++        if (res.status < 200 || res.status >= 300) {
+           throw new Error(`HTTP ${res.status}`);
+         }
+         const blob = await res.blob();
+@@ -102,8 +110,9 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
+         setResolvedSrc(objectUrl);
+       } catch (e: unknown) {
+         if (ac.signal.aborted || (e instanceof DOMException && e.name === "AbortError")) return;
+-        console.warn("[AudioPlayer] fetch failed", e);
+-        setLoadError("Could not load this audio file.");
++        console.warn("[AudioPlayer] blob fetch failed; falling back to direct URL", e);
++        // Same-origin <audio src> often succeeds when blob materialization fails (e.g. older deploys, strict WebViews).
++        setResolvedSrc(directWithFull());
+       } finally {
+         if (!ac.signal.aborted) {
+           setMediaLoading(false);
+diff --git a/src/lib/ai/index.ts b/src/lib/ai/index.ts
+index b7af2a0..db07362 100644
+--- a/src/lib/ai/index.ts
++++ b/src/lib/ai/index.ts
+@@ -73,6 +73,18 @@ function provider(): AIProvider {
+   return _provider;
+ }
+ 
++/** One-off provider instance (e.g. vendor demo overrides) — does not use the env singleton. */
++export function createAIProviderForName(name: string): AIProvider {
++  const n = name.trim().toLowerCase();
++  const factory = PROVIDERS[n];
++  if (!factory) {
++    throw new Error(
++      `Unknown AI provider "${name}". Available: ${Object.keys(PROVIDERS).join(", ")}`,
++    );
++  }
++  return factory();
++}
++
+ // ---------------------------------------------------------------------------
+ // Public API — unchanged, consumers keep importing these functions
+ // ---------------------------------------------------------------------------
+diff --git a/src/lib/integrations/config.ts b/src/lib/integrations/config.ts
+index 2275f10..e954be9 100644
+--- a/src/lib/integrations/config.ts
++++ b/src/lib/integrations/config.ts
+@@ -16,6 +16,7 @@ import type {
+ // ---------------------------------------------------------------------------
+ 
+ import { env } from "@/lib/env";
++import { isGoogleCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
+ 
+ function readConfiguredKey(value?: string | null): string | null {
+   const normalized = value?.trim();
+@@ -44,15 +45,22 @@ const geminiVoiceReady = Boolean(
+ const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
+ const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
+ 
++/** Alibaba DashScope for speech I/O (vs Gemini TTS) — includes Google Cloud vendor demo with Gemini LLM. */
++const voiceStackPrefersDashScope =
++  aiProvider === "qwen" ||
++  aiProvider === "byteplus" ||
++  (isGoogleCloudVendorDemoDeployment() && aiProvider === "gemini");
++
+ /**
+  * Select TTS provider respecting AI_PROVIDER first, then falling back by key availability.
+  * - qwen  → always qwen-tts (DashScope)
+  * - byteplus → qwen-tts (DashScope ASR/TTS) unless only Gemini/Fish keys present
++ * - expert-network-googlecloud + gemini → qwen-tts when DashScope is configured (Gemini LLM only)
+  * - gemini → gemini-tts if ready, else fish, else qwen
+  * - others → gemini if ready, else fish, else qwen
+  */
+ let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
+-if (aiProvider === "qwen" || aiProvider === "byteplus") {
++if (voiceStackPrefersDashScope) {
+   // These providers use DashScope for TTS; never auto-select Gemini TTS
+   if (hasDash) {
+     voiceSynthesisProvider = "qwen-tts";
+@@ -82,13 +90,16 @@ export function getVoiceTranscriptionConfigIssue(): string | null {
+     if (aiProvider === "byteplus") {
+       return "BytePlus voice input still requires DASHSCOPE_API_KEY for DashScope ASR. BYTEPLUS_API_KEY only powers the text reply.";
+     }
++    if (isGoogleCloudVendorDemoDeployment() && aiProvider === "gemini") {
++      return "expert-network-googlecloud uses Gemini for LLM but DashScope (DASHSCOPE_API_KEY) for speech recognition.";
++    }
+     return "Voice input requires DASHSCOPE_API_KEY for DashScope ASR.";
+   }
+   return null;
+ }
+ 
+ export function getVoiceSynthesisConfigIssue(): string | null {
+-  if (aiProvider === "qwen" || aiProvider === "byteplus") {
++  if (voiceStackPrefersDashScope) {
+     // These providers require DashScope for TTS
+     const dashscopeIssue = getDashscopeKeyIssue();
+     if (dashscopeIssue) return dashscopeIssue;
+diff --git a/src/lib/profile-media.ts b/src/lib/profile-media.ts
+index 890018a..efa3349 100644
+--- a/src/lib/profile-media.ts
++++ b/src/lib/profile-media.ts
+@@ -1,6 +1,10 @@
+-import { generateProfileImage, type ImageInput } from "@/lib/ai";
++import { createAIProviderForName, type ImageInput } from "@/lib/ai";
+ import { env } from "@/lib/env";
+ import { getVoiceSynthesis } from "@/lib/integrations/config";
++import {
++  isAlibabaCloudVendorDemoDeployment,
++  isByteplusVendorDemoDeployment,
++} from "@/lib/vendor-ai-stack-site";
+ 
+ import type {
+   VoiceSynthesisProvider,
+@@ -13,6 +17,16 @@ function currentAiProvider(): string {
+   return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
+ }
+ 
++/**
++ * Vendor demo hosts should not inherit a mistaken `AI_PROVIDER=gemini` from another Vercel project.
++ * Profile images use this primary provider before Gemini fallback rules.
++ */
++function primaryProviderForProfileImage(): string {
++  if (isAlibabaCloudVendorDemoDeployment()) return "qwen";
++  if (isByteplusVendorDemoDeployment()) return "byteplus";
++  return currentAiProvider();
++}
++
+ function isGeminiConfigured(): boolean {
+   return Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
+ }
+@@ -27,7 +41,7 @@ async function generateProfileImageWithGemini(
+ export async function generateProfileImageResilient(
+   data: ImageInput,
+ ): Promise<string | null> {
+-  const aiProvider = currentAiProvider();
++  const aiProvider = primaryProviderForProfileImage();
+   let lastError: unknown = null;
+ 
+   if (isGeminiConfigured() && IMAGE_UNSUPPORTED_AI_PROVIDERS.has(aiProvider)) {
+@@ -37,9 +51,11 @@ export async function generateProfileImageResilient(
+   }
+ 
+   try {
+-    const image = await generateProfileImage(data);
++    const image = await createAIProviderForName(aiProvider).generateProfileImage(data);
+     if (image) return image;
+-    lastError = new Error(`AI_PROVIDER "${aiProvider}" returned no profile image.`);
++    lastError = new Error(
++      `Profile image provider "${aiProvider}" returned no image data.`,
++    );
+   } catch (error) {
+     lastError = error;
+   }
+diff --git a/src/lib/vendor-ai-stack-site.ts b/src/lib/vendor-ai-stack-site.ts
+index 521b8d8..f0de789 100644
+--- a/src/lib/vendor-ai-stack-site.ts
++++ b/src/lib/vendor-ai-stack-site.ts
+@@ -7,6 +7,39 @@ import type { NextRequest } from "next/server";
+ const VENDOR_AI_STACK_HOST_RE =
+   /^(.+\.)?expert-network-(googlecloud|alibabacloud|byteplus)\.vercel\.app$/i;
+ 
++const GOOGLECLOUD_VENDOR_HOST_RE =
++  /^(.+\.)?expert-network-googlecloud\.vercel\.app$/i;
++
++const ALIBABACLOUD_VENDOR_HOST_RE =
++  /^(.+\.)?expert-network-alibabacloud\.vercel\.app$/i;
++
++const BYTEPLUS_VENDOR_HOST_RE =
++  /^(.+\.)?expert-network-byteplus\.vercel\.app$/i;
++
++function hostnameFromMaybeUrl(value: string): string {
++  const t = value.trim();
++  if (!t) return "";
++  try {
++    const withProto = t.includes("://") ? t : `https://${t}`;
++    return new URL(withProto).hostname;
++  } catch {
++    return t.split("/")[0]?.split(":")[0] ?? "";
++  }
++}
++
++function matchesAnyVercelHostname(regex: RegExp): boolean {
++  const candidates = [
++    process.env.VERCEL_PROJECT_PRODUCTION_URL,
++    process.env.VERCEL_URL,
++    process.env.VERCEL_BRANCH_URL,
++  ];
++  for (const raw of candidates) {
++    const host = hostnameFromMaybeUrl(raw ?? "");
++    if (host && regex.test(host.trim().toLowerCase())) return true;
++  }
++  return false;
++}
++
+ export function requestHostname(request: Request): string {
+   const forwarded = request.headers.get("x-forwarded-host");
+   if (forwarded) {
+@@ -26,19 +59,36 @@ export function isVendorAiStackSiteHost(host: string): boolean {
+ }
+ 
+ /**
+- * True on the three vendor demo deployments (or when forced for local testing).
++ * True on the **expert-network-googlecloud** Vercel project (prod or preview URLs).
++ * Used to route speech I/O (ASR/TTS) to Alibaba DashScope while keeping Gemini for LLM replies.
++ *
++ * Set `VENDOR_GOOGLECLOUD_DEMO_VOICE_SPLIT=1` locally to mimic this split.
+  */
+-function hostnameFromMaybeUrl(value: string): string {
+-  const t = value.trim();
+-  if (!t) return "";
+-  try {
+-    const withProto = t.includes("://") ? t : `https://${t}`;
+-    return new URL(withProto).hostname;
+-  } catch {
+-    return t.split("/")[0]?.split(":")[0] ?? "";
++export function isGoogleCloudVendorDemoDeployment(): boolean {
++  if (process.env.VENDOR_GOOGLECLOUD_DEMO_VOICE_SPLIT === "1") {
++    return true;
+   }
++  return matchesAnyVercelHostname(GOOGLECLOUD_VENDOR_HOST_RE);
++}
++
++/**
++ * **expert-network-alibabacloud** Vercel demo — profile image / stack demos should use Alibaba (Qwen),
++ * not `AI_PROVIDER=gemini` from a copied env file.
++ *
++ * Set `VENDOR_ALIBABACLOUD_DEMO=1` locally to mimic.
++ */
++export function isAlibabaCloudVendorDemoDeployment(): boolean {
++  if (process.env.VENDOR_ALIBABACLOUD_DEMO === "1") return true;
++  return matchesAnyVercelHostname(ALIBABACLOUD_VENDOR_HOST_RE);
++}
++
++/** **expert-network-byteplus** Vercel demo — keep BytePlus as the primary ModelArk surface. */
++export function isByteplusVendorDemoDeployment(): boolean {
++  if (process.env.VENDOR_BYTEPLUS_DEMO === "1") return true;
++  return matchesAnyVercelHostname(BYTEPLUS_VENDOR_HOST_RE);
+ }
+ 
++/** True on the three vendor demo deployments (or when forced for local testing). */
+ export function isVendorAiStackSiteRequest(request: NextRequest | Request): boolean {
+   if (process.env.NEXT_PUBLIC_VENDOR_AI_STACK_SITE === "1") {
+     return true;
+diff --git a/src/lib/voice-chat-session.ts b/src/lib/voice-chat-session.ts
+index b48f9de..6802288 100644
+--- a/src/lib/voice-chat-session.ts
++++ b/src/lib/voice-chat-session.ts
+@@ -2,11 +2,14 @@ import { prisma } from "@/lib/prisma";
+ import { domainStrings } from "@/lib/domains";
+ import { env } from "@/lib/env";
+ import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
++import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
+ import { createGeminiClient, getGeminiTextModel } from "@/lib/ai/gemini-client";
+ import {
+   GeminiTtsProvider,
+   defaultGeminiTtsVoiceId,
+ } from "@/lib/integrations/gemini-tts";
++import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
++import { isGoogleCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
+ 
+ export const MAX_TURNS = 5;
+ 
+@@ -59,6 +62,8 @@ export interface ExpertVoiceChatProfile {
+   avatarScript: string | null;
+   /** Human-readable lines derived from servicesOffered JSON. */
+   servicesOfferedSummary: string | null;
++  /** Expert gender (used for Qwen built-in voice on Google Cloud demo speech stack). */
++  gender: string | null;
+   /** Gemini TTS voice id used when the expert does not have a custom voice asset. */
+   voiceModelId: string;
+   /** Reserved for future expert-specific cloned voices; false = system-managed Gemini voice. */
+@@ -139,6 +144,7 @@ export async function loadExpertVoiceChatProfile(
+     domains: domainStrings(expert.domains),
+     avatarScript: expert.avatarScript,
+     servicesOfferedSummary,
++    gender: expert.gender,
+     voiceModelId,
+     usesClonedVoice,
+   };
+@@ -256,10 +262,17 @@ function ensureConversation(
+   return conv;
+ }
+ 
+-function ensureGeminiVoiceChatConfigured(): void {
++/** expert-network-googlecloud: speech I/O on DashScope; LLM replies still on Gemini. */
++function voiceChatUsesAlibabaSpeechIo(): boolean {
++  return (
++    isGoogleCloudVendorDemoDeployment() && Boolean(env.DASHSCOPE_API_KEY?.trim())
++  );
++}
++
++function ensureGeminiConfiguredForLlm(): void {
+   if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
+     throw new Error(
+-      "Voice chat now uses Google Gemini across web, Telegram, and WeChat. Set GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT."
++      "Voice chat replies require GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT (Gemini).",
+     );
+   }
+ }
+@@ -283,7 +296,11 @@ export async function transcribeAudio(
+   audioBase64: string,
+   mimeType: string,
+ ): Promise<string> {
+-  ensureGeminiVoiceChatConfigured();
++  if (voiceChatUsesAlibabaSpeechIo()) {
++    return transcribeDashScopeAsr(audioBase64, mimeType);
++  }
++
++  ensureGeminiConfiguredForLlm();
+ 
+   const gemini = createGeminiClient();
+   const response = await gemini.models.generateContent({
+@@ -306,7 +323,7 @@ export async function transcribeAudio(
+ }
+ 
+ async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
+-  ensureGeminiVoiceChatConfigured();
++  ensureGeminiConfiguredForLlm();
+ 
+   const prompt = [
+     "Continue this voice consultation as the expert. Reply only with the assistant's next message.",
+@@ -378,17 +395,24 @@ function getGeminiVoiceSynthesis(): GeminiTtsProvider {
+ async function synthesizeVoice(
+   text: string,
+   voiceModelId: string,
++  gender?: string | null,
+ ): Promise<{ audioBase64: string; format: string }> {
+-  ensureGeminiVoiceChatConfigured();
++  if (voiceChatUsesAlibabaSpeechIo()) {
++    const provider = new QwenTTSProvider();
++    const voiceId = defaultQwenTtsVoiceId(gender ?? undefined);
++    return provider.synthesize({ text, voiceId });
++  }
++  ensureGeminiConfiguredForLlm();
+   return getGeminiVoiceSynthesis().synthesize({ text, voiceId: voiceModelId });
+ }
+ 
+ async function synthesizeVoiceIfAvailable(
+   text: string,
+   voiceModelId: string,
++  gender?: string | null,
+ ): Promise<{ audioBase64: string; format: string } | null> {
+   try {
+-    return await synthesizeVoice(text, voiceModelId);
++    return await synthesizeVoice(text, voiceModelId, gender);
+   } catch (error) {
+     const message = error instanceof Error ? error.message : String(error);
+     console.warn("[voice-chat] Voice synthesis unavailable:", message);
+@@ -421,7 +445,11 @@ export async function getVoiceChatGreeting(
+   if (!profile) return null;
+   ensureVoiceChatAllowed(userId, profile);
+   const text = buildVoiceChatGreetingText(profile);
+-  const audio = await synthesizeVoiceIfAvailable(text, profile.voiceModelId);
++  const audio = await synthesizeVoiceIfAvailable(
++    text,
++    profile.voiceModelId,
++    profile.gender,
++  );
+   return {
+     text,
+     replyAudioBase64: audio?.audioBase64,
+@@ -473,6 +501,7 @@ export async function processVoiceMessage(
+   const audio = await synthesizeVoiceIfAvailable(
+     replyText,
+     conv.voiceModelId,
++    profile.gender,
+   );
+ 
+   return {
+@@ -508,6 +537,7 @@ export async function processTextMessage(
+       : await synthesizeVoiceIfAvailable(
+           replyText,
+           conv.voiceModelId,
++          profile.gender,
+         );
+ 
+   return {
+@@ -552,6 +582,7 @@ export async function processVoiceDrafts(
+   const audio = await synthesizeVoiceIfAvailable(
+     replyText,
+     conv.voiceModelId,
++    profile.gender,
+   );
+ 
+   return {
+diff --git a/wechat/src/shared/wechat-audio.ts b/wechat/src/shared/wechat-audio.ts
+index e7e85b6..12b9235 100644
+--- a/wechat/src/shared/wechat-audio.ts
++++ b/wechat/src/shared/wechat-audio.ts
+@@ -16,6 +16,10 @@ function extFromMime(mimePart: string): string {
+   return "bin";
+ }
+ 
++function isSuccessfulDownloadStatus(statusCode: number): boolean {
++  return statusCode === 200 || statusCode === 206;
++}
++
+ function mimeFromPath(filePath: string): string {
+   const lower = filePath.toLowerCase();
+   if (lower.endsWith(".wav")) return "audio/wav";
+@@ -61,7 +65,7 @@ export async function prepareAudioForInnerAudio(
+ 
+   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+     const res = await Taro.downloadFile({ url: trimmed });
+-    if (res.statusCode !== 200 || !res.tempFilePath) {
++    if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
+       throw new Error(`downloadFile failed: ${res.statusCode}`);
+     }
+     return res.tempFilePath;
+@@ -69,13 +73,15 @@ export async function prepareAudioForInnerAudio(
+ 
+   const API_BASE = getApiBase();
+   const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+-  const url = `${API_BASE}${path}`;
++  const join = path.includes("?") ? "&" : "?";
++  const url = `${API_BASE}${path}${join}full=1`;
+   const token = getToken();
+   const res = await Taro.downloadFile({
+     url,
+     header: token ? { "x-wechat-token": token } : {},
+   });
+-  if (res.statusCode !== 200 || !res.tempFilePath) {
++  // Our audio API may return 206 Partial Content when WeChat sends Range (same as browser probes).
++  if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
+     throw new Error(`downloadFile failed: ${res.statusCode}`);
+   }
+   return res.tempFilePath;
