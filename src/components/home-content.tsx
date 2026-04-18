@@ -116,7 +116,7 @@ export function HomeContent() {
                   className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 font-semibold"
                 >
                   <Link href="/auth/signin" className="flex items-center gap-2">
-                    Get Started
+                    Join to contribution
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
