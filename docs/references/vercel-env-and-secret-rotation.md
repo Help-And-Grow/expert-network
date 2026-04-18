@@ -54,7 +54,7 @@ You cannot “delete” secrets from Vercel without replacing them — the app n
 | `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, `DEDALUS_API_KEY` | Respective provider consoles |
 | `TELEGRAM_BOT_TOKEN` | @BotFather → revoke / new token if supported |
 | `WECHAT_*` secrets | WeChat MP / Pay dashboards |
-| `AGORA_*`, `FISH_AUDIO_*`, etc. | Vendor dashboards |
+| `FISH_AUDIO_*`, voice / AI vendor keys, etc. | Vendor dashboards |
 
 ## Verify nothing was committed
 

@@ -1,5 +1,6 @@
+import { env } from "@/lib/env";
+
 export type VoiceChatMode = "async" | "realtime" | "both";
-export type RealtimeBackend = "ten" | "agora";
 
 export function getVoiceChatMode(): VoiceChatMode {
   const raw = process.env.VOICE_CHAT_MODE?.toLowerCase().trim();
@@ -17,32 +18,16 @@ export function isRealtimeEnabled(): boolean {
   return mode === "realtime" || mode === "both";
 }
 
-export function getRealtimeBackend(): RealtimeBackend {
-  const raw = process.env.REALTIME_BACKEND?.toLowerCase().trim();
-  return raw === "agora" ? "agora" : "ten";
-}
-
-export function isAgoraRealtimeBackend(): boolean {
-  return getRealtimeBackend() === "agora";
-}
-
 export function isRealtimeReady(): boolean {
-  if (!isRealtimeEnabled()) return false;
-  const hasAgoraCore = !!process.env.AGORA_APP_ID && !!process.env.AGORA_APP_CERTIFICATE;
-  if (!hasAgoraCore) return false;
-  if (getRealtimeBackend() === "agora") return true;
-  return !!process.env.TEN_AGENT_URL;
+  return isRealtimeEnabled() && Boolean(env.GEMINI_API_KEY || env.GOOGLE_CLOUD_PROJECT);
 }
 
 export function getVoiceChatClientConfig() {
   const mode = getVoiceChatMode();
-  const realtimeBackend = getRealtimeBackend();
   return {
     mode,
     asyncEnabled: isAsyncEnabled(),
     realtimeEnabled: isRealtimeEnabled(),
     realtimeReady: isRealtimeReady(),
-    realtimeBackend,
-    agoraAppId: isRealtimeEnabled() ? process.env.AGORA_APP_ID ?? null : null,
   };
 }

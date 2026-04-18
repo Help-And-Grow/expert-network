@@ -11,6 +11,7 @@ import {
   Sparkles,
   MapPin,
   Monitor,
+  MessageSquareText,
   Loader2,
   FileDown,
   ArrowLeft,
@@ -26,6 +27,7 @@ import { UserMenu } from "@/components/user-menu";
 import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import { isTelegramMiniApp } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -122,14 +124,15 @@ export default function ExpertProfilePage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const introObjectUrlRef = useRef<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [introSrc, setIntroSrc] = useState<string | null>(null);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [showRealtimeChat, setShowRealtimeChat] = useState(false);
   const [vcConfig, setVcConfig] = useState<{
     asyncEnabled: boolean;
     realtimeEnabled: boolean;
     realtimeReady: boolean;
-    realtimeBackend?: "ten" | "agora";
   }>({ asyncEnabled: true, realtimeEnabled: false, realtimeReady: false });
   const reviewsRef = useRef<Review[]>([]);
   reviewsRef.current = reviews;
@@ -195,6 +198,53 @@ export default function ExpertProfilePage() {
       fetchReviews(false);
     }
   }, [expert?.id, fetchReviews]);
+
+  useEffect(() => {
+    const revoke = () => {
+      if (introObjectUrlRef.current) {
+        URL.revokeObjectURL(introObjectUrlRef.current);
+        introObjectUrlRef.current = null;
+      }
+    };
+
+    if (!expert?.hasAudio) {
+      revoke();
+      setIntroSrc(null);
+      return;
+    }
+
+    const directSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+    if (!isTelegramMiniApp()) {
+      revoke();
+      setIntroSrc(directSrc);
+      return;
+    }
+
+    let cancelled = false;
+    revoke();
+    setIntroSrc(null);
+
+    void (async () => {
+      try {
+        const res = await fetch(directSrc, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        const objectUrl = URL.createObjectURL(blob);
+        introObjectUrlRef.current = objectUrl;
+        setIntroSrc(objectUrl);
+      } catch {
+        if (!cancelled) {
+          setIntroSrc(directSrc);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      revoke();
+    };
+  }, [expert?.hasAudio, id]);
 
   const pausePublicIntroAudio = useCallback(() => {
     audioRef.current?.pause();
@@ -303,11 +353,13 @@ export default function ExpertProfilePage() {
         {expert.hasAudio && (
           <audio
             ref={audioRef}
-            src={`/api/experts/${id}/audio`}
-            preload="none"
+            src={introSrc ?? undefined}
+            preload="metadata"
+            playsInline
             onPlay={() => setIsAudioPlaying(true)}
             onPause={() => setIsAudioPlaying(false)}
             onEnded={() => setIsAudioPlaying(false)}
+            onError={() => setIsAudioPlaying(false)}
           />
         )}
         <div className="relative">
@@ -330,13 +382,21 @@ export default function ExpertProfilePage() {
 
           {expert.hasAudio && (
             <button
-              onClick={() => {
+              onClick={async () => {
                 const audio = audioRef.current;
                 if (!audio) return;
                 if (isAudioPlaying) {
                   audio.pause();
                 } else {
-                  audio.play();
+                  resumeSharedAudioContext();
+                  try {
+                    await audio.play();
+                  } catch {
+                    const fallbackSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+                    audio.src = fallbackSrc;
+                    audio.load();
+                    await audio.play().catch(() => {});
+                  }
                 }
               }}
               className={`absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-lg transition-all ${
@@ -388,7 +448,6 @@ export default function ExpertProfilePage() {
           <div
             onClick={() => {
               pausePublicIntroAudio();
-              resumeSharedAudioContext();
               pushVoiceChatHistory();
               if (vcConfig.asyncEnabled) setShowVoiceChat(true);
               else setShowRealtimeChat(true);
@@ -419,16 +478,18 @@ export default function ExpertProfilePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground leading-tight">
-                  Talk to {name.split(" ")[0]}
+                  Chat with {name.split(" ")[0]}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
-                  {vcConfig.realtimeBackend === "agora"
-                    ? "Free live voice preview with replayable replies"
-                    : "Free voice preview with replayable replies"}
+                  {vcConfig.asyncEnabled && vcConfig.realtimeReady
+                    ? "Send a quick voice note or switch to realtime AI chat"
+                    : vcConfig.asyncEnabled
+                      ? "Free expert preview with voice notes and concise replies"
+                      : "Free realtime AI chat preview"}
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-1.5 text-indigo-300">
-                <Sparkles className="h-4 w-4 group-hover:animate-pulse" />
+                <MessageSquareText className="h-4 w-4 group-hover:animate-pulse" />
               </div>
             </div>
           </div>
@@ -443,11 +504,11 @@ export default function ExpertProfilePage() {
               }}
               className="mt-2 w-full text-center text-xs text-muted-foreground transition-colors hover:text-indigo-300"
             >
-              Or try a{" "}
+              Or switch to{" "}
               <span className="font-medium underline underline-offset-2">
-                live voice call
+                realtime AI chat
               </span>{" "}
-              (5 min free)
+              (3 min free)
             </button>
           )}
         </section>

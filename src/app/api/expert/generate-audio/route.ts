@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { getVoiceSynthesis } from "@/lib/integrations/config";
+import {
+  buildProfileAudioDataUrl,
+  getProfileIntroVoiceSynthesisProviders,
+} from "@/lib/profile-media";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
@@ -11,8 +14,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const voiceSynthesis = await getVoiceSynthesis();
-    if (!voiceSynthesis) {
+    const voiceSynthesisProviders = await getProfileIntroVoiceSynthesisProviders();
+    if (voiceSynthesisProviders.length === 0) {
       return NextResponse.json(
         { error: "Voice synthesis is not configured" },
         { status: 503 }
@@ -39,19 +42,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const voiceId = voiceSynthesis.getDefaultVoiceId?.(expert.gender) ?? undefined;
+    let dataUrl: string | null = null;
+    let lastError: unknown = null;
 
-    const result = await voiceSynthesis.synthesize({
-      text: script,
-      voiceId,
-      format: "mp3",
-      speed: 1.0,
-    });
+    for (const voiceSynthesis of voiceSynthesisProviders) {
+      const voiceId = voiceSynthesis.getDefaultVoiceId?.(expert.gender) ?? undefined;
+      try {
+        const result = await voiceSynthesis.synthesize({
+          text: script,
+          voiceId,
+          format: "mp3",
+          speed: 1.0,
+        });
+        dataUrl = buildProfileAudioDataUrl(result);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
 
-    const format = (result.format || "wav").toLowerCase();
-    const mime =
-      format === "mp3" || format === "mpeg" ? "audio/mpeg" : `audio/${format}`;
-    const dataUrl = `data:${mime};base64,${result.audioBase64}`;
+    if (!dataUrl) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Voice synthesis returned no playable audio.");
+    }
 
     await prisma.expert.update({
       where: { id: expert.id },

@@ -12,8 +12,8 @@
 ## Upcoming Work
 
 - [x] **Next.js 15 upgrade** — [completed plan](exec-plans/completed/nextjs-15-upgrade.md) (run manual QA on preview before prod)
-- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 10-turn) + realtime voice. DashScope Qwen ASR/LLM/TTS-VC pipeline; Web, Telegram, WeChat
-- [ ] **AI Voice Chat — Realtime deployment** — Run realtime with `REALTIME_BACKEND=agora` for the web demo or `REALTIME_BACKEND=ten` when the TEN agent is deployed; configure `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, and optional `TEN_AGENT_URL`
+- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 10-turn) + realtime AI chat; Web, Telegram, WeChat
+- [ ] **AI Voice Chat — Realtime deployment** — Realtime chat now runs directly from the app with Gemini; verify the timed chat UX on web and Telegram when `VOICE_CHAT_MODE` includes `realtime`
 - [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
 - [ ] Expert earnings dashboard (view payouts, transaction history)
 - [ ] Group sessions / workshop meetup support
@@ -50,6 +50,6 @@
 | 2026-03 | Use Qwen as primary AI in production | Better Chinese language support for SEA market |
 | 2026-03 | Remove WhatsApp integration | Low adoption, maintenance burden |
 | 2026-03 | Stripe Express Connect for experts | Simplest marketplace payout model |
-| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async, realtime, or both; `REALTIME_BACKEND`: Agora-only demo path or TEN-backed realtime path |
+| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async, realtime, or both; realtime is a timed Gemini-backed AI chat |
 
 See [docs/exec-plans/](exec-plans/) for detailed execution plans.

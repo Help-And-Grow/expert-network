@@ -149,7 +149,6 @@ const envSchema = z
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
     VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
-    REALTIME_BACKEND: z.enum(["ten", "agora"]).default("ten"),
     /** Override default Qwen built-in voice (e.g. Cherry) when expert has no voice clone. */
     VOICE_CHAT_DEFAULT_VOICE: z.string().min(1).optional(),
     /** Local dev only: enables one-click "Dev login" on /auth/signin (`next dev` only). */
@@ -160,9 +159,6 @@ const envSchema = z
     E2E_AUTH_EMAIL: z.string().email().optional(),
     E2E_AUTH_ROLE: z.enum(["EXPERT", "FOUNDER", "ADMIN"]).optional(),
     E2E_AUTH_TOKEN: z.string().min(24).optional(),
-    AGORA_APP_ID: z.string().optional(),
-    AGORA_APP_CERTIFICATE: z.string().optional(),
-    TEN_AGENT_URL: z.string().url().optional(),
 
     VERCEL_MANAGEMENT_TOKEN: z.string().optional(),
     VERCEL_MANAGED_TEAM_ID: z.string().optional(),

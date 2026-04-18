@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { generateProfileImage } from "@/lib/ai";
 import { domainStrings } from "@/lib/domains";
+import { generateProfileImageResilient } from "@/lib/profile-media";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const nickName = expert.user.nickName ?? expert.user.name ?? "Expert";
 
-    const profileImage = await generateProfileImage({
+    const profileImage = await generateProfileImageResilient({
       nickName,
       domains: domainStrings(expert.domains),
       bio: expert.bio ?? "",

@@ -1,19 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
-import { getRealtimeBackend, isRealtimeEnabled } from "@/lib/voice-chat-config";
-import {
-  getRealtimeSession,
-  removeRealtimeSession,
-  stopTenAgent,
-} from "@/lib/voice-chat-session";
+import { isRealtimeEnabled } from "@/lib/voice-chat-config";
+import { getRealtimeSession, removeRealtimeSession } from "@/lib/voice-chat-session";
 
 export async function POST(request: NextRequest) {
-  const realtimeBackend = getRealtimeBackend();
-
   if (!isRealtimeEnabled()) {
     return NextResponse.json(
-      { error: "Real-time voice chat is not enabled" },
+      { error: "Real-time AI chat is not enabled" },
       { status: 503 },
     );
   }
@@ -23,19 +17,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { channelName?: string };
+  let body: { sessionId?: string; channelName?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { channelName } = body;
-  if (!channelName) {
-    return NextResponse.json({ error: "channelName is required" }, { status: 400 });
+  const sessionId = body.sessionId ?? body.channelName;
+  if (!sessionId) {
+    return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
   }
 
-  const session = getRealtimeSession(channelName);
+  const session = getRealtimeSession(sessionId);
   if (!session) {
     return NextResponse.json({ error: "No active session found" }, { status: 404 });
   }
@@ -44,16 +38,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not your session" }, { status: 403 });
   }
 
-  removeRealtimeSession(channelName);
-  if (realtimeBackend === "ten") {
-    await stopTenAgent(channelName).catch(() => {});
-  }
+  removeRealtimeSession(sessionId);
 
   const durationMs = Date.now() - session.startedAt;
 
   return NextResponse.json({
     ok: true,
-    channelName,
+    sessionId,
     durationMs,
     durationSeconds: Math.round(durationMs / 1000),
   });
