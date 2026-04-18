@@ -22,7 +22,7 @@ export const maxDuration = 30;
 export async function POST(request: NextRequest) {
   const userId = await resolveUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to chat with experts." }, { status: 401 });
   }
 
   const contentType = request.headers.get("content-type") ?? "";
