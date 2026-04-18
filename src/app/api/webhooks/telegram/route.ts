@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
     // Show "typing" indicator
     await sendChatAction(botToken, chatId, "typing");
 
-    const result = await chat(query);
+    const result = await chat(query, [], "telegram");
 
     if (result.experts.length > 0) {
       const lines = result.experts.map(

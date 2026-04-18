@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   if (!isRealtimeReady()) {
     return NextResponse.json(
-      { error: "Real-time AI chat requires GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT." },
+      { error: "Real-time AI chat requires DASHSCOPE_API_KEY." },
       { status: 503 },
     );
   }
