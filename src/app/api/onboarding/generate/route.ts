@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { generateExpertProfile, generateProfileImage } from "@/lib/ai";
+import { generateExpertProfile } from "@/lib/ai";
 import { domainStrings } from "@/lib/domains";
+import { generateProfileImageResilient } from "@/lib/profile-media";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
@@ -45,7 +46,15 @@ export async function POST(request: NextRequest) {
     // Run text generation and image generation in parallel
     const [generated, profileImage] = await Promise.all([
       generateExpertProfile(profileInput),
-      generateProfileImage({ nickName, domains, bio: domains.join(", "), gender: expert.gender ?? undefined }),
+      generateProfileImageResilient({
+        nickName,
+        domains,
+        bio: domains.join(", "),
+        gender: expert.gender ?? undefined,
+      }).catch((error) => {
+        console.error("[onboarding/generate POST] profile image generation failed", error);
+        return null;
+      }),
     ]);
 
     await prisma.expert.update({

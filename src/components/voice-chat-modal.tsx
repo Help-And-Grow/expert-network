@@ -1,19 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Loader2, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
+import { Clock3, Loader2, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { resumeSharedAudioContext } from "@/lib/audio-unlock";
-import {
-  getPreferredGeminiRecordingMimeType,
-  normalizeRecordedAudioForGemini,
-} from "@/lib/browser-audio";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-type IAgoraRTCClient = import("agora-rtc-sdk-ng").IAgoraRTCClient;
-type IMicrophoneAudioTrack = import("agora-rtc-sdk-ng").IMicrophoneAudioTrack;
 
 interface VoiceChatModalProps {
   expertId: string;
@@ -21,13 +14,12 @@ interface VoiceChatModalProps {
   onClose: () => void;
 }
 
-type CallState = "connecting" | "connected" | "ending" | "ended" | "error";
-type RealtimeBackend = "ten" | "agora";
+type SessionState = "connecting" | "connected" | "ending" | "ended" | "error";
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  audioSrc?: string;
 };
 
 function formatTimer(seconds: number): string {
@@ -41,92 +33,68 @@ export function VoiceChatModal({
   expertName,
   onClose,
 }: VoiceChatModalProps) {
-  const [callState, setCallState] = useState<CallState>("connecting");
+  const [sessionState, setSessionState] = useState<SessionState>("connecting");
   const [error, setError] = useState<string | null>(null);
-  const [muted, setMuted] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [maxDuration, setMaxDuration] = useState(300);
-  const [backend, setBackend] = useState<RealtimeBackend>("ten");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [recording, setRecording] = useState(false);
-  const [processingTurn, setProcessingTurn] = useState(false);
-  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [maxDuration, setMaxDuration] = useState(180);
+  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 5 });
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const clientRef = useRef<IAgoraRTCClient | null>(null);
-  const trackRef = useRef<IMicrophoneAudioTrack | null>(null);
-  const channelRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
-  const endingRef = useRef(false);
-  const endCallRef = useRef<() => Promise<void>>(async () => {});
+  const stopSessionRef = useRef<() => Promise<void>>(async () => {});
 
-  const nextMessageId = useCallback(() => `rt-msg-${++msgIdRef.current}`, []);
+  const nextMessageId = useCallback(() => `rt-chat-${++msgIdRef.current}`, []);
 
-  const cleanup = useCallback(async () => {
-    if (recorderRef.current) {
-      recorderRef.current.ondataavailable = null;
-      recorderRef.current.onstop = null;
-      if (recorderRef.current.state !== "inactive") {
-        recorderRef.current.stop();
-      }
-      recorderRef.current = null;
-    }
+  const starterPrompts = useMemo(
+    () => [
+      `What should I ask you about first?`,
+      `Give me a sharp take on my current situation.`,
+      `What is the biggest mistake people make here?`,
+    ],
+    [],
+  );
 
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const stopSession = useCallback(async () => {
+    if (!sessionId) return;
+    const activeSessionId = sessionId;
+    setSessionId(null);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    await fetch("/api/voice-chat/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: activeSessionId }),
+    }).catch(() => {});
+  }, [sessionId]);
 
-    if (audioRef.current) {
-      audioRef.current.onended = null;
-      audioRef.current.onpause = null;
-      audioRef.current.onerror = null;
-      audioRef.current.pause();
-      audioRef.current.removeAttribute("src");
-      audioRef.current.load();
-      audioRef.current = null;
-    }
+  useEffect(() => {
+    stopSessionRef.current = stopSession;
+  }, [stopSession]);
 
-    if (trackRef.current) {
-      trackRef.current.close();
-      trackRef.current = null;
-    }
-
-    if (clientRef.current) {
-      await clientRef.current.leave().catch(() => {});
-      clientRef.current = null;
-    }
-  }, []);
-
-  const playAssistantAudio = useCallback((src: string, _msgId: string) => {
-    if (audioRef.current) {
-      audioRef.current.onended = null;
-      audioRef.current.onpause = null;
-      audioRef.current.onerror = null;
-      audioRef.current.pause();
-      audioRef.current.removeAttribute("src");
-      audioRef.current.load();
-    }
-
-    const audio = document.createElement("audio");
-    audio.setAttribute("playsinline", "true");
-    audio.setAttribute("webkit-playsinline", "true");
-    audio.preload = "auto";
-    audio.src = src;
-    audioRef.current = audio;
-
-    audio.onended = () => {};
-    audio.onpause = () => {};
-    audio.onerror = () => {};
-
-    void audio
-      .play()
-      .catch(() => {
-        // Keep the transcript bubble; do not interrupt the flow with autoplay prompts.
-      });
+  useEffect(() => {
+    return () => {
+      void stopSessionRef.current();
+    };
   }, []);
 
   const fetchGreeting = useCallback(async () => {
@@ -134,449 +102,289 @@ export function VoiceChatModal({
       const res = await fetch("/api/voice-chat/greeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expertId }),
+        body: JSON.stringify({ expertId, includeAudio: false }),
       });
-      const data = (await res.json()) as {
-        replyText?: string;
-        replyAudio?: string;
-      };
+      const data = (await res.json()) as { replyText?: string };
       if (!res.ok || !data.replyText) return;
 
-      const id = nextMessageId();
-      setMessages([{ id, role: "assistant", text: data.replyText, audioSrc: data.replyAudio }]);
-      if (data.replyAudio) {
-        playAssistantAudio(data.replyAudio, id);
-      }
+      setMessages([
+        {
+          id: nextMessageId(),
+          role: "assistant",
+          text: data.replyText,
+        },
+      ]);
     } catch {
-      // Greeting failure should not block the call UI.
+      // Greeting is non-blocking.
     }
-  }, [expertId, nextMessageId, playAssistantAudio]);
-
-  const endCall = useCallback(async () => {
-    if (endingRef.current) return;
-    endingRef.current = true;
-    setCallState("ending");
-
-    const channelName = channelRef.current;
-    await cleanup();
-
-    if (channelName) {
-      await fetch("/api/voice-chat/stop", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelName }),
-      }).catch(() => {});
-    }
-
-    setCallState("ended");
-  }, [cleanup]);
-
-  useEffect(() => {
-    endCallRef.current = endCall;
-  }, [endCall]);
+  }, [expertId, nextMessageId]);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function startCall() {
+    async function startSession() {
       try {
-        const startRes = await fetch("/api/voice-chat/start", {
+        const res = await fetch("/api/voice-chat/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ expertId }),
         });
-
-        const startData = (await startRes.json().catch(() => ({}))) as {
+        const data = (await res.json().catch(() => ({}))) as {
           error?: string;
-          channelName?: string;
-          token?: string;
-          uid?: number;
-          appId?: string;
+          sessionId?: string;
           maxDurationSeconds?: number;
-          backend?: RealtimeBackend;
         };
 
-        if (!startRes.ok) {
-          throw new Error(startData.error || `Server error ${startRes.status}`);
+        if (!res.ok || !data.sessionId) {
+          throw new Error(data.error || `Server error ${res.status}`);
         }
-        if (
-          !startData.channelName ||
-          !startData.token ||
-          !startData.appId ||
-          typeof startData.uid !== "number"
-        ) {
-          throw new Error("Voice session response was incomplete");
-        }
-
         if (cancelled) return;
 
-        const selectedBackend = startData.backend ?? "ten";
-        setBackend(selectedBackend);
-        channelRef.current = startData.channelName;
-        if (startData.maxDurationSeconds) {
-          setMaxDuration(startData.maxDurationSeconds);
-        }
+        setSessionId(data.sessionId);
+        setSessionState("connected");
+        setMaxDuration(data.maxDurationSeconds ?? 180);
 
-        const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
-        if (cancelled) return;
-
-        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-        clientRef.current = client;
-
-        await client.join(
-          startData.appId,
-          startData.channelName,
-          startData.token,
-          startData.uid,
-        );
-        if (cancelled) return;
-
-        const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        trackRef.current = micTrack;
-        if (cancelled) return;
-
-        client.on("user-published", async (user, mediaType) => {
-          await client.subscribe(user, mediaType);
-          if (mediaType === "audio") {
-            user.audioTrack?.play();
-          }
-        });
-
-        if (selectedBackend === "ten") {
-          await client.publish([micTrack]);
-          if (cancelled) return;
-        } else {
-          setMessages([]);
-          void fetchGreeting();
-        }
-
-        setCallState("connected");
-
-        const startTime = Date.now();
+        const startedAt = Date.now();
         timerRef.current = setInterval(() => {
-          const secs = Math.floor((Date.now() - startTime) / 1000);
+          const secs = Math.floor((Date.now() - startedAt) / 1000);
           setElapsed(secs);
-          if (secs >= (startData.maxDurationSeconds || 300)) {
-            void endCallRef.current();
+          if (secs >= (data.maxDurationSeconds ?? 180)) {
+            void (async () => {
+              setSessionState("ending");
+              await stopSessionRef.current();
+              if (!cancelled) {
+                setSessionState("ended");
+              }
+            })();
           }
         }, 1000);
+
+        void fetchGreeting();
       } catch (err) {
         if (cancelled) return;
-        const msg = err instanceof Error ? err.message : "Connection failed";
-        console.error("[voice-chat] Start failed:", msg);
-        setError(msg);
-        setCallState("error");
+        const message = err instanceof Error ? err.message : "Could not start AI chat.";
+        setError(message);
+        setSessionState("error");
       }
     }
 
-    void startCall();
+    void startSession();
 
     return () => {
       cancelled = true;
-      void cleanup();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [cleanup, expertId, fetchGreeting]);
+  }, [expertId, fetchGreeting]);
 
-  const toggleMute = useCallback(() => {
-    if (!trackRef.current) return;
-    const newMuted = !muted;
-    void trackRef.current.setEnabled(!newMuted);
-    setMuted(newMuted);
-  }, [muted]);
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || sending || sessionState !== "connected") return;
 
-  const sendRecordedTurn = useCallback(
-    async (blob: Blob) => {
-      const userMsgId = nextMessageId();
-      setProcessingTurn(true);
+      setSending(true);
       setError(null);
+      setInput("");
+
+      const userId = nextMessageId();
+      setMessages((prev) => [...prev, { id: userId, role: "user", text: trimmed }]);
 
       try {
-        const preparedAudio = await normalizeRecordedAudioForGemini(blob);
-        const form = new FormData();
-        form.set("expertId", expertId);
-        const extension = preparedAudio.type.includes("ogg")
-          ? "ogg"
-          : preparedAudio.type.includes("mp3") || preparedAudio.type.includes("mpeg")
-            ? "mp3"
-            : "wav";
-        form.set("audio", preparedAudio, `voice-turn.${extension}`);
-
         const res = await fetch("/api/voice-chat/message", {
           method: "POST",
-          body: form,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expertId,
+            text: trimmed,
+            includeAudio: false,
+          }),
         });
         const data = (await res.json()) as {
           error?: string;
-          userText?: string;
           replyText?: string;
-          replyAudio?: string;
           turnCount?: number;
           maxTurns?: number;
         };
-
-        if (!res.ok) {
+        if (!res.ok || !data.replyText) {
           throw new Error(data.error || `Server error ${res.status}`);
         }
 
-        const assistantMsgId = nextMessageId();
         setMessages((prev) => [
           ...prev,
-          { id: userMsgId, role: "user", text: data.userText || "Voice message" },
-          {
-            id: assistantMsgId,
-            role: "assistant",
-            text: data.replyText || "",
-            audioSrc: data.replyAudio,
-          },
+          { id: nextMessageId(), role: "assistant", text: data.replyText ?? "" },
         ]);
         if (typeof data.turnCount === "number" && typeof data.maxTurns === "number") {
           setTurnInfo({ count: data.turnCount, max: data.maxTurns });
         }
-        if (data.replyAudio) {
-          playAssistantAudio(data.replyAudio, assistantMsgId);
-        }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Could not process voice turn";
-        console.error("[voice-chat] Agora turn failed:", msg);
-        setError(msg);
+        const message = err instanceof Error ? err.message : "Could not send message.";
+        setError(message);
       } finally {
-        setProcessingTurn(false);
+        setSending(false);
       }
     },
-    [expertId, nextMessageId, playAssistantAudio],
+    [expertId, nextMessageId, sending, sessionState],
   );
 
-  const toggleRecording = useCallback(() => {
-    if (backend !== "agora" || !trackRef.current) return;
-    if (typeof MediaRecorder === "undefined") {
-      setError("This browser does not support in-call voice capture.");
-      return;
+  const handleClose = useCallback(async () => {
+    if (sessionState === "connected" || sessionState === "connecting") {
+      setSessionState("ending");
+      await stopSession();
     }
-    if (muted) {
-      setError("Unmute the microphone before speaking.");
-      return;
-    }
-    if (processingTurn) return;
-
-    if (recording) {
-      recorderRef.current?.stop();
-      return;
-    }
-
-    const streamTrack = trackRef.current.getMediaStreamTrack();
-    const mimeType = getPreferredGeminiRecordingMimeType();
-
-    const recorder = mimeType
-      ? new MediaRecorder(new MediaStream([streamTrack]), { mimeType })
-      : new MediaRecorder(new MediaStream([streamTrack]));
-
-    chunksRef.current = [];
-    recorderRef.current = recorder;
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunksRef.current.push(event.data);
-      }
-    };
-    recorder.onstop = () => {
-      setRecording(false);
-      const blob = new Blob(chunksRef.current, {
-        type: recorder.mimeType || "audio/webm",
-      });
-      chunksRef.current = [];
-      recorderRef.current = null;
-      if (blob.size > 0) {
-        void sendRecordedTurn(blob);
-      }
-    };
-
-    recorder.start();
-    setRecording(true);
-    setError(null);
-  }, [backend, muted, processingTurn, recording, sendRecordedTurn]);
-
-  const onModalPointerDownCapture = useCallback(
-    (event: React.PointerEvent) => {
-      if ((event.target as HTMLElement).closest("button, a")) return;
-      resumeSharedAudioContext();
-    },
-    [],
-  );
+    onClose();
+  }, [onClose, sessionState, stopSession]);
 
   const remaining = Math.max(0, maxDuration - elapsed);
   const isLowTime = remaining <= 30;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onPointerDownCapture={onModalPointerDownCapture}
-    >
-      <div className="surface-card mx-4 w-full max-w-md overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 text-center text-white">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
-            <Phone className="h-7 w-7" />
-          </div>
-          <h3 className="text-lg font-semibold">
-            {callState === "connecting"
-              ? "Connecting..."
-              : callState === "error"
-                  ? "Connection Failed"
-                  : callState === "ended" || callState === "ending"
-                    ? "Call Ended"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="surface-card mx-4 flex w-full max-w-md flex-col overflow-hidden">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 text-white">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center gap-2 text-white/90">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-xs font-medium uppercase tracking-[0.2em]">
+                  Realtime AI Chat
+                </span>
+              </div>
+              <h3 className="truncate text-lg font-semibold">
+                {sessionState === "connecting"
+                  ? `Opening chat with ${expertName}`
                   : expertName}
-          </h3>
-          <p className="mt-1 text-sm text-white/80">
-            {callState === "connected"
-              ? backend === "agora"
-                ? "Live Voice · Free Preview"
-                : "Live Voice · Free Preview"
-              : callState === "connecting"
-                ? "Connecting voice session..."
-                : callState === "error"
-                  ? error
-                  : "Thank you for chatting"}
-          </p>
+              </h3>
+              <p className="mt-1 text-sm text-white/80">
+                {sessionState === "connected"
+                  ? "Free preview with fast expert-style replies"
+                  : sessionState === "error"
+                    ? error
+                    : sessionState === "ended"
+                      ? "This preview has ended."
+                      : "Preparing your session..."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleClose()}
+              className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Close realtime chat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        {callState === "connected" && (
-          <div className="px-6 py-4 text-center">
-            <div
-              className={cn(
-                "text-3xl font-mono font-bold tabular-nums",
-                isLowTime ? "text-red-500" : "text-foreground",
-              )}
-            >
-              {formatTimer(remaining)}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">remaining</p>
-
-            <div className="mt-4 flex items-center justify-center gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "w-1 rounded-full bg-indigo-500 transition-all",
-                    muted || processingTurn ? "h-1" : "animate-pulse",
-                  )}
-                  style={{
-                    height: muted || processingTurn ? 4 : `${12 + Math.random() * 20}px`,
-                    animationDelay: `${i * 150}ms`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {backend === "agora" && callState === "connected" && (
-          <div className="border-t border-border/80 bg-card/70 px-4 py-4">
-            <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                Turns {turnInfo.count}/{turnInfo.max}
-              </span>
-              <span>{recording ? "Listening..." : processingTurn ? "Thinking..." : "Tap to speak"}</span>
-            </div>
-
-            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "rounded-2xl px-3 py-2 text-sm shadow-sm",
-                    message.role === "assistant"
-                      ? "border border-border/80 bg-background/80 text-foreground"
-                      : "bg-indigo-600 text-white",
-                  )}
-                >
-                  <p>{message.text}</p>
-                </div>
-              ))}
-              {messages.length === 0 && (
-                <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3 text-sm text-muted-foreground shadow-sm">
-                  The expert avatar will greet you here and reply with voice plus transcript.
-                </div>
-              )}
-            </div>
-
-            {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-          </div>
-        )}
-
-        {callState === "connecting" && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-          </div>
-        )}
-
-        <div className="flex items-center justify-center gap-4 px-6 pb-6">
-          {callState === "connected" && (
-            <>
-              <Button
-                variant="outline"
-                size="icon"
+        <div className="border-b border-border/70 bg-card/70 px-5 py-3">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock3 className="h-4 w-4" />
+              <span
                 className={cn(
-                  "h-14 w-14 rounded-full",
-                  muted && "border-red-300 bg-red-100 text-red-600",
+                  "font-mono tabular-nums",
+                  isLowTime && sessionState === "connected" && "text-red-500",
                 )}
-                onClick={toggleMute}
               >
-                {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </Button>
-
-              {backend === "agora" && (
-                <Button
-                  variant={recording ? "default" : "outline"}
-                  className={cn(
-                    "h-14 rounded-full px-5",
-                    recording && "bg-indigo-600 hover:bg-indigo-600/90",
-                  )}
-                  onClick={toggleRecording}
-                  disabled={processingTurn}
-                >
-                  {processingTurn ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : recording ? (
-                    "Stop & send"
-                  ) : (
-                    "Speak"
-                  )}
-                </Button>
-              )}
-
-              <Button
-                variant="destructive"
-                size="icon"
-                className="h-14 w-14 rounded-full"
-                onClick={() => void endCall()}
-              >
-                <PhoneOff className="h-5 w-5" />
-              </Button>
-            </>
-          )}
-
-          {(callState === "ended" || callState === "ending") && (
-            <Button onClick={onClose} className="w-full">
-              Close
-            </Button>
-          )}
-
-          {callState === "error" && (
-            <Button variant="outline" onClick={onClose} className="w-full">
-              Close
-            </Button>
-          )}
-
-          {callState === "connecting" && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                void cleanup();
-                onClose();
-              }}
-            >
-              Cancel
-            </Button>
-          )}
+                {formatTimer(remaining)}
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Turns {turnInfo.count}/{turnInfo.max}
+            </span>
+          </div>
         </div>
+
+        <div
+          ref={scrollRef}
+          className="max-h-[420px] min-h-[260px] space-y-3 overflow-y-auto px-5 py-4"
+        >
+          {messages.length === 0 && sessionState === "connecting" && (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-7 w-7 animate-spin text-indigo-500" />
+            </div>
+          )}
+
+          {messages.length === 0 && sessionState === "connected" && (
+            <div className="space-y-2">
+              {starterPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => void sendMessage(prompt)}
+                  className="w-full rounded-2xl border border-border/80 bg-background px-4 py-3 text-left text-sm text-foreground transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/5"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                "max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-sm",
+                message.role === "assistant"
+                  ? "mr-auto border border-border/80 bg-background text-foreground"
+                  : "ml-auto bg-indigo-600 text-white",
+              )}
+            >
+              <p className="whitespace-pre-wrap">{message.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {error && sessionState === "connected" && (
+          <div className="px-5 pb-2">
+            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {sessionState === "connected" ? (
+          <div className="border-t border-border/70 bg-card/50 px-5 py-4">
+            <div className="flex items-end gap-3">
+              <Textarea
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void sendMessage(input);
+                  }
+                }}
+                placeholder={`Ask ${expertName.split(/\s+/)[0] || expertName} anything...`}
+                className="min-h-[96px] resize-none"
+                disabled={sending}
+              />
+              <Button
+                size="icon"
+                className="h-12 w-12 shrink-0 rounded-full"
+                disabled={sending || !input.trim()}
+                onClick={() => void sendMessage(input)}
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="border-t border-border/70 px-5 py-4">
+            <Button
+              className="w-full"
+              onClick={() => void handleClose()}
+              variant={sessionState === "error" ? "outline" : "default"}
+            >
+              Close
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

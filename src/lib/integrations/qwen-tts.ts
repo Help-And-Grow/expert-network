@@ -93,9 +93,13 @@ export class QwenTTSProvider implements VoiceSynthesisProvider {
     }
 
     const arrayBuf = await audioRes.arrayBuffer();
-    const audioBase64 = Buffer.from(arrayBuf).toString("base64");
+    const buffer = Buffer.from(arrayBuf);
+    const audioBase64 = buffer.toString("base64");
+    const detectedMime =
+      normalizeFetchedAudioMime(audioRes.headers.get("content-type")) ||
+      detectAudioMime(buffer);
 
-    return { audioBase64, format: "wav" };
+    return { audioBase64, format: formatFromAudioMime(detectedMime) };
   }
 
   async cloneVoice(
@@ -155,4 +159,20 @@ function detectAudioMime(data: Buffer | Uint8Array): string | null {
   if (data[4] === 0x66 && data[5] === 0x74 && data[6] === 0x79 && data[7] === 0x70)
     return "audio/mp4";
   return null;
+}
+
+function normalizeFetchedAudioMime(contentType: string | null): string | null {
+  const normalized = contentType?.toLowerCase().split(";")[0]?.trim();
+  if (!normalized || !normalized.startsWith("audio/")) return null;
+  if (normalized === "audio/mp3") return "audio/mpeg";
+  return normalized;
+}
+
+function formatFromAudioMime(mimeType: string | null): string {
+  if (mimeType === "audio/mpeg") return "mp3";
+  if (mimeType === "audio/ogg") return "ogg";
+  if (mimeType === "audio/mp4") return "mp4";
+  if (mimeType === "audio/webm") return "webm";
+  if (mimeType === "audio/aac") return "aac";
+  return "wav";
 }

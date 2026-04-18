@@ -2,11 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
 import {
-  isAgoraRealtimeBackend,
   isAsyncEnabled,
   isRealtimeEnabled,
 } from "@/lib/voice-chat-config";
-import { getVoiceChatGreeting } from "@/lib/voice-chat-session";
+import {
+  getRealtimeChatGreeting,
+  getVoiceChatGreeting,
+} from "@/lib/voice-chat-session";
 
 export const maxDuration = 30;
 
@@ -16,12 +18,11 @@ export const maxDuration = 30;
  * Returns welcome text plus optional synthesized audio. Does not use a turn.
  */
 export async function POST(request: NextRequest) {
-  const canServeGreeting =
-    isAsyncEnabled() || (isRealtimeEnabled() && isAgoraRealtimeBackend());
+  const canServeGreeting = isAsyncEnabled() || isRealtimeEnabled();
 
   if (!canServeGreeting) {
     return NextResponse.json(
-      { error: "Voice preview is not enabled for the current voice-chat configuration." },
+      { error: "AI chat preview is not enabled for the current configuration." },
       { status: 503 },
     );
   }
@@ -31,29 +32,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { expertId?: string };
+  let body: { expertId?: string; includeAudio?: boolean };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { expertId } = body;
+  const { expertId, includeAudio = true } = body;
   if (!expertId) {
     return NextResponse.json({ error: "expertId is required" }, { status: 400 });
   }
 
   try {
-    const result = await getVoiceChatGreeting(userId, expertId);
+    const result = includeAudio
+      ? await getVoiceChatGreeting(userId, expertId)
+      : await getRealtimeChatGreeting(userId, expertId);
     if (!result) {
       return NextResponse.json({ error: "Expert not found" }, { status: 404 });
     }
 
+    const audioResult = includeAudio
+      ? (result as {
+          text: string;
+          replyAudioBase64?: string;
+          replyAudioFormat?: string;
+        })
+      : null;
+
     return NextResponse.json({
       replyText: result.text,
       replyAudio:
-        result.replyAudioBase64 && result.replyAudioFormat
-          ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+        audioResult?.replyAudioBase64 && audioResult.replyAudioFormat
+          ? `data:audio/${audioResult.replyAudioFormat};base64,${audioResult.replyAudioBase64}`
           : null,
     });
   } catch (err) {

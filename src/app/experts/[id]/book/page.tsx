@@ -143,6 +143,8 @@ export default function BookSessionPage() {
   } | null>(null);
   const [payNowPayerReference, setPayNowPayerReference] = useState("");
   const [payNowSubmitting, setPayNowSubmitting] = useState(false);
+  const telegramInitData = getTelegramInitData();
+  const isTelegramSurface = isTelegram || Boolean(telegramInitData);
 
   const timezone =
     typeof Intl !== "undefined"
@@ -302,12 +304,11 @@ export default function BookSessionPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const tgHeaders = getTelegramInitData();
       const res = await fetch("/api/bookings/paynow", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
         },
         body: JSON.stringify(bookingPayload()),
       });
@@ -333,12 +334,11 @@ export default function BookSessionPage() {
     setPayNowSubmitting(true);
     setError(null);
     try {
-      const tgHeaders = getTelegramInitData();
       const res = await fetch(`/api/bookings/${payNowPending.bookingId}/paynow-submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
         },
         body: JSON.stringify({
           payerReference: payNowPayerReference.trim() || undefined,
@@ -359,12 +359,11 @@ export default function BookSessionPage() {
   const handlePayNowCancel = async () => {
     if (!payNowPending) return;
     try {
-      const tgHeaders = getTelegramInitData();
       await fetch(`/api/bookings/${payNowPending.bookingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
         },
         body: JSON.stringify({ action: "cancel", reason: "PayNow flow cancelled by founder" }),
       });
@@ -387,7 +386,6 @@ export default function BookSessionPage() {
         return;
       }
 
-      const telegramInitData = getTelegramInitData();
       const res = await fetch("/api/bookings/ton-payment", {
         method: "POST",
         headers: {
@@ -448,7 +446,6 @@ export default function BookSessionPage() {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       if (msg.includes("declined") || msg.includes("cancel")) {
         if (createdBookingId) {
-          const telegramInitData = getTelegramInitData();
           fetch(`/api/bookings/${createdBookingId}`, {
             method: "PATCH",
             headers: {
@@ -471,7 +468,6 @@ export default function BookSessionPage() {
   const handleTonCancel = async () => {
     if (!tonPending) return;
     try {
-      const telegramInitData = getTelegramInitData();
       await fetch(`/api/bookings/${tonPending.bookingId}`, {
         method: "PATCH",
         headers: {
@@ -490,12 +486,11 @@ export default function BookSessionPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const tgHeaders = getTelegramInitData();
       const res = await fetch("/api/bookings/free", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
         },
         body: JSON.stringify(bookingPayload()),
       });
@@ -519,7 +514,7 @@ export default function BookSessionPage() {
       handleFreeBooking();
       return;
     }
-    if (!isTelegram) {
+    if (!isTelegramSurface) {
       handlePayNowCheckout();
     }
   };
@@ -817,7 +812,7 @@ export default function BookSessionPage() {
               Cancel
             </Button>
           </div>
-        ) : isTelegram && totalCents > 0 && !submitting ? (
+        ) : isTelegramSurface && totalCents > 0 && !submitting ? (
           <div className="space-y-2">
             <Button
               size="lg"
@@ -860,7 +855,7 @@ export default function BookSessionPage() {
                 "Confirm meetup"
               )}
             </Button>
-            {!isTelegram && totalCents > 0 && (
+            {!isTelegramSurface && totalCents > 0 && (
               <div className="space-y-1">
                 <Button
                   variant="outline"

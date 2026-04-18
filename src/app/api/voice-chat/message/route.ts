@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveUserId } from "@/lib/request-auth";
 import {
-  isAgoraRealtimeBackend,
   isAsyncEnabled,
   isRealtimeEnabled,
 } from "@/lib/voice-chat-config";
@@ -18,22 +17,9 @@ export const maxDuration = 30;
  * POST /api/voice-chat/message
  *
  * Accepts voice or text, returns AI reply as text + optional audio.
- * Used by async voice chat and the Agora-backed realtime mode.
+ * Used by async voice chat and realtime AI chat.
  */
 export async function POST(request: NextRequest) {
-  const canServeVoiceTurns =
-    isAsyncEnabled() || (isRealtimeEnabled() && isAgoraRealtimeBackend());
-
-  if (!canServeVoiceTurns) {
-    return NextResponse.json(
-      {
-        error:
-          "Voice turns are not enabled. Use VOICE_CHAT_MODE=async or both, or set REALTIME_BACKEND=agora for realtime-generated replies.",
-      },
-      { status: 503 },
-    );
-  }
-
   const userId = await resolveUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,7 +29,19 @@ export async function POST(request: NextRequest) {
 
   try {
     if (contentType.includes("multipart/form-data")) {
+      if (!isAsyncEnabled()) {
+        return NextResponse.json(
+          { error: "Voice messages are not enabled for the current configuration." },
+          { status: 503 },
+        );
+      }
       return await handleVoiceMessage(request, userId);
+    }
+    if (!isAsyncEnabled() && !isRealtimeEnabled()) {
+      return NextResponse.json(
+        { error: "AI chat is not enabled for the current configuration." },
+        { status: 503 },
+      );
     }
     return await handleTextMessage(request, userId);
   } catch (err) {
@@ -95,6 +93,7 @@ async function handleTextMessage(request: NextRequest, userId: string) {
   let body: {
     expertId?: string;
     text?: string;
+    includeAudio?: boolean;
     audioClips?: Array<{ audioBase64?: string; mimeType?: string }>;
   };
   try {
@@ -103,11 +102,17 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { expertId, text, audioClips } = body;
+  const { expertId, text, audioClips, includeAudio = true } = body;
   if (!expertId) {
     return NextResponse.json({ error: "expertId is required" }, { status: 400 });
   }
   if (Array.isArray(audioClips) && audioClips.length > 0) {
+    if (!isAsyncEnabled()) {
+      return NextResponse.json(
+        { error: "Voice drafts are not enabled for the current configuration." },
+        { status: 503 },
+      );
+    }
     const normalized = audioClips
       .map((clip) => ({
         audioBase64: clip.audioBase64?.trim() ?? "",
@@ -138,7 +143,9 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
 
-  const result = await processTextMessage(userId, expertId, text.trim());
+  const result = await processTextMessage(userId, expertId, text.trim(), {
+    synthesizeAudio: includeAudio,
+  });
 
   return NextResponse.json({
     userText: result.userText,

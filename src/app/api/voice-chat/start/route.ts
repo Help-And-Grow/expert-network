@@ -2,42 +2,28 @@ import { type NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 
 import { resolveUserId } from "@/lib/request-auth";
-import {
-  getRealtimeBackend,
-  isRealtimeEnabled,
-  isRealtimeReady,
-} from "@/lib/voice-chat-config";
-import { generateRtcToken } from "@/lib/agora-token";
+import { isRealtimeEnabled, isRealtimeReady } from "@/lib/voice-chat-config";
 import {
   hasRealtimeSession,
   registerRealtimeSession,
   removeRealtimeSession,
   loadExpertVoiceChatProfile,
-  startTenAgent,
-  stopTenAgent,
   RT_MAX_DURATION_SECONDS,
 } from "@/lib/voice-chat-session";
 
 export const maxDuration = 15;
 
 export async function POST(request: NextRequest) {
-  const realtimeBackend = getRealtimeBackend();
-
   if (!isRealtimeEnabled()) {
     return NextResponse.json(
-      { error: "Real-time voice chat is not enabled. Set VOICE_CHAT_MODE=realtime or both." },
+      { error: "Real-time AI chat is not enabled. Set VOICE_CHAT_MODE=realtime or both." },
       { status: 503 },
     );
   }
 
   if (!isRealtimeReady()) {
     return NextResponse.json(
-      {
-        error:
-          realtimeBackend === "agora"
-            ? "Real-time voice chat is enabled but not yet configured. AGORA_APP_ID and AGORA_APP_CERTIFICATE are required for the Agora backend."
-            : "Real-time voice chat is enabled but not yet configured. AGORA_APP_ID, AGORA_APP_CERTIFICATE, and TEN_AGENT_URL are required for the TEN backend.",
-      },
+      { error: "Real-time AI chat requires GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT." },
       { status: 503 },
     );
   }
@@ -46,8 +32,6 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const appId = process.env.AGORA_APP_ID!;
 
   let body: { expertId?: string };
   try {
@@ -79,44 +63,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const channelName = `vc-${expertId}-${nanoid(8)}`;
-  const userUid = Math.floor(Math.random() * 100000) + 1;
-  const agentUid = userUid + 100000;
-
-  let token: string;
-  try {
-    token = generateRtcToken(channelName, userUid);
-  } catch (err) {
-    console.error("[voice-chat/start] Token generation failed:", err);
-    return NextResponse.json(
-      { error: "Failed to generate voice channel token" },
-      { status: 500 },
-    );
-  }
+  const sessionId = `rt-${expertId}-${nanoid(8)}`;
 
   const onTimeout = async (ch: string) => {
     console.log(`[voice-chat] Realtime session timed out: ${ch}`);
     removeRealtimeSession(ch);
-    if (realtimeBackend === "ten") {
-      await stopTenAgent(ch);
-    }
   };
 
-  registerRealtimeSession(channelName, expertId, userId, onTimeout);
-
-  if (realtimeBackend === "ten") {
-    const agentResult = await startTenAgent(channelName, agentUid, profile);
-    if (!agentResult.ok) {
-      console.warn("[voice-chat/start] TEN agent failed:", agentResult.error);
-    }
-  }
+  registerRealtimeSession(sessionId, expertId, userId, onTimeout);
 
   return NextResponse.json({
-    channelName,
-    token,
-    uid: userUid,
-    appId,
-    backend: realtimeBackend,
+    sessionId,
     maxDurationSeconds: RT_MAX_DURATION_SECONDS,
     expertName: profile.name,
     expertDomains: profile.domains,

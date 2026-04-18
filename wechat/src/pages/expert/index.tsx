@@ -330,7 +330,7 @@ export default function ExpertPage() {
 
           <View className="expert-profile__realtime-card expert-profile__realtime-card--disabled">
             <Text className="expert-profile__realtime-badge">订阅功能</Text>
-            <Text className="expert-profile__realtime-title">实时语音通话</Text>
+            <Text className="expert-profile__realtime-title">实时 AI 对话</Text>
             <Text className="expert-profile__realtime-desc">
               订阅后可开启，每次最多 {realtimeMinutes} 分钟。当前 demo 仅展示入口，不开放体验。
             </Text>

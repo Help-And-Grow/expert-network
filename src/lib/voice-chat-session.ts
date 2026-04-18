@@ -404,6 +404,14 @@ export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): str
   return `你好，我是${firstName}。先用语音说说你的情况，我会先给你一个简洁的方向判断。`;
 }
 
+export function buildRealtimeChatGreetingText(profile: ExpertVoiceChatProfile): string {
+  const firstName = profile.name.split(/\s+/)[0] || profile.name;
+  if (profile.domains.length > 0) {
+    return `你好，我是${firstName}。直接告诉我你现在最想解决的问题，我会先给你一段简洁、明确的判断。`;
+  }
+  return `你好，我是${firstName}。直接说说你的情况，我会先给你一个清晰的方向判断。`;
+}
+
 /** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */
 export async function getVoiceChatGreeting(
   userId: string,
@@ -419,6 +427,16 @@ export async function getVoiceChatGreeting(
     replyAudioBase64: audio?.audioBase64,
     replyAudioFormat: audio?.format,
   };
+}
+
+export async function getRealtimeChatGreeting(
+  userId: string,
+  expertId: string,
+): Promise<{ text: string } | null> {
+  const profile = await loadExpertVoiceChatProfile(expertId);
+  if (!profile) return null;
+  ensureVoiceChatAllowed(userId, profile);
+  return { text: buildRealtimeChatGreetingText(profile) };
 }
 
 export interface VoiceChatResult {
@@ -471,6 +489,7 @@ export async function processTextMessage(
   userId: string,
   expertId: string,
   text: string,
+  options?: { synthesizeAudio?: boolean },
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) throw new Error("Expert not found");
@@ -483,10 +502,13 @@ export async function processTextMessage(
   }
 
   const replyText = await generateReply(conv, expertId, userId, text);
-  const audio = await synthesizeVoiceIfAvailable(
-    replyText,
-    conv.voiceModelId,
-  );
+  const audio =
+    options?.synthesizeAudio === false
+      ? null
+      : await synthesizeVoiceIfAvailable(
+          replyText,
+          conv.voiceModelId,
+        );
 
   return {
     userText: text,
@@ -592,56 +614,4 @@ export function removeRealtimeSession(channelName: string): RealtimeSession | un
   rtSessions.delete(channelName);
   rtUserSessions.delete(session.userId);
   return session;
-}
-
-export async function startTenAgent(
-  channelName: string,
-  uid: number,
-  profile: ExpertVoiceChatProfile,
-): Promise<{ ok: boolean; error?: string }> {
-  const tenUrl = process.env.TEN_AGENT_URL;
-  if (!tenUrl) {
-    return { ok: false, error: "TEN_AGENT_URL not configured" };
-  }
-
-  try {
-    const res = await fetch(`${tenUrl}/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        channel: channelName,
-        uid,
-        expertId: profile.id,
-        voiceModelId: profile.voiceModelId,
-        systemPrompt: buildSystemPrompt(profile),
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return { ok: false, error: `TEN agent responded ${res.status}: ${text.slice(0, 200)}` };
-    }
-    return { ok: true };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[voice-chat] Failed to start TEN agent:", msg);
-    return { ok: false, error: msg };
-  }
-}
-
-export async function stopTenAgent(channelName: string): Promise<void> {
-  const tenUrl = process.env.TEN_AGENT_URL;
-  if (!tenUrl) return;
-
-  try {
-    await fetch(`${tenUrl}/stop`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channel: channelName }),
-      signal: AbortSignal.timeout(5_000),
-    });
-  } catch (err) {
-    console.error("[voice-chat] Failed to stop TEN agent:", err);
-  }
 }
