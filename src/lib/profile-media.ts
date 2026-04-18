@@ -1,6 +1,10 @@
-import { generateProfileImage, type ImageInput } from "@/lib/ai";
+import { createAIProviderForName, type ImageInput } from "@/lib/ai";
 import { env } from "@/lib/env";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
+import {
+  isAlibabaCloudVendorDemoDeployment,
+  isByteplusVendorDemoDeployment,
+} from "@/lib/vendor-ai-stack-site";
 
 import type {
   VoiceSynthesisProvider,
@@ -11,6 +15,16 @@ const IMAGE_UNSUPPORTED_AI_PROVIDERS = new Set(["byteplus", "volcengine"]);
 
 function currentAiProvider(): string {
   return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
+}
+
+/**
+ * Vendor demo hosts should not inherit a mistaken `AI_PROVIDER=gemini` from another Vercel project.
+ * Profile images use this primary provider before Gemini fallback rules.
+ */
+function primaryProviderForProfileImage(): string {
+  if (isAlibabaCloudVendorDemoDeployment()) return "qwen";
+  if (isByteplusVendorDemoDeployment()) return "byteplus";
+  return currentAiProvider();
 }
 
 function isGeminiConfigured(): boolean {
@@ -27,7 +41,7 @@ async function generateProfileImageWithGemini(
 export async function generateProfileImageResilient(
   data: ImageInput,
 ): Promise<string | null> {
-  const aiProvider = currentAiProvider();
+  const aiProvider = primaryProviderForProfileImage();
   let lastError: unknown = null;
 
   if (isGeminiConfigured() && IMAGE_UNSUPPORTED_AI_PROVIDERS.has(aiProvider)) {
@@ -37,9 +51,11 @@ export async function generateProfileImageResilient(
   }
 
   try {
-    const image = await generateProfileImage(data);
+    const image = await createAIProviderForName(aiProvider).generateProfileImage(data);
     if (image) return image;
-    lastError = new Error(`AI_PROVIDER "${aiProvider}" returned no profile image.`);
+    lastError = new Error(
+      `Profile image provider "${aiProvider}" returned no image data.`,
+    );
   } catch (error) {
     lastError = error;
   }

@@ -87,12 +87,20 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     revoke();
 
     void (async () => {
+      const directWithFull = (): string => {
+        const u = new URL(resolveFetchUrl(trimmed));
+        u.searchParams.set("full", "1");
+        return u.href;
+      };
+
       try {
-        const res = await fetch(resolveFetchUrl(trimmed), {
+        const fetchUrl = new URL(resolveFetchUrl(trimmed));
+        fetchUrl.searchParams.set("full", "1");
+        const res = await fetch(fetchUrl.href, {
           credentials: "include",
           signal: ac.signal,
         });
-        if (!res.ok) {
+        if (res.status < 200 || res.status >= 300) {
           throw new Error(`HTTP ${res.status}`);
         }
         const blob = await res.blob();
@@ -102,8 +110,9 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
         setResolvedSrc(objectUrl);
       } catch (e: unknown) {
         if (ac.signal.aborted || (e instanceof DOMException && e.name === "AbortError")) return;
-        console.warn("[AudioPlayer] fetch failed", e);
-        setLoadError("Could not load this audio file.");
+        console.warn("[AudioPlayer] blob fetch failed; falling back to direct URL", e);
+        // Same-origin <audio src> often succeeds when blob materialization fails (e.g. older deploys, strict WebViews).
+        setResolvedSrc(directWithFull());
       } finally {
         if (!ac.signal.aborted) {
           setMediaLoading(false);

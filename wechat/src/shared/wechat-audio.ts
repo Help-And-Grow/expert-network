@@ -16,6 +16,10 @@ function extFromMime(mimePart: string): string {
   return "bin";
 }
 
+function isSuccessfulDownloadStatus(statusCode: number): boolean {
+  return statusCode === 200 || statusCode === 206;
+}
+
 function mimeFromPath(filePath: string): string {
   const lower = filePath.toLowerCase();
   if (lower.endsWith(".wav")) return "audio/wav";
@@ -61,7 +65,7 @@ export async function prepareAudioForInnerAudio(
 
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     const res = await Taro.downloadFile({ url: trimmed });
-    if (res.statusCode !== 200 || !res.tempFilePath) {
+    if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
       throw new Error(`downloadFile failed: ${res.statusCode}`);
     }
     return res.tempFilePath;
@@ -69,13 +73,15 @@ export async function prepareAudioForInnerAudio(
 
   const API_BASE = getApiBase();
   const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  const url = `${API_BASE}${path}`;
+  const join = path.includes("?") ? "&" : "?";
+  const url = `${API_BASE}${path}${join}full=1`;
   const token = getToken();
   const res = await Taro.downloadFile({
     url,
     header: token ? { "x-wechat-token": token } : {},
   });
-  if (res.statusCode !== 200 || !res.tempFilePath) {
+  // Our audio API may return 206 Partial Content when WeChat sends Range (same as browser probes).
+  if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
     throw new Error(`downloadFile failed: ${res.statusCode}`);
   }
   return res.tempFilePath;
