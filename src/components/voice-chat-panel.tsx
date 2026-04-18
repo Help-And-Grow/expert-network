@@ -564,7 +564,7 @@ export function VoiceChatPanel({
 
               {(msg.audioSrc || (msg.role === "assistant" && deviceVoiceSupported)) && (
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  {msg.audioSrc && (
+                  {msg.audioSrc ? (
                     <button
                       type="button"
                       onClick={() => togglePlayback(msg)}
@@ -591,9 +591,7 @@ export function VoiceChatPanel({
                         <Play className="h-3.5 w-3.5 ml-0.5" />
                       )}
                     </button>
-                  )}
-
-                  {msg.role === "assistant" && deviceVoiceSupported && (
+                  ) : (msg.role === "assistant" && deviceVoiceSupported) ? (
                     <button
                       type="button"
                       onClick={() => toggleDeviceVoice(msg)}
@@ -607,7 +605,7 @@ export function VoiceChatPanel({
                         <Volume2 className="h-3.5 w-3.5" />
                       )}
                     </button>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
