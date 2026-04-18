@@ -2,11 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
-import { createGeminiClient, getGeminiTextModel } from "@/lib/ai/gemini-client";
-import {
-  GeminiTtsProvider,
-  defaultGeminiTtsVoiceId,
-} from "@/lib/integrations/gemini-tts";
+import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
+import { QwenProvider } from "@/lib/ai/qwen";
 
 export const MAX_TURNS = 5;
 
@@ -59,9 +56,9 @@ export interface ExpertVoiceChatProfile {
   avatarScript: string | null;
   /** Human-readable lines derived from servicesOffered JSON. */
   servicesOfferedSummary: string | null;
-  /** Gemini TTS voice id used when the expert does not have a custom voice asset. */
+  /** Qwen TTS voice id used when the expert does not have a custom voice asset. */
   voiceModelId: string;
-  /** Reserved for future expert-specific cloned voices; false = system-managed Gemini voice. */
+  /** Reserved for future expert-specific cloned voices; false = system-managed Qwen voice. */
   usesClonedVoice: boolean;
 }
 
@@ -100,7 +97,7 @@ function resolveVoiceModelId(
     return { voiceModelId: override, usesClonedVoice: false };
   }
   return {
-    voiceModelId: defaultGeminiTtsVoiceId(gender),
+    voiceModelId: defaultQwenTtsVoiceId(gender),
     usesClonedVoice: false,
   };
 }
@@ -256,57 +253,57 @@ function ensureConversation(
   return conv;
 }
 
-function ensureGeminiVoiceChatConfigured(): void {
-  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) {
+function ensureQwenVoiceChatConfigured(): void {
+  if (!env.DASHSCOPE_API_KEY) {
     throw new Error(
-      "Voice chat now uses Google Gemini across web, Telegram, and WeChat. Set GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT."
+      "Voice chat now uses Qwen. Set DASHSCOPE_API_KEY."
     );
   }
-}
-
-function normalizeGeminiAudioMimeType(mimeType: string): string {
-  const normalized = mimeType.toLowerCase().split(";")[0]?.trim() || "";
-  if (normalized === "audio/mpeg" || normalized === "audio/mp3") return "audio/mp3";
-  if (normalized === "audio/ogg") return "audio/ogg";
-  if (normalized === "audio/aac" || normalized === "audio/wav") {
-    return normalized;
-  }
-  if (normalized === "audio/flac" || normalized === "audio/aiff") {
-    return normalized;
-  }
-  throw new Error(
-    `Voice input format "${mimeType}" is not supported by Gemini. Please try again.`
-  );
 }
 
 export async function transcribeAudio(
   audioBase64: string,
   mimeType: string,
 ): Promise<string> {
-  ensureGeminiVoiceChatConfigured();
+  ensureQwenVoiceChatConfigured();
 
-  const gemini = createGeminiClient();
-  const response = await gemini.models.generateContent({
-    model: getGeminiTextModel(),
-    contents: [
-      {
-        text:
-          "Transcribe the user's spoken message exactly in the original language. Return only the transcript text. Do not summarize or translate.",
+  const apiKey = env.DASHSCOPE_API_KEY;
+  const dataUri = `data:${mimeType};base64,${audioBase64}`;
+  const DASHSCOPE_URL = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+
+  const res = await fetch(DASHSCOPE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "qwen3-asr-flash",
+      input: {
+        messages: [
+          { role: "system", content: [{ text: "" }] },
+          { role: "user", content: [{ audio: dataUri }] },
+        ],
       },
-      {
-        inlineData: {
-          mimeType: normalizeGeminiAudioMimeType(mimeType),
-          data: audioBase64,
-        },
-      },
-    ],
+    }),
   });
 
-  return (response.text ?? "").trim();
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Speech recognition failed: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text =
+    data?.output?.choices?.[0]?.message?.content?.[0]?.text ??
+    data?.output?.text ??
+    "";
+
+  return text.trim();
 }
 
-async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
-  ensureGeminiVoiceChatConfigured();
+async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
+  ensureQwenVoiceChatConfigured();
 
   const prompt = [
     "Continue this voice consultation as the expert. Reply only with the assistant's next message.",
@@ -314,13 +311,26 @@ async function generateGeminiReply(messages: ChatMessage[]): Promise<string> {
     ...messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
   ].join("\n");
 
-  const gemini = createGeminiClient();
-  const response = await gemini.models.generateContent({
-    model: getGeminiTextModel(),
-    contents: prompt,
+  const apiKey = env.DASHSCOPE_API_KEY;
+  const res = await fetch("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "qwen-max",
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
 
-  return response.text ?? "";
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Qwen chat failed: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
 }
 
 const VOICE_CHAT_MEMORY_SNIPPETS = 6;
@@ -359,28 +369,28 @@ async function generateReply(
       .join("\n\n");
 
   conv.history.push({ role: "user", content: userContent });
-  const reply = await generateGeminiReply(conv.history);
+  const reply = await generateQwenReply(conv.history);
   conv.history.push({ role: "assistant", content: reply });
   conv.turnCount++;
 
   return reply;
 }
 
-let geminiTtsProvider: GeminiTtsProvider | null = null;
+let qwenTtsProvider: QwenTTSProvider | null = null;
 
-function getGeminiVoiceSynthesis(): GeminiTtsProvider {
-  if (!geminiTtsProvider) {
-    geminiTtsProvider = new GeminiTtsProvider();
+function getQwenVoiceSynthesis(): QwenTTSProvider {
+  if (!qwenTtsProvider) {
+    qwenTtsProvider = new QwenTTSProvider();
   }
-  return geminiTtsProvider;
+  return qwenTtsProvider;
 }
 
 async function synthesizeVoice(
   text: string,
   voiceModelId: string,
 ): Promise<{ audioBase64: string; format: string }> {
-  ensureGeminiVoiceChatConfigured();
-  return getGeminiVoiceSynthesis().synthesize({ text, voiceId: voiceModelId });
+  ensureQwenVoiceChatConfigured();
+  return getQwenVoiceSynthesis().synthesize({ text, voiceId: voiceModelId });
 }
 
 async function synthesizeVoiceIfAvailable(

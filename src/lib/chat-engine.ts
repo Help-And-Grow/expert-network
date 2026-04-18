@@ -36,7 +36,8 @@ const APP_BASE_URL =
  */
 export async function chat(
   message: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  platform?: string
 ): Promise<ChatResponse> {
   const allExperts = await prisma.expert.findMany({
     where: { isPublished: true },
@@ -80,11 +81,16 @@ export async function chat(
     })
     .join("\n\n---\n\n");
 
-  const aiResult = await matchExperts(
-    message,
-    expertSummaries,
-    history.map((m) => ({ role: m.role, content: m.content }))
-  );
+  let aiResult;
+  const historyMapped = history.map((m) => ({ role: m.role, content: m.content }));
+
+  if (platform === "telegram") {
+    const { QwenProvider } = await import("@/lib/ai/qwen");
+    const qwen = new QwenProvider();
+    aiResult = await qwen.matchExperts(message, expertSummaries, historyMapped);
+  } else {
+    aiResult = await matchExperts(message, expertSummaries, historyMapped);
+  }
 
   const experts: ExpertRecommendation[] = aiResult.recommendations.map(
     (rec) => {

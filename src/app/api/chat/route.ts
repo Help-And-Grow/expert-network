@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
         )
       : [];
 
-    const result = await chat(message, history);
+    const platform = typeof body.platform === "string" ? body.platform : undefined;
+
+    const result = await chat(message, history, platform);
 
     return NextResponse.json(result);
   } catch (error) {
