@@ -16,8 +16,19 @@ function currentAiProvider(): string {
   return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
 }
 
+function isQwenConfigured(): boolean {
+  return Boolean(env.DASHSCOPE_API_KEY?.trim());
+}
+
 function isGeminiConfigured(): boolean {
   return Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
+}
+
+async function generateProfileImageWithQwen(
+  data: ImageInput,
+): Promise<string | null> {
+  const { QwenProvider } = await import("@/lib/ai/qwen");
+  return new QwenProvider().generateProfileImage(data);
 }
 
 async function generateProfileImageWithGemini(
@@ -33,18 +44,32 @@ export async function generateProfileImageResilient(
   const aiProvider = currentAiProvider();
   let lastError: unknown = null;
 
+  // Profile avatars should prefer DashScope/Qwen when available because the
+  // Gemini image path has proven less reliable in production for this flow.
+  if (isQwenConfigured()) {
+    try {
+      const image = await generateProfileImageWithQwen(data);
+      if (image) return image;
+      lastError = new Error("Qwen image generation returned no image data.");
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
   if (isGeminiConfigured() && IMAGE_UNSUPPORTED_AI_PROVIDERS.has(aiProvider)) {
     const image = await generateProfileImageWithGemini(data);
     if (image) return image;
     throw new Error("Gemini image generation returned no image data.");
   }
 
-  try {
-    const image = await generateProfileImage(data);
-    if (image) return image;
-    lastError = new Error(`AI_PROVIDER "${aiProvider}" returned no profile image.`);
-  } catch (error) {
-    lastError = error;
+  if (aiProvider !== "qwen") {
+    try {
+      const image = await generateProfileImage(data);
+      if (image) return image;
+      lastError = new Error(`AI_PROVIDER "${aiProvider}" returned no profile image.`);
+    } catch (error) {
+      lastError = error;
+    }
   }
 
   if (isGeminiConfigured() && aiProvider !== "gemini") {
