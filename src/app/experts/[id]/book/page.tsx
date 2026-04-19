@@ -124,6 +124,11 @@ export default function BookSessionPage() {
     priceOfflineCents: number | null;
     currency: string;
     expertName: string;
+    paymentCapabilities?: {
+      payNowAvailable: boolean;
+      stripeCheckoutAvailable: boolean;
+      preferredWebDepositMethod: "paynow" | "stripe_checkout" | null;
+    };
   } | null>(null);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
   const [tonConnectUI] = useTonConnectUI();
@@ -171,6 +176,7 @@ export default function BookSessionPage() {
           priceOfflineCents: data.priceOfflineCents ?? null,
           currency: data.currency ?? "SGD",
           expertName: data.user?.nickName || data.user?.name || "Expert",
+          paymentCapabilities: data.paymentCapabilities,
         });
         if (data.weeklySchedule) {
           setWeeklySchedule(data.weeklySchedule as WeeklySchedule);
@@ -197,6 +203,12 @@ export default function BookSessionPage() {
   const totalCents = pricePerHour ? Math.round(pricePerHour * slotDurationMinutes / 60) : 0;
   const depositCents = Math.ceil(totalCents / 2);
   const remainderCents = totalCents - depositCents;
+  const payNowAvailable = expertPricing?.paymentCapabilities?.payNowAvailable ?? false;
+  const stripeCheckoutAvailable =
+    expertPricing?.paymentCapabilities?.stripeCheckoutAvailable ?? false;
+  const preferredWebDepositMethod =
+    expertPricing?.paymentCapabilities?.preferredWebDepositMethod ??
+    (payNowAvailable ? "paynow" : stripeCheckoutAvailable ? "stripe_checkout" : null);
 
   const typeFromUrl = searchParams.get("type");
   useEffect(() => {
@@ -515,7 +527,15 @@ export default function BookSessionPage() {
       return;
     }
     if (!isTelegramSurface) {
-      handlePayNowCheckout();
+      if (preferredWebDepositMethod === "paynow") {
+        handlePayNowCheckout();
+        return;
+      }
+      if (preferredWebDepositMethod === "stripe_checkout") {
+        handleStripeCheckout();
+        return;
+      }
+      setError("Payments are not configured for this environment.");
     }
   };
 
@@ -741,6 +761,17 @@ export default function BookSessionPage() {
           </p>
         )}
 
+        {!isTelegramSurface &&
+          totalCents > 0 &&
+          selectedSlots.length > 0 &&
+          !payNowPending &&
+          !tonPending &&
+          preferredWebDepositMethod === "stripe_checkout" && (
+            <p className="rounded-lg bg-muted/40 px-4 py-2 text-sm text-muted-foreground">
+              PayNow is unavailable in this environment. Web checkout will use Stripe instead.
+            </p>
+          )}
+
         {payNowPending && !submitting ? (
           <Card className="border-emerald-400/20 bg-emerald-500/10">
             <CardContent className="p-4 space-y-3">
@@ -847,15 +878,23 @@ export default function BookSessionPage() {
               {submitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Preparing PayNow QR...
+                  {preferredWebDepositMethod === "paynow"
+                    ? "Preparing PayNow QR..."
+                    : preferredWebDepositMethod === "stripe_checkout"
+                      ? "Preparing Stripe Checkout..."
+                      : "Preparing payment..."}
                 </>
               ) : totalCents > 0 ? (
-                `Pay with PayNow — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+                preferredWebDepositMethod === "paynow"
+                  ? `Pay with PayNow — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+                  : preferredWebDepositMethod === "stripe_checkout"
+                    ? `Pay with Stripe Checkout — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+                    : "Payment unavailable"
               ) : (
                 "Confirm meetup"
               )}
             </Button>
-            {!isTelegramSurface && totalCents > 0 && (
+            {!isTelegramSurface && totalCents > 0 && stripeCheckoutAvailable && preferredWebDepositMethod === "paynow" && (
               <div className="space-y-1">
                 <Button
                   variant="outline"
