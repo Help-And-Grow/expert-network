@@ -14,8 +14,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-type ProviderName = "qwen";
+type ProviderName =
+  | "openai"
+  | "zai"
+  | "qwen"
+  | "gemini"
+  | "dedalus"
+  | "byteplus"
+  | "volcengine";
 
 type ProviderHealth = Record<
   ProviderName,
@@ -23,8 +38,24 @@ type ProviderHealth = Record<
     configured: boolean;
     requiredAny: string[][];
     optional: string[];
+    supportsImage: boolean;
   }
 >;
+
+type ProviderDescriptor = {
+  name: ProviderName;
+  label: string;
+  description: string;
+  requiredAny: string[][];
+  optional: string[];
+  supportsImage: boolean;
+  textModelEnvKey: string | null;
+  imageModelEnvKey: string | null;
+  defaultTextModel: string | null;
+  defaultImageModel: string | null;
+  textModel: string | null;
+  imageModel: string | null;
+};
 
 type StatusResponse = {
   canManage: boolean;
@@ -33,11 +64,14 @@ type StatusResponse = {
   managedTeamId?: string;
   deployHookConfigured?: boolean;
   providerHealth?: ProviderHealth;
+  providers: ProviderDescriptor[];
+  imageFallbackOrder: ProviderName[];
   error?: string;
 };
 
-const PROVIDER_LABELS: Record<ProviderName, string> = {
-  qwen: "Qwen / DashScope",
+type ModelDraft = {
+  textModel: string;
+  imageModel: string;
 };
 
 export default function AdminAIProviderPage() {
@@ -46,6 +80,18 @@ export default function AdminAIProviderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<ProviderName>("qwen");
+  const [providerModels, setProviderModels] = useState<
+    Record<ProviderName, ModelDraft>
+  >({
+    openai: { textModel: "", imageModel: "" },
+    zai: { textModel: "", imageModel: "" },
+    qwen: { textModel: "", imageModel: "" },
+    gemini: { textModel: "", imageModel: "" },
+    dedalus: { textModel: "", imageModel: "" },
+    byteplus: { textModel: "", imageModel: "" },
+    volcengine: { textModel: "", imageModel: "" },
+  });
 
   async function load() {
     setLoading(true);
@@ -54,10 +100,33 @@ export default function AdminAIProviderPage() {
       const res = await fetch("/api/admin/ai-provider", { credentials: "include" });
       const body = (await res.json()) as StatusResponse;
       setData(body);
+      setSelectedProvider(body.currentProvider);
+      setProviderModels(
+        body.providers.reduce(
+          (acc, provider) => {
+            acc[provider.name] = {
+              textModel: provider.textModel ?? provider.defaultTextModel ?? "",
+              imageModel: provider.imageModel ?? provider.defaultImageModel ?? "",
+            };
+            return acc;
+          },
+          {
+            openai: { textModel: "", imageModel: "" },
+            zai: { textModel: "", imageModel: "" },
+            qwen: { textModel: "", imageModel: "" },
+            gemini: { textModel: "", imageModel: "" },
+            dedalus: { textModel: "", imageModel: "" },
+            byteplus: { textModel: "", imageModel: "" },
+            volcengine: { textModel: "", imageModel: "" },
+          } satisfies Record<ProviderName, ModelDraft>,
+        ),
+      );
     } catch (error) {
       setData({
         canManage: false,
         currentProvider: "qwen",
+        providers: [],
+        imageFallbackOrder: ["openai", "zai", "qwen", "gemini", "dedalus"],
         error: error instanceof Error ? error.message : "Failed to load provider status",
       });
     } finally {
@@ -69,6 +138,20 @@ export default function AdminAIProviderPage() {
     if (status === "authenticated") void load();
   }, [status]);
 
+  function updateModel(
+    provider: ProviderName,
+    field: keyof ModelDraft,
+    value: string,
+  ) {
+    setProviderModels((prev) => ({
+      ...prev,
+      [provider]: {
+        ...prev[provider],
+        [field]: value,
+      },
+    }));
+  }
+
   async function applyProvider() {
     setSaving(true);
     setMessage(null);
@@ -77,16 +160,25 @@ export default function AdminAIProviderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ triggerDeploy: true }),
+        body: JSON.stringify({
+          provider: selectedProvider,
+          providerModels: {
+            [selectedProvider]: providerModels[selectedProvider],
+          },
+          triggerDeploy: true,
+        }),
       });
-      const body = (await res.json()) as { error?: string; deployTriggered?: boolean };
+      const body = (await res.json()) as {
+        error?: string;
+        deployTriggered?: boolean;
+      };
       if (!res.ok) {
         throw new Error(body.error || "Failed to update provider");
       }
       setMessage(
         body.deployTriggered
-          ? "Qwen / DashScope policy re-applied. Redeploy triggered."
-          : "Qwen / DashScope policy re-applied. Deploy hook not configured, so trigger a redeploy manually.",
+          ? "AI provider settings updated. Redeploy triggered."
+          : "AI provider settings updated. Deploy hook not configured, so redeploy manually.",
       );
       await load();
     } catch (error) {
@@ -113,7 +205,7 @@ export default function AdminAIProviderPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/admin">
@@ -130,8 +222,9 @@ export default function AdminAIProviderPage() {
             AI Provider Control
           </CardTitle>
           <CardDescription>
-            The public Help-And-Grow repo is locked to Alibaba Cloud Qwen / DashScope.
-            This page verifies that `AI_PROVIDER` stays pinned to `qwen` and can trigger a redeploy immediately.
+            Switch the active provider and pin per-provider model IDs without
+            editing Vercel environment scripts. Image fallback order is{" "}
+            <span className="font-medium">openai → zai → qwen → gemini → dedalus</span>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -141,10 +234,13 @@ export default function AdminAIProviderPage() {
             </div>
           )}
 
-          <div className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2">
+          <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-4">
             <div>
               <p className="text-xs uppercase text-muted-foreground">Current deployment</p>
-              <p className="mt-1 font-medium">{PROVIDER_LABELS[data?.currentProvider ?? "qwen"]}</p>
+              <p className="mt-1 font-medium">
+                {data?.providers.find((provider) => provider.name === data.currentProvider)
+                  ?.label ?? data?.currentProvider}
+              </p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Managed project</p>
@@ -162,11 +258,31 @@ export default function AdminAIProviderPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1 rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
-              Provider policy: <span className="font-medium">Qwen / DashScope only</span>
+          <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-900">Active provider</label>
+              <Select
+                value={selectedProvider}
+                onValueChange={(value) => setSelectedProvider(value as ProviderName)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {data?.providers.map((provider) => (
+                    <SelectItem key={provider.name} value={provider.name}>
+                      {provider.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500">
+                Apply writes the selected provider plus that provider&apos;s model
+                pins. Leaving the defaults in place still writes the
+                recommended model IDs so the deployment stays reproducible.
+              </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 self-end">
               <Button variant="outline" onClick={() => void load()} disabled={loading || saving}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
@@ -177,9 +293,19 @@ export default function AdminAIProviderPage() {
                 ) : (
                   <Rocket className="mr-2 h-4 w-4" />
                 )}
-                Sync Qwen
+                Apply & Redeploy
               </Button>
             </div>
+          </div>
+
+          <div className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            Profile image fallback chain:{" "}
+            {data?.imageFallbackOrder
+              .map((providerName) =>
+                data.providers.find((provider) => provider.name === providerName)?.label ??
+                providerName,
+              )
+              .join(" → ")}
           </div>
 
           {message && (
@@ -190,42 +316,104 @@ export default function AdminAIProviderPage() {
         </CardContent>
       </Card>
 
-      {data?.providerHealth && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {(
-            Object.entries(data.providerHealth) as Array<
-              [ProviderName, ProviderHealth[ProviderName]]
+      <div className="grid gap-4 xl:grid-cols-2">
+        {data?.providers.map((provider) => {
+          const health = data.providerHealth?.[provider.name];
+          const active = provider.name === selectedProvider;
+          return (
+            <Card
+              key={provider.name}
+              className={active ? "border-slate-900 shadow-sm" : undefined}
             >
-          ).map(([provider, health]) => (
-            <Card key={provider}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-3">
-                  <CardTitle className="text-base">{PROVIDER_LABELS[provider]}</CardTitle>
-                  <Badge variant="outline" className={health.configured ? "border-emerald-200 text-emerald-700" : "border-amber-200 text-amber-700"}>
-                    {health.configured ? "Ready" : "Missing env"}
-                  </Badge>
+                  <div>
+                    <CardTitle className="text-base">{provider.label}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {provider.description}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    {active && <Badge variant="secondary">Active</Badge>}
+                    <Badge
+                      variant="outline"
+                      className={
+                        health?.configured
+                          ? "border-emerald-200 text-emerald-700"
+                          : "border-amber-200 text-amber-700"
+                      }
+                    >
+                      {health?.configured ? "Ready" : "Missing env"}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div>
-                  <p className="font-medium text-slate-800">Required</p>
-                  {health.requiredAny.map((group, index) => (
-                    <p key={index} className="mt-1 text-slate-600">
-                      {group.join(" + ")}
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-900">
+                      Text Model
+                    </label>
+                    <Input
+                      value={providerModels[provider.name]?.textModel ?? ""}
+                      onChange={(event) =>
+                        updateModel(provider.name, "textModel", event.target.value)
+                      }
+                      disabled={!provider.textModelEnvKey}
+                      placeholder={provider.defaultTextModel ?? "Not used"}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {provider.textModelEnvKey
+                        ? `${provider.textModelEnvKey} · recommended ${provider.defaultTextModel ?? "n/a"}`
+                        : "This provider does not use a dedicated text model env key."}
                     </p>
-                  ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-900">
+                      Image Model
+                    </label>
+                    <Input
+                      value={providerModels[provider.name]?.imageModel ?? ""}
+                      onChange={(event) =>
+                        updateModel(provider.name, "imageModel", event.target.value)
+                      }
+                      disabled={!provider.imageModelEnvKey}
+                      placeholder={provider.defaultImageModel ?? "Not supported"}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {provider.imageModelEnvKey
+                        ? `${provider.imageModelEnvKey} · recommended ${provider.defaultImageModel ?? "n/a"}`
+                        : provider.supportsImage
+                          ? "Image generation is supported, but this provider is managed elsewhere."
+                          : "Image generation is not supported for this provider."}
+                    </p>
+                  </div>
                 </div>
-                {health.optional.length > 0 && (
+
+                <div className="grid gap-3 text-sm md:grid-cols-2">
+                  <div>
+                    <p className="font-medium text-slate-800">Required</p>
+                    {provider.requiredAny.map((group, index) => (
+                      <p key={index} className="mt-1 text-slate-600">
+                        {group.join(" + ")}
+                      </p>
+                    ))}
+                  </div>
                   <div>
                     <p className="font-medium text-slate-800">Optional</p>
-                    <p className="mt-1 text-slate-600">{health.optional.join(", ")}</p>
+                    <p className="mt-1 text-slate-600">
+                      {provider.optional.length > 0
+                        ? provider.optional.join(", ")
+                        : "None"}
+                    </p>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createAIProviderForName, type ImageInput } from "@/lib/ai";
+import { IMAGE_FALLBACK_ORDER } from "@/lib/ai/provider-catalog";
 import { env } from "@/lib/env";
 import { hasGoogleServiceAccountConfig } from "@/lib/google-access-token";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
@@ -10,7 +11,6 @@ import type {
 } from "@/lib/integrations/types";
 
 const IMAGE_UNSUPPORTED_AI_PROVIDERS = new Set(["byteplus", "volcengine"]);
-const PROFILE_IMAGE_FALLBACK_ORDER = ["gemini", "qwen", "openai", "zai", "dedalus"] as const;
 
 function currentAiProvider(): string {
   return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
@@ -58,7 +58,7 @@ function isProviderConfiguredForProfileImage(providerName: string): boolean {
 }
 
 function profileImageProviderOrder(primaryProvider: string): string[] {
-  const ordered = [primaryProvider, ...PROFILE_IMAGE_FALLBACK_ORDER];
+  const ordered = [primaryProvider, ...IMAGE_FALLBACK_ORDER];
   return ordered.filter(
     (providerName, index) =>
       ordered.indexOf(providerName) === index &&

@@ -6,6 +6,7 @@ import {
   isRealtimeEnabled,
 } from "@/lib/voice-chat-config";
 import {
+  getRealtimeSession,
   processVoiceDrafts,
   processVoiceMessage,
   processTextMessage,
@@ -95,6 +96,7 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     text?: string;
     includeAudio?: boolean;
     audioClips?: Array<{ audioBase64?: string; mimeType?: string }>;
+    sessionId?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -102,7 +104,7 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { expertId, text, audioClips, includeAudio = true } = body;
+  const { expertId, text, audioClips, includeAudio = true, sessionId } = body;
   if (!expertId) {
     return NextResponse.json({ error: "expertId is required" }, { status: 400 });
   }
@@ -141,6 +143,31 @@ async function handleTextMessage(request: NextRequest, userId: string) {
   }
   if (!text?.trim()) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
+  }
+  if (includeAudio === false) {
+    if (!isRealtimeEnabled()) {
+      return NextResponse.json(
+        { error: "Real-time AI chat is not enabled for the current configuration." },
+        { status: 503 },
+      );
+    }
+    if (!sessionId) {
+      return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
+    }
+
+    const session = getRealtimeSession(sessionId);
+    if (!session) {
+      return NextResponse.json({ error: "No active session found" }, { status: 404 });
+    }
+    if (session.userId !== userId) {
+      return NextResponse.json({ error: "Not your session" }, { status: 403 });
+    }
+    if (session.expertId !== expertId) {
+      return NextResponse.json(
+        { error: "Session does not match this expert." },
+        { status: 403 },
+      );
+    }
   }
 
   const result = await processTextMessage(userId, expertId, text.trim(), {
