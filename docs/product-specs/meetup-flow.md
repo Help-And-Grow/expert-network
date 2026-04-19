@@ -23,6 +23,9 @@ As a founder (player), I want to schedule a paid meetup with an expert (coach) b
 11. Fallback option: Stripe Checkout (PayNow, GrabPay, Card)
 12. Remainder auto-charged 24h after the meetup (Stripe) or prompted manually (PayNow/TON/Telegram)
 
+Implementation note:
+On web, when direct PayNow QR is not configured for the deployment environment, the booking page should make Stripe Checkout the primary paid-meetup path instead of showing a broken PayNow CTA.
+
 ## Requirements
 
 - Slots generated from expert's `weeklySchedule` if no explicit `AvailableSlot` records
