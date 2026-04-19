@@ -1,6 +1,10 @@
 import { Modality } from "@google/genai";
 
 import { createGeminiImageClient } from "@/lib/ai/gemini-client";
+import {
+  formatFromAudioMime,
+  normalizeAudioForBrowserPlayback,
+} from "@/lib/audio-format";
 import { isFemaleExpertGender } from "@/lib/expert-voice-gender";
 import { env } from "@/lib/env";
 
@@ -39,16 +43,16 @@ const QWENISH_TO_GEMINI: Record<string, string> = {
 };
 
 /** Gemini SDK may return base64 as string or raw bytes. */
-function inlineAudioToBase64(data: unknown): string | null {
+function inlineAudioToBuffer(data: unknown): Buffer | null {
   if (typeof data === "string") {
     const s = data.replace(/\s+/g, "");
-    return s.length ? s : null;
+    return s.length ? Buffer.from(s, "base64") : null;
   }
   if (data instanceof Uint8Array) {
-    return Buffer.from(data).toString("base64");
+    return Buffer.from(data);
   }
   if (Buffer.isBuffer(data)) {
-    return data.toString("base64");
+    return data;
   }
   return null;
 }
@@ -135,17 +139,20 @@ export class GeminiTtsProvider implements VoiceSynthesisProvider {
 
       for (const part of parts) {
         const raw = part.inlineData?.data;
-        const audioBase64 = inlineAudioToBase64(raw);
-        if (!audioBase64) continue;
-        const mime = (part.inlineData?.mimeType || "audio/wav").toLowerCase();
-        const format = mime.includes("mpeg") || mime.includes("mp3")
-          ? "mp3"
-          : mime.includes("wav")
-            ? "wav"
-            : mime.includes("ogg")
-              ? "ogg"
-              : "wav";
-        return { audioBase64, format };
+        const audioBuffer = inlineAudioToBuffer(raw);
+        if (!audioBuffer) continue;
+
+        const normalized = normalizeAudioForBrowserPlayback({
+          buffer: audioBuffer,
+          declaredMime: part.inlineData?.mimeType || "audio/wav",
+          declaredFormat: "wav",
+          fallbackPcmSampleRateHz: 24_000,
+        });
+
+        return {
+          audioBase64: normalized.buffer.toString("base64"),
+          format: formatFromAudioMime(normalized.mimeType),
+        };
       }
 
       throw new Error("Gemini TTS response had no inline audio data");

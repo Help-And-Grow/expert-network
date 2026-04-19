@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { createHash } from "crypto";
 
+import { normalizeAudioForBrowserPlayback } from "@/lib/audio-format";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -116,11 +117,20 @@ export async function GET(
       return NextResponse.json({ error: "No audio intro" }, { status: 404 });
     }
 
-    const { mime, buffer } = await resolveAudioBytes(expert.audioIntroUrl);
-    if (buffer.length === 0) {
+    const { mime: sourceMime, buffer: sourceBuffer } = await resolveAudioBytes(
+      expert.audioIntroUrl,
+    );
+    if (sourceBuffer.length === 0) {
       return NextResponse.json({ error: "Empty audio intro" }, { status: 404 });
     }
 
+    const normalized = normalizeAudioForBrowserPlayback({
+      buffer: sourceBuffer,
+      declaredMime: sourceMime,
+      fallbackPcmSampleRateHz: 24_000,
+    });
+    const buffer = normalized.buffer;
+    const mime = normalized.mimeType;
     // Full-body ETag only (no 304): empty 304 responses break <audio> in common browsers.
     const etag = `"${createHash("md5").update(buffer).digest("hex")}"`;
     const size = buffer.length;
@@ -130,8 +140,8 @@ export async function GET(
 
     if (parsed) {
       const { start, end } = expandInitialRangeForDecoders(parsed, size);
-      const chunk = new Uint8Array(buffer.subarray(start, end + 1));
-      return new NextResponse(chunk, {
+      const chunk = buffer.subarray(start, end + 1);
+      return new NextResponse(new Uint8Array(chunk), {
         status: 206,
         headers: {
           "Content-Type": mime,

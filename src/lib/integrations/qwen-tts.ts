@@ -1,3 +1,8 @@
+import {
+  detectAudioMime,
+  formatFromAudioMime,
+  normalizeFetchedAudioMime,
+} from "@/lib/audio-format";
 import { isFemaleExpertGender } from "@/lib/expert-voice-gender";
 import { env } from "@/lib/env";
 import type {
@@ -144,35 +149,4 @@ export class QwenTTSProvider implements VoiceSynthesisProvider {
 
     return voiceId;
   }
-}
-
-function detectAudioMime(data: Buffer | Uint8Array): string | null {
-  if (data.length < 8) return null;
-  if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46)
-    return "audio/wav";
-  if (data[0] === 0x49 && data[1] === 0x44 && data[2] === 0x33)
-    return "audio/mpeg";
-  if (data[0] === 0xff && (data[1] & 0xe0) === 0xe0)
-    return "audio/mpeg";
-  if (data[0] === 0x1a && data[1] === 0x45 && data[2] === 0xdf && data[3] === 0xa3)
-    return "audio/webm";
-  if (data[4] === 0x66 && data[5] === 0x74 && data[6] === 0x79 && data[7] === 0x70)
-    return "audio/mp4";
-  return null;
-}
-
-function normalizeFetchedAudioMime(contentType: string | null): string | null {
-  const normalized = contentType?.toLowerCase().split(";")[0]?.trim();
-  if (!normalized || !normalized.startsWith("audio/")) return null;
-  if (normalized === "audio/mp3") return "audio/mpeg";
-  return normalized;
-}
-
-function formatFromAudioMime(mimeType: string | null): string {
-  if (mimeType === "audio/mpeg") return "mp3";
-  if (mimeType === "audio/ogg") return "ogg";
-  if (mimeType === "audio/mp4") return "mp4";
-  if (mimeType === "audio/webm") return "webm";
-  if (mimeType === "audio/aac") return "aac";
-  return "wav";
 }
