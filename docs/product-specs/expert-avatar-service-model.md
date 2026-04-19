@@ -37,6 +37,7 @@ Required elements:
 
 The preview interaction is voice-only on WeChat:
 
+- opening the voice-chat surface should greet the player aloud immediately when the device/browser allows it
 - player records up to 3 short clips as one question bundle
 - player confirms once
 - expert returns one concise voice reply
