@@ -213,7 +213,7 @@ export default function ExpertProfilePage() {
       return;
     }
 
-    const directSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+    const directSrc = `${window.location.origin}/api/experts/${id}/audio?t=${Date.now()}`;
 
     let cancelled = false;
     revoke();
@@ -222,7 +222,10 @@ export default function ExpertProfilePage() {
 
     void (async () => {
       try {
-        const res = await fetch(directSrc, { cache: "no-store" });
+        const res = await fetch(directSrc, {
+          cache: "no-store",
+          credentials: "include",
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         if (cancelled) return;
@@ -384,23 +387,20 @@ export default function ExpertProfilePage() {
           {expert.hasAudio && (
             <button
               disabled={introLoading}
-              onClick={async () => {
+              onClick={() => {
                 const audio = audioRef.current;
                 if (!audio) return;
                 if (isAudioPlaying) {
                   audio.pause();
                 } else {
-                  resumeSharedAudioContext();
-                  try {
-                    await audio.play();
-                  } catch (e) {
+                  void audio.play().catch((e) => {
                     console.warn("Public profile audio play error", e);
                     // Fallback to reload and try once more if not already playing
-                    const fallbackSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+                    const fallbackSrc = `${window.location.origin}/api/experts/${id}/audio?t=${Date.now()}`;
                     audio.src = fallbackSrc;
                     audio.load();
-                    await audio.play().catch(() => {});
-                  }
+                    void audio.play().catch(() => {});
+                  });
                 }
               }}
               className={`absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-lg transition-all ${
