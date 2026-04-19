@@ -22,7 +22,21 @@ Instead of relying on a single vendor for all AI capabilities, the system will r
     -   **Automatic Speech Recognition (ASR):** Native audio understanding via the standard `gemini-3.1-flash` model.
     -   **Rationale:** Gemini 3.1 Flash represents the new base standard (sunsetting previous 2.x versions). It provides a highly generous, perpetual free tier (15 RPM / 1M tokens per minute) that natively handles multimodal audio synthesis and transcription without requiring separate specialized audio models.
 
-### 2.2 Regional Compute & Latency Optimization
+### 2.2 Scenario Routing Matrix
+
+To maximize free quotas and SOTA performance, the platform routes AI tasks according to the following matrix:
+
+| Scenario / Feature | AI Modality / API | AI Provider | Model Version | Rationale & Free Quota Strategy |
+| :--- | :--- | :--- | :--- | :--- |
+| **Profile Generation & Text Chat** | LLM (Text Generation) | **BytePlus** | `doubao-seed-1.6-flash` | High throughput, low latency. Capitalizes on 500k initial free tokens and highly competitive post-trial pricing. |
+| **Matchmaking Reasoning** | LLM (Text Reasoning) | **BytePlus** | `doubao-seed-1.6-flash` | SOTA cost-efficiency for processing large context windows during semantic matchmaking. |
+| **Voice Intro Synthesis (Profile)** | TTS (Text-to-Speech) | **Google Gemini** | `gemini-3.1-flash-tts-preview` | Generous perpetual free tier (15 RPM / 1M tokens/min). Avoids Alibaba TTS hard-stops post-trial. |
+| **Async Voice Chat (Reply Synthesis)** | TTS (Text-to-Speech) | **Google Gemini** | `gemini-3.1-flash-tts-preview` | High concurrency handling within the 15 RPM free tier limit. Cost-effective for high-volume free asynchronous voice. |
+| **Real-time Voice Chat (Transcription)** | ASR (Speech Recognition) | **Google Gemini** | `gemini-3.1-flash` (Base) | Native audio understanding without specialized models. Base model 3.1 replaces sunsetting 2.x versions. |
+| **Real-time Voice Chat (Streaming Text/Audio)** | LLM / TTS | **Google Gemini** | `gemini-3.1-flash` (Base) | True multimodal I/O reduces overall latency compared to chaining separate ASR -> LLM -> TTS pipelines. |
+| **Failover / Fallback (Voice)** | ASR / TTS | **Alibaba Cloud** | `SenseVoice` / `CosyVoice` | Used strictly as a fallback mechanism if Gemini rate limits are exceeded, burning through any remaining trial hours/characters. |
+
+### 2.3 Regional Compute & Latency Optimization
 
 For real-time voice chat, minimizing latency is the most critical non-functional requirement.
 
