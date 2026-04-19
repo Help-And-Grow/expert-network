@@ -459,6 +459,7 @@ export default function ExpertProfilePage() {
           <div
             onClick={() => {
               pausePublicIntroAudio();
+              resumeSharedAudioContext();
               pushVoiceChatHistory();
               if (vcConfig.asyncEnabled) setShowVoiceChat(true);
               else setShowRealtimeChat(true);
