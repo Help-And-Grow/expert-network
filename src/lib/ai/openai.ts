@@ -2,9 +2,7 @@ import { env } from "@/lib/env";
 import OpenAI from "openai";
 
 import { BaseAIProvider } from "./base-provider";
-
-const TEXT_MODEL = "gpt-4o";
-const IMAGE_MODEL = "dall-e-3";
+import { getOpenAIImageModel, getOpenAITextModel } from "./provider-catalog";
 
 export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
@@ -19,7 +17,7 @@ export class OpenAIProvider extends BaseAIProvider {
 
   protected async chat(prompt: string): Promise<string> {
     const response = await this.client.chat.completions.create({
-      model: TEXT_MODEL,
+      model: getOpenAITextModel(),
       messages: [{ role: "user", content: prompt }],
     });
     return response.choices[0]?.message?.content ?? "";
@@ -28,7 +26,7 @@ export class OpenAIProvider extends BaseAIProvider {
   protected async generateImageRaw(prompt: string): Promise<string | null> {
     try {
       const response = await this.client.images.generate({
-        model: IMAGE_MODEL,
+        model: getOpenAIImageModel(),
         prompt,
         n: 1,
         size: "1024x1024",

@@ -1,7 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 import { isErrorResponse, requireAdmin } from "@/lib/admin-auth";
-import { env } from "@/lib/env";
+import {
+  AI_PROVIDER_CATALOG,
+  ALL_AI_PROVIDERS,
+  computeProviderHealth,
+  getActiveAIProviderName,
+  getProviderModelState,
+  IMAGE_FALLBACK_ORDER,
+  normalizeAIProviderName,
+  type AIProviderName,
+} from "@/lib/ai/provider-catalog";
 import {
   getManagedVercelProjectConfig,
   listManagedProjectEnvs,
@@ -12,37 +22,41 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const PROVIDERS = ["qwen"] as const;
-type ProviderName = (typeof PROVIDERS)[number];
+const modelInputSchema = z
+  .object({
+    textModel: z.string().trim().max(128).optional(),
+    imageModel: z.string().trim().max(128).optional(),
+  })
+  .partial();
 
-type ProviderRequirement = {
-  requiredAny: string[][];
-  optional: string[];
-};
+const bodySchema = z.object({
+  provider: z.string().trim().optional(),
+  triggerDeploy: z.boolean().optional(),
+  providerModels: z.record(z.string(), modelInputSchema).optional(),
+});
 
-const PROVIDER_REQUIREMENTS: Record<ProviderName, ProviderRequirement> = {
-  qwen: {
-    requiredAny: [["DASHSCOPE_API_KEY"]],
-    optional: ["VOICE_CHAT_DEFAULT_VOICE"],
-  },
-};
+function providerDescriptor(provider: AIProviderName) {
+  const meta = AI_PROVIDER_CATALOG[provider];
+  const modelState = getProviderModelState(provider);
+  return {
+    name: provider,
+    label: meta.label,
+    description: meta.description,
+    requiredAny: meta.requiredAny,
+    optional: meta.optional,
+    supportsImage: meta.supportsImage,
+    textModelEnvKey: modelState.textModelEnvKey,
+    imageModelEnvKey: modelState.imageModelEnvKey,
+    defaultTextModel: meta.defaultTextModel ?? null,
+    defaultImageModel: meta.defaultImageModel ?? null,
+    textModel: modelState.textModel,
+    imageModel: modelState.imageModel,
+  };
+}
 
-function computeProviderHealth(keys: Set<string>) {
-  return Object.fromEntries(
-    Object.entries(PROVIDER_REQUIREMENTS).map(([provider, requirement]) => {
-      const configured = requirement.requiredAny.some((group) =>
-        group.every((key) => keys.has(key)),
-      );
-      return [
-        provider,
-        {
-          configured,
-          requiredAny: requirement.requiredAny,
-          optional: requirement.optional,
-        },
-      ];
-    }),
-  );
+function nonEmpty(value?: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
 export async function GET(request: NextRequest) {
@@ -52,10 +66,12 @@ export async function GET(request: NextRequest) {
   const cfg = getManagedVercelProjectConfig();
   if (!cfg) {
     return NextResponse.json({
-      currentProvider: "qwen",
+      currentProvider: getActiveAIProviderName(),
       canManage: false,
+      providers: ALL_AI_PROVIDERS.map(providerDescriptor),
+      imageFallbackOrder: [...IMAGE_FALLBACK_ORDER],
       error:
-        "Set VERCEL_MANAGEMENT_TOKEN, VERCEL_MANAGED_TEAM_ID, and VERCEL_MANAGED_PROJECT to manage Qwen policy sync from this admin page.",
+        "Set VERCEL_MANAGEMENT_TOKEN, VERCEL_MANAGED_TEAM_ID, and VERCEL_MANAGED_PROJECT to manage AI provider settings from this admin page.",
     });
   }
 
@@ -68,12 +84,13 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     canManage: true,
-    currentProvider: "qwen",
+    currentProvider: getActiveAIProviderName(),
     managedProject: cfg.project,
     managedTeamId: cfg.teamId,
     deployHookConfigured: Boolean(cfg.deployHookUrl),
     providerHealth: computeProviderHealth(productionKeys),
-    productionKeys: Array.from(productionKeys).sort(),
+    providers: ALL_AI_PROVIDERS.map(providerDescriptor),
+    imageFallbackOrder: [...IMAGE_FALLBACK_ORDER],
   });
 }
 
@@ -92,19 +109,60 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { triggerDeploy?: boolean };
-  try {
-    body = await request.json();
-  } catch {
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  await upsertManagedProjectEnv(cfg, "AI_PROVIDER", "qwen");
-  const deploy = body.triggerDeploy === false ? { triggered: false } : await triggerManagedProjectDeploy(cfg);
+  const provider =
+    normalizeAIProviderName(parsed.data.provider) ?? getActiveAIProviderName();
+  const providerModels = parsed.data.providerModels ?? {};
+  const updatedKeys = new Set<string>(["AI_PROVIDER"]);
+  const providersToUpdate = new Set<AIProviderName>([provider]);
+
+  await upsertManagedProjectEnv(cfg, "AI_PROVIDER", provider);
+
+  for (const key of Object.keys(providerModels)) {
+    const providerName = normalizeAIProviderName(key);
+    if (providerName) providersToUpdate.add(providerName);
+  }
+
+  for (const providerName of providersToUpdate) {
+    const meta = AI_PROVIDER_CATALOG[providerName];
+    const input = providerModels[providerName];
+
+    if (meta.textModelEnvKey) {
+      const textModel =
+        nonEmpty(input?.textModel) ??
+        nonEmpty(meta.defaultTextModel) ??
+        nonEmpty(getProviderModelState(providerName).textModel);
+      if (textModel) {
+        await upsertManagedProjectEnv(cfg, meta.textModelEnvKey, textModel);
+        updatedKeys.add(meta.textModelEnvKey);
+      }
+    }
+
+    if (meta.imageModelEnvKey) {
+      const imageModel =
+        nonEmpty(input?.imageModel) ??
+        nonEmpty(meta.defaultImageModel) ??
+        nonEmpty(getProviderModelState(providerName).imageModel);
+      if (imageModel) {
+        await upsertManagedProjectEnv(cfg, meta.imageModelEnvKey, imageModel);
+        updatedKeys.add(meta.imageModelEnvKey);
+      }
+    }
+  }
+
+  const deploy =
+    parsed.data.triggerDeploy === false
+      ? { triggered: false }
+      : await triggerManagedProjectDeploy(cfg);
 
   return NextResponse.json({
     ok: true,
-    provider: "qwen",
+    provider,
     deployTriggered: deploy.triggered,
+    updatedKeys: Array.from(updatedKeys).sort(),
   });
 }

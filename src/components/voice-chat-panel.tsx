@@ -9,6 +9,7 @@ import {
   Play,
   Pause,
   Volume2,
+  Languages,
   Loader2,
   X,
   Send,
@@ -17,11 +18,16 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useVoiceChatTranslations } from "@/hooks/use-voice-chat-translations";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import {
   getPreferredGeminiRecordingMimeType,
   normalizeRecordedAudioForGemini,
 } from "@/lib/browser-audio";
+import {
+  getVoiceChatTranslationLabel,
+  inferVoiceChatTranslationTarget,
+} from "@/lib/voice-chat-translation";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -82,6 +88,7 @@ export function VoiceChatPanel({
   const [showStarters, setShowStarters] = useState(true);
   const [greetingLoading, setGreetingLoading] = useState(false);
   const [deviceVoiceSupported, setDeviceVoiceSupported] = useState(false);
+  const { resetTranslations, toggleTranslation, translations } = useVoiceChatTranslations();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -91,9 +98,11 @@ export function VoiceChatPanel({
   const playbackModeRef = useRef<"audio" | "device" | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
+  const messagesRef = useRef<Message[]>([]);
 
   const nextId = () => `msg-${++msgIdRef.current}`;
   const firstName = expertName.split(" ")[0];
+  messagesRef.current = messages;
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -226,6 +235,7 @@ export function VoiceChatPanel({
       setShowStarters(true);
       setError(null);
       setGreetingLoading(false);
+      resetTranslations();
       msgIdRef.current = 0;
       stopPlayback();
       return;
@@ -248,17 +258,23 @@ export function VoiceChatPanel({
           error?: string;
         };
         if (cancelled) return;
+        if (messagesRef.current.length > 0) return;
 
         if (res.ok && data.replyText) {
+          const greetingText = data.replyText;
           const id = nextId();
-          setMessages([
-            {
-              id,
-              role: "assistant",
-              text: data.replyText,
-              audioSrc: data.replyAudio,
-            },
-          ]);
+          setMessages((prev) =>
+            prev.length === 0
+              ? [
+                  {
+                    id,
+                    role: "assistant",
+                    text: greetingText,
+                    audioSrc: data.replyAudio,
+                  },
+                ]
+              : prev,
+          );
           if (cancelled) return;
 
           let played = false;
@@ -266,13 +282,13 @@ export function VoiceChatPanel({
             played = await playExpertAudio(data.replyAudio, id);
           }
           if (!played && hasDeviceVoiceSupport()) {
-            speakWithDeviceVoice(data.replyText, id);
+            speakWithDeviceVoice(greetingText, id);
           }
         } else {
           const id = nextId();
-          setMessages([
-            { id, role: "assistant", text: fallbackGreetingText },
-          ]);
+          setMessages((prev) =>
+            prev.length === 0 ? [{ id, role: "assistant", text: fallbackGreetingText }] : prev,
+          );
           if (!cancelled && hasDeviceVoiceSupport()) {
             speakWithDeviceVoice(fallbackGreetingText, id);
           }
@@ -280,7 +296,9 @@ export function VoiceChatPanel({
       } catch {
         if (!cancelled) {
           const id = nextId();
-          setMessages([{ id, role: "assistant", text: fallbackGreetingText }]);
+          setMessages((prev) =>
+            prev.length === 0 ? [{ id, role: "assistant", text: fallbackGreetingText }] : prev,
+          );
           if (hasDeviceVoiceSupport()) {
             speakWithDeviceVoice(fallbackGreetingText, id);
           }
@@ -298,6 +316,7 @@ export function VoiceChatPanel({
     expertId,
     fallbackGreetingText,
     playExpertAudio,
+    resetTranslations,
     speakWithDeviceVoice,
     stopPlayback,
   ]);
@@ -587,17 +606,15 @@ export function VoiceChatPanel({
             >
               <p className="whitespace-pre-wrap">{msg.text}</p>
 
-              {(msg.audioSrc || (msg.role === "assistant" && deviceVoiceSupported)) && (
-                <div className="mt-1.5 flex items-center gap-1.5">
+              {msg.role === "assistant" && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {msg.audioSrc && (
                     <button
                       type="button"
                       onClick={() => togglePlayback(msg)}
                       className={cn(
                         "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors",
-                        msg.role === "user"
-                          ? "bg-white/20 text-white hover:bg-white/30"
-                          : "bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25",
+                        "bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25",
                       )}
                       aria-label={
                         playingId === msg.id && playbackModeRef.current === "audio"
@@ -618,7 +635,7 @@ export function VoiceChatPanel({
                     </button>
                   )}
 
-                  {msg.role === "assistant" && deviceVoiceSupported && (
+                  {deviceVoiceSupported && !msg.audioSrc && (
                     <button
                       type="button"
                       onClick={() => toggleDeviceVoice(msg)}
@@ -632,6 +649,46 @@ export function VoiceChatPanel({
                         <Volume2 className="h-3.5 w-3.5" />
                       )}
                     </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => void toggleTranslation(msg.id, msg.text)}
+                    className="inline-flex h-7 items-center gap-1 rounded-full border border-border/80 bg-background/70 px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-indigo-400/40 hover:text-foreground"
+                    aria-label="Translate message"
+                    title="Translate message"
+                  >
+                    {translations[msg.id]?.status === "loading" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Languages className="h-3.5 w-3.5" />
+                    )}
+                    <span>
+                      {translations[msg.id]?.status === "loading"
+                        ? "Translating"
+                        : translations[msg.id]?.status === "error"
+                          ? "Retry"
+                          : translations[msg.id]?.status === "ready" &&
+                              translations[msg.id]?.visible
+                            ? "Hide"
+                            : getVoiceChatTranslationLabel(
+                                translations[msg.id]?.targetLanguage ??
+                                  inferVoiceChatTranslationTarget(msg.text),
+                              )}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {msg.role === "assistant" && translations[msg.id]?.visible && (
+                <div className="mt-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                  {translations[msg.id]?.status === "ready" && (
+                    <p className="whitespace-pre-wrap text-foreground">
+                      {translations[msg.id]?.translatedText}
+                    </p>
+                  )}
+                  {translations[msg.id]?.status === "error" && (
+                    <p>{translations[msg.id]?.error ?? "Could not translate this message."}</p>
                   )}
                 </div>
               )}

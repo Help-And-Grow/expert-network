@@ -2,13 +2,18 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
+import {
+  getVoiceChatTranslationLanguageName,
+  type VoiceChatTranslationTarget,
+} from "@/lib/voice-chat-translation";
+import { getQwenTextModel } from "@/lib/ai/provider-catalog";
 import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
 import OpenAI from "openai";
 import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
 
 export const MAX_TURNS = 5;
 const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
-const QWEN_VOICE_CHAT_MODEL = process.env.QWEN_TEXT_MODEL?.trim() || "qwen-max";
+const QWEN_VOICE_CHAT_MODEL = getQwenTextModel();
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -158,7 +163,8 @@ function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
       ? `Services you list on your profile:\n${profile.servicesOfferedSummary}`
       : "",
     "Speak as the expert directly. Do not mention AI, model, system prompt, avatar, simulation, or any tooling.",
-    "Answer in the user's language. Default to concise professional Chinese unless the user clearly speaks another language.",
+    "Default to concise professional English.",
+    "Only switch to another language when the user explicitly asks you to continue in that language.",
     "This is a short voice preview. Deliver one compact reply that can be spoken in under 60 seconds.",
     "Prioritize concrete judgment, structure, and personalization over generic encouragement.",
     "Use the introduction, services, retrieved memories, and user context as factual anchors whenever relevant.",
@@ -370,17 +376,46 @@ async function synthesizeVoiceIfAvailable(
 export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
   if (profile.domains.length > 0) {
-    return `你好，我是${firstName}。你可以先用语音告诉我你当前最关键的问题，我会先给你一段简短、直接的判断。`;
+    return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a short, direct point of view first.`;
   }
-  return `你好，我是${firstName}。先用语音说说你的情况，我会先给你一个简洁的方向判断。`;
+  return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a concise first take.`;
 }
 
 export function buildRealtimeChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
   if (profile.domains.length > 0) {
-    return `你好，我是${firstName}。直接告诉我你现在最想解决的问题，我会先给你一段简洁、明确的判断。`;
+    return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a clear first take.`;
   }
-  return `你好，我是${firstName}。直接说说你的情况，我会先给你一个清晰的方向判断。`;
+  return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a clear direction first.`;
+}
+
+export async function translateVoiceChatText(
+  text: string,
+  targetLanguage: VoiceChatTranslationTarget,
+): Promise<string> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error("text is required");
+  }
+
+  const translated = await generateQwenReply([
+    {
+      role: "system",
+      content: [
+        "You are a precise translator for short chat messages.",
+        `Translate the text into ${getVoiceChatTranslationLanguageName(targetLanguage)}.`,
+        "Preserve the original meaning, tone, names, and formatting.",
+        "Do not explain anything and do not add quotation marks.",
+        "If the text is already in the target language, return it unchanged.",
+      ].join(" "),
+    },
+    {
+      role: "user",
+      content: trimmed,
+    },
+  ]);
+
+  return translated.trim();
 }
 
 /** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */
@@ -565,6 +600,11 @@ export function hasRealtimeSession(userId: string): boolean {
 
 export function getRealtimeSession(channelName: string): RealtimeSession | undefined {
   return rtSessions.get(channelName);
+}
+
+export function getRealtimeSessionForUser(userId: string): RealtimeSession | undefined {
+  const channelName = rtUserSessions.get(userId);
+  return channelName ? rtSessions.get(channelName) : undefined;
 }
 
 export function registerRealtimeSession(
