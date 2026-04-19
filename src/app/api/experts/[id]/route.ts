@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { ExperienceCapabilities } from "@expert-network/shared-api";
 
 import { domainStrings } from "@/lib/domains";
+import { supportsPayNowForCurrency } from "@/lib/paynow";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
@@ -29,6 +30,21 @@ function buildExperienceCapabilities(origin: string, expertId: string, hasAudio:
       publicProfileUrl: `${origin}${publicProfilePath}`,
       loginFirstProfileUrl: `${origin}/auth/signin?callbackUrl=${encodeURIComponent(publicProfilePath)}`,
     },
+  };
+}
+
+function buildPaymentCapabilities(currency: string | null | undefined) {
+  const payNowAvailable = supportsPayNowForCurrency(currency);
+  const stripeCheckoutAvailable = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+
+  return {
+    payNowAvailable,
+    stripeCheckoutAvailable,
+    preferredWebDepositMethod: payNowAvailable
+      ? "paynow"
+      : stripeCheckoutAvailable
+        ? "stripe_checkout"
+        : null,
   };
 }
 
@@ -127,6 +143,7 @@ export async function GET(
       expert.id,
       !!expert.audioIntroUrl,
     );
+    const paymentCapabilities = buildPaymentCapabilities(expert.currency);
 
     const vendorSite = isVendorAiStackSiteRequest(request);
     const payload = {
@@ -140,6 +157,7 @@ export async function GET(
       hasVoiceChat: true,
       viewerIsOwner: viewerUserId === expert.user.id,
       experienceCapabilities,
+      paymentCapabilities,
       learnedFromCount,
       offeredHelpCount,
     };
