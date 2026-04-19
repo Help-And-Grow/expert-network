@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { createHash } from "crypto";
 
-import { normalizeAudioForBrowserPlayback } from "@/lib/audio-format";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -64,42 +63,9 @@ function expandInitialRangeForDecoders(
   const minSpan = Math.min(65536, size);
   const span = end - start + 1;
   if (start === 0 && span < minSpan && end < size - 1) {
-    end = size - 1;
+    end = Math.min(size - 1, start + minSpan - 1);
   }
   return { start, end };
-}
-
-async function resolveAudioBytes(
-  audioIntroUrl: string,
-): Promise<{ mime: string; buffer: Buffer }> {
-  const trimmed = audioIntroUrl.trim();
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    const res = await fetch(trimmed, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error(`Upstream returned ${res.status}`);
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const contentType = res.headers.get("content-type")?.split(";")[0]?.trim();
-    const mime = contentType?.toLowerCase() === "audio/mp3" ? "audio/mpeg" : contentType || "audio/mpeg";
-    return { mime, buffer };
-  }
-
-  const dataUrlMatch = trimmed.match(/^data:([^,]+),([\s\S]+)$/);
-  if (!dataUrlMatch) {
-    throw new Error("Unsupported audio source");
-  }
-
-  const meta = dataUrlMatch[1] ?? "";
-  const payload = dataUrlMatch[2] ?? "";
-  const [mimeRaw = "audio/mpeg", ...params] = meta.split(";");
-  const mime = mimeRaw.toLowerCase() === "audio/mp3" ? "audio/mpeg" : mimeRaw;
-  const isBase64 = params.some((p) => p.trim().toLowerCase() === "base64");
-  const buffer = isBase64
-    ? Buffer.from(payload.replace(/\s+/g, ""), "base64")
-    : Buffer.from(decodeURIComponent(payload), "utf8");
-
-  return { mime, buffer };
 }
 
 export async function GET(
@@ -117,20 +83,25 @@ export async function GET(
       return NextResponse.json({ error: "No audio intro" }, { status: 404 });
     }
 
-    const { mime: sourceMime, buffer: sourceBuffer } = await resolveAudioBytes(
-      expert.audioIntroUrl,
+    // Support audio/mp3, audio/mpeg, audio/mp4, etc. (base64 may wrap)
+    const match = expert.audioIntroUrl.match(
+      /^data:(audio\/[^;]+);base64,([\s\S]+)$/
     );
-    if (sourceBuffer.length === 0) {
+    if (!match) {
+      return NextResponse.json({ error: "Invalid audio data" }, { status: 500 });
+    }
+
+    const [, mimeRaw, b64Raw] = match;
+    const b64 = b64Raw.replace(/\s+/g, "");
+    const buffer = Buffer.from(b64, "base64");
+    if (buffer.length === 0) {
       return NextResponse.json({ error: "Empty audio intro" }, { status: 404 });
     }
 
-    const normalized = normalizeAudioForBrowserPlayback({
-      buffer: sourceBuffer,
-      declaredMime: sourceMime,
-      fallbackPcmSampleRateHz: 24_000,
-    });
-    const buffer = normalized.buffer;
-    const mime = normalized.mimeType;
+    // Browsers expect IANA type for MP3; `audio/mp3` often fails to decode / report duration.
+    const mime =
+      mimeRaw.toLowerCase() === "audio/mp3" ? "audio/mpeg" : mimeRaw;
+
     // Full-body ETag only (no 304): empty 304 responses break <audio> in common browsers.
     const etag = `"${createHash("md5").update(buffer).digest("hex")}"`;
     const size = buffer.length;
@@ -141,7 +112,7 @@ export async function GET(
     if (parsed) {
       const { start, end } = expandInitialRangeForDecoders(parsed, size);
       const chunk = buffer.subarray(start, end + 1);
-      return new NextResponse(new Uint8Array(chunk), {
+      return new NextResponse(chunk, {
         status: 206,
         headers: {
           "Content-Type": mime,
@@ -154,7 +125,7 @@ export async function GET(
       });
     }
 
-    return new NextResponse(new Uint8Array(buffer), {
+    return new NextResponse(buffer, {
       headers: {
         "Content-Type": mime,
         "Content-Length": String(size),

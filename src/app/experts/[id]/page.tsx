@@ -27,7 +27,6 @@ import { UserMenu } from "@/components/user-menu";
 import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
-import { isTelegramMiniApp } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -127,6 +126,7 @@ export default function ExpertProfilePage() {
   const introObjectUrlRef = useRef<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [introSrc, setIntroSrc] = useState<string | null>(null);
+  const [introLoading, setIntroLoading] = useState(true);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [showRealtimeChat, setShowRealtimeChat] = useState(false);
   const [vcConfig, setVcConfig] = useState<{
@@ -213,30 +213,33 @@ export default function ExpertProfilePage() {
       return;
     }
 
-    const directSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
-
-    if (!isTelegramMiniApp()) {
-      revoke();
-      setIntroSrc(directSrc);
-      return;
-    }
+    const directSrc = `${window.location.origin}/api/experts/${id}/audio?t=${Date.now()}`;
 
     let cancelled = false;
     revoke();
     setIntroSrc(null);
+    setIntroLoading(true);
 
     void (async () => {
       try {
-        const res = await fetch(directSrc, { cache: "no-store" });
+        const res = await fetch(directSrc, {
+          cache: "no-store",
+          credentials: "include",
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         if (cancelled) return;
         const objectUrl = URL.createObjectURL(blob);
         introObjectUrlRef.current = objectUrl;
         setIntroSrc(objectUrl);
-      } catch {
+      } catch (e) {
+        console.warn("[page] intro audio fetch failed", e);
         if (!cancelled) {
           setIntroSrc(directSrc);
+        }
+      } finally {
+        if (!cancelled) {
+          setIntroLoading(false);
         }
       }
     })();
@@ -355,7 +358,7 @@ export default function ExpertProfilePage() {
           <audio
             ref={audioRef}
             src={introSrc ?? undefined}
-            preload="metadata"
+            preload="auto"
             playsInline
             onPlay={() => setIsAudioPlaying(true)}
             onPause={() => setIsAudioPlaying(false)}
@@ -383,27 +386,29 @@ export default function ExpertProfilePage() {
 
           {expert.hasAudio && (
             <button
-              onClick={async () => {
+              disabled={introLoading}
+              onClick={() => {
                 const audio = audioRef.current;
                 if (!audio) return;
                 if (isAudioPlaying) {
                   audio.pause();
                 } else {
-                  resumeSharedAudioContext();
-                  try {
-                    await audio.play();
-                  } catch {
-                    const fallbackSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+                  void audio.play().catch((e) => {
+                    console.warn("Public profile audio play error", e);
+                    // Fallback to reload and try once more if not already playing
+                    const fallbackSrc = `${window.location.origin}/api/experts/${id}/audio?t=${Date.now()}`;
                     audio.src = fallbackSrc;
                     audio.load();
-                    await audio.play().catch(() => {});
-                  }
+                    void audio.play().catch(() => {});
+                  });
                 }
               }}
               className={`absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-lg transition-all ${
                 isAudioPlaying
                   ? "bg-indigo-600 text-white"
-                  : "border border-white/10 bg-card/85 text-foreground backdrop-blur hover:bg-card"
+                  : introLoading
+                    ? "border border-white/10 bg-card/50 text-foreground/50 backdrop-blur cursor-not-allowed"
+                    : "border border-white/10 bg-card/85 text-foreground backdrop-blur hover:bg-card"
               }`}
             >
               {isAudioPlaying ? (
@@ -414,6 +419,11 @@ export default function ExpertProfilePage() {
                     <span className="inline-block h-4 w-0.5 bg-white rounded-full animate-pulse [animation-delay:150ms]" />
                     <span className="inline-block h-2 w-0.5 bg-white rounded-full animate-pulse [animation-delay:300ms]" />
                   </span>
+                </>
+              ) : introLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 ml-0.5 animate-spin" />
+                  Loading
                 </>
               ) : (
                 <>
