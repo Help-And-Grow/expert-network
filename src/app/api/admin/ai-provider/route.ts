@@ -12,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const PROVIDERS = ["qwen", "gemini", "openai", "zai", "dedalus"] as const;
+const PROVIDERS = ["qwen"] as const;
 type ProviderName = (typeof PROVIDERS)[number];
 
 type ProviderRequirement = {
@@ -24,22 +24,6 @@ const PROVIDER_REQUIREMENTS: Record<ProviderName, ProviderRequirement> = {
   qwen: {
     requiredAny: [["DASHSCOPE_API_KEY"]],
     optional: ["VOICE_CHAT_DEFAULT_VOICE"],
-  },
-  gemini: {
-    requiredAny: [["GEMINI_API_KEY"], ["GOOGLE_CLOUD_PROJECT", "GOOGLE_SERVICE_ACCOUNT_KEY"]],
-    optional: ["GOOGLE_CLOUD_LOCATION", "GEMINI_TEXT_MODEL", "GEMINI_IMAGE_MODEL"],
-  },
-  openai: {
-    requiredAny: [["OPENAI_API_KEY"]],
-    optional: [],
-  },
-  zai: {
-    requiredAny: [["ZAI_API_KEY"], ["GOOGLE_CLOUD_PROJECT", "GOOGLE_SERVICE_ACCOUNT_KEY"]],
-    optional: ["ZAI_BASE_URL", "ZAI_TEXT_MODEL", "ZAI_IMAGE_MODEL", "ZAI_VERTEX_LOCATION"],
-  },
-  dedalus: {
-    requiredAny: [["DEDALUS_API_KEY"]],
-    optional: ["DEDALUS_MODEL", "DEDALUS_MATCH_MODEL"],
   },
 };
 
@@ -68,10 +52,10 @@ export async function GET(request: NextRequest) {
   const cfg = getManagedVercelProjectConfig();
   if (!cfg) {
     return NextResponse.json({
-      currentProvider: env.AI_PROVIDER,
+      currentProvider: "qwen",
       canManage: false,
       error:
-        "Set VERCEL_MANAGEMENT_TOKEN, VERCEL_MANAGED_TEAM_ID, and VERCEL_MANAGED_PROJECT to manage provider switching from this admin page.",
+        "Set VERCEL_MANAGEMENT_TOKEN, VERCEL_MANAGED_TEAM_ID, and VERCEL_MANAGED_PROJECT to manage Qwen policy sync from this admin page.",
     });
   }
 
@@ -84,7 +68,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     canManage: true,
-    currentProvider: env.AI_PROVIDER,
+    currentProvider: "qwen",
     managedProject: cfg.project,
     managedTeamId: cfg.teamId,
     deployHookConfigured: Boolean(cfg.deployHookUrl),
@@ -108,27 +92,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { provider?: ProviderName; triggerDeploy?: boolean };
+  let body: { triggerDeploy?: boolean };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const provider = body.provider;
-  if (!provider || !PROVIDERS.includes(provider)) {
-    return NextResponse.json(
-      { error: `provider must be one of: ${PROVIDERS.join(", ")}` },
-      { status: 400 },
-    );
-  }
-
-  await upsertManagedProjectEnv(cfg, "AI_PROVIDER", provider);
+  await upsertManagedProjectEnv(cfg, "AI_PROVIDER", "qwen");
   const deploy = body.triggerDeploy === false ? { triggered: false } : await triggerManagedProjectDeploy(cfg);
 
   return NextResponse.json({
     ok: true,
-    provider,
+    provider: "qwen",
     deployTriggered: deploy.triggered,
   });
 }
