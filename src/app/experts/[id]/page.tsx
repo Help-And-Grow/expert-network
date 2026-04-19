@@ -27,6 +27,7 @@ import { UserMenu } from "@/components/user-menu";
 import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import { isTelegramMiniApp } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -213,6 +214,12 @@ export default function ExpertProfilePage() {
     }
 
     const directSrc = `/api/experts/${id}/audio?t=${Date.now()}`;
+
+    if (!isTelegramMiniApp()) {
+      revoke();
+      setIntroSrc(directSrc);
+      return;
+    }
 
     let cancelled = false;
     revoke();

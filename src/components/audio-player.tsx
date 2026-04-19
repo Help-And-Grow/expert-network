@@ -13,6 +13,7 @@ import { Pause, Play, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isTelegramMiniApp } from "@/lib/telegram";
 
 export type AudioPlayerHandle = {
   pause: () => void;
@@ -70,6 +71,12 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     }
 
     if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+      setResolvedSrc(trimmed);
+      setMediaLoading(false);
+      return;
+    }
+
+    if (!isTelegramMiniApp()) {
       setResolvedSrc(trimmed);
       setMediaLoading(false);
       return;
