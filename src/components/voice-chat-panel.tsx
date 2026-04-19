@@ -40,6 +40,10 @@ interface VoiceChatPanelProps {
   onClose: () => void;
 }
 
+function hasDeviceVoiceSupport(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
 function generateStarters(
   name: string,
   services?: { title: string }[] | null,
@@ -105,9 +109,7 @@ export function VoiceChatPanel({
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    setDeviceVoiceSupported(
-      typeof window !== "undefined" && "speechSynthesis" in window,
-    );
+    setDeviceVoiceSupported(hasDeviceVoiceSupport());
   }, []);
 
   /** Browsers block Audio.play() after async fetch unless audio is "unlocked" by a gesture. */
@@ -134,7 +136,7 @@ export function VoiceChatPanel({
     setPlayingId(null);
   }, []);
 
-  const playExpertAudio = useCallback((src: string, msgId: string) => {
+  const playExpertAudio = useCallback(async (src: string, msgId: string) => {
     stopPlayback();
 
     const audio = document.createElement("audio");
@@ -157,11 +159,13 @@ export function VoiceChatPanel({
     audio.onpause = clearPlaying;
     audio.onerror = clearPlaying;
 
-    void audio
-      .play()
-      .catch(() => {
-        clearPlaying();
-      });
+    try {
+      await audio.play();
+      return true;
+    } catch {
+      clearPlaying();
+      return false;
+    }
   }, [stopPlayback]);
 
   const speakWithDeviceVoice = useCallback(
@@ -255,17 +259,31 @@ export function VoiceChatPanel({
               audioSrc: data.replyAudio,
             },
           ]);
-          if (!cancelled && data.replyAudio) playExpertAudio(data.replyAudio, id);
+          if (cancelled) return;
+
+          let played = false;
+          if (data.replyAudio) {
+            played = await playExpertAudio(data.replyAudio, id);
+          }
+          if (!played && hasDeviceVoiceSupport()) {
+            speakWithDeviceVoice(data.replyText, id);
+          }
         } else {
           const id = nextId();
           setMessages([
             { id, role: "assistant", text: fallbackGreetingText },
           ]);
+          if (!cancelled && hasDeviceVoiceSupport()) {
+            speakWithDeviceVoice(fallbackGreetingText, id);
+          }
         }
       } catch {
         if (!cancelled) {
           const id = nextId();
           setMessages([{ id, role: "assistant", text: fallbackGreetingText }]);
+          if (hasDeviceVoiceSupport()) {
+            speakWithDeviceVoice(fallbackGreetingText, id);
+          }
         }
       } finally {
         if (!cancelled) setGreetingLoading(false);
@@ -275,7 +293,14 @@ export function VoiceChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, expertId, fallbackGreetingText, playExpertAudio, stopPlayback]);
+  }, [
+    open,
+    expertId,
+    fallbackGreetingText,
+    playExpertAudio,
+    speakWithDeviceVoice,
+    stopPlayback,
+  ]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -368,7 +393,7 @@ export function VoiceChatPanel({
         setMessages((prev) => [...prev, aiMsg]);
         setTurnInfo({ count: data.turnCount, max: data.maxTurns });
         if (data.replyAudio) {
-          playExpertAudio(data.replyAudio, aiMsg.id);
+          void playExpertAudio(data.replyAudio, aiMsg.id);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -413,7 +438,7 @@ export function VoiceChatPanel({
       setMessages((prev) => [...prev, aiMsg]);
       setTurnInfo({ count: data.turnCount, max: data.maxTurns });
       if (data.replyAudio) {
-        playExpertAudio(data.replyAudio, aiMsg.id);
+        void playExpertAudio(data.replyAudio, aiMsg.id);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -431,7 +456,7 @@ export function VoiceChatPanel({
       if (playingId === msg.id && playbackModeRef.current === "audio") {
         stopPlayback();
       } else {
-        playExpertAudio(msg.audioSrc, msg.id);
+        void playExpertAudio(msg.audioSrc, msg.id);
       }
     },
     [playingId, playExpertAudio, stopPlayback, unlockAudioPlayback],

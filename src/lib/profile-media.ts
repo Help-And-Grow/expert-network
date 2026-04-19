@@ -1,5 +1,6 @@
 import { createAIProviderForName, type ImageInput } from "@/lib/ai";
 import { env } from "@/lib/env";
+import { hasGoogleServiceAccountConfig } from "@/lib/google-access-token";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
 import { isAlibabaCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
 
@@ -9,6 +10,7 @@ import type {
 } from "@/lib/integrations/types";
 
 const IMAGE_UNSUPPORTED_AI_PROVIDERS = new Set(["byteplus", "volcengine"]);
+const PROFILE_IMAGE_FALLBACK_ORDER = ["gemini", "qwen", "openai", "zai", "dedalus"] as const;
 
 function currentAiProvider(): string {
   return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
@@ -35,40 +37,108 @@ async function generateProfileImageWithGemini(
   return new GeminiProvider().generateProfileImage(data);
 }
 
+function isProviderConfiguredForProfileImage(providerName: string): boolean {
+  switch (providerName) {
+    case "gemini":
+      return isGeminiConfigured();
+    case "qwen":
+      return Boolean(env.DASHSCOPE_API_KEY?.trim());
+    case "openai":
+      return Boolean(env.OPENAI_API_KEY?.trim());
+    case "zai":
+      return Boolean(
+        env.ZAI_API_KEY?.trim() ||
+          (env.GOOGLE_CLOUD_PROJECT?.trim() && hasGoogleServiceAccountConfig()),
+      );
+    case "dedalus":
+      return Boolean(env.DEDALUS_API_KEY?.trim());
+    default:
+      return false;
+  }
+}
+
+function profileImageProviderOrder(primaryProvider: string): string[] {
+  const ordered = [primaryProvider, ...PROFILE_IMAGE_FALLBACK_ORDER];
+  return ordered.filter(
+    (providerName, index) =>
+      ordered.indexOf(providerName) === index &&
+      (providerName === primaryProvider ||
+        isProviderConfiguredForProfileImage(providerName)),
+  );
+}
+
+async function normalizeProfileImage(image: string): Promise<string | null> {
+  const normalized = image.trim();
+  if (!normalized) return null;
+  if (normalized.startsWith("data:image/")) return normalized;
+  if (!/^https?:\/\//i.test(normalized)) {
+    console.warn("[profile-media] Unsupported profile image format", normalized.slice(0, 80));
+    return null;
+  }
+
+  const response = await fetch(normalized);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download generated profile image (${response.status}) from provider URL.`,
+    );
+  }
+
+  const contentType = response.headers.get("content-type")?.trim() || "image/png";
+  if (!contentType.toLowerCase().startsWith("image/")) {
+    throw new Error(`Generated profile image URL returned unexpected content type "${contentType}".`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length) {
+    throw new Error("Generated profile image URL returned an empty response body.");
+  }
+
+  return `data:${contentType};base64,${buffer.toString("base64")}`;
+}
+
+async function generateProfileImageWithProvider(
+  providerName: string,
+  data: ImageInput,
+): Promise<string | null> {
+  const image = providerName === "gemini"
+    ? await generateProfileImageWithGemini(data)
+    : await createAIProviderForName(providerName).generateProfileImage(data);
+  if (!image) return null;
+  return normalizeProfileImage(image);
+}
+
 export async function generateProfileImageResilient(
   data: ImageInput,
 ): Promise<string | null> {
-  const aiProvider = primaryProviderForProfileImage();
-  let lastError: unknown = null;
+  const primaryProvider = primaryProviderForProfileImage();
+  const providerOrder = profileImageProviderOrder(primaryProvider);
+  const attempts: string[] = [];
 
-  if (isGeminiConfigured() && IMAGE_UNSUPPORTED_AI_PROVIDERS.has(aiProvider)) {
-    const image = await generateProfileImageWithGemini(data);
-    if (image) return image;
-    throw new Error("Gemini image generation returned no image data.");
-  }
+  for (const providerName of providerOrder) {
+    if (
+      providerName !== primaryProvider &&
+      IMAGE_UNSUPPORTED_AI_PROVIDERS.has(providerName)
+    ) {
+      continue;
+    }
 
-  try {
-    const image = await createAIProviderForName(aiProvider).generateProfileImage(data);
-    if (image) return image;
-    lastError = new Error(
-      `Profile image provider "${aiProvider}" returned no image data.`,
-    );
-  } catch (error) {
-    lastError = error;
-  }
-
-  if (isGeminiConfigured() && aiProvider !== "gemini") {
     try {
-      const image = await generateProfileImageWithGemini(data);
+      const image = await generateProfileImageWithProvider(providerName, data);
       if (image) return image;
-      lastError = new Error("Gemini image generation returned no image data.");
+      attempts.push(`"${providerName}" returned no image data`);
     } catch (error) {
-      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[profile-media] Provider "${providerName}" failed`, error);
+      attempts.push(`"${providerName}" failed: ${message}`);
     }
   }
 
-  if (lastError instanceof Error) throw lastError;
-  if (lastError) throw new Error(String(lastError));
+  if (attempts.length > 0) {
+    throw new Error(
+      `No configured profile image provider produced an image. Tried ${providerOrder.join(", ")}. ${attempts.join("; ")}`,
+    );
+  }
+
   return null;
 }
 

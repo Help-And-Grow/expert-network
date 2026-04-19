@@ -6,6 +6,7 @@ import { Clock3, Loader2, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import { cn } from "@/lib/utils";
 
 interface VoiceChatModalProps {
@@ -28,6 +29,10 @@ function formatTimer(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function hasDeviceVoiceSupport(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
 export function VoiceChatModal({
   expertId,
   expertName,
@@ -47,6 +52,8 @@ export function VoiceChatModal({
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
   const stopSessionRef = useRef<() => Promise<void>>(async () => {});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const nextMessageId = useCallback(() => `rt-chat-${++msgIdRef.current}`, []);
 
@@ -71,6 +78,65 @@ export function VoiceChatModal({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  const stopGreetingPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.onended = null;
+      audioRef.current.onpause = null;
+      audioRef.current.onerror = null;
+      audioRef.current.pause();
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load();
+      audioRef.current = null;
+    }
+
+    if (hasDeviceVoiceSupport()) {
+      window.speechSynthesis.cancel();
+    }
+    speechRef.current = null;
+  }, []);
+
+  const playGreetingAudio = useCallback(
+    async (src: string): Promise<boolean> => {
+      stopGreetingPlayback();
+
+      const audio = document.createElement("audio");
+      audio.setAttribute("playsinline", "true");
+      audio.setAttribute("webkit-playsinline", "true");
+      audio.preload = "auto";
+      audio.src = src;
+      audioRef.current = audio;
+
+      try {
+        await audio.play();
+        return true;
+      } catch {
+        stopGreetingPlayback();
+        return false;
+      }
+    },
+    [stopGreetingPlayback],
+  );
+
+  const speakGreetingWithDeviceVoice = useCallback(
+    (text: string): boolean => {
+      if (!hasDeviceVoiceSupport()) return false;
+
+      stopGreetingPlayback();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+      speechRef.current = utterance;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      return true;
+    },
+    [stopGreetingPlayback],
+  );
+
+  useEffect(() => () => {
+    stopGreetingPlayback();
+  }, [stopGreetingPlayback]);
 
   const stopSession = useCallback(async () => {
     if (!sessionId) return;
@@ -99,25 +165,40 @@ export function VoiceChatModal({
 
   const fetchGreeting = useCallback(async () => {
     try {
+      resumeSharedAudioContext();
       const res = await fetch("/api/voice-chat/greeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expertId, includeAudio: false }),
+        body: JSON.stringify({ expertId }),
       });
-      const data = (await res.json()) as { replyText?: string };
+      const data = (await res.json()) as { replyText?: string; replyAudio?: string | null };
       if (!res.ok || !data.replyText) return;
 
+      const greetingId = nextMessageId();
       setMessages([
         {
-          id: nextMessageId(),
+          id: greetingId,
           role: "assistant",
           text: data.replyText,
         },
       ]);
+
+      let played = false;
+      if (data.replyAudio) {
+        played = await playGreetingAudio(data.replyAudio);
+      }
+      if (!played) {
+        speakGreetingWithDeviceVoice(data.replyText);
+      }
     } catch {
       // Greeting is non-blocking.
     }
-  }, [expertId, nextMessageId]);
+  }, [
+    expertId,
+    nextMessageId,
+    playGreetingAudio,
+    speakGreetingWithDeviceVoice,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,12 +310,13 @@ export function VoiceChatModal({
   );
 
   const handleClose = useCallback(async () => {
+    stopGreetingPlayback();
     if (sessionState === "connected" || sessionState === "connecting") {
       setSessionState("ending");
       await stopSession();
     }
     onClose();
-  }, [onClose, sessionState, stopSession]);
+  }, [onClose, sessionState, stopGreetingPlayback, stopSession]);
 
   const remaining = Math.max(0, maxDuration - elapsed);
   const isLowTime = remaining <= 30;
