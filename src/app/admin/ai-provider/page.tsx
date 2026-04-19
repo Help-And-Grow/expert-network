@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type ProviderName = "qwen" | "gemini" | "openai" | "zai" | "dedalus";
+type ProviderName = "qwen";
 
 type ProviderHealth = Record<
   ProviderName,
@@ -38,16 +38,11 @@ type StatusResponse = {
 
 const PROVIDER_LABELS: Record<ProviderName, string> = {
   qwen: "Qwen / DashScope",
-  gemini: "Gemini",
-  openai: "OpenAI",
-  zai: "Z.ai",
-  dedalus: "Dedalus",
 };
 
 export default function AdminAIProviderPage() {
   const { status } = useSession();
   const [data, setData] = useState<StatusResponse | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<ProviderName>("qwen");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -59,7 +54,6 @@ export default function AdminAIProviderPage() {
       const res = await fetch("/api/admin/ai-provider", { credentials: "include" });
       const body = (await res.json()) as StatusResponse;
       setData(body);
-      if (body.currentProvider) setSelectedProvider(body.currentProvider);
     } catch (error) {
       setData({
         canManage: false,
@@ -83,7 +77,7 @@ export default function AdminAIProviderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ provider: selectedProvider, triggerDeploy: true }),
+        body: JSON.stringify({ triggerDeploy: true }),
       });
       const body = (await res.json()) as { error?: string; deployTriggered?: boolean };
       if (!res.ok) {
@@ -91,8 +85,8 @@ export default function AdminAIProviderPage() {
       }
       setMessage(
         body.deployTriggered
-          ? `Provider updated to ${PROVIDER_LABELS[selectedProvider]}. Redeploy triggered.`
-          : `Provider updated to ${PROVIDER_LABELS[selectedProvider]}. Deploy hook not configured, so trigger a redeploy manually.`,
+          ? "Qwen / DashScope policy re-applied. Redeploy triggered."
+          : "Qwen / DashScope policy re-applied. Deploy hook not configured, so trigger a redeploy manually.",
       );
       await load();
     } catch (error) {
@@ -136,8 +130,8 @@ export default function AdminAIProviderPage() {
             AI Provider Control
           </CardTitle>
           <CardDescription>
-            Switch the managed Vercel project between Gemini, Z.ai, Qwen, OpenAI, and Dedalus.
-            This updates the `AI_PROVIDER` environment variable and can trigger a redeploy immediately.
+            The public Help-And-Grow repo is locked to Alibaba Cloud Qwen / DashScope.
+            This page verifies that `AI_PROVIDER` stays pinned to `qwen` and can trigger a redeploy immediately.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -169,24 +163,9 @@ export default function AdminAIProviderPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label className="flex-1 text-sm font-medium text-slate-800">
-              Provider
-              <select
-                className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={selectedProvider}
-                onChange={(event) =>
-                  setSelectedProvider(event.target.value as ProviderName)
-                }
-                disabled={!data?.canManage || saving}
-              >
-                {Object.entries(PROVIDER_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
+            <div className="flex-1 rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              Provider policy: <span className="font-medium">Qwen / DashScope only</span>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => void load()} disabled={loading || saving}>
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -198,7 +177,7 @@ export default function AdminAIProviderPage() {
                 ) : (
                   <Rocket className="mr-2 h-4 w-4" />
                 )}
-                Apply
+                Sync Qwen
               </Button>
             </div>
           </div>

@@ -19,7 +19,7 @@ export function isRealtimeEnabled(): boolean {
 }
 
 export function isRealtimeReady(): boolean {
-  return isRealtimeEnabled() && Boolean(env.GEMINI_API_KEY || env.GOOGLE_CLOUD_PROJECT);
+  return isRealtimeEnabled() && Boolean(env.DASHSCOPE_API_KEY?.trim());
 }
 
 export function getVoiceChatClientConfig() {

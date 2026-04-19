@@ -1,10 +1,7 @@
 import { createAIProviderForName, type ImageInput } from "@/lib/ai";
 import { env } from "@/lib/env";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
-import {
-  isAlibabaCloudVendorDemoDeployment,
-  isByteplusVendorDemoDeployment,
-} from "@/lib/vendor-ai-stack-site";
+import { isAlibabaCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
 
 import type {
   VoiceSynthesisProvider,
@@ -18,12 +15,12 @@ function currentAiProvider(): string {
 }
 
 /**
- * Vendor demo hosts should not inherit a mistaken `AI_PROVIDER=gemini` from another Vercel project.
+ * Alibaba showcase hosts should not inherit a mistaken non-Qwen `AI_PROVIDER`
+ * from another deployment.
  * Profile images use this primary provider before Gemini fallback rules.
  */
 function primaryProviderForProfileImage(): string {
   if (isAlibabaCloudVendorDemoDeployment()) return "qwen";
-  if (isByteplusVendorDemoDeployment()) return "byteplus";
   return currentAiProvider();
 }
 
@@ -84,19 +81,17 @@ async function createGeminiProfileIntroVoiceSynthesis(): Promise<VoiceSynthesisP
 export async function getProfileIntroVoiceSynthesisProviders(): Promise<VoiceSynthesisProvider[]> {
   const providers: VoiceSynthesisProvider[] = [];
 
-  const gemini = await createGeminiProfileIntroVoiceSynthesis().catch(() => null);
-  if (gemini) {
-    providers.push(gemini);
-  }
-
   const fallback = await getVoiceSynthesis();
   if (fallback) {
+    providers.push(fallback);
+  }
+
+  const gemini = await createGeminiProfileIntroVoiceSynthesis().catch(() => null);
+  if (gemini) {
     const duplicate = providers.some(
-      (provider) => provider.constructor === fallback.constructor,
+      (provider) => provider.constructor === gemini.constructor,
     );
-    if (!duplicate) {
-      providers.push(fallback);
-    }
+    if (!duplicate) providers.push(gemini);
   }
 
   return providers;

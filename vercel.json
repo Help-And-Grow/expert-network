@@ -1,6 +1,6 @@
 {
   "env": {
-    "AI_PROVIDER": "gemini"
+    "AI_PROVIDER": "qwen"
   },
   "crons": [
     {

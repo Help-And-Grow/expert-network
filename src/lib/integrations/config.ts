@@ -16,7 +16,6 @@ import type {
 // ---------------------------------------------------------------------------
 
 import { env } from "@/lib/env";
-import { isGoogleCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
 
 function readConfiguredKey(value?: string | null): string | null {
   const normalized = value?.trim();
@@ -37,7 +36,6 @@ function getDashscopeKeyIssue(): string | null {
   return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const aiProvider = (env.AI_PROVIDER || "qwen").trim().toLowerCase();
 const geminiVoiceReady = Boolean(
   env.GOOGLE_CLOUD_PROJECT?.trim() || env.GEMINI_API_KEY?.trim(),
@@ -45,17 +43,15 @@ const geminiVoiceReady = Boolean(
 const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
 const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
 
-/** Alibaba DashScope for speech I/O (vs Gemini TTS) — includes Google Cloud vendor demo with Gemini LLM. */
+/** Alibaba DashScope is the canonical speech stack for the public repo. */
 const voiceStackPrefersDashScope =
   aiProvider === "qwen" ||
-  aiProvider === "byteplus" ||
-  (isGoogleCloudVendorDemoDeployment() && aiProvider === "gemini");
+  aiProvider === "byteplus";
 
 /**
  * Select TTS provider respecting AI_PROVIDER first, then falling back by key availability.
  * - qwen  → always qwen-tts (DashScope)
  * - byteplus → qwen-tts (DashScope ASR/TTS) unless only Gemini/Fish keys present
- * - expert-network-googlecloud + gemini → qwen-tts when DashScope is configured (Gemini LLM only)
  * - gemini → gemini-tts if ready, else fish, else qwen
  * - others → gemini if ready, else fish, else qwen
  */
@@ -89,9 +85,6 @@ export function getVoiceTranscriptionConfigIssue(): string | null {
   if (!dashscopeKey) {
     if (aiProvider === "byteplus") {
       return "BytePlus voice input still requires DASHSCOPE_API_KEY for DashScope ASR. BYTEPLUS_API_KEY only powers the text reply.";
-    }
-    if (isGoogleCloudVendorDemoDeployment() && aiProvider === "gemini") {
-      return "expert-network-googlecloud uses Gemini for LLM but DashScope (DASHSCOPE_API_KEY) for speech recognition.";
     }
     return "Voice input requires DASHSCOPE_API_KEY for DashScope ASR.";
   }
