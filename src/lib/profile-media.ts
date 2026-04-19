@@ -1,7 +1,4 @@
 import { generateProfileImage, type ImageInput } from "@/lib/ai";
-import {
-  normalizeAudioForBrowserPlayback,
-} from "@/lib/audio-format";
 import { env } from "@/lib/env";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
 
@@ -16,19 +13,8 @@ function currentAiProvider(): string {
   return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
 }
 
-function isQwenConfigured(): boolean {
-  return Boolean(env.DASHSCOPE_API_KEY?.trim());
-}
-
 function isGeminiConfigured(): boolean {
   return Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
-}
-
-async function generateProfileImageWithQwen(
-  data: ImageInput,
-): Promise<string | null> {
-  const { QwenProvider } = await import("@/lib/ai/qwen");
-  return new QwenProvider().generateProfileImage(data);
 }
 
 async function generateProfileImageWithGemini(
@@ -44,32 +30,18 @@ export async function generateProfileImageResilient(
   const aiProvider = currentAiProvider();
   let lastError: unknown = null;
 
-  // Profile avatars should prefer DashScope/Qwen when available because the
-  // Gemini image path has proven less reliable in production for this flow.
-  if (isQwenConfigured()) {
-    try {
-      const image = await generateProfileImageWithQwen(data);
-      if (image) return image;
-      lastError = new Error("Qwen image generation returned no image data.");
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
   if (isGeminiConfigured() && IMAGE_UNSUPPORTED_AI_PROVIDERS.has(aiProvider)) {
     const image = await generateProfileImageWithGemini(data);
     if (image) return image;
     throw new Error("Gemini image generation returned no image data.");
   }
 
-  if (aiProvider !== "qwen") {
-    try {
-      const image = await generateProfileImage(data);
-      if (image) return image;
-      lastError = new Error(`AI_PROVIDER "${aiProvider}" returned no profile image.`);
-    } catch (error) {
-      lastError = error;
-    }
+  try {
+    const image = await generateProfileImage(data);
+    if (image) return image;
+    lastError = new Error(`AI_PROVIDER "${aiProvider}" returned no profile image.`);
+  } catch (error) {
+    lastError = error;
   }
 
   if (isGeminiConfigured() && aiProvider !== "gemini") {
@@ -114,6 +86,77 @@ export async function getProfileIntroVoiceSynthesisProviders(): Promise<VoiceSyn
   return providers;
 }
 
+function detectAudioMime(buffer: Buffer): string | null {
+  if (buffer.length < 4) return null;
+
+  if (
+    buffer.length >= 12 &&
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x41 &&
+    buffer[10] === 0x56 &&
+    buffer[11] === 0x45
+  ) {
+    return "audio/wav";
+  }
+
+  if (
+    (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) ||
+    (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
+  ) {
+    return "audio/mpeg";
+  }
+
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x4f &&
+    buffer[1] === 0x67 &&
+    buffer[2] === 0x67 &&
+    buffer[3] === 0x53
+  ) {
+    return "audio/ogg";
+  }
+
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  ) {
+    return "audio/webm";
+  }
+
+  if (
+    buffer.length >= 8 &&
+    buffer[4] === 0x66 &&
+    buffer[5] === 0x74 &&
+    buffer[6] === 0x79 &&
+    buffer[7] === 0x70
+  ) {
+    return "audio/mp4";
+  }
+
+  if (buffer[0] === 0xff && (buffer[1] & 0xf6) === 0xf0) {
+    return "audio/aac";
+  }
+
+  return null;
+}
+
+function mimeFromDeclaredFormat(format?: string | null): string {
+  const normalized = format?.trim().toLowerCase();
+  if (normalized === "mp3" || normalized === "mpeg") return "audio/mpeg";
+  if (normalized === "ogg" || normalized === "opus") return "audio/ogg";
+  if (normalized === "mp4" || normalized === "m4a") return "audio/mp4";
+  if (normalized === "webm") return "audio/webm";
+  if (normalized === "aac") return "audio/aac";
+  return "audio/wav";
+}
+
 export function buildProfileAudioDataUrl(
   result: VoiceSynthesisResult,
 ): string {
@@ -122,10 +165,6 @@ export function buildProfileAudioDataUrl(
   if (buffer.length === 0) {
     throw new Error("Voice synthesis returned empty audio.");
   }
-  const normalized = normalizeAudioForBrowserPlayback({
-    buffer,
-    declaredFormat: result.format,
-    fallbackPcmSampleRateHz: 24_000,
-  });
-  return `data:${normalized.mimeType};base64,${normalized.buffer.toString("base64")}`;
+  const mime = detectAudioMime(buffer) || mimeFromDeclaredFormat(result.format);
+  return `data:${mime};base64,${buffer.toString("base64")}`;
 }

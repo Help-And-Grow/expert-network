@@ -13,7 +13,6 @@ import { Pause, Play, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isTelegramMiniApp } from "@/lib/telegram";
 
 export type AudioPlayerHandle = {
   pause: () => void;
@@ -38,34 +37,12 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
 ) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const blobUrlRef = useRef<string | null>(null);
-  const fallbackAttemptedRef = useRef(false);
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const revoke = useCallback(() => {
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-  }, []);
-
-  const fetchToBlob = useCallback(
-    async (url: string) => {
-      const res = await fetch(resolveFetchUrl(url), { credentials: "include" });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      blobUrlRef.current = objectUrl;
-      setResolvedSrc(objectUrl);
-    },
-    [],
-  );
 
   const syncDuration = useCallback(() => {
     const el = audioRef.current;
@@ -84,7 +61,6 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
     setIsPlaying(false);
     setMediaLoading(true);
     setResolvedSrc(null);
-    fallbackAttemptedRef.current = false;
 
     const trimmed = src.trim();
     if (!trimmed) {
@@ -99,13 +75,14 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
       return;
     }
 
-    if (!isTelegramMiniApp()) {
-      setResolvedSrc(trimmed);
-      setMediaLoading(false);
-      return;
-    }
-
     const ac = new AbortController();
+
+    const revoke = () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
 
     revoke();
 
@@ -138,7 +115,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
       ac.abort();
       revoke();
     };
-  }, [src, revoke]);
+  }, [src]);
 
   useImperativeHandle(
     ref,
@@ -199,28 +176,6 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(funct
         onError={() => {
           const mediaErr = audioRef.current?.error;
           if (mediaErr?.code === MediaError.MEDIA_ERR_ABORTED) return;
-          const trimmed = src.trim();
-          if (
-            trimmed &&
-            !fallbackAttemptedRef.current &&
-            !trimmed.startsWith("data:") &&
-            !trimmed.startsWith("blob:")
-          ) {
-            fallbackAttemptedRef.current = true;
-            revoke();
-            setLoadError(null);
-            setMediaLoading(true);
-            void fetchToBlob(trimmed)
-              .then(() => {
-                setMediaLoading(false);
-              })
-              .catch((e: unknown) => {
-                console.warn("[AudioPlayer] fetch failed", e);
-                setMediaLoading(false);
-                setLoadError("Could not load this audio file.");
-              });
-            return;
-          }
           console.warn("[AudioPlayer] error", mediaErr?.code, mediaErr?.message);
           setLoadError("Could not load this audio file.");
           setDuration(0);

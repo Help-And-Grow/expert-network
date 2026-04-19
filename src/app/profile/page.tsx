@@ -164,26 +164,6 @@ export default function ProfilePage() {
     });
   };
 
-  const handleBack = useCallback(() => {
-    if (typeof window === "undefined") {
-      router.push("/");
-      return;
-    }
-
-    const historyState = window.history.state as { idx?: number } | null;
-    const canGoBack =
-      typeof historyState?.idx === "number"
-        ? historyState.idx > 0
-        : window.history.length > 1;
-
-    if (canGoBack) {
-      router.back();
-      return;
-    }
-
-    router.push("/");
-  }, [router]);
-
   const saveSection = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/expert/profile", {
       method: "PATCH",
@@ -599,8 +579,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <button
-              type="button"
-              onClick={handleBack}
+              onClick={() => router.back()}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
