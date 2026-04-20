@@ -19,9 +19,7 @@ import {
 import { useTelegram } from "@/components/telegram-provider";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent } from "@/components/ui/card";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
-import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/user-menu";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
 import { getTelegramInitData } from "@/lib/telegram";
@@ -133,16 +131,6 @@ export default function BookSessionPage() {
     depositTON: string;
     depositSGD: string;
   } | null>(null);
-  const [payNowPending, setPayNowPending] = useState<{
-    bookingId: string;
-    paynowReference: string;
-    amountLabel: string;
-    qrDataUrl: string;
-    receiver: { companyName: string; uen: string };
-    holdExpiresAt: string;
-  } | null>(null);
-  const [payNowPayerReference, setPayNowPayerReference] = useState("");
-  const [payNowSubmitting, setPayNowSubmitting] = useState(false);
   const telegramInitData = getTelegramInitData();
   const isTelegramSurface = isTelegram || Boolean(telegramInitData);
 
@@ -300,80 +288,6 @@ export default function BookSessionPage() {
     }
   };
 
-  const handlePayNowCheckout = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/bookings/paynow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
-        },
-        body: JSON.stringify(bookingPayload()),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || data.error || "Failed to create PayNow payment");
-      setPayNowPending({
-        bookingId: data.bookingId,
-        paynowReference: data.paynowReference,
-        amountLabel: data.amountLabel,
-        qrDataUrl: data.qrDataUrl,
-        receiver: data.receiver,
-        holdExpiresAt: data.holdExpiresAt,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handlePayNowSubmit = async () => {
-    if (!payNowPending) return;
-    setPayNowSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/bookings/${payNowPending.bookingId}/paynow-submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
-        },
-        body: JSON.stringify({
-          payerReference: payNowPayerReference.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || data.error || "Failed to submit PayNow payment");
-      setPayNowPending(null);
-      setPayNowPayerReference("");
-      router.push("/booking?paynow_submitted=1");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setPayNowSubmitting(false);
-    }
-  };
-
-  const handlePayNowCancel = async () => {
-    if (!payNowPending) return;
-    try {
-      await fetch(`/api/bookings/${payNowPending.bookingId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
-        },
-        body: JSON.stringify({ action: "cancel", reason: "PayNow flow cancelled by founder" }),
-      });
-    } catch {
-      // best effort
-    }
-    setPayNowPending(null);
-    setPayNowPayerReference("");
-  };
-
   const handleTONPayment = async () => {
     setSubmitting(true);
     setError(null);
@@ -515,7 +429,7 @@ export default function BookSessionPage() {
       return;
     }
     if (!isTelegramSurface) {
-      handlePayNowCheckout();
+      handleStripeCheckout();
     }
   };
 
@@ -741,60 +655,7 @@ export default function BookSessionPage() {
           </p>
         )}
 
-        {payNowPending && !submitting ? (
-          <Card className="border-emerald-400/20 bg-emerald-500/10">
-            <CardContent className="p-4 space-y-3">
-              <div className="space-y-1 text-center">
-                <h3 className="font-semibold text-base">Pay with PayNow (Singapore)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Amount: <span className="font-semibold text-foreground">{payNowPending.amountLabel}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Receiver: {payNowPending.receiver.companyName} · UEN {payNowPending.receiver.uen}
-                </p>
-              </div>
-              <div className="mx-auto w-fit rounded-2xl bg-white p-3 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={payNowPending.qrDataUrl}
-                  alt="PayNow QR code"
-                  className="h-56 w-56"
-                />
-              </div>
-              <div className="rounded-md bg-muted/60 p-2 text-xs">
-                <p className="font-medium">Reference to include:</p>
-                <p className="font-mono">{payNowPending.paynowReference}</p>
-              </div>
-              <Input
-                value={payNowPayerReference}
-                onChange={(e) => setPayNowPayerReference(e.target.value)}
-                placeholder="Your payer reference / bank transfer note (optional)"
-              />
-              <p className="text-xs text-muted-foreground">
-                Once transferred, submit so our team can verify and confirm your meetup.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1"
-                  onClick={handlePayNowSubmit}
-                  disabled={payNowSubmitting}
-                >
-                  {payNowSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "I have paid via PayNow"
-                  )}
-                </Button>
-                <Button variant="ghost" onClick={handlePayNowCancel}>
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : tonPending && !submitting ? (
+        {tonPending && !submitting ? (
           <div className="surface-tint space-y-3 rounded-lg p-4">
             <div className="text-center space-y-1">
               <Loader2 className="h-8 w-8 mx-auto text-indigo-600 animate-spin" />
@@ -847,29 +708,22 @@ export default function BookSessionPage() {
               {submitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Preparing PayNow QR...
+                  {totalCents === 0
+                    ? "Confirming meetup..."
+                    : isTelegramSurface
+                      ? "Preparing TON payment..."
+                      : "Opening Stripe Checkout..."}
                 </>
               ) : totalCents > 0 ? (
-                `Pay with PayNow — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+                `Pay with Stripe Checkout — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
               ) : (
                 "Confirm meetup"
               )}
             </Button>
             {!isTelegramSurface && totalCents > 0 && (
-              <div className="space-y-1">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  disabled={!canConfirm || submitting}
-                  onClick={handleStripeCheckout}
-                >
-                  Pay with Stripe Checkout
-                </Button>
-                <p className="text-center text-xs text-muted-foreground px-1">
-                  Stripe Checkout includes PayNow, GrabPay, WeChat Pay, Alipay, then card. Apple Pay and Google Pay
-                  appear on the card step when your browser and Stripe Dashboard settings support them.
-                </p>
-              </div>
+              <p className="text-center text-xs text-muted-foreground px-1">
+                PayNow and other supported payment methods are handled inside Stripe Checkout.
+              </p>
             )}
           </div>
         )}

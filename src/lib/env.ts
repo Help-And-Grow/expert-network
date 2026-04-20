@@ -148,6 +148,19 @@ const envSchema = z
     FISH_AUDIO_VOICE_ID_MALE: z.string().optional(),
     FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
+    /** Tencent RTC SDKAppID from the TRTC console. */
+    TRTC_APP_ID: z.coerce.number().int().positive().optional(),
+    /** Tencent RTC SDKSecretKey. Prefer this name in new deployments. */
+    TRTC_SECRET_KEY: z.string().min(1).optional(),
+    /** Backward-compatible alias for older docs/scripts. */
+    TRTC_APP_SECRET: z.string().min(1).optional(),
+    /** Booking-scoped H&G token debit for premium live access. */
+    TRTC_PREMIUM_LIVE_TOKENS: z.coerce.number().int().min(0).optional(),
+    /** How early before the booking start a participant may request TRTC credentials. */
+    TRTC_PREJOIN_SECONDS: z.coerce.number().int().min(0).optional(),
+    /** How long after the booking end room entry remains valid for reconnects/grace. */
+    TRTC_POST_END_GRACE_SECONDS: z.coerce.number().int().min(0).optional(),
+
     VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
     /** Override default Qwen built-in voice (e.g. Cherry) when expert has no voice clone. */
     VOICE_CHAT_DEFAULT_VOICE: z.string().min(1).optional(),
