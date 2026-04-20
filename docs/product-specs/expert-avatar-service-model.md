@@ -25,6 +25,8 @@ The public expert profile must do three jobs:
 - let the user hear the expert
 - move the user toward a web login + **schedule meetup** path
 
+Viewing the public profile does not require login, but starting voice chat on web does. The sign-in flow should return the user to the same public profile so they can continue the preview without re-navigating.
+
 Required elements:
 
 - expert identity and proof
@@ -38,6 +40,7 @@ Required elements:
 The preview interaction is voice-only on WeChat:
 
 - opening the voice-chat surface should greet the player aloud immediately when the device/browser allows it
+- on web, unauthenticated visitors should be prompted to sign in before voice chat starts
 - greeting and default expert replies should start in English unless the player explicitly asks to continue in another language
 - assistant messages should expose an on-demand translation action so the player can quickly view English or Chinese text without leaving the chat
 - player records up to 3 short clips as one question bundle
