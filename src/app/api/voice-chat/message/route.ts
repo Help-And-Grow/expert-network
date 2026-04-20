@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { buildProfileAudioDataUrl } from "@/lib/profile-media";
 import { resolveUserId } from "@/lib/request-auth";
 import {
   isAsyncEnabled,
@@ -83,7 +84,10 @@ async function handleVoiceMessage(request: NextRequest, userId: string) {
     replyText: result.replyText,
     replyAudio:
       result.replyAudioBase64 && result.replyAudioFormat
-        ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+        ? buildProfileAudioDataUrl({
+            audioBase64: result.replyAudioBase64,
+            format: result.replyAudioFormat,
+          })
         : null,
     turnCount: result.turnCount,
     maxTurns: result.maxTurns,
@@ -135,7 +139,10 @@ async function handleTextMessage(request: NextRequest, userId: string) {
       replyText: result.replyText,
       replyAudio:
         result.replyAudioBase64 && result.replyAudioFormat
-          ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+          ? buildProfileAudioDataUrl({
+              audioBase64: result.replyAudioBase64,
+              format: result.replyAudioFormat,
+            })
           : null,
       turnCount: result.turnCount,
       maxTurns: result.maxTurns,
@@ -179,7 +186,10 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     replyText: result.replyText,
     replyAudio:
       result.replyAudioBase64 && result.replyAudioFormat
-        ? `data:audio/${result.replyAudioFormat};base64,${result.replyAudioBase64}`
+        ? buildProfileAudioDataUrl({
+            audioBase64: result.replyAudioBase64,
+            format: result.replyAudioFormat,
+          })
         : null,
     turnCount: result.turnCount,
     maxTurns: result.maxTurns,
