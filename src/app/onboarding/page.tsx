@@ -442,6 +442,10 @@ export default function OnboardingPage() {
         { id: "user-avail-skip", role: "user", content: "Skipped availability" },
       ]);
     }
+    if (isTelegram) {
+      startAIGeneration();
+      return;
+    }
     setCurrentStep("STRIPE_KYC");
   };
 

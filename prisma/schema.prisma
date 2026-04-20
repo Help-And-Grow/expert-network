@@ -169,6 +169,10 @@ model Booking {
   tonDepositTxHash        String?
   tonRemainderTxHash      String?
   remainderChargedAt      DateTime?
+  isPremiumLive           Boolean          @default(false)
+  liveRoomId              String?          @unique
+  liveDurationMinutes     Int?
+  liveAccessChargedAt     DateTime?
   /// WeChat profit-sharing: pending | success | failed | skipped (null = not applicable or not yet processed)
   wechatProfitShareStatus String?
   createdAt               DateTime         @default(now())

@@ -17,11 +17,11 @@ As a founder (player), I want to schedule a paid meetup with an expert (coach) b
 5. For online: provide meeting link (Zoom, Google Meet, etc.)
 6. For offline: view expert's location
 7. **Overview** step: total price, 50% deposit, meetup details
-8. **Primary**: Pay deposit via PayNow customized QR (pre-filled amount + receiver UEN + reference)
-9. Player submits payment proof/reference in-app for verification
-10. Admin confirms receipt → meetup confirmed and notifications sent
-11. Fallback option: Stripe Checkout (PayNow, GrabPay, Card)
-12. Remainder auto-charged 24h after the meetup (Stripe) or prompted manually (PayNow/TON/Telegram)
+8. On web, pay deposit via **Stripe Checkout**
+9. Stripe Checkout surfaces supported methods such as PayNow or card based on Stripe configuration and user context
+10. On Telegram, pay deposit via **TON Wallet** only
+11. Booking confirms after the selected payment flow succeeds
+12. Remainder auto-charged 24h after the meetup where the saved payment method allows it; TON remains manual
 
 ## Requirements
 
@@ -30,8 +30,8 @@ As a founder (player), I want to schedule a paid meetup with an expert (coach) b
 - Overlap detection prevents double-booking
 - Meeting link required before payment for online meetups
 - Free meetups skip payment and create a `Booking` row directly
-- PayNow pending meetups hold slot for 30 minutes; expired holds auto-cancel
-- PayNow payment status pipeline: `pending_paynow` → `submitted_paynow` → `deposit_paid`
+- Telegram payment path is TON-only
+- Web payment path uses Stripe Checkout only
 
 ## Edge Cases
 
@@ -39,4 +39,4 @@ As a founder (player), I want to schedule a paid meetup with an expert (coach) b
 - All slots for today are in the past → filter them out
 - User tries to schedule with their own profile → blocked with error
 - Stripe webhook fails → verify endpoint on success page creates `Booking`
-- PayNow transfer submitted but not yet confirmed → booking remains `PENDING` with “pending confirmation” state in dashboard
+- TON payment cancelled or declined in Telegram wallet → booking stays unconfirmed and can be retried

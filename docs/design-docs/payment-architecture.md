@@ -6,10 +6,6 @@
 **Implemented in**:
 - `src/lib/wechat-pay.ts` (direct + partner JSAPI, profit sharing)
 - `src/app/api/bookings/wechat-pay/route.ts`, `src/app/api/webhooks/wechat-pay/route.ts`
-- `src/lib/paynow.ts`
-- `src/app/api/bookings/paynow/route.ts`
-- `src/app/api/bookings/[id]/paynow-submit/route.ts`
-- `src/app/api/admin/bookings/[id]/paynow-confirm/route.ts`
 - `src/app/experts/[id]/book/page.tsx`
 - `src/app/booking/page.tsx`
 
@@ -22,11 +18,14 @@ The marketplace needs to collect payments from **players** (founders) and distri
 ## Decision
 
 ### Payment Methods
-- **PayNow (primary for SGD web meetups)**: customized SGQR with pre-filled amount and receiver UEN
-- **Stripe** (fallback + remainder): Checkout Sessions for fallback deposits and manual remainder checkout
-- **TON** (crypto): On-chain transfers via TonConnect for crypto-native users
+- **Stripe Checkout (web primary)**: hosted checkout for deposits on web, with Stripe-managed payment-method selection
+- **TON** (Telegram primary): On-chain transfers via TonConnect for Telegram users
 - **WeChat Pay**: JSAPI for WeChat Mini Program users
 - **Free sessions**: Direct `Booking` row creation for experts with zero pricing
+
+Legacy note:
+
+- Manual PayNow routes remain in the repo for operational compatibility, but they are no longer surfaced in the primary web booking UX.
 
 ### Marketplace Model
 - Stripe Connected Accounts (Express type) for expert payouts
@@ -38,10 +37,14 @@ When `WECHAT_PAY_PARTNER_MODE=true`, the mini program uses **partner JSAPI** (`/
 
 ### Deposit Model
 - 50% deposit charged when the meetup is initiated (`Booking` created)
-- PayNow deposit flow:
-  - create pending booking + generated PayNow QR payload (`pending_paynow`)
-  - founder submits transfer (`submitted_paynow`)
-  - admin confirms receipt and booking transitions to `CONFIRMED` + `deposit_paid`
+- Web deposit flow:
+  - create Stripe Checkout Session
+  - founder completes hosted checkout
+  - booking is created/confirmed through webhook or verify path
+- Telegram deposit flow:
+  - create pending booking
+  - founder approves TON transaction in wallet
+  - booking confirms through TON completion endpoint
 - Remainder auto-charged 24h after session ends (daily cron) where possible
 - Card saved via `setup_future_usage: "off_session"` for remainder
 
@@ -52,16 +55,10 @@ Booking creation happens via two independent paths:
 
 Both paths check for existing booking by `stripeCheckoutSessionId` to prevent duplicates.
 
-### PayNow Confirmation Pattern
-- PayNow flow intentionally uses explicit manual confirmation to avoid false-positive booking confirmation.
-- Slot hold defaults to 30 minutes; stale `pending_paynow` bookings are auto-cancelled by slot fetch/availability path.
-- Admin dashboard includes action to confirm PayNow transfer once operations verify incoming funds.
-
 ## Consequences
 
 - **Pro**: Booking creation is resilient to webhook delays or failures
 - **Pro**: Connected Accounts handle KYC and payouts for experts
-- **Pro**: Better Singapore UX with scanner-friendly pre-filled PayNow amount + receiver
+- **Pro**: Web checkout surface is simpler because payment-method selection is delegated to Stripe Checkout
 - **Con**: TON payments require manual confirmation (no webhook equivalent)
 - **Con**: WeChat Pay webhooks need production testing
-- **Con**: PayNow requires operations/admin confirmation unless bank webhook integration is added
