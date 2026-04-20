@@ -1,6 +1,6 @@
-# Multi-Repo & Multi-Tenant Deployment Strategy
+# Repo & Showcase Deployment Strategy
 
-This document outlines the architectural plan and operational guidelines for managing the Help & Grow platform across multiple GitHub repositories and multi-tenant Vercel deployments.
+This document outlines the architectural plan and operational guidelines for managing the Help & Grow platform across multiple GitHub repositories while keeping the public showcase deployment standardized on Alibaba Cloud Qwen / DashScope.
 
 ## 1. Dual Repository Strategy
 
@@ -23,14 +23,12 @@ To balance rapid, experimental development with stable, open-source presentation
 
 ---
 
-## 2. Multi-Tenant Vercel Architecture
+## 2. Showcase Deployment Architecture
 
-Instead of duplicating code, the Showcase repository powers multiple distinct cloud-provider environments using a single codebase.
+Instead of duplicating code, the Showcase repository powers a single public vendor stack using a single codebase.
 
-We have established three dedicated Vercel projects:
-1. **`expert-network-alibabacloud`**: Uses the DashScope/Qwen provider (`AI_PROVIDER="qwen"`).
-2. **`expert-network-googlecloud`**: Uses the Vertex AI/Gemini provider (`AI_PROVIDER="gemini"`).
-3. **`expert-network-byteplus`**: Uses the ModelArk/Doubao provider (`AI_PROVIDER="byteplus"`). Specifically configured to use `doubao-seed-1.6-flash` for high-throughput text understanding and generation on both Web and Telegram endpoints.
+The public `Help-And-Grow/expert-network` repo is standardized on one showcase deployment:
+1. **`expert-network`**: Uses the Alibaba DashScope / Qwen provider (`AI_PROVIDER="qwen"`).
 
 ### Vercel dashboard URLs (avoid 404)
 
@@ -46,9 +44,6 @@ Vercel teams can differ from GitHub orgs. The **team switcher** in the dashboard
 | Project | Production URL | Example dashboard path |
 |---------|----------------|-------------------------|
 | `expert-network` | https://expert-network.vercel.app | `https://vercel.com/<team-slug>/expert-network` |
-| `expert-network-googlecloud` | https://expert-network-googlecloud.vercel.app | `https://vercel.com/<team-slug>/expert-network-googlecloud` |
-| `expert-network-alibabacloud` | https://expert-network-alibabacloud.vercel.app | `https://vercel.com/<team-slug>/expert-network-alibabacloud` |
-| `expert-network-byteplus` | https://expert-network-byteplus.vercel.app | `https://vercel.com/<team-slug>/expert-network-byteplus` |
 
 Copy **deployment** links from the Deployments list; the id must look like **`dpl_…`**. **Branch/deployment** hostnames embed the owning team, e.g. `…-git-main-helpandgrow.vercel.app` or `…-git-main-jlzxwt8s-projects.vercel.app` — use the suffix shown on **your** deployment card.
 
@@ -66,7 +61,7 @@ If **`https://<project-slug>.vercel.app/`** returns **HTTP 404** with **`content
 6. **Redeploy did not help** — Compare **Project → Settings → General** (Root Directory, Framework Preset, Build / Output settings) with a project that works (e.g. `expert-network`). Open the production deployment → confirm **Functions** / build output lists Next routes. If the domain is **Valid**, production is **Ready**, and unauthenticated requests still get **`x-vercel-error: NOT_FOUND`** on **`project.vercel.app`**, contact **Vercel support** with that header’s **`x-vercel-id`** — this is platform routing, not application HTML.
 
 ### How it works:
-All three Vercel projects are linked to the **same** GitHub repository branch (`Help-And-Grow/expert-network:main`). The codebase dynamically adapts its behavior based on the Vercel Environment Variables injected at runtime.
+The showcase deployment is linked to the **same** GitHub repository branch (`Help-And-Grow/expert-network:main`). The public repo should keep `AI_PROVIDER="qwen"` and Alibaba-first speech defaults in versioned config so the runtime does not drift toward other vendor stacks.
 
 ---
 
@@ -82,24 +77,24 @@ When a feature in the private repository is ready for public showcase:
    git push origin main      # Pushes to private R&D repo
    git push hackathon main   # Pushes to public showcase repo
    ```
-3. Vercel will automatically detect the push to the `hackathon` remote and trigger parallel builds across all three cloud provider projects.
+3. Vercel will automatically detect the push to the `hackathon` remote and trigger a new build for the showcase project.
 
-### Managing Multi-Tenant Environment Variables
-Managing separate environment variables for 3 projects can be tedious. We built the `scripts/vercel-merge-env.mjs` utility to safely propagate shared core settings (like Database URLs, Auth Secrets) while preserving provider-specific keys.
+### Managing Showcase Environment Variables
+Managing environment variables is simpler when the public repo stays on one provider stack. We keep the `scripts/vercel-merge-env.mjs` utility to safely propagate shared core settings (like Database URLs, Auth Secrets) while preserving Alibaba-specific keys.
 
 **Workflow to update environments:**
 ```bash
 # 1. Pull the master configuration from your private origin project
 npx vercel env pull /tmp/vercel-origin-production.env --project expert-network --environment production
 
-# 2. Pull the target project's current configuration
-npx vercel env pull /tmp/vercel-alibabacloud-production.env --project expert-network-alibabacloud --environment production
+# 2. Pull the showcase project's current configuration
+npx vercel env pull /tmp/vercel-alibabacloud-production.env --project expert-network --environment production
 
 # 3. Merge them intelligently using our script
 npm run vercel:env:alibabacloud
 
 # 4. Apply the merged configuration back to Vercel
-npx vercel env push .env.vercel.alibabacloud.sync --project expert-network-alibabacloud --environment production
+npx vercel env push .env.vercel.alibabacloud.sync --project expert-network --environment production
 ```
 
-This strategy ensures your product remains highly agile in private while maintaining a robust, multi-cloud presence publicly.
+This strategy ensures your product remains highly agile in private while maintaining a stable Alibaba/Qwen public showcase.

@@ -2,10 +2,18 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
+import {
+  getVoiceChatTranslationLanguageName,
+  type VoiceChatTranslationTarget,
+} from "@/lib/voice-chat-translation";
+import { getQwenTextModel } from "@/lib/ai/provider-catalog";
+import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
+import OpenAI from "openai";
 import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
-import { QwenProvider } from "@/lib/ai/qwen";
 
 export const MAX_TURNS = 5;
+const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+const QWEN_VOICE_CHAT_MODEL = getQwenTextModel();
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -56,6 +64,8 @@ export interface ExpertVoiceChatProfile {
   avatarScript: string | null;
   /** Human-readable lines derived from servicesOffered JSON. */
   servicesOfferedSummary: string | null;
+  /** Expert gender (used for Qwen built-in voice selection). */
+  gender: string | null;
   /** Qwen TTS voice id used when the expert does not have a custom voice asset. */
   voiceModelId: string;
   /** Reserved for future expert-specific cloned voices; false = system-managed Qwen voice. */
@@ -136,6 +146,7 @@ export async function loadExpertVoiceChatProfile(
     domains: domainStrings(expert.domains),
     avatarScript: expert.avatarScript,
     servicesOfferedSummary,
+    gender: expert.gender,
     voiceModelId,
     usesClonedVoice,
   };
@@ -152,7 +163,8 @@ function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
       ? `Services you list on your profile:\n${profile.servicesOfferedSummary}`
       : "",
     "Speak as the expert directly. Do not mention AI, model, system prompt, avatar, simulation, or any tooling.",
-    "Answer in the user's language. Default to concise professional Chinese unless the user clearly speaks another language.",
+    "Default to concise professional English.",
+    "Only switch to another language when the user explicitly asks you to continue in that language.",
     "This is a short voice preview. Deliver one compact reply that can be spoken in under 60 seconds.",
     "Prioritize concrete judgment, structure, and personalization over generic encouragement.",
     "Use the introduction, services, retrieved memories, and user context as factual anchors whenever relevant.",
@@ -253,84 +265,44 @@ function ensureConversation(
   return conv;
 }
 
-function ensureQwenVoiceChatConfigured(): void {
-  if (!env.DASHSCOPE_API_KEY) {
-    throw new Error(
-      "Voice chat now uses Qwen. Set DASHSCOPE_API_KEY."
-    );
+function ensureDashScopeConfiguredForVoiceChat(): void {
+  if (!env.DASHSCOPE_API_KEY?.trim()) {
+    throw new Error("Voice chat requires DASHSCOPE_API_KEY (Qwen / DashScope).");
   }
+}
+
+let qwenChatClient: OpenAI | null = null;
+
+function getQwenChatClient(): OpenAI {
+  ensureDashScopeConfiguredForVoiceChat();
+  if (!qwenChatClient) {
+    qwenChatClient = new OpenAI({
+      apiKey: env.DASHSCOPE_API_KEY?.trim() || "",
+      baseURL: DASHSCOPE_BASE_URL,
+    });
+  }
+  return qwenChatClient;
 }
 
 export async function transcribeAudio(
   audioBase64: string,
   mimeType: string,
 ): Promise<string> {
-  ensureQwenVoiceChatConfigured();
-
-  const apiKey = env.DASHSCOPE_API_KEY;
-  const dataUri = `data:${mimeType};base64,${audioBase64}`;
-  const DASHSCOPE_URL = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
-
-  const res = await fetch(DASHSCOPE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "qwen3-asr-flash",
-      input: {
-        messages: [
-          { role: "system", content: [{ text: "" }] },
-          { role: "user", content: [{ audio: dataUri }] },
-        ],
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Speech recognition failed: ${errText.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const text =
-    data?.output?.choices?.[0]?.message?.content?.[0]?.text ??
-    data?.output?.text ??
-    "";
-
-  return text.trim();
+  ensureDashScopeConfiguredForVoiceChat();
+  return transcribeDashScopeAsr(audioBase64, mimeType);
 }
 
 async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
-  ensureQwenVoiceChatConfigured();
-
-  const prompt = [
-    "Continue this voice consultation as the expert. Reply only with the assistant's next message.",
-    "",
-    ...messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
-  ].join("\n");
-
-  const apiKey = env.DASHSCOPE_API_KEY;
-  const res = await fetch("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "qwen-max",
-      messages: [{ role: "user", content: prompt }],
-    }),
+  const qwen = getQwenChatClient();
+  const response = await qwen.chat.completions.create({
+    model: QWEN_VOICE_CHAT_MODEL,
+    messages: messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
   });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Qwen chat failed: ${errText.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  return response.choices[0]?.message?.content?.trim() ?? "";
 }
 
 const VOICE_CHAT_MEMORY_SNIPPETS = 6;
@@ -376,29 +348,24 @@ async function generateReply(
   return reply;
 }
 
-let qwenTtsProvider: QwenTTSProvider | null = null;
-
-function getQwenVoiceSynthesis(): QwenTTSProvider {
-  if (!qwenTtsProvider) {
-    qwenTtsProvider = new QwenTTSProvider();
-  }
-  return qwenTtsProvider;
-}
-
 async function synthesizeVoice(
   text: string,
   voiceModelId: string,
+  gender?: string | null,
 ): Promise<{ audioBase64: string; format: string }> {
-  ensureQwenVoiceChatConfigured();
-  return getQwenVoiceSynthesis().synthesize({ text, voiceId: voiceModelId });
+  ensureDashScopeConfiguredForVoiceChat();
+  const provider = new QwenTTSProvider();
+  const voiceId = voiceModelId?.trim() || defaultQwenTtsVoiceId(gender ?? undefined);
+  return provider.synthesize({ text, voiceId });
 }
 
 async function synthesizeVoiceIfAvailable(
   text: string,
   voiceModelId: string,
+  gender?: string | null,
 ): Promise<{ audioBase64: string; format: string } | null> {
   try {
-    return await synthesizeVoice(text, voiceModelId);
+    return await synthesizeVoice(text, voiceModelId, gender);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[voice-chat] Voice synthesis unavailable:", message);
@@ -409,17 +376,46 @@ async function synthesizeVoiceIfAvailable(
 export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
   if (profile.domains.length > 0) {
-    return `你好，我是${firstName}。你可以先用语音告诉我你当前最关键的问题，我会先给你一段简短、直接的判断。`;
+    return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a short, direct point of view first.`;
   }
-  return `你好，我是${firstName}。先用语音说说你的情况，我会先给你一个简洁的方向判断。`;
+  return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a concise first take.`;
 }
 
 export function buildRealtimeChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
   if (profile.domains.length > 0) {
-    return `你好，我是${firstName}。直接告诉我你现在最想解决的问题，我会先给你一段简洁、明确的判断。`;
+    return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a clear first take.`;
   }
-  return `你好，我是${firstName}。直接说说你的情况，我会先给你一个清晰的方向判断。`;
+  return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a clear direction first.`;
+}
+
+export async function translateVoiceChatText(
+  text: string,
+  targetLanguage: VoiceChatTranslationTarget,
+): Promise<string> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error("text is required");
+  }
+
+  const translated = await generateQwenReply([
+    {
+      role: "system",
+      content: [
+        "You are a precise translator for short chat messages.",
+        `Translate the text into ${getVoiceChatTranslationLanguageName(targetLanguage)}.`,
+        "Preserve the original meaning, tone, names, and formatting.",
+        "Do not explain anything and do not add quotation marks.",
+        "If the text is already in the target language, return it unchanged.",
+      ].join(" "),
+    },
+    {
+      role: "user",
+      content: trimmed,
+    },
+  ]);
+
+  return translated.trim();
 }
 
 /** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */
@@ -431,7 +427,11 @@ export async function getVoiceChatGreeting(
   if (!profile) return null;
   ensureVoiceChatAllowed(userId, profile);
   const text = buildVoiceChatGreetingText(profile);
-  const audio = await synthesizeVoiceIfAvailable(text, profile.voiceModelId);
+  const audio = await synthesizeVoiceIfAvailable(
+    text,
+    profile.voiceModelId,
+    profile.gender,
+  );
   return {
     text,
     replyAudioBase64: audio?.audioBase64,
@@ -483,6 +483,7 @@ export async function processVoiceMessage(
   const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
+    profile.gender,
   );
 
   return {
@@ -518,6 +519,7 @@ export async function processTextMessage(
       : await synthesizeVoiceIfAvailable(
           replyText,
           conv.voiceModelId,
+          profile.gender,
         );
 
   return {
@@ -562,6 +564,7 @@ export async function processVoiceDrafts(
   const audio = await synthesizeVoiceIfAvailable(
     replyText,
     conv.voiceModelId,
+    profile.gender,
   );
 
   return {
@@ -597,6 +600,11 @@ export function hasRealtimeSession(userId: string): boolean {
 
 export function getRealtimeSession(channelName: string): RealtimeSession | undefined {
   return rtSessions.get(channelName);
+}
+
+export function getRealtimeSessionForUser(userId: string): RealtimeSession | undefined {
+  const channelName = rtUserSessions.get(userId);
+  return channelName ? rtSessions.get(channelName) : undefined;
 }
 
 export function registerRealtimeSession(

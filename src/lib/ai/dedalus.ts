@@ -1,5 +1,9 @@
 import { env } from "@/lib/env";
 import { buildNormalizeQueryPrompt } from "./prompts";
+import {
+  getDedalusImageModel,
+  getDedalusTextModel,
+} from "./provider-catalog";
 import type {
   AIProvider,
   ImageInput,
@@ -31,7 +35,7 @@ async function chat(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: model || env.DEDALUS_MODEL || "google/gemini-2.5-flash",
+      model: model || getDedalusTextModel(),
       messages,
       temperature: 0.7,
     }),
@@ -96,7 +100,7 @@ ${sources || "No external sources provided."}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/dall-e-3",
+          model: getDedalusImageModel(),
           prompt: `Professional avatar illustration for ${data.nickName}, a ${data.domains.join("/")} expert. ${data.gender || ""}. Modern, clean, friendly style with a subtle gradient background. No text.`,
           n: 1,
           size: "1024x1024",

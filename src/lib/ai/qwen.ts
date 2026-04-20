@@ -2,14 +2,12 @@ import { env } from "@/lib/env";
 import OpenAI from "openai";
 
 import { BaseAIProvider } from "./base-provider";
+import { getQwenImageModel, getQwenTextModel } from "./provider-catalog";
 
 const DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 const DASHSCOPE_IMAGE_URL =
   "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
-
-const TEXT_MODEL = "qwen-max";
-const IMAGE_MODEL = "qwen-image-2.0-pro";
 
 export class QwenProvider extends BaseAIProvider {
   private qwen: OpenAI;
@@ -24,7 +22,7 @@ export class QwenProvider extends BaseAIProvider {
 
   protected async chat(prompt: string): Promise<string> {
     const response = await this.qwen.chat.completions.create({
-      model: TEXT_MODEL,
+      model: getQwenTextModel(),
       messages: [{ role: "user", content: prompt }],
     });
     return response.choices[0]?.message?.content ?? "";
@@ -45,12 +43,12 @@ export class QwenProvider extends BaseAIProvider {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: IMAGE_MODEL,
+          model: getQwenImageModel(),
           input: {
             messages: [{ role: "user", content: [{ text: prompt }] }],
           },
           parameters: {
-            size: "512*512",
+            size: "1K",
             n: 1,
             prompt_extend: true,
             watermark: false,

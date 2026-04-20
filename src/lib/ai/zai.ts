@@ -9,11 +9,13 @@ import {
   createGeminiClient,
   getGeminiImageModel,
 } from "./gemini-client";
+import {
+  getZAIImageModel,
+  getZAITextModel,
+  getZAIVertexTextModel,
+} from "./provider-catalog";
 
 const DEFAULT_ZAI_BASE_URL = "https://api.z.ai/api/paas/v4/";
-const DEFAULT_ZAI_DIRECT_TEXT_MODEL = "glm-4.7-flash";
-const DEFAULT_ZAI_VERTEX_TEXT_MODEL = "glm-5-maas";
-const DEFAULT_ZAI_IMAGE_MODEL = "glm-image";
 const DEFAULT_ZAI_VERTEX_LOCATION = "global";
 
 function getBaseUrl(): string {
@@ -23,9 +25,9 @@ function getBaseUrl(): string {
 
 function getTextModel(): string {
   if (shouldUseVertexZAI()) {
-    return env.ZAI_TEXT_MODEL?.trim() || DEFAULT_ZAI_VERTEX_TEXT_MODEL;
+    return getZAIVertexTextModel();
   }
-  return env.ZAI_TEXT_MODEL?.trim() || DEFAULT_ZAI_DIRECT_TEXT_MODEL;
+  return getZAITextModel();
 }
 
 function getVertexLocation(): string {
@@ -33,7 +35,7 @@ function getVertexLocation(): string {
 }
 
 function getImageModel(): string {
-  return env.ZAI_IMAGE_MODEL?.trim() || DEFAULT_ZAI_IMAGE_MODEL;
+  return getZAIImageModel();
 }
 
 function shouldUseVertexZAI(): boolean {

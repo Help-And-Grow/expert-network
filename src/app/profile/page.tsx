@@ -130,6 +130,9 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error("Failed to fetch profile");
       const data: ExpertProfile = await res.json();
       setProfile(data);
+      if (data.hasAudio) {
+        setAudioCacheBuster(`?full=1&t=${Date.now()}`);
+      }
       setBio(data.bio || "");
       setIntroScript(data.avatarScript ?? "");
       setUploadedFileName(data.documentName ?? null);
@@ -336,7 +339,7 @@ export default function ProfilePage() {
         throw new Error(hint ?? "Failed to generate audio");
       }
       setProfile((prev) => (prev ? { ...prev, hasAudio: true } : prev));
-      setAudioCacheBuster(`?t=${Date.now()}`);
+      setAudioCacheBuster(`?full=1&t=${Date.now()}`);
       showMessage(
         hadAudio ? "Voice introduction regenerated!" : "Voice introduction generated!",
         "voice",
