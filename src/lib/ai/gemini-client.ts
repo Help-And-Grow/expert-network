@@ -3,16 +3,17 @@ import * as fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 
 import { env } from "@/lib/env";
-
-const DEFAULT_GEMINI_TEXT_MODEL = "gemini-2.5-flash";
-const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+import {
+  GEMINI_DEFAULT_IMAGE_MODEL,
+  GEMINI_DEFAULT_TEXT_MODEL,
+} from "./provider-catalog";
 
 export function getGeminiTextModel(): string {
-  return env.GEMINI_TEXT_MODEL?.trim() || DEFAULT_GEMINI_TEXT_MODEL;
+  return env.GEMINI_TEXT_MODEL?.trim() || GEMINI_DEFAULT_TEXT_MODEL;
 }
 
 export function getGeminiImageModel(): string {
-  return env.GEMINI_IMAGE_MODEL?.trim() || DEFAULT_GEMINI_IMAGE_MODEL;
+  return env.GEMINI_IMAGE_MODEL?.trim() || GEMINI_DEFAULT_IMAGE_MODEL;
 }
 
 function setupServiceAccountAuth() {

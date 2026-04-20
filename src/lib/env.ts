@@ -100,7 +100,11 @@ const envSchema = z
     GEMINI_IMAGE_VERTEX_LOCATION: z.string().optional(),
 
     DASHSCOPE_API_KEY: z.string().optional(),
+    QWEN_TEXT_MODEL: z.string().optional(),
+    QWEN_IMAGE_MODEL: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    OPENAI_TEXT_MODEL: z.string().optional(),
+    OPENAI_IMAGE_MODEL: z.string().optional(),
     ZAI_API_KEY: z.string().optional(),
     ZAI_BASE_URL: z.string().url().optional(),
     ZAI_TEXT_MODEL: z.string().optional(),
@@ -109,6 +113,7 @@ const envSchema = z
 
     DEDALUS_API_KEY: z.string().optional(),
     DEDALUS_MODEL: z.string().optional(),
+    DEDALUS_IMAGE_MODEL: z.string().optional(),
     DEDALUS_MATCH_MODEL: z.string().optional(),
 
     TELEGRAM_BOT_TOKEN: z.string().optional(),

@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
 import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
+import { useAuth } from "@/hooks/use-auth";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 
 interface ExpertUser {
@@ -115,6 +116,7 @@ function ReviewSkeleton() {
 export default function ExpertProfilePage() {
   const params = useParams();
   const router = useRouter();
+  const { status: authStatus } = useAuth();
   const id = params.id as string;
   const [expert, setExpert] = useState<Expert | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -259,6 +261,13 @@ export default function ExpertProfilePage() {
   }, [showVoiceChat, showRealtimeChat, pausePublicIntroAudio]);
 
   useEffect(() => {
+    if (authStatus !== "authenticated") {
+      setShowVoiceChat(false);
+      setShowRealtimeChat(false);
+    }
+  }, [authStatus]);
+
+  useEffect(() => {
     const onPopState = () => {
       setShowVoiceChat(false);
       setShowRealtimeChat(false);
@@ -286,6 +295,36 @@ export default function ExpertProfilePage() {
     if (st?.voiceChatOverlay) window.history.back();
     else setShowRealtimeChat(false);
   }, []);
+
+  const requireLoginForVoiceChat = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const callbackUrl = `${window.location.pathname}${window.location.search}`;
+    router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }, [router]);
+
+  const openVoiceChat = useCallback(
+    (mode: "async" | "realtime") => {
+      pausePublicIntroAudio();
+      resumeSharedAudioContext();
+
+      if (authStatus !== "authenticated") {
+        if (authStatus !== "loading") {
+          requireLoginForVoiceChat();
+        }
+        return;
+      }
+
+      pushVoiceChatHistory();
+      if (mode === "realtime") setShowRealtimeChat(true);
+      else setShowVoiceChat(true);
+    },
+    [
+      authStatus,
+      pausePublicIntroAudio,
+      pushVoiceChatHistory,
+      requireLoginForVoiceChat,
+    ],
+  );
 
   const loadMoreReviews = () => {
     fetchReviews(true);
@@ -457,13 +496,7 @@ export default function ExpertProfilePage() {
       {!expert.viewerIsOwner && expert.hasVoiceChat && (vcConfig.asyncEnabled || vcConfig.realtimeReady) && (
         <section className="mt-5">
           <div
-            onClick={() => {
-              pausePublicIntroAudio();
-              resumeSharedAudioContext();
-              pushVoiceChatHistory();
-              if (vcConfig.asyncEnabled) setShowVoiceChat(true);
-              else setShowRealtimeChat(true);
-            }}
+            onClick={() => openVoiceChat(vcConfig.asyncEnabled ? "async" : "realtime")}
             className="group relative w-full cursor-pointer rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-[1px] transition-shadow hover:shadow-lg hover:shadow-indigo-950/50"
           >
             <div className="flex items-center gap-3.5 rounded-2xl bg-slate-950/85 px-4 py-3.5">
@@ -508,12 +541,7 @@ export default function ExpertProfilePage() {
 
           {vcConfig.asyncEnabled && vcConfig.realtimeReady && (
             <button
-              onClick={() => {
-                pausePublicIntroAudio();
-                resumeSharedAudioContext();
-                pushVoiceChatHistory();
-                setShowRealtimeChat(true);
-              }}
+              onClick={() => openVoiceChat("realtime")}
               className="mt-2 w-full text-center text-xs text-muted-foreground transition-colors hover:text-indigo-300"
             >
               Or switch to{" "}

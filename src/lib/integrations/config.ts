@@ -36,13 +36,17 @@ function getDashscopeKeyIssue(): string | null {
   return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const aiProvider = (env.AI_PROVIDER || "qwen").trim().toLowerCase();
 const geminiVoiceReady = Boolean(
   env.GOOGLE_CLOUD_PROJECT?.trim() || env.GEMINI_API_KEY?.trim(),
 );
 const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
 const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
+
+/** Alibaba DashScope is the canonical speech stack for the public repo. */
+const voiceStackPrefersDashScope =
+  aiProvider === "qwen" ||
+  aiProvider === "byteplus";
 
 /**
  * Select TTS provider respecting AI_PROVIDER first, then falling back by key availability.
@@ -52,7 +56,7 @@ const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
  * - others → gemini if ready, else fish, else qwen
  */
 let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
-if (aiProvider === "qwen" || aiProvider === "byteplus") {
+if (voiceStackPrefersDashScope) {
   // These providers use DashScope for TTS; never auto-select Gemini TTS
   if (hasDash) {
     voiceSynthesisProvider = "qwen-tts";
@@ -88,7 +92,7 @@ export function getVoiceTranscriptionConfigIssue(): string | null {
 }
 
 export function getVoiceSynthesisConfigIssue(): string | null {
-  if (aiProvider === "qwen" || aiProvider === "byteplus") {
+  if (voiceStackPrefersDashScope) {
     // These providers require DashScope for TTS
     const dashscopeIssue = getDashscopeKeyIssue();
     if (dashscopeIssue) return dashscopeIssue;

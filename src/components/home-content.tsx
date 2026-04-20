@@ -63,16 +63,16 @@ export function HomeContent() {
             <UserMenu variant="light" />
           </div>
           <p className="text-sm font-medium text-indigo-200/90 mb-2">
-            Expert network for real sessions
+            An expert network for real conversations and trusted sessions
           </p>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
             Learn by doing. Grow by helping.
           </h1>
           <p className="text-lg text-slate-300 mb-8 max-w-md">
-            Everyone is both <span className="text-white font-medium">coach</span> and{" "}
-            <span className="text-white font-medium">player</span>—offer what you know, learn
-            what you need. A network rooted in Singapore &amp; Southeast Asia, built for trusted
-            introductions, expert conversations, and real sessions.
+            Everyone is both a <span className="text-white font-medium">coach</span> and a{" "}
+            <span className="text-white font-medium">player</span>. Share what you know, learn
+            what you need, and build trusted relationships through expert conversations and real
+            sessions across Singapore &amp; Southeast Asia.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {isTelegram || isLoggedIn ? (
@@ -83,7 +83,7 @@ export function HomeContent() {
                   className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 font-semibold"
                 >
                   <Link href="/discover" className="flex items-center gap-2">
-                    Chat &amp; match
+                    Find your match
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -127,7 +127,7 @@ export function HomeContent() {
                   className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
                 >
                   <Link href="/discover" className="flex items-center gap-2">
-                    Chat to match
+                    Explore experts
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -143,7 +143,7 @@ export function HomeContent() {
           Why Help &amp; Grow
         </h2>
         <p className="mb-8 text-center text-sm text-slate-400">
-          One network for expertise—whether you&apos;re finding help or offering it
+          One network for finding help, sharing expertise, and building trust
         </p>
         <div className="grid gap-6">
           <div className="surface-card p-6">
@@ -153,12 +153,13 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="mb-1 font-semibold text-white">
-                  Coach and player, together
+                  One network for both sides of the table
                 </h3>
                 <p className="text-sm text-slate-300">
-                  You bring expertise others need—and you learn from people who&apos;ve been there.
-                  Share part of what you know as a service; learn from others when you need it. We brew a
-                  culture of learning by doing and growing by helping.
+                  You bring expertise that others need, and you learn from people who&apos;ve
+                  already solved the problems in front of you. Offer what you know as a service,
+                  and learn from others when you need support. We build a culture of learning by
+                  doing and growing by helping.
                 </p>
               </div>
             </div>
@@ -173,9 +174,10 @@ export function HomeContent() {
                   Service as agent (our north star)
                 </h3>
                 <p className="text-sm text-slate-300">
-                  We&apos;re building toward a digital version of you that keeps learning—from
-                  social context, meetings, reflections, and memos—stays online, evolves with you,
-                  answers questions on the platform, and helps you facilitate real sessions.
+                  We&apos;re building toward a digital version of each expert that keeps learning
+                  from social context, meetings, reflections, and memos; stays online; evolves
+                  with the human expert; answers questions on the platform; and helps facilitate
+                  real sessions.
                 </p>
               </div>
             </div>
@@ -187,12 +189,13 @@ export function HomeContent() {
               </div>
               <div>
                 <h3 className="mb-1 font-semibold text-white">
-                  Human expertise, rooted in SEA
+                  Human expertise, rooted in Southeast Asia
                 </h3>
                 <p className="text-sm text-slate-300">
-                  Describe what you need in plain language; we route you to the right people.
-                  Founders, operators, and investors use the same rails—localisation, talent, BD,
-                  fundraising, and more across Singapore &amp; Southeast Asia.
+                  Describe what you need in plain language, and we route you to the right people.
+                  Founders, operators, and investors use the same network for localization,
+                  talent, business development, fundraising, and more across Singapore &amp;
+                  Southeast Asia.
                 </p>
               </div>
             </div>
@@ -216,8 +219,8 @@ export function HomeContent() {
                 Chat to find the right expert
               </h3>
               <p className="text-sm text-slate-300">
-                Describe what you need; we match you with people offering relevant expertise
-                across Singapore and Southeast Asia—players and coaches in one network.
+                Describe what you need, and we&apos;ll match you with people who offer relevant
+                expertise across Singapore and Southeast Asia.
               </p>
             </div>
           </div>
@@ -231,8 +234,8 @@ export function HomeContent() {
                 Schedule a meetup
               </h3>
               <p className="text-sm text-slate-300">
-                Pick a time for an online or in-person meeting. Flexible 30-min
-                slots, from free to paid.
+                Pick a time for an online or in-person meeting. Choose from flexible 30-minute
+                slots, from free introductions to paid expert advice.
               </p>
             </div>
           </div>
@@ -243,11 +246,11 @@ export function HomeContent() {
             <div>
               <h3 className="mb-1 flex items-center gap-2 font-semibold text-white">
                 <CheckCircle className="h-4 w-4 text-indigo-500" />
-                Grow Together
+                Keep the momentum going
               </h3>
               <p className="text-sm text-slate-300">
-                Turn sessions into momentum—insights you can apply, relationships that compound,
-                and proof of help that travels with you on the network.
+                Turn each session into usable momentum: insights you can act on, relationships
+                that compound over time, and visible proof of the help you give across the network.
               </p>
             </div>
           </div>

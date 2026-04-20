@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Clock3, Loader2, Send, Sparkles, X } from "lucide-react";
+import { Clock3, Languages, Loader2, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useVoiceChatTranslations } from "@/hooks/use-voice-chat-translations";
 import { Textarea } from "@/components/ui/textarea";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import {
+  getVoiceChatTranslationLabel,
+  inferVoiceChatTranslationTarget,
+} from "@/lib/voice-chat-translation";
 import { cn } from "@/lib/utils";
 
 interface VoiceChatModalProps {
@@ -57,13 +62,19 @@ export function VoiceChatModal({
   const [maxDuration, setMaxDuration] = useState(180);
   const [turnInfo, setTurnInfo] = useState({ count: 0, max: 5 });
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const { toggleTranslation, translations } = useVoiceChatTranslations();
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
+  const messagesRef = useRef<ChatMessage[]>([]);
   const stopSessionRef = useRef<() => Promise<void>>(async () => {});
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingSessionIdRef = useRef<string | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const shouldStopAfterConnectRef = useRef(false);
+
+  messagesRef.current = messages;
 
   const nextMessageId = useCallback(() => `rt-chat-${++msgIdRef.current}`, []);
 
@@ -150,10 +161,7 @@ export function VoiceChatModal({
     stopGreetingPlayback();
   }, [stopGreetingPlayback]);
 
-  const stopSession = useCallback(async () => {
-    if (!sessionId) return;
-    const activeSessionId = sessionId;
-    setSessionId(null);
+  const stopSessionById = useCallback(async (activeSessionId: string) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -163,7 +171,24 @@ export function VoiceChatModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: activeSessionId }),
     }).catch(() => {});
-  }, [sessionId]);
+  }, []);
+
+  const stopSession = useCallback(async () => {
+    const activeSessionId = sessionId ?? pendingSessionIdRef.current;
+    if (!activeSessionId) {
+      shouldStopAfterConnectRef.current = true;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    shouldStopAfterConnectRef.current = false;
+    pendingSessionIdRef.current = null;
+    setSessionId(null);
+    await stopSessionById(activeSessionId);
+  }, [sessionId, stopSessionById]);
 
   useEffect(() => {
     stopSessionRef.current = stopSession;
@@ -185,22 +210,28 @@ export function VoiceChatModal({
       });
       const data = (await res.json()) as { replyText?: string; replyAudio?: string | null };
       if (!res.ok || !data.replyText) return;
+      if (messagesRef.current.length > 0) return;
+      const greetingText = data.replyText;
 
       const greetingId = nextMessageId();
-      setMessages([
-        {
-          id: greetingId,
-          role: "assistant",
-          text: data.replyText,
-        },
-      ]);
+      setMessages((prev) =>
+        prev.length === 0
+          ? [
+              {
+                id: greetingId,
+                role: "assistant",
+                text: greetingText,
+              },
+            ]
+          : prev,
+      );
 
       let played = false;
       if (data.replyAudio) {
         played = await playGreetingAudio(data.replyAudio);
       }
       if (!played) {
-        speakGreetingWithDeviceVoice(data.replyText);
+        speakGreetingWithDeviceVoice(greetingText);
       }
     } catch {
       // Greeting is non-blocking.
@@ -231,7 +262,12 @@ export function VoiceChatModal({
         if (!res.ok || !data.sessionId) {
           throw new Error(data.error || `Server error ${res.status}`);
         }
-        if (cancelled) return;
+        pendingSessionIdRef.current = data.sessionId;
+        if (cancelled || shouldStopAfterConnectRef.current) {
+          await stopSessionById(data.sessionId);
+          pendingSessionIdRef.current = null;
+          return;
+        }
 
         setSessionId(data.sessionId);
         setSessionState("connected");
@@ -270,7 +306,7 @@ export function VoiceChatModal({
         timerRef.current = null;
       }
     };
-  }, [expertId, fetchGreeting]);
+  }, [expertId, fetchGreeting, stopSessionById]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -290,6 +326,7 @@ export function VoiceChatModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             expertId,
+            sessionId,
             text: trimmed,
             includeAudio: false,
           }),
@@ -318,7 +355,7 @@ export function VoiceChatModal({
         setSending(false);
       }
     },
-    [expertId, nextMessageId, sending, sessionState],
+    [expertId, nextMessageId, sending, sessionId, sessionState],
   );
 
   const handleClose = useCallback(async () => {
@@ -426,6 +463,48 @@ export function VoiceChatModal({
               )}
             >
               <p className="whitespace-pre-wrap">{message.text}</p>
+
+              {message.role === "assistant" && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void toggleTranslation(message.id, message.text)}
+                    className="inline-flex h-7 items-center gap-1 rounded-full border border-border/80 bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-indigo-400/40 hover:text-foreground"
+                  >
+                    {translations[message.id]?.status === "loading" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Languages className="h-3.5 w-3.5" />
+                    )}
+                    <span>
+                      {translations[message.id]?.status === "loading"
+                        ? "Translating"
+                        : translations[message.id]?.status === "error"
+                          ? "Retry"
+                          : translations[message.id]?.status === "ready" &&
+                              translations[message.id]?.visible
+                            ? "Hide"
+                            : getVoiceChatTranslationLabel(
+                                translations[message.id]?.targetLanguage ??
+                                  inferVoiceChatTranslationTarget(message.text),
+                              )}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {message.role === "assistant" && translations[message.id]?.visible && (
+                <div className="mt-2 rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-xs text-muted-foreground">
+                  {translations[message.id]?.status === "ready" && (
+                    <p className="whitespace-pre-wrap text-foreground">
+                      {translations[message.id]?.translatedText}
+                    </p>
+                  )}
+                  {translations[message.id]?.status === "error" && (
+                    <p>{translations[message.id]?.error ?? "Could not translate this message."}</p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
