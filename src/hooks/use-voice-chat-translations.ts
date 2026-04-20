@@ -15,6 +15,32 @@ export interface VoiceChatTranslationState {
   visible: boolean;
 }
 
+function getVoiceChatTranslateUrl(): string {
+  if (typeof window === "undefined") {
+    return "/api/voice-chat/translate";
+  }
+
+  const origin = window.location.origin?.trim() ?? "";
+  if (origin.startsWith("https://") || origin.startsWith("http://")) {
+    return `${origin}/api/voice-chat/translate`;
+  }
+
+  return "/api/voice-chat/translate";
+}
+
+function getTranslationErrorMessage(error: unknown): string {
+  if (
+    error instanceof DOMException &&
+    error.message === "The string did not match the expected pattern."
+  ) {
+    return "Could not reach the translation service. Please try again.";
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "Could not translate this message.";
+}
+
 export function useVoiceChatTranslations() {
   const [translations, setTranslations] = useState<
     Record<string, VoiceChatTranslationState>
@@ -43,10 +69,10 @@ export function useVoiceChatTranslations() {
     }));
 
     try {
-      const res = await fetch("/api/voice-chat/translate", {
+      const res = await fetch(getVoiceChatTranslateUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "same-origin",
         body: JSON.stringify({ text, targetLanguage }),
       });
       const data = (await res.json()) as {
@@ -68,8 +94,7 @@ export function useVoiceChatTranslations() {
         },
       }));
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Could not translate this message.";
+      const message = getTranslationErrorMessage(error);
       setTranslations((prev) => ({
         ...prev,
         [messageId]: {
