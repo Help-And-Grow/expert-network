@@ -523,20 +523,14 @@ export default function ExpertProfilePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground leading-tight">
-                  {authStatus === "authenticated"
-                    ? `Chat with ${name.split(" ")[0]}`
-                    : `Sign in to chat with ${name.split(" ")[0]}`}
+                  Chat with {name.split(" ")[0]}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
-                  {authStatus === "loading"
-                    ? "Checking sign-in status..."
-                    : authStatus !== "authenticated"
-                      ? "Public profile is open. Sign in first to start voice chat."
-                      : vcConfig.asyncEnabled && vcConfig.realtimeReady
-                        ? "Send a quick voice note or switch to realtime AI chat"
-                        : vcConfig.asyncEnabled
-                          ? "Free expert preview with voice notes and concise replies"
-                          : "Free realtime AI chat preview"}
+                  {vcConfig.asyncEnabled && vcConfig.realtimeReady
+                    ? "Send a quick voice note or switch to realtime AI chat"
+                    : vcConfig.asyncEnabled
+                      ? "Free expert preview with voice notes and concise replies"
+                      : "Free realtime AI chat preview"}
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-1.5 text-indigo-300">
@@ -550,7 +544,7 @@ export default function ExpertProfilePage() {
               onClick={() => openVoiceChat("realtime")}
               className="mt-2 w-full text-center text-xs text-muted-foreground transition-colors hover:text-indigo-300"
             >
-              {authStatus === "authenticated" ? "Or switch to" : "Or sign in for"}{" "}
+              Or switch to{" "}
               <span className="font-medium underline underline-offset-2">
                 realtime AI chat
               </span>{" "}
