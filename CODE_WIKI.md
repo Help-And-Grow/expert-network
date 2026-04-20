@@ -81,7 +81,7 @@ UI (React components in src/app/, src/components/)
 - **Database / ORM:** [Prisma](https://www.prisma.io/) 7 with `@prisma/adapter-pg`. Requires PostgreSQL.
 - **State & Fetching:** Zustand, TanStack React Query, tRPC.
 - **Web3 / Crypto:** `viem`, `wagmi`, `@ethereum-attestation-service/eas-sdk`, TON SDKs.
-- **AI & Realtime:** OpenAI SDK, Google GenAI, Agora RTC SDK (`agora-rtc-sdk-ng`).
+- **AI & Realtime:** OpenAI SDK, Google GenAI, Tencent Cloud TRTC Engine (`trtc-sdk-web`).
 
 ---
 
