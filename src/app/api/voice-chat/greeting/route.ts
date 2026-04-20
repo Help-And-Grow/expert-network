@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { buildProfileAudioDataUrl } from "@/lib/profile-media";
 import { resolveUserId } from "@/lib/request-auth";
 import {
   isAsyncEnabled,
@@ -64,7 +65,10 @@ export async function POST(request: NextRequest) {
       replyText: result.text,
       replyAudio:
         audioResult?.replyAudioBase64 && audioResult.replyAudioFormat
-          ? `data:audio/${audioResult.replyAudioFormat};base64,${audioResult.replyAudioBase64}`
+          ? buildProfileAudioDataUrl({
+              audioBase64: audioResult.replyAudioBase64,
+              format: audioResult.replyAudioFormat,
+            })
           : null,
     });
   } catch (err) {
