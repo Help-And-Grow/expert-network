@@ -40,6 +40,10 @@ import { buildGoogleMapsUrl } from "@/lib/google-maps";
 import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
+const TELEGRAM_TWA_RETURN_URL = process.env.NEXT_PUBLIC_TELEGRAM_TWA_RETURN_URL?.trim() as
+  | `${string}://${string}`
+  | undefined;
+
 interface UserData {
   id: string;
   role: string;
@@ -479,8 +483,16 @@ const BookingCard = memo(function BookingCard({
     setActionError(null);
     try {
       if (!tonWallet) {
-        await tonConnectUI.openModal();
+        const connectPromise = tonConnectUI.connectWallet();
         setPaying(false);
+        void connectPromise.catch((err) => {
+          const message = err instanceof Error ? err.message : "Could not open TON wallet.";
+          if (/cancel/i.test(message)) {
+            setActionError("Wallet connection was cancelled");
+            return;
+          }
+          setActionError(message);
+        });
         return;
       }
 
@@ -509,7 +521,12 @@ const BookingCard = memo(function BookingCard({
         ],
       };
 
-      const result = await tonConnectUI.sendTransaction(transaction);
+      const result = await tonConnectUI.sendTransaction(
+        transaction,
+        TELEGRAM_TWA_RETURN_URL && tgHeaders
+          ? { twaReturnUrl: TELEGRAM_TWA_RETURN_URL }
+          : undefined,
+      );
 
       const confirmRes = await fetch("/api/bookings/ton-confirm", {
         method: "POST",

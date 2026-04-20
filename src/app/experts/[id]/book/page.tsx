@@ -47,6 +47,9 @@ interface BookedSlot {
 
 type TimeRange = { start: string; end: string };
 type WeeklySchedule = Record<string, TimeRange[]>;
+const TELEGRAM_TWA_RETURN_URL = process.env.NEXT_PUBLIC_TELEGRAM_TWA_RETURN_URL?.trim() as
+  | `${string}://${string}`
+  | undefined;
 
 function isSlotBooked(slot: { startTime: string; endTime: string }, bookedSlots: BookedSlot[]): boolean {
   const sStart = new Date(slot.startTime).getTime();
@@ -295,8 +298,16 @@ export default function BookSessionPage() {
     try {
       // Connect wallet if not already connected
       if (!tonWallet) {
-        await tonConnectUI.openModal();
+        const connectPromise = tonConnectUI.connectWallet();
         setSubmitting(false);
+        void connectPromise.catch((err) => {
+          const message = err instanceof Error ? err.message : "Could not open TON wallet.";
+          if (/cancel/i.test(message)) {
+            setError("Wallet connection was cancelled");
+            return;
+          }
+          setError(message);
+        });
         return;
       }
 
@@ -338,7 +349,12 @@ export default function BookSessionPage() {
       };
       console.log("[TON] transaction:", JSON.stringify(transaction));
 
-      const result = await tonConnectUI.sendTransaction(transaction);
+      const result = await tonConnectUI.sendTransaction(
+        transaction,
+        TELEGRAM_TWA_RETURN_URL && isTelegramSurface
+          ? { twaReturnUrl: TELEGRAM_TWA_RETURN_URL }
+          : undefined,
+      );
 
       // Transaction signed — confirm booking with BOC proof
       const confirmRes = await fetch("/api/bookings/ton-confirm", {

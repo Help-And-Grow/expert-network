@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
-import { prisma } from "@/lib/prisma";
+import { prismaFull as prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import {
   buildTrtcParticipantId,
