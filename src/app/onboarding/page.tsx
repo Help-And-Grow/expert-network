@@ -281,10 +281,13 @@ export default function OnboardingPage() {
   const handleWalletTonConnect = async () => {
     setWalletLoading(true);
     try {
-      await tonConnectUI.openModal();
+      const connectPromise = tonConnectUI.connectWallet();
+      setWalletLoading(false);
+      void connectPromise.catch(() => {
+        // Connection cancelled or wallet unavailable — keep onboarding usable.
+      });
     } catch {
       // Modal closed without connecting — that's OK
-    } finally {
       setWalletLoading(false);
     }
   };
