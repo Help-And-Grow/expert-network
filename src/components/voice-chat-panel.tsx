@@ -44,6 +44,16 @@ function hasDeviceVoiceSupport(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
+function assignAudioSource(audio: HTMLAudioElement, src: string): boolean {
+  try {
+    audio.src = src;
+    return true;
+  } catch (error) {
+    console.warn("[voice-chat-panel] Invalid audio source", error);
+    return false;
+  }
+}
+
 function generateStarters(
   name: string,
   services?: { title: string }[] | null,
@@ -143,7 +153,9 @@ export function VoiceChatPanel({
     audio.setAttribute("playsinline", "true");
     audio.setAttribute("webkit-playsinline", "true");
     audio.preload = "auto";
-    audio.src = src;
+    if (!assignAudioSource(audio, src)) {
+      return false;
+    }
     audioRef.current = audio;
     playbackModeRef.current = "audio";
 
