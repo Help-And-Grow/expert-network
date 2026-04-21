@@ -21,9 +21,13 @@ import { Button } from "@/components/ui/button";
 import { useVoiceChatTranslations } from "@/hooks/use-voice-chat-translations";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import {
+  createAudioMediaRecorder,
+  formatRecordingStartError,
   getPreferredGeminiRecordingMimeType,
+  getRecorderMimeType,
   normalizeRecordedAudioForGemini,
 } from "@/lib/browser-audio";
+import { prepareAudioSourceForElement } from "@/lib/client-audio-source";
 import {
   getVoiceChatTranslationLabel,
   inferVoiceChatTranslationTarget,
@@ -104,6 +108,7 @@ export function VoiceChatPanel({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioSourceCleanupRef = useRef<(() => void) | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const playbackModeRef = useRef<"audio" | "device" | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -136,6 +141,11 @@ export function VoiceChatPanel({
     resumeSharedAudioContext();
   }, []);
 
+  const cleanupAudioSource = useCallback(() => {
+    audioSourceCleanupRef.current?.();
+    audioSourceCleanupRef.current = null;
+  }, []);
+
   const stopPlayback = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.onended = null;
@@ -146,6 +156,7 @@ export function VoiceChatPanel({
       audioRef.current.load();
       audioRef.current = null;
     }
+    cleanupAudioSource();
 
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -153,7 +164,7 @@ export function VoiceChatPanel({
     speechRef.current = null;
     playbackModeRef.current = null;
     setPlayingId(null);
-  }, []);
+  }, [cleanupAudioSource]);
 
   const playExpertAudio = useCallback(async (src: string, msgId: string) => {
     stopPlayback();
@@ -162,15 +173,22 @@ export function VoiceChatPanel({
     audio.setAttribute("playsinline", "true");
     audio.setAttribute("webkit-playsinline", "true");
     audio.preload = "auto";
-    if (!assignAudioSource(audio, src)) {
+    const preparedSource = prepareAudioSourceForElement(src);
+    if (!preparedSource) {
       return false;
     }
+    if (!assignAudioSource(audio, preparedSource.src)) {
+      preparedSource.revoke();
+      return false;
+    }
+    audioSourceCleanupRef.current = preparedSource.revoke;
     audioRef.current = audio;
     playbackModeRef.current = "audio";
 
     setPlayingId(msgId);
     const clearPlaying = () => {
       if (playbackModeRef.current === "audio") {
+        cleanupAudioSource();
         playbackModeRef.current = null;
         setPlayingId(null);
       }
@@ -187,7 +205,7 @@ export function VoiceChatPanel({
       clearPlaying();
       return false;
     }
-  }, [stopPlayback]);
+  }, [cleanupAudioSource, stopPlayback]);
 
   const speakWithDeviceVoice = useCallback(
     (text: string, msgId: string) => {
@@ -340,9 +358,7 @@ export function VoiceChatPanel({
       stopPlayback();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = getPreferredGeminiRecordingMimeType();
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
+      const recorder = createAudioMediaRecorder(stream, mimeType);
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -352,7 +368,7 @@ export function VoiceChatPanel({
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || mimeType || "audio/webm",
+          type: getRecorderMimeType(recorder, mimeType),
         });
         sendVoice(blob);
       };
@@ -370,8 +386,8 @@ export function VoiceChatPanel({
           return p + 1;
         });
       }, 1000);
-    } catch {
-      setError("Microphone access denied");
+    } catch (err) {
+      setError(formatRecordingStartError(err));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopPlayback, unlockAudioPlayback]);

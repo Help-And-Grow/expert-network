@@ -1,4 +1,5 @@
 import { createAIProviderForName, type ImageInput } from "@/lib/ai";
+import { normalizeAudioForBrowserPlayback } from "@/lib/audio-format";
 import { IMAGE_FALLBACK_ORDER } from "@/lib/ai/provider-catalog";
 import { env } from "@/lib/env";
 import { hasGoogleServiceAccountConfig } from "@/lib/google-access-token";
@@ -246,6 +247,10 @@ export function buildProfileAudioDataUrl(
   if (buffer.length === 0) {
     throw new Error("Voice synthesis returned empty audio.");
   }
-  const mime = detectAudioMime(buffer) || mimeFromDeclaredFormat(result.format);
-  return `data:${mime};base64,${buffer.toString("base64")}`;
+  const normalized = normalizeAudioForBrowserPlayback({
+    buffer,
+    declaredMime: result.format?.includes("/") ? result.format : null,
+    declaredFormat: result.format,
+  });
+  return `data:${normalized.mimeType};base64,${normalized.buffer.toString("base64")}`;
 }

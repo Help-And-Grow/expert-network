@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useVoiceChatTranslations } from "@/hooks/use-voice-chat-translations";
 import { Textarea } from "@/components/ui/textarea";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import { prepareAudioSourceForElement } from "@/lib/client-audio-source";
 import {
   getVoiceChatTranslationLabel,
   inferVoiceChatTranslationTarget,
@@ -70,6 +71,7 @@ export function VoiceChatModal({
   const messagesRef = useRef<ChatMessage[]>([]);
   const stopSessionRef = useRef<() => Promise<void>>(async () => {});
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioSourceCleanupRef = useRef<(() => void) | null>(null);
   const pendingSessionIdRef = useRef<string | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const shouldStopAfterConnectRef = useRef(false);
@@ -100,6 +102,11 @@ export function VoiceChatModal({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  const cleanupAudioSource = useCallback(() => {
+    audioSourceCleanupRef.current?.();
+    audioSourceCleanupRef.current = null;
+  }, []);
+
   const stopGreetingPlayback = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.onended = null;
@@ -110,12 +117,13 @@ export function VoiceChatModal({
       audioRef.current.load();
       audioRef.current = null;
     }
+    cleanupAudioSource();
 
     if (hasDeviceVoiceSupport()) {
       window.speechSynthesis.cancel();
     }
     speechRef.current = null;
-  }, []);
+  }, [cleanupAudioSource]);
 
   const playGreetingAudio = useCallback(
     async (src: string): Promise<boolean> => {
@@ -125,9 +133,18 @@ export function VoiceChatModal({
       audio.setAttribute("playsinline", "true");
       audio.setAttribute("webkit-playsinline", "true");
       audio.preload = "auto";
-      if (!assignAudioSource(audio, src)) {
+      const preparedSource = prepareAudioSourceForElement(src);
+      if (!preparedSource) {
         return false;
       }
+      if (!assignAudioSource(audio, preparedSource.src)) {
+        preparedSource.revoke();
+        return false;
+      }
+      audio.onended = cleanupAudioSource;
+      audio.onerror = cleanupAudioSource;
+      audio.onpause = cleanupAudioSource;
+      audioSourceCleanupRef.current = preparedSource.revoke;
       audioRef.current = audio;
 
       try {
@@ -138,7 +155,7 @@ export function VoiceChatModal({
         return false;
       }
     },
-    [stopGreetingPlayback],
+    [cleanupAudioSource, stopGreetingPlayback],
   );
 
   const speakGreetingWithDeviceVoice = useCallback(
