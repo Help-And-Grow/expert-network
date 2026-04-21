@@ -1,16 +1,12 @@
-@keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-}
+@import '../../styles/index';
 
 .expert-profile {
-  padding-bottom: calc(32px + env(safe-area-inset-bottom));
-  background:
-    radial-gradient(circle at top right, rgba(31, 63, 255, 0.08), transparent 28%),
-    linear-gradient(180deg, #f9f7f2 0%, #f4f1ea 100%);
+  padding-bottom: calc($spacing-8 + env(safe-area-inset-bottom));
+  @include page-bg;
 
+  // --- 骨架屏 ---
   &__skeleton {
-    padding: 48px 32px;
+    padding: $spacing-12 $spacing-8;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -20,58 +16,52 @@
     width: 180px;
     height: 180px;
     border-radius: 50%;
-    background: linear-gradient(90deg, #eef2ff 25%, #e0e7ff 50%, #eef2ff 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-    margin-bottom: 24px;
+    @include skeleton(#eef2ff, #e0e7ff);
+    margin-bottom: $spacing-6;
   }
 
   &__skeleton-line {
-    height: 28px;
-    border-radius: 10px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-    margin-bottom: 16px;
+    height: $font-size-lg;
+    border-radius: $radius-sm;
+    @include skeleton;
+    margin-bottom: $spacing-4;
     width: 70%;
 
     &--lg { width: 50%; height: 36px; }
     &--sm { width: 40%; }
   }
 
+  // --- 错误状态 ---
   &__error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    @extend .empty-state;
     min-height: 600px;
-    padding: 40px;
   }
 
   &__error-icon {
     font-size: 64px;
-    margin-bottom: 20px;
+    margin-bottom: $spacing-5;
   }
 
   &__error-text {
-    font-size: 28px;
+    font-size: $font-size-lg;
     color: #94a3b8;
   }
 
   &__error-btn {
-    margin-top: 24px;
-    padding: 16px 48px;
-    background: #f1f5f9;
-    border-radius: 14px;
-    font-size: 28px;
-    color: #1e1b4b;
-    font-weight: 500;
+    margin-top: $spacing-6;
+    padding: $spacing-4 48px;
+    background: $color-bg-muted;
+    border-radius: $radius-md;
+    font-size: $font-size-lg;
+    color: $color-text-heading;
+    font-weight: $font-weight-medium;
 
     &--hover {
       background: #e2e8f0;
     }
   }
 
+  // --- Hero ---
   &__hero {
     display: flex;
     justify-content: center;
@@ -84,104 +74,113 @@
   }
 
   &__avatar-img {
-    width: 200px;
-    height: 200px;
+    width: $avatar-xl;
+    height: $avatar-xl;
     border-radius: 50%;
-    border: 4px solid #fff;
+    border: 4px solid $color-bg-card;
     box-shadow: 0 18px 40px rgba(31, 63, 255, 0.12);
   }
 
   &__avatar-placeholder {
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #1f3fff 0%, #6d84ff 100%);
-    border: 4px solid #fff;
+    width: $avatar-xl;
+    height: $avatar-xl;
+    @include avatar-placeholder($avatar-xl);
+    font-size: 72px;
+    font-weight: $font-weight-extrabold;
+    border: 4px solid $color-bg-card;
     box-shadow: 0 18px 40px rgba(31, 63, 255, 0.14);
   }
 
-  &__avatar-placeholder-text {
-    font-size: 72px;
-    font-weight: 800;
-    color: #f8fafc;
-  }
-
-  &__intro-btn {
-    position: absolute;
-    right: 8px;
-    bottom: 8px;
+  // --- 听介绍卡片 ---
+  &__intro-card {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
-    border-radius: 999px;
-    background: rgba(17, 24, 39, 0.78);
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    gap: $spacing-4;
+    padding: $spacing-5 $spacing-6;
+    border-radius: $radius-xl;
+    background: $color-bg-card;
+    border: 1px solid rgba(31, 63, 255, 0.12);
+    box-shadow: $shadow-md;
+    transition: background $duration-fast $ease-default, transform $duration-fast $ease-default;
 
     &--hover {
-      opacity: 0.9;
+      background: #f7f8ff;
+      transform: scale(0.98);
     }
   }
 
-  &__intro-btn-icon {
-    font-size: 24px;
+  &__intro-card-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: $color-brand-blue-gradient;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
-  &__intro-btn-text {
-    font-size: 22px;
-    font-weight: 600;
+  &__intro-card-text {
+    flex: 1;
   }
 
+  &__intro-card-title {
+    display: block;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+  }
+
+  &__intro-card-desc {
+    display: block;
+    margin-top: $spacing-1;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+
+  // --- 基本信息 ---
   &__info {
-    padding: 20px 32px 4px;
+    padding: $spacing-5 $spacing-8 $spacing-1;
     text-align: center;
   }
 
   &__name {
     display: block;
-    font-size: 40px;
-    font-weight: 800;
-    color: #111827;
-    margin-bottom: 12px;
+    font-size: $font-size-4xl;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-primary;
+    margin-bottom: $spacing-3;
     letter-spacing: -0.5px;
   }
 
   &__verified {
     display: inline-block;
-    padding: 6px 18px;
-    border-radius: 999px;
-    background: rgba(15, 118, 110, 0.1);
-    color: #0f766e;
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 16px;
+    padding: $spacing-1 $spacing-4;
+    border-radius: $radius-full;
+    @include badge-confirmed;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    margin-bottom: $spacing-4;
   }
 
+  // --- 领域标签 ---
   &__domains {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: $spacing-4;
     justify-content: center;
   }
 
   &__domain-chip {
-    font-size: 24px;
-    padding: 6px 20px;
-    border-radius: 12px;
-    background: #f1f5f9;
-    color: #42526b;
-    font-weight: 500;
+    @include domain-chip;
   }
 
+  // --- 评分 ---
   &__rating {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: $spacing-3;
     justify-content: center;
   }
 
@@ -190,164 +189,160 @@
   }
 
   &__star {
-    font-size: 28px;
-    color: #e2e8f0;
+    font-size: $font-size-lg;
+    color: $color-border;
 
     &--filled {
-      color: #f59e0b;
+      color: $color-warning;
     }
   }
 
   &__review-count {
-    font-size: 24px;
-    color: #6b7280;
+    font-size: $font-size-base;
+    color: $color-text-tertiary;
   }
 
+  // --- 区块 ---
   &__section {
-    padding: 0 32px;
-    margin-top: 32px;
+    padding: 0 $spacing-8;
+    margin-top: $spacing-8;
 
     &--highlight {
       margin-top: 30px;
-      padding: 30px 32px;
-      margin-left: 16px;
-      margin-right: 16px;
+      padding: 30px $spacing-8;
+      margin-left: $spacing-4;
+      margin-right: $spacing-4;
       background: linear-gradient(145deg, #fffdf8 0%, #f2f4ff 100%);
-      border-radius: 28px;
+      border-radius: $radius-2xl;
       border: 1px solid rgba(31, 63, 255, 0.12);
-      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
+      box-shadow: $shadow-xl;
     }
   }
 
+  &__section-title {
+    @include section-title;
+  }
+
+  &__section-sub {
+    display: block;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+    line-height: $line-height-loose;
+    margin-bottom: $spacing-5;
+  }
+
+  // --- 自己看自己提示 ---
   &__owner-note {
-    padding: 24px;
-    border-radius: 24px;
+    padding: $spacing-6;
+    border-radius: $radius-xl;
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(15, 23, 42, 0.08);
   }
 
   &__owner-note-title {
     display: block;
-    font-size: 26px;
-    font-weight: 700;
-    color: #111827;
-    margin-bottom: 8px;
+    font-size: $font-size-md;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
+    margin-bottom: $spacing-2;
   }
 
   &__owner-note-text {
     display: block;
-    font-size: 22px;
-    line-height: 1.7;
-    color: #4b5563;
+    font-size: $font-size-sm;
+    line-height: $line-height-loose;
+    color: $color-text-secondary;
   }
 
-  &__section-title {
-    display: block;
-    font-size: 30px;
-    font-weight: 700;
-    color: #111827;
-    margin-bottom: 16px;
-  }
-
-  &__section-sub {
-    display: block;
-    font-size: 24px;
-    color: #4b5563;
-    line-height: 1.7;
-    margin-bottom: 20px;
-  }
-
+  // --- Web 预约按钮 ---
   &__web-book-btn {
-    text-align: center;
-    padding: 22px;
-    border-radius: 18px;
-    font-size: 28px;
-    font-weight: 600;
-    background: linear-gradient(135deg, #1f3fff, #5b6cff);
-    color: #fff;
+    @include btn-primary;
     margin-top: 18px;
-    box-shadow: 0 14px 30px rgba(31, 63, 255, 0.18);
 
     &--secondary {
-      background: #fff;
-      color: #4f46e5;
-      border: 2px solid #c7d2fe;
-      box-shadow: none;
+      @include btn-outline;
+      margin-top: 18px;
     }
 
     &--hover {
-      opacity: 0.88;
+      @include btn-primary-hover;
     }
   }
 
+  // --- 个人介绍 ---
   &__text {
     display: block;
-    font-size: 26px;
-    color: #4b5563;
-    line-height: 1.7;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    line-height: $line-height-loose;
     white-space: pre-wrap;
   }
 
   &__text-muted {
     display: block;
-    font-size: 26px;
-    color: #6b7280;
-    padding: 24px 0;
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+    padding: $spacing-6 0;
   }
 
+  // --- 服务介绍资料 ---
   &__service-card {
     background: rgba(255, 255, 255, 0.78);
-    border-radius: 20px;
-    padding: 24px;
-    margin-bottom: 12px;
+    border-radius: $radius-xl;
+    padding: $spacing-6;
+    margin-bottom: $spacing-3;
     border: 1px solid rgba(15, 23, 42, 0.06);
   }
 
   &__service-title {
     display: block;
-    font-size: 28px;
-    font-weight: 600;
-    color: #111827;
-    margin-bottom: 8px;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+    margin-bottom: $spacing-2;
   }
 
   &__service-desc {
     display: block;
-    font-size: 24px;
-    color: #4b5563;
-    line-height: 1.6;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+    line-height: $line-height-relaxed;
   }
 
+  // --- 社交链接 ---
   &__social-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: $spacing-3;
   }
 
   &__social-btn {
-    padding: 12px 28px;
-    border-radius: 14px;
-    border: 1.5px solid #e2e8f0;
-    font-size: 26px;
+    padding: $spacing-3 28px;
+    border-radius: $radius-md;
+    border: 1.5px solid $color-border;
+    font-size: $font-size-md;
     color: #475569;
-    font-weight: 500;
-    background: #fff;
+    font-weight: $font-weight-medium;
+    background: $color-bg-card;
+    transition: all $duration-fast $ease-default;
 
     &--hover {
-      background: #f8fafc;
-      border-color: #6366f1;
-      color: #6366f1;
+      background: $color-bg-muted;
+      border-color: $color-primary;
+      color: $color-primary;
     }
   }
 
+  // --- 文档 ---
   &__document {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 22px 24px;
-    border-radius: 18px;
+    padding: 22px $spacing-6;
+    border-radius: $radius-xl;
     border: 1px solid rgba(15, 23, 42, 0.08);
-    background: #fff;
+    background: $color-bg-card;
+    transition: background $duration-fast $ease-default;
 
     &--hover {
       background: #f7f8ff;
@@ -355,90 +350,83 @@
   }
 
   &__document-name {
-    font-size: 26px;
+    font-size: $font-size-md;
     color: #374151;
     flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    @include text-ellipsis;
   }
 
   &__document-action {
-    font-size: 24px;
-    color: #1f3fff;
-    font-weight: 600;
+    font-size: $font-size-base;
+    color: $color-text-brand-blue;
+    font-weight: $font-weight-semibold;
     flex-shrink: 0;
-    margin-left: 16px;
+    margin-left: $spacing-4;
   }
 
   &__section-hint {
     display: block;
     margin-top: 14px;
-    font-size: 22px;
-    line-height: 1.7;
-    color: #6b7280;
+    font-size: $font-size-sm;
+    line-height: $line-height-loose;
+    color: $color-text-tertiary;
   }
 
+  // --- 价格 ---
   &__prices {
     display: flex;
-    gap: 12px;
+    gap: $spacing-3;
   }
 
   &__price-card {
     flex: 1;
-    background: #fff;
-    border-radius: 16px;
-    padding: 24px;
-    border: 1.5px solid #f1f5f9;
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-6;
+    border: 1.5px solid $color-bg-muted;
     text-align: center;
   }
 
   &__price-label {
     display: block;
-    font-size: 26px;
+    font-size: $font-size-md;
     color: #64748b;
-    margin-bottom: 8px;
+    margin-bottom: $spacing-2;
   }
 
   &__price-value {
     display: block;
-    font-size: 34px;
-    font-weight: 700;
-    color: #1e1b4b;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-heading;
   }
 
   &__price-note {
     display: block;
-    font-size: 22px;
+    font-size: $font-size-sm;
     color: #94a3b8;
-    margin-top: 16px;
-    line-height: 1.5;
+    margin-top: $spacing-4;
+    line-height: $line-height-relaxed;
   }
 
+  // --- 评论 ---
   &__review {
-    padding: 24px 0;
-    border-bottom: 1px solid #f1f5f9;
+    padding: $spacing-6 0;
+    border-bottom: 1px solid $color-divider;
   }
 
   &__review-header {
     display: flex;
-    gap: 16px;
+    gap: $spacing-4;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: $spacing-3;
   }
 
   &__review-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
+    @include avatar-placeholder(60px);
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
     background: linear-gradient(135deg, #94a3b8, #64748b);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: 600;
-    flex-shrink: 0;
   }
 
   &__review-meta {
@@ -447,97 +435,100 @@
 
   &__review-name {
     display: block;
-    font-size: 26px;
-    font-weight: 600;
-    color: #1e1b4b;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-heading;
   }
 
   &__review-date {
     display: block;
-    font-size: 22px;
-    color: #6b7280;
-    margin-top: 4px;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-top: $spacing-1;
   }
 
   &__review-stars {
-    margin-bottom: 8px;
+    margin-bottom: $spacing-2;
   }
 
   &__review-comment {
     display: block;
-    font-size: 26px;
-    color: #4b5563;
-    line-height: 1.6;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    line-height: $line-height-relaxed;
   }
 
   &__load-more {
     text-align: center;
-    padding: 24px;
-    font-size: 26px;
-    color: #6366f1;
-    font-weight: 600;
+    padding: $spacing-6;
+    font-size: $font-size-md;
+    color: $color-primary;
+    font-weight: $font-weight-semibold;
 
     &--hover {
       opacity: 0.6;
     }
   }
 
+  // --- 底部固定栏 ---
   &__bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    gap: 16px;
-    padding: 20px 32px;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    background: #fff;
-    border-top: 1px solid #f1f5f9;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+    @include fixed-bottom-bar;
   }
 
   &__book-btn {
     flex: 1;
     text-align: center;
-    padding: 24px 0;
-    border-radius: 18px;
-    font-size: 30px;
-    font-weight: 600;
+    padding: $spacing-6 0;
+    border-radius: $radius-xl;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
 
     &--primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+      background: $color-primary-gradient;
+      color: $color-text-inverse;
+      box-shadow: $shadow-brand;
     }
 
     &--outline {
-      background: #fff;
-      color: #6366f1;
-      border: 2px solid #e0e7ff;
+      background: $color-bg-card;
+      color: $color-primary;
+      border: 2px solid $color-border-primary;
     }
 
     &--hover {
       opacity: 0.8;
+      transform: scale(0.98);
     }
   }
 
+  // --- 语音聊天 ---
   &__voice-chat-btn {
     display: flex;
     align-items: center;
-    gap: 20rpx;
-    padding: 28rpx 30rpx;
-    border-radius: 24rpx;
+    gap: $spacing-5;
+    padding: $spacing-5 $spacing-6;
+    border-radius: $radius-xl;
     background: linear-gradient(145deg, #fffdf8, #f0f4ff);
-    border: 2rpx solid rgba(31, 63, 255, 0.14);
-    box-shadow: 0 14rpx 28rpx rgba(15, 23, 42, 0.06);
+    border: 2px solid rgba(31, 63, 255, 0.14);
+    box-shadow: $shadow-lg;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
   }
 
   &__voice-chat-btn--hover {
     opacity: 0.8;
+    transform: scale(0.98);
   }
 
   &__voice-chat-icon {
-    font-size: 44rpx;
+    width: 56px;
+    height: 56px;
+    border-radius: $radius-lg;
+    background: $color-primary-light;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   &__voice-chat-text {
@@ -545,24 +536,25 @@
   }
 
   &__voice-chat-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: #111827;
+    font-size: 30px;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
     display: block;
   }
 
   &__voice-chat-desc {
-    font-size: 23rpx;
-    color: #6b7280;
+    font-size: 23px;
+    color: $color-text-tertiary;
     display: block;
-    margin-top: 8rpx;
-    line-height: 1.6;
+    margin-top: 8px;
+    line-height: $line-height-relaxed;
   }
 
+  // --- 实时对话 ---
   &__realtime-card {
     margin-top: 18px;
-    padding: 24px 26px;
-    border-radius: 22px;
+    padding: $spacing-6 26px;
+    border-radius: $radius-xl;
     background: rgba(17, 24, 39, 0.92);
     color: #f9fafb;
   }
@@ -573,24 +565,24 @@
 
   &__realtime-badge {
     display: inline-block;
-    padding: 8px 16px;
-    border-radius: 999px;
+    padding: $spacing-2 $spacing-4;
+    border-radius: $radius-full;
     background: rgba(255, 255, 255, 0.12);
-    font-size: 20px;
+    font-size: $font-size-sm;
   }
 
   &__realtime-title {
     display: block;
-    margin-top: 16px;
-    font-size: 30px;
-    font-weight: 700;
+    margin-top: $spacing-4;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
   }
 
   &__realtime-desc {
     display: block;
     margin-top: 10px;
     font-size: 23px;
-    line-height: 1.7;
+    line-height: $line-height-loose;
     color: rgba(249, 250, 251, 0.82);
   }
 }

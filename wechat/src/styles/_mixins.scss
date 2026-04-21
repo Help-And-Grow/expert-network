@@ -1,0 +1,210 @@
+// ============================================
+// Help & Grow — Mixins
+// 可复用的样式片段
+// ============================================
+
+// --- 品牌渐变按钮 ---
+@mixin btn-primary {
+  text-align: center;
+  padding: 22px 0;
+  border-radius: $radius-xl;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  background: $color-primary-gradient;
+  color: $color-text-inverse;
+  box-shadow: $shadow-brand;
+  transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
+}
+
+@mixin btn-primary-hover {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+// --- 描边按钮 ---
+@mixin btn-outline {
+  text-align: center;
+  padding: 22px 0;
+  border-radius: $radius-xl;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  background: $color-bg-card;
+  color: $color-primary;
+  border: 2px solid $color-border-primary;
+  transition: background $duration-fast $ease-default, border-color $duration-fast $ease-default;
+}
+
+@mixin btn-outline-hover {
+  background: $color-primary-light;
+  border-color: $color-primary;
+}
+
+// --- 幽灵按钮 ---
+@mixin btn-ghost {
+  text-align: center;
+  padding: 16px 0;
+  border-radius: $radius-lg;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  background: $color-bg-muted;
+  color: $color-text-secondary;
+  transition: opacity $duration-fast $ease-default;
+}
+
+@mixin btn-ghost-hover {
+  opacity: 0.7;
+}
+
+// --- 危险按钮 ---
+@mixin btn-danger {
+  text-align: center;
+  padding: 16px 0;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  background: $color-error-light;
+  color: $color-error-dark;
+  border: 1.5px solid rgba(239, 68, 68, 0.15);
+}
+
+@mixin btn-danger-hover {
+  opacity: 0.7;
+}
+
+// --- 品牌渐变气泡（用户消息）---
+@mixin bubble-user {
+  background: $color-brand-blue-gradient;
+  color: $color-text-inverse;
+  border-radius: $radius-xl;
+  border-bottom-right-radius: $radius-sm;
+}
+
+// --- 系统消息气泡 ---
+@mixin bubble-system {
+  background: rgba(255, 255, 255, 0.92);
+  color: $color-text-primary;
+  border-radius: $radius-xl;
+  border-bottom-left-radius: $radius-sm;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: $shadow-lg;
+}
+
+// --- 标准卡片 ---
+@mixin card {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $spacing-6;
+  box-shadow: $shadow-md;
+  border: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+@mixin card-hover {
+  transform: scale(0.98);
+  transition: transform $duration-fast $ease-default;
+}
+
+// --- 头像占位 ---
+@mixin avatar-placeholder($size: $avatar-md) {
+  width: $size;
+  height: $size;
+  border-radius: 50%;
+  background: $color-primary-gradient;
+  color: $color-text-inverse;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: $font-weight-bold;
+  flex-shrink: 0;
+}
+
+// --- 状态 Badge ---
+@mixin badge-confirmed {
+  background: $color-success-light;
+  color: $color-success-dark;
+}
+
+@mixin badge-pending {
+  background: $color-warning-light;
+  color: $color-warning-dark;
+}
+
+@mixin badge-completed {
+  background: rgba(99, 102, 241, 0.1);
+  color: $color-primary;
+}
+
+@mixin badge-cancelled {
+  background: $color-error-light;
+  color: $color-error-dark;
+}
+
+// --- 领域标签 ---
+@mixin domain-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-4;
+  border-radius: $radius-full;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  background: rgba(31, 63, 255, 0.06);
+  color: #42526b;
+}
+
+// --- 区块标题 ---
+@mixin section-title {
+  display: block;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-4;
+}
+
+// --- 安全底部 ---
+@mixin safe-bottom($extra: 0px) {
+  padding-bottom: calc(#{$extra} + env(safe-area-inset-bottom));
+}
+
+// --- 骨架屏 shimmer ---
+@mixin skeleton($color-from: #f3f4f6, $color-to: #e5e7eb) {
+  background: linear-gradient(90deg, $color-from 25%, $color-to 50%, $color-from 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: $radius-sm;
+}
+
+// --- 文字省略 ---
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// --- 多行截断 ---
+@mixin text-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+}
+
+// --- 页面背景 ---
+@mixin page-bg {
+  background:
+    radial-gradient(circle at top right, rgba(31, 63, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, $color-bg-elevated 0%, $color-bg-page 100%);
+}
+
+// --- 固定底栏 ---
+@mixin fixed-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: $spacing-4;
+  padding: $spacing-5 $spacing-8;
+  background: $color-bg-card;
+  border-top: 1px solid $color-divider;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+  @include safe-bottom($spacing-5);
+}

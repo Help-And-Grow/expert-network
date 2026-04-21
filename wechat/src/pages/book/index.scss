@@ -1,78 +1,76 @@
+@import '../../styles/index';
+
 .book-web {
-  padding: 48px 40px 80px;
+  padding: $spacing-12 $spacing-10 80px;
   min-height: 100vh;
   box-sizing: border-box;
-  background: linear-gradient(180deg, #f8fafc 0%, #fff 40%);
+  background: linear-gradient(180deg, $color-bg-muted 0%, $color-bg-card 40%);
 
   &__loading,
   &__error {
     display: block;
     text-align: center;
-    font-size: 28px;
-    color: #94a3b8;
+    font-size: $font-size-lg;
+    color: $color-text-tertiary;
     margin-top: 120px;
   }
 
   &__title {
     display: block;
-    font-size: 40px;
-    font-weight: 800;
-    color: #1e1b4b;
-    margin-bottom: 24px;
+    font-size: $font-size-4xl;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-heading;
+    margin-bottom: $spacing-6;
   }
 
   &__desc {
     display: block;
-    font-size: 26px;
+    font-size: $font-size-md;
     color: #64748b;
     line-height: 1.65;
-    margin-bottom: 32px;
+    margin-bottom: $spacing-8;
   }
 
   &__card {
-    background: #fff;
-    border-radius: 20px;
-    border: 1.5px solid #e0e7ff;
-    padding: 28px;
-    margin-bottom: 32px;
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.06);
+    @include card;
+    border: 1.5px solid $color-border-primary;
+    margin-bottom: $spacing-8;
   }
 
   &__expert {
     display: block;
-    font-size: 32px;
-    font-weight: 700;
-    color: #1e1b4b;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-heading;
   }
 
   &__type {
     display: block;
-    font-size: 26px;
-    color: #6366f1;
-    margin-top: 8px;
+    font-size: $font-size-md;
+    color: $color-primary;
+    margin-top: $spacing-2;
   }
 
   &__btn {
     text-align: center;
     padding: 28px;
-    border-radius: 18px;
-    font-size: 30px;
-    font-weight: 600;
-    margin-bottom: 20px;
+    border-radius: $radius-xl;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    margin-bottom: $spacing-5;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
 
     &--primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+      @include btn-primary;
     }
 
     &--ghost {
-      background: #f1f5f9;
-      color: #475569;
+      @include btn-ghost;
     }
 
     &--hover {
       opacity: 0.88;
+      transform: scale(0.98);
     }
   }
 }

@@ -1,34 +1,23 @@
+@import '../../styles/index';
+
 .expert-card {
-  background: rgba(252, 251, 248, 0.96);
-  border-radius: 28px;
-  padding: 28px;
+  @include card;
   margin-bottom: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
 
   &--hover {
     transform: translateY(-2px);
-    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    box-shadow: $shadow-xl;
   }
 
   &__body {
     display: flex;
-    gap: 20px;
+    gap: $spacing-5;
     align-items: flex-start;
   }
 
   &__avatar {
-    width: 88px;
-    height: 88px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1f3fff 0%, #5b6cff 56%, #8ea2ff 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    font-weight: 700;
-    flex-shrink: 0;
+    @include avatar-placeholder(88px);
+    font-size: $font-size-xl;
     box-shadow: 0 10px 24px rgba(31, 63, 255, 0.22);
   }
 
@@ -41,65 +30,59 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: $spacing-3;
   }
 
   &__name-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $spacing-2;
     flex-wrap: wrap;
   }
 
   &__name {
-    font-size: 30px;
-    font-weight: 700;
-    color: #111827;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
   }
 
   &__badge {
-    font-size: 20px;
+    font-size: $font-size-xs;
     padding: 3px 10px;
-    border-radius: 10px;
-    font-weight: 600;
+    border-radius: $radius-sm;
+    font-weight: $font-weight-semibold;
 
     &--verified {
-      background: rgba(16, 185, 129, 0.1);
-      color: #059669;
+      @include badge-confirmed;
     }
   }
 
   &__price {
-    font-size: 24px;
-    font-weight: 600;
-    color: #0f766e;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: $color-success-dark;
     flex-shrink: 0;
-    background: rgba(15, 118, 110, 0.08);
-    padding: 4px 14px;
+    @include badge-confirmed;
+    padding: $spacing-1 14px;
     border-radius: 10px;
   }
 
   &__domains {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
+    gap: $spacing-2;
+    margin-top: $spacing-3;
   }
 
   &__domain-chip {
-    font-size: 22px;
-    padding: 6px 16px;
-    border-radius: 999px;
-    background: rgba(31, 63, 255, 0.06);
-    color: #42526b;
-    font-weight: 500;
+    @include domain-chip;
   }
 
   &__rating {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 12px;
+    gap: $spacing-2;
+    margin-top: $spacing-3;
   }
 
   &__stars {
@@ -107,43 +90,44 @@
   }
 
   &__star {
-    font-size: 24px;
-    color: #e2e8f0;
+    font-size: $font-size-base;
+    color: $color-border;
 
     &--filled {
-      color: #f59e0b;
+      color: $color-warning;
     }
   }
 
   &__review-count {
-    font-size: 22px;
-    color: #6b7280;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
   }
 
   &__actions {
     display: flex;
-    gap: 12px;
-    margin-top: 20px;
+    gap: $spacing-3;
+    margin-top: $spacing-5;
   }
 
   &__btn {
     flex: 1;
     text-align: center;
     padding: 18px 0;
-    border-radius: 16px;
-    font-size: 26px;
-    font-weight: 600;
+    border-radius: $radius-lg;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    transition: opacity $duration-fast $ease-default;
 
     &--primary {
-      background: linear-gradient(135deg, #1f3fff, #5b6cff);
-      color: #fff;
+      background: $color-brand-blue-gradient;
+      color: $color-text-inverse;
       box-shadow: 0 10px 24px rgba(31, 63, 255, 0.16);
     }
 
     &--outline {
-      background: #fff;
-      color: #6366f1;
-      border: 1.5px solid #e0e7ff;
+      background: $color-bg-card;
+      color: $color-primary;
+      border: 1.5px solid $color-border-primary;
     }
 
     &--hover {

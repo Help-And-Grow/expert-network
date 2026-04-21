@@ -10,10 +10,11 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { get } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
+import Icon from "../../components/Icon";
 import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
-import { buildWebProfileLoginUrl } from "../../shared/web-booking";
+import { buildWebProfileLoginUrl, buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
 
 function resolveExpertIdFromLaunch(loadOpts?: Record<string, unknown>): string {
@@ -234,7 +235,7 @@ export default function ExpertPage() {
 
   return (
     <View className="expert-profile">
-      {/* Compact Hero */}
+      {/* Hero — centered avatar */}
       <View className="expert-profile__hero">
         <View className="expert-profile__avatar-wrap">
         {expert.hasAvatar ? (
@@ -255,26 +256,23 @@ export default function ExpertPage() {
             </Text>
           </View>
         )}
-          {expert.hasAudio && (
-            <View
-              className="expert-profile__intro-btn"
-              hoverClass="expert-profile__intro-btn--hover"
-              onClick={toggleIntroPlayback}
-            >
-              <Text className="expert-profile__intro-btn-icon">{introPlaying ? "⏸" : "▶"}</Text>
-              <Text className="expert-profile__intro-btn-text">
-                {introPlaying ? "暂停介绍" : "听介绍"}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
 
-      {/* Name & Info */}
+      {/* Name, verified badge, domains, rating */}
       <View className="expert-profile__info">
         <Text className="expert-profile__name">{name}</Text>
         {expert.isVerified && (
-          <View className="expert-profile__verified">✓ 已认证</View>
+          <View className="expert-profile__verified">
+            <Icon name="verified" size={14} color="#059669" /> 已认证
+          </View>
+        )}
+        {expert.domains && expert.domains.length > 0 && (
+          <View className="expert-profile__domains">
+            {expert.domains.map((d) => (
+              <Text key={d} className="expert-profile__domain-chip">{d}</Text>
+            ))}
+          </View>
         )}
         <View className="expert-profile__rating">
           <View className="expert-profile__stars">
@@ -295,6 +293,29 @@ export default function ExpertPage() {
         </View>
       </View>
 
+      {/* Audio intro — standalone card */}
+      {expert.hasAudio && (
+        <View className="expert-profile__section">
+          <View
+            className="expert-profile__intro-card"
+            hoverClass="expert-profile__intro-card--hover"
+            onClick={toggleIntroPlayback}
+          >
+            <View className="expert-profile__intro-card-icon">
+              <Icon name={introPlaying ? "pause" : "play"} size={20} color="#fff" />
+            </View>
+            <View className="expert-profile__intro-card-text">
+              <Text className="expert-profile__intro-card-title">
+                {introPlaying ? "正在播放" : "听专家介绍"}
+              </Text>
+              <Text className="expert-profile__intro-card-desc">
+                点击{introPlaying ? "暂停" : "播放"}语音介绍
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {expert.viewerIsOwner && (
         <View className="expert-profile__section">
           <View className="expert-profile__owner-note">
@@ -308,19 +329,19 @@ export default function ExpertPage() {
 
       {!expert.viewerIsOwner && (expert.hasVoiceChat ?? true) && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">与 {name} 对话</Text>
-          <Text className="expert-profile__section-sub">
-            先用语音讲清你的处境与问题。每次确认后，你会收到一段简洁、聚焦、带判断的专家回复。
-          </Text>
+          <Text className="expert-profile__section-title">AI 语音体验</Text>
+
           <View
             className="expert-profile__voice-chat-btn"
             hoverClass="expert-profile__voice-chat-btn--hover"
             onClick={() => setShowVoiceChat(true)}
           >
-            <Text className="expert-profile__voice-chat-icon">🎙</Text>
+            <View className="expert-profile__voice-chat-icon">
+              <Icon name="microphone" size={28} color="#4f46e5" />
+            </View>
             <View className="expert-profile__voice-chat-text">
               <Text className="expert-profile__voice-chat-title">
-                开始语音提问
+                语音提问
               </Text>
               <Text className="expert-profile__voice-chat-desc">
                 免费预览 · 最多 {voiceReplyLimit} 次专家回复 · 每次回复不超过 60 秒
@@ -330,9 +351,11 @@ export default function ExpertPage() {
 
           <View className="expert-profile__realtime-card expert-profile__realtime-card--disabled">
             <Text className="expert-profile__realtime-badge">订阅功能</Text>
-            <Text className="expert-profile__realtime-title">实时 AI 对话</Text>
+            <Text className="expert-profile__realtime-title">
+              <Icon name="sparkles" size={18} color="#f9fafb" /> 实时 AI 对话
+            </Text>
             <Text className="expert-profile__realtime-desc">
-              订阅后可开启，每次最多 {realtimeMinutes} 分钟。当前 demo 仅展示入口，不开放体验。
+              订阅后可开启，每次最多 {realtimeMinutes} 分钟。
             </Text>
           </View>
         </View>
@@ -347,11 +370,8 @@ export default function ExpertPage() {
       />
 
       {expert.documentName && (
-        <View className="expert-profile__section expert-profile__section--highlight">
+        <View className="expert-profile__section">
           <Text className="expert-profile__section-title">服务介绍资料</Text>
-          <Text className="expert-profile__section-sub">
-            了解专家更详细的介绍、服务内容与工作方式，请先查看附件。若你希望继续深入了解或安排见面，请复制网页主页链接，在浏览器登录后继续。
-          </Text>
           <View
             className="expert-profile__document"
             hoverClass="expert-profile__document--hover"
@@ -389,27 +409,14 @@ export default function ExpertPage() {
               });
             }}
           >
+            <Icon name="fileText" size={22} color="#64748b" />
             <Text className="expert-profile__document-name">
-              📄 {expert.documentName}
+              {expert.documentName}
             </Text>
             <Text className="expert-profile__document-action">查看附件</Text>
           </View>
-
-          <View
-            className="expert-profile__web-book-btn"
-            hoverClass="expert-profile__web-book-btn--hover"
-            onClick={() => {
-              Taro.setClipboardData({
-                data: loginFirstProfileUrl,
-                success: () =>
-                  Taro.showToast({ title: "网页主页链接已复制", icon: "success" }),
-              });
-            }}
-          >
-            复制网页主页链接
-          </View>
           <Text className="expert-profile__section-hint">
-            复制后请在浏览器打开，先登录，再回到当前专家主页继续浏览并安排见面。
+            复制网页链接可在浏览器查看更多详情并安排见面
           </Text>
         </View>
       )}
@@ -480,7 +487,35 @@ export default function ExpertPage() {
         )}
       </View>
 
-      <View style={{ height: "48px" }} />
+      <View style={{ height: "100px" }} />
+
+      {/* Fixed bottom CTA bar */}
+      {!expert.viewerIsOwner && (
+        <View className="expert-profile__bottom-bar">
+          <View
+            className="expert-profile__book-btn expert-profile__book-btn--outline"
+            hoverClass="expert-profile__book-btn--hover"
+            onClick={() => {
+              Taro.setClipboardData({
+                data: loginFirstProfileUrl,
+                success: () =>
+                  Taro.showToast({ title: "网页主页链接已复制", icon: "success" }),
+              });
+            }}
+          >
+            复制网页链接
+          </View>
+          <View
+            className="expert-profile__book-btn expert-profile__book-btn--primary"
+            hoverClass="expert-profile__book-btn--hover"
+            onClick={() => {
+              Taro.navigateTo({
+                url: `/pages/book/index?id=${expertId}`,
+              });
+            }}
+          >
+            预约见面
+          </View>
+        </View>
+      )}
     </View>
-  );
-}

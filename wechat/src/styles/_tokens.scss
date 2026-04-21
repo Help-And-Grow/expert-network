@@ -1,0 +1,119 @@
+// ============================================
+// Help & Grow — 设计 Token
+// 对齐 Web 端设计体系，适配微信小程序浅色模式
+// ============================================
+
+// --- 品牌色（与 Web --primary 一致）---
+$color-primary:         #4f46e5;  // Indigo-600
+$color-primary-hover:   #4338ca;  // Indigo-700
+$color-primary-light:   #eef2ff;  // Indigo-50
+$color-primary-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+
+// --- 品牌蓝（小程序特有，用于气泡/按钮）---
+$color-brand-blue:      #1f3fff;
+$color-brand-blue-light: #5b6cff;
+$color-brand-blue-gradient: linear-gradient(135deg, #1f3fff, #5b6cff);
+
+// --- 语义色 ---
+$color-success:         #10b981;
+$color-success-light:   rgba(16, 185, 129, 0.1);
+$color-success-dark:    #059669;
+$color-warning:         #f59e0b;
+$color-warning-light:   rgba(245, 158, 11, 0.1);
+$color-warning-dark:    #d97706;
+$color-error:           #ef4444;
+$color-error-light:     rgba(239, 68, 68, 0.08);
+$color-error-dark:      #dc2626;
+$color-info:            #3b82f6;
+
+// --- 中性色（浅色模式）---
+$color-bg-page:         #f4f1ea;
+$color-bg-page-alt:     #f8f9fa;
+$color-bg-card:         #ffffff;
+$color-bg-elevated:     #faf8f4;
+$color-bg-input:        #f9f7f2;
+$color-bg-surface:      #f3f0ea;
+$color-bg-muted:        #f1f5f9;
+
+$color-text-primary:    #111827;  // Gray-900
+$color-text-secondary:  #4b5563;  // Gray-600
+$color-text-tertiary:   #9ca3af;  // Gray-400
+$color-text-inverse:    #ffffff;
+$color-text-heading:    #1e1b4b;  // 深靛蓝（标题用）
+$color-text-link:       #6366f1;
+$color-text-brand-blue: #1f3fff;
+
+$color-border:          #e5e7eb;  // Gray-200
+$color-border-light:    #f3f4f6;  // Gray-100
+$color-border-primary:  #e0e7ff;  // Indigo-100
+$color-divider:         #f1f5f9;
+
+// --- 阴影 ---
+$shadow-sm:   0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md:   0 2px 12px rgba(0, 0, 0, 0.04);
+$shadow-lg:   0 10px 24px rgba(15, 23, 42, 0.06);
+$shadow-xl:   0 18px 42px rgba(15, 23, 42, 0.07);
+$shadow-brand: 0 4px 12px rgba(99, 102, 241, 0.25);
+$shadow-brand-lg: 0 14px 30px rgba(31, 63, 255, 0.18);
+
+// --- 间距 ---
+$spacing-0:    0;
+$spacing-1:    4px;
+$spacing-2:    8px;
+$spacing-3:    12px;
+$spacing-4:    16px;
+$spacing-5:    20px;
+$spacing-6:    24px;
+$spacing-8:    32px;
+$spacing-10:   40px;
+$spacing-12:   48px;
+$spacing-16:   64px;
+
+// --- 圆角 ---
+$radius-sm:    8px;
+$radius-md:    12px;
+$radius-lg:    16px;
+$radius-xl:    20px;
+$radius-2xl:   28px;
+$radius-full:  9999px;
+
+// --- 字号 ---
+$font-size-xs:    20px;
+$font-size-sm:    22px;
+$font-size-base:  24px;
+$font-size-md:    26px;
+$font-size-lg:    28px;
+$font-size-xl:    30px;
+$font-size-2xl:   34px;
+$font-size-3xl:   36px;
+$font-size-4xl:   40px;
+$font-size-5xl:   52px;
+
+// --- 字重 ---
+$font-weight-normal:    400;
+$font-weight-medium:    500;
+$font-weight-semibold:  600;
+$font-weight-bold:      700;
+$font-weight-extrabold: 800;
+
+// --- 行高 ---
+$line-height-tight:   1.25;
+$line-height-normal:  1.5;
+$line-height-relaxed: 1.6;
+$line-height-loose:   1.7;
+
+// --- 动效 ---
+$duration-fast:    150ms;
+$duration-normal:  250ms;
+$duration-slow:    350ms;
+
+$ease-default:     cubic-bezier(0.4, 0, 0.2, 1);
+$ease-in:          cubic-bezier(0.4, 0, 1, 1);
+$ease-out:         cubic-bezier(0, 0, 0.2, 1);
+$ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+
+// --- 头像尺寸 ---
+$avatar-sm:  60px;
+$avatar-md:  72px;
+$avatar-lg:  144px;
+$avatar-xl:  200px;
