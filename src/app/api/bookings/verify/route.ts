@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     const existing = await prisma.booking.findFirst({
       where: { stripeCheckoutSessionId: sessionId },
+      select: { id: true },
     });
     if (existing) {
       return NextResponse.json({
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     const doubleCheck = await prisma.booking.findFirst({
       where: { stripeCheckoutSessionId: sessionId },
+      select: { id: true },
     });
     if (doubleCheck) {
       return NextResponse.json({

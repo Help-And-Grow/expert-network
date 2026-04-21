@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
 
         const alreadyExists = await prisma.booking.findFirst({
           where: { stripeCheckoutSessionId: session.id as string },
+          select: { id: true },
         });
         if (alreadyExists) {
           console.log(`[webhooks/stripe] Booking already exists for session ${session.id}`);
