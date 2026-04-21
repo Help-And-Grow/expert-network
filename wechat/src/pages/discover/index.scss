@@ -1,3 +1,5 @@
+@import '../../styles/index';
+
 .discover {
   box-sizing: border-box;
 
@@ -6,12 +8,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(180deg, #f9f7f2 0%, #f4f1ea 100%);
+    background: linear-gradient(180deg, $color-bg-elevated 0%, $color-bg-page 100%);
   }
 
   &__loading-text {
-    font-size: 26px;
-    color: #6b7280;
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
   }
 
   &--chat {
@@ -19,65 +21,65 @@
     flex-direction: column;
     height: 100vh;
     padding-top: env(safe-area-inset-top, 0px);
-    background: #ece8e0;
+    background: $color-bg-surface;
   }
 
   &__messages {
     flex: 1;
     min-height: 0;
-    padding: 12px 16px 8px;
+    padding: $spacing-3 $spacing-4 $spacing-2;
     box-sizing: border-box;
   }
 
   &__chat-hint {
-    padding: 20px 16px 8px;
-    margin-bottom: 8px;
+    padding: $spacing-5 $spacing-4 $spacing-2;
+    margin-bottom: $spacing-2;
   }
 
   &__chat-hint-title {
     display: block;
-    font-size: 30px;
-    font-weight: 700;
-    color: #111827;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
   }
 
   &__chat-hint-desc {
     display: block;
     margin-top: 10px;
-    font-size: 24px;
+    font-size: $font-size-base;
     line-height: 1.55;
-    color: #6b7280;
+    color: $color-text-tertiary;
   }
 
   &__thread-turn {
-    margin-bottom: 12px;
+    margin-bottom: $spacing-3;
   }
 
   &__bubble {
     max-width: 92%;
-    padding: 14px 16px;
-    border-radius: 18px;
-    margin-bottom: 8px;
+    padding: 14px $spacing-4;
+    border-radius: $radius-xl;
+    margin-bottom: $spacing-2;
     box-sizing: border-box;
 
     &--user {
       margin-left: auto;
-      background: linear-gradient(135deg, #1f3fff, #5b6cff);
+      background: $color-brand-blue-gradient;
     }
 
     &--assistant {
       margin-right: auto;
       max-width: 100%;
       width: 100%;
-      background: #faf8f4;
+      background: $color-bg-elevated;
       border: 1px solid rgba(15, 23, 42, 0.08);
     }
   }
 
   &__bubble-text {
-    font-size: 26px;
-    line-height: 1.5;
-    color: #fff;
+    font-size: $font-size-md;
+    line-height: $line-height-normal;
+    color: $color-text-inverse;
   }
 
   &__bubble--assistant &__bubble-text {
@@ -88,13 +90,21 @@
     margin-top: 0;
   }
 
+  &__match-heading {
+    display: block;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-3;
+  }
+
   &__match-card {
     display: flex;
     gap: 14px;
     padding: 18px;
-    margin-bottom: 12px;
-    border-radius: 16px;
-    background: #f3f0ea;
+    margin-bottom: $spacing-3;
+    border-radius: $radius-lg;
+    background: $color-bg-surface;
     border: 1px solid rgba(15, 23, 42, 0.06);
 
     &:last-child {
@@ -103,17 +113,8 @@
   }
 
   &__match-avatar {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1f3fff, #6782ff);
-    color: #fff;
-    font-size: 22px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    @include avatar-placeholder(64px);
+    font-size: $font-size-sm;
   }
 
   &__match-body {
@@ -123,30 +124,43 @@
 
   &__match-name {
     display: block;
-    font-size: 26px;
-    font-weight: 700;
-    color: #111827;
+    font-size: $font-size-md;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
+  }
+
+  &__match-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: $spacing-2;
+  }
+
+  &__match-domain-chip {
+    @include domain-chip;
+    font-size: $font-size-xs;
+    padding: 2px $spacing-2;
   }
 
   &__match-reason {
     display: block;
-    margin-top: 8px;
-    font-size: 22px;
-    line-height: 1.6;
-    color: #4b5563;
+    margin-top: $spacing-2;
+    font-size: $font-size-sm;
+    line-height: $line-height-relaxed;
+    color: $color-text-secondary;
   }
 
   &__match-btn {
-    margin-top: 12px;
+    margin-top: $spacing-3;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 20px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #1f3fff, #5b6cff);
-    color: #fff;
-    font-size: 22px;
-    font-weight: 600;
+    padding: $spacing-3 $spacing-5;
+    border-radius: $radius-md;
+    background: $color-brand-blue-gradient;
+    color: $color-text-inverse;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
 
     &--hover {
       opacity: 0.9;
@@ -154,25 +168,25 @@
   }
 
   &__empty-state {
-    margin-top: 8px;
-    padding: 16px 14px;
-    border-radius: 14px;
-    background: #f3f0ea;
+    margin-top: $spacing-2;
+    padding: $spacing-4 $spacing-3;
+    border-radius: $radius-md;
+    background: $color-bg-surface;
   }
 
   &__empty-title {
     display: block;
-    font-size: 24px;
-    font-weight: 700;
-    color: #111827;
+    font-size: $font-size-base;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
   }
 
   &__empty-desc {
     display: block;
-    margin-top: 8px;
-    font-size: 22px;
-    color: #6b7280;
-    line-height: 1.6;
+    margin-top: $spacing-2;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    line-height: $line-height-relaxed;
   }
 
   &__empty-state--inline {
@@ -180,12 +194,12 @@
   }
 
   &__typing {
-    padding: 10px 4px 16px;
+    padding: 10px $spacing-1 $spacing-4;
   }
 
   &__typing-text {
-    font-size: 22px;
-    color: #6b7280;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
   }
 
   &__anchor {
@@ -194,14 +208,14 @@
   }
 
   &__footer-note {
-    padding: 8px 4px 16px;
+    padding: $spacing-2 $spacing-1 $spacing-4;
   }
 
   &__footer-note-text {
     display: block;
-    font-size: 20px;
-    line-height: 1.6;
-    color: #9ca3af;
+    font-size: $font-size-xs;
+    line-height: $line-height-relaxed;
+    color: $color-text-tertiary;
   }
 
   &__quick-scroll {
@@ -215,18 +229,19 @@
   &__quick-inner {
     display: inline-flex;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 10px $spacing-3;
     box-sizing: border-box;
   }
 
   &__quick-chip {
     display: inline-flex;
     max-width: 72vw;
-    padding: 12px 16px;
-    border-radius: 16px;
-    background: #fff;
+    padding: $spacing-3 $spacing-4;
+    border-radius: $radius-lg;
+    background: $color-bg-card;
     border: 1px solid rgba(31, 63, 255, 0.12);
     vertical-align: top;
+    transition: background $duration-fast $ease-default, border-color $duration-fast $ease-default;
 
     &--active {
       background: rgba(31, 63, 255, 0.1);
@@ -239,7 +254,7 @@
   }
 
   &__quick-chip-text {
-    font-size: 22px;
+    font-size: $font-size-sm;
     line-height: 1.45;
     color: #1f2937;
     white-space: normal;
@@ -250,27 +265,29 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-    background: #faf8f4;
+    padding: 10px $spacing-3;
+    @include safe-bottom(10px);
+    background: $color-bg-elevated;
     border-top: 1px solid rgba(15, 23, 42, 0.08);
   }
 
   &__composer-input {
     flex: 1;
     min-height: 72px;
-    padding: 12px 16px;
-    border-radius: 16px;
-    background: #fff;
+    padding: $spacing-3 $spacing-4;
+    border-radius: $radius-lg;
+    background: $color-bg-card;
     border: 1px solid rgba(15, 23, 42, 0.1);
-    font-size: 26px;
+    font-size: $font-size-md;
     box-sizing: border-box;
   }
 
   &__composer-send {
     flex-shrink: 0;
-    padding: 16px 22px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #1f3fff, #5b6cff);
+    padding: $spacing-4 22px;
+    border-radius: $radius-lg;
+    background: $color-brand-blue-gradient;
+    transition: opacity $duration-fast $ease-default;
 
     &--hover {
       opacity: 0.9;
@@ -278,8 +295,8 @@
   }
 
   &__composer-send-text {
-    font-size: 26px;
-    font-weight: 600;
-    color: #fff;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-inverse;
   }
 }

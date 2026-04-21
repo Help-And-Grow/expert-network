@@ -2,6 +2,7 @@ import { View, Text } from "@tarojs/components";
 import Taro, { useLoad, usePullDownRefresh, useDidShow } from "@tarojs/taro";
 import { useState, useCallback } from "react";
 import { get, post } from "../../shared/api";
+import Icon from "../../components/Icon";
 import type { Booking } from "../../shared/types";
 import { buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
@@ -183,7 +184,7 @@ export default function DashboardPage() {
             return (
               <View
                 key={booking.id}
-                className="dashboard__card"
+                className={`dashboard__card dashboard__card--${booking.status.toLowerCase()}`}
                 hoverClass="dashboard__card--hover"
                 onClick={() =>
                   Taro.navigateTo({
@@ -198,6 +199,7 @@ export default function DashboardPage() {
                   <View className="dashboard__card-info">
                     <Text className="dashboard__card-name">{expertName}</Text>
                     <Text className="dashboard__card-time">
+                      <Icon name="calendar" size={14} color="#64748b" />
                       {formatDateTime(booking.startTime, booking.timezone)}
                     </Text>
                   </View>

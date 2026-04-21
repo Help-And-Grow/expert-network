@@ -1,37 +1,30 @@
-@keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-}
+@import '../../styles/index';
 
 .profile {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: $color-bg-page-alt;
 
   &__skeleton {
-    padding: 60px 32px;
+    padding: $spacing-16 $spacing-8;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
   &__skeleton-avatar {
-    width: 144px;
-    height: 144px;
+    width: $avatar-lg;
+    height: $avatar-lg;
     border-radius: 50%;
-    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-    margin-bottom: 24px;
+    @include skeleton;
+    margin-bottom: $spacing-6;
   }
 
   &__skeleton-line {
     height: 32px;
     width: 40%;
-    border-radius: 8px;
-    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.5s infinite linear;
-    margin-bottom: 16px;
+    border-radius: $radius-sm;
+    @include skeleton;
+    margin-bottom: $spacing-4;
 
     &--short { width: 30%; }
   }
@@ -40,68 +33,62 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 48px 32px 36px;
+    padding: $spacing-12 $spacing-8 36px;
     background: linear-gradient(168deg, #eef2ff 0%, #faf5ff 50%, #f8f9fa 100%);
   }
 
   &__avatar {
-    width: 144px;
-    height: 144px;
+    width: $avatar-lg;
+    height: $avatar-lg;
     border-radius: 50%;
-    border: 4px solid #fff;
+    border: 4px solid $color-bg-card;
     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.12);
-    margin-bottom: 20px;
+    margin-bottom: $spacing-5;
   }
 
   &__avatar-placeholder {
-    width: 144px;
-    height: 144px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 52px;
-    font-weight: 700;
-    border: 4px solid #fff;
+    width: $avatar-lg;
+    height: $avatar-lg;
+    @include avatar-placeholder($avatar-lg);
+    font-size: $font-size-3xl;
+    border: 4px solid $color-bg-card;
     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.15);
-    margin-bottom: 20px;
+    margin-bottom: $spacing-5;
   }
 
   &__name {
     display: block;
-    font-size: 36px;
-    font-weight: 700;
-    color: #1e1b4b;
-    margin-bottom: 6px;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-heading;
+    margin-bottom: $spacing-1;
   }
 
   &__email {
     display: block;
-    font-size: 24px;
-    color: #94a3b8;
-    margin-bottom: 16px;
+    font-size: $font-size-base;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-4;
   }
 
   &__role-badge {
     display: inline-block;
-    padding: 6px 24px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    font-size: 22px;
-    font-weight: 600;
+    padding: $spacing-1 $spacing-6;
+    border-radius: $radius-xl;
+    background: $color-primary-gradient;
+    color: $color-text-inverse;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
     letter-spacing: 0.3px;
   }
 
   &__stats {
     display: flex;
-    margin: 24px 24px 0;
-    background: #fff;
-    border-radius: 20px;
-    padding: 24px 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    margin: $spacing-6 $spacing-6 0;
+    background: $color-bg-card;
+    border-radius: $radius-xl;
+    padding: $spacing-6 $spacing-4;
+    box-shadow: $shadow-md;
   }
 
   &__stat {
@@ -109,63 +96,64 @@
     text-align: center;
 
     &--border {
-      border-left: 1px solid #f1f5f9;
-      border-right: 1px solid #f1f5f9;
+      border-left: 1px solid $color-divider;
+      border-right: 1px solid $color-divider;
     }
   }
 
   &__stat-value {
     display: block;
-    font-size: 36px;
-    font-weight: 700;
-    color: #6366f1;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $color-primary;
   }
 
   &__stat-label {
     display: block;
-    font-size: 22px;
-    color: #94a3b8;
-    margin-top: 4px;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-top: $spacing-1;
   }
 
   &__menu {
-    padding: 24px 24px 0;
+    padding: $spacing-6 $spacing-6 0;
   }
 
   &__menu-item {
     display: flex;
     align-items: center;
-    padding: 24px;
-    background: #fff;
-    border-radius: 20px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
-    gap: 20px;
+    padding: $spacing-6;
+    background: $color-bg-card;
+    border-radius: $radius-xl;
+    margin-bottom: $spacing-3;
+    box-shadow: $shadow-sm;
+    gap: $spacing-5;
+    transition: background $duration-fast $ease-default;
 
     &--hover {
-      background: #f8fafc;
+      background: $color-bg-muted;
     }
   }
 
   &__menu-icon-wrap {
     width: 72px;
     height: 72px;
-    border-radius: 18px;
+    border-radius: $radius-xl;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 
-    &--blue { background: #eef2ff; }
+    &--blue { background: $color-primary-light; }
     &--purple { background: #f5f3ff; }
     &--green { background: #ecfdf5; }
     &--amber { background: #fef3c7; }
     &--teal { background: #f0fdfa; }
-    &--gray { background: #f3f4f6; }
+    &--gray { background: $color-bg-muted; }
   }
 
   &__menu-icon {
-    font-size: 32px;
+    font-size: $font-size-xl;
   }
 
   &__menu-content {
@@ -175,31 +163,31 @@
 
   &__menu-label {
     display: block;
-    font-size: 28px;
-    font-weight: 600;
-    color: #1e1b4b;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-heading;
   }
 
   &__menu-hint {
     display: block;
-    font-size: 22px;
-    color: #94a3b8;
-    margin-top: 4px;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-top: $spacing-1;
   }
 
   &__menu-arrow {
-    font-size: 36px;
+    font-size: $font-size-3xl;
     color: #d1d5db;
     font-weight: 300;
   }
 
   &__footer {
     text-align: center;
-    padding: 48px 32px 32px;
+    padding: $spacing-12 $spacing-8 $spacing-8;
   }
 
   &__footer-text {
-    font-size: 22px;
+    font-size: $font-size-sm;
     color: #cbd5e1;
   }
 }

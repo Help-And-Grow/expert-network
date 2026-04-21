@@ -1,30 +1,32 @@
+@import '../../styles/index';
+
 .audio-player {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: $spacing-5;
   background: rgba(255, 255, 255, 0.88);
-  border-radius: 22px;
-  padding: 22px 24px;
+  border-radius: $radius-xl;
+  padding: $spacing-5 $spacing-6;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  box-shadow: $shadow-lg;
 
   &__icon {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    color: #fff;
+    color: $color-text-inverse;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: $font-size-lg;
     flex-shrink: 0;
 
     &--loading {
-      background: #94a3b8;
+      background: $color-text-tertiary;
     }
 
     &--ready {
-      background: linear-gradient(135deg, #1f3fff, #5b6cff);
+      background: $color-brand-blue-gradient;
     }
 
     &--playing {
@@ -32,7 +34,7 @@
     }
 
     &--error {
-      background: #b91c1c;
+      background: $color-error-dark;
     }
   }
 
@@ -42,20 +44,18 @@
   }
 
   &__label {
-    font-size: 24px;
+    font-size: $font-size-base;
     color: #374151;
     display: block;
-    margin-bottom: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    margin-bottom: $spacing-2;
+    @include text-ellipsis;
   }
 
   &__status {
     display: block;
-    font-size: 22px;
-    color: #6b7280;
-    margin-bottom: 12px;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-3;
   }
 
   &__bar {
@@ -68,7 +68,7 @@
   &__progress {
     height: 100%;
     border-radius: 3px;
-    background: linear-gradient(135deg, #1f3fff, #5b6cff);
+    background: $color-brand-blue-gradient;
     transition: width 0.3s linear;
   }
 }

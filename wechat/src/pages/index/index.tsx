@@ -1,6 +1,7 @@
 import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState } from "react";
+import Icon from "../../components/Icon";
 import "./index.scss";
 
 export default function IndexPage() {
@@ -22,7 +23,7 @@ export default function IndexPage() {
       <View style={{ height: `${statusBarHeight}px` }} />
       <View className="landing__hero">
         <View className="landing__logo-wrap">
-          <View className="landing__logo">H&G</View>
+          <View className="landing__logo animate-pulse-brand">H&G</View>
         </View>
         <Text className="landing__title">帮助与成长</Text>
         <Text className="landing__subtitle">Expert Network</Text>
@@ -51,7 +52,7 @@ export default function IndexPage() {
       <View className="landing__features">
         <View className="landing__feature" hoverClass="landing__feature--hover">
           <View className="landing__feature-icon-wrap landing__feature-icon-wrap--blue">
-            <Text className="landing__feature-icon">🚀</Text>
+            <Icon name="zap" size={32} color="#4f46e5" />
           </View>
           <View className="landing__feature-text">
             <Text className="landing__feature-title">动手与互助</Text>
@@ -62,7 +63,7 @@ export default function IndexPage() {
         </View>
         <View className="landing__feature" hoverClass="landing__feature--hover">
           <View className="landing__feature-icon-wrap landing__feature-icon-wrap--purple">
-            <Text className="landing__feature-icon">💡</Text>
+            <Icon name="sparkles" size={32} color="#7c3aed" />
           </View>
           <View className="landing__feature-text">
             <Text className="landing__feature-title">分享专业能力</Text>
@@ -73,7 +74,7 @@ export default function IndexPage() {
         </View>
         <View className="landing__feature" hoverClass="landing__feature--hover">
           <View className="landing__feature-icon-wrap landing__feature-icon-wrap--green">
-            <Text className="landing__feature-icon">📊</Text>
+            <Icon name="search" size={32} color="#059669" />
           </View>
           <View className="landing__feature-text">
             <Text className="landing__feature-title">更懂业务场景的匹配</Text>

@@ -1,0 +1,177 @@
+// ============================================
+// Help & Grow — 基础重置 + 通用工具类
+// ============================================
+
+// --- 全局重置 ---
+page {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "SF Pro Text",
+    "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  background: $color-bg-page;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+view,
+text,
+button,
+input,
+scroll-view,
+textarea {
+  box-sizing: border-box;
+}
+
+// --- 通用容器 ---
+.container {
+  padding: $spacing-6 $spacing-8;
+}
+
+// --- 标题层级 ---
+.section-title {
+  display: block;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-4;
+}
+
+.section-sub {
+  display: block;
+  font-size: $font-size-base;
+  color: $color-text-secondary;
+  line-height: $line-height-loose;
+  margin-bottom: $spacing-5;
+}
+
+// --- 分割线 ---
+.divider {
+  height: 1px;
+  background: $color-divider;
+  margin: $spacing-6 0;
+}
+
+.divider--with-label {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  height: auto;
+  background: none;
+  color: $color-text-tertiary;
+  font-size: $font-size-sm;
+  margin: $spacing-6 0;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: $color-divider;
+  }
+}
+
+// --- 文字工具 ---
+.text-muted {
+  color: $color-text-tertiary;
+}
+
+.text-secondary {
+  color: $color-text-secondary;
+}
+
+.text-primary {
+  color: $color-primary;
+}
+
+.text-sm {
+  font-size: $font-size-base;
+}
+
+.text-xs {
+  font-size: $font-size-sm;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// --- 布局工具 ---
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.gap-sm { gap: $spacing-2; }
+.gap-md { gap: $spacing-3; }
+.gap-lg { gap: $spacing-4; }
+
+// --- 加载状态 ---
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+// --- 空状态 ---
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-16 $spacing-10;
+
+  &__icon {
+    font-size: 72px;
+    margin-bottom: $spacing-5;
+  }
+
+  &__title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-2;
+  }
+
+  &__hint {
+    font-size: $font-size-base;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-8;
+    text-align: center;
+    line-height: $line-height-loose;
+  }
+}
+
+// --- 安全区域 ---
+.safe-bottom {
+  height: calc(#{$spacing-8} + env(safe-area-inset-bottom));
+}
+
+// --- 可交互按压反馈 ---
+.pressable {
+  transition: transform $duration-fast $ease-default, opacity $duration-fast $ease-default;
+
+  &--active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}

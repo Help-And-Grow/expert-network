@@ -1,0 +1,76 @@
+// ============================================
+// Help & Grow — 全局动画
+// ============================================
+
+// --- Shimmer 骨架屏 ---
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+// --- 淡入 ---
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+// --- 从下方淡入 ---
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// --- 脉冲（品牌 Logo）---
+@keyframes pulse-brand {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4);
+  }
+}
+
+// --- 录音中脉冲 ---
+@keyframes pulse-record {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(185, 28, 28, 0);
+  }
+}
+
+// --- 旋转加载 ---
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// --- 音频播放指示器 ---
+@keyframes audio-playing {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+// --- 工具类 ---
+.animate-fade-in {
+  animation: fadeIn $duration-normal $ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp $duration-normal $ease-out;
+}
+
+.animate-pulse-brand {
+  animation: pulse-brand 2s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

@@ -3,6 +3,7 @@ import Taro, { useDidShow, useLoad } from "@tarojs/taro";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { get, post } from "../../shared/api";
+import Icon from "../../components/Icon";
 import {
   type DiscoverMatchChatMessage,
   discoverMatchMessagesToApiHistory,
@@ -12,11 +13,12 @@ import {
 import type { MatchResponse } from "../../shared/types";
 import "./index.scss";
 
-const QUICK_MATCH_PROMPTS = [
-  "我正在找一位能帮我梳理产品增长策略的专家",
-  "我希望请教招聘负责人，优化核心岗位招聘方案",
-  "我想尽快确认公司合同与合规风险，找法律专家",
-  "我需要融资策略与投资人沟通建议",
+/** Short labels for quick-match chips — concise for mobile */
+const QUICK_TAGS = [
+  { label: "增长策略", prompt: "我正在找一位能帮我梳理产品增长策略的专家" },
+  { label: "招聘优化", prompt: "我希望请教招聘负责人，优化核心岗位招聘方案" },
+  { label: "法律合规", prompt: "我想尽快确认公司合同与合规风险，找法律专家" },
+  { label: "融资策略", prompt: "我需要融资策略与投资人沟通建议" },
 ] as const;
 
 function hasChineseText(value?: string): boolean {
@@ -188,7 +190,7 @@ export default function DiscoverPage() {
   const activeQuickPrompt = useMemo(() => {
     const lastUser = [...chatMessages].reverse().find((m) => m.role === "user" && m.content);
     const c = lastUser?.content ?? "";
-    return (QUICK_MATCH_PROMPTS as readonly string[]).includes(c) ? c : "";
+    return (QUICK_TAGS as readonly { label: string; prompt: string }[]).some((t) => t.prompt === c) ? c : "";
   }, [chatMessages]);
 
   if (hasInvite === false || hasInvite === null) {
@@ -213,7 +215,7 @@ export default function DiscoverPage() {
           <View className="discover__chat-hint">
             <Text className="discover__chat-hint-title">专家匹配</Text>
             <Text className="discover__chat-hint-desc">
-              用一句话描述你的问题或场景；也可以先选下方示例，再补充细节。
+              用一句话描述你的问题或场景，AI 为你匹配最合适的专家。
             </Text>
           </View>
         )}
@@ -229,6 +231,9 @@ export default function DiscoverPage() {
               <View className="discover__bubble discover__bubble--assistant">
                 {m.recommendations && m.recommendations.length > 0 ? (
                   <View className="discover__match-list">
+                    <Text className="discover__match-heading">
+                      为你匹配到 {m.recommendations.length} 位专家
+                    </Text>
                     {m.recommendations.map((item) => (
                       <View key={item.expertId} className="discover__match-card">
                         <View className="discover__match-avatar">
@@ -241,6 +246,13 @@ export default function DiscoverPage() {
                         </View>
                         <View className="discover__match-body">
                           <Text className="discover__match-name">{item.name}</Text>
+                          {item.sessionTypes && item.sessionTypes.length > 0 && (
+                            <View className="discover__match-domains">
+                              {item.sessionTypes.slice(0, 3).map((d) => (
+                                <Text key={d} className="discover__match-domain-chip">{d}</Text>
+                              ))}
+                            </View>
+                          )}
                           <Text className="discover__match-reason">
                             {normalizeRecommendationReason(item.reason)}
                           </Text>
@@ -249,7 +261,7 @@ export default function DiscoverPage() {
                             hoverClass="discover__match-btn--hover"
                             onClick={() => openExpert(item.expertId)}
                           >
-                            查看专家主页
+                            <Icon name="chevronRight" size={14} color="#fff" /> 查看主页
                           </View>
                         </View>
                       </View>
@@ -275,25 +287,20 @@ export default function DiscoverPage() {
         )}
 
         <View id="discover-anchor" className="discover__anchor" />
-        <View className="discover__footer-note">
-          <Text className="discover__footer-note-text">
-            正式见面与排期请在网页端完成。
-          </Text>
-        </View>
       </ScrollView>
 
       <ScrollView scrollX className="discover__quick-scroll">
         <View className="discover__quick-inner">
-          {QUICK_MATCH_PROMPTS.map((prompt) => (
+          {QUICK_TAGS.map((tag) => (
             <View
-              key={prompt}
+              key={tag.label}
               className={`discover__quick-chip ${
-                activeQuickPrompt === prompt ? "discover__quick-chip--active" : ""
+                activeQuickPrompt === tag.prompt ? "discover__quick-chip--active" : ""
               }`}
               hoverClass="discover__quick-chip--hover"
-              onClick={() => runMatch(prompt)}
+              onClick={() => runMatch(tag.prompt)}
             >
-              <Text className="discover__quick-chip-text">{prompt}</Text>
+              <Text className="discover__quick-chip-text">{tag.label}</Text>
             </View>
           ))}
         </View>
