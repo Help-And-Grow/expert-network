@@ -31,11 +31,59 @@ export function getPreferredGeminiRecordingMimeType(): string {
     "audio/mp4",
     "audio/webm",
   ]) {
-    if (MediaRecorder.isTypeSupported(mimeType)) {
-      return mimeType;
+    try {
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        return mimeType;
+      }
+    } catch {
+      // Some in-app WebViews throw a SyntaxError for MIME strings they do not parse.
     }
   }
   return "";
+}
+
+export function createAudioMediaRecorder(
+  stream: MediaStream,
+  preferredMimeType: string,
+): MediaRecorder {
+  if (preferredMimeType) {
+    try {
+      return new MediaRecorder(stream, { mimeType: preferredMimeType });
+    } catch {
+      // Fall back to the WebView's default container/codec.
+    }
+  }
+
+  return new MediaRecorder(stream);
+}
+
+export function getRecorderMimeType(recorder: MediaRecorder, fallbackMimeType: string): string {
+  try {
+    if (recorder.mimeType) {
+      return recorder.mimeType;
+    }
+  } catch {
+    // Some WebViews expose mimeType but throw when read.
+  }
+  return fallbackMimeType || "audio/webm";
+}
+
+export function formatRecordingStartError(error: unknown): string {
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+      return "Microphone access denied";
+    }
+    if (error.name === "NotFoundError") {
+      return "No microphone was found";
+    }
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("expected pattern")) {
+    return "This Telegram WebView could not start voice recording with its audio format. Please try again or use text chat.";
+  }
+
+  return message || "Could not start voice recording";
 }
 
 function isGeminiReadyAudioType(mimeType: string): boolean {
@@ -110,6 +158,11 @@ export async function normalizeRecordedAudioForGemini(blob: Blob): Promise<Blob>
     return new Blob([wav], { type: "audio/wav" });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("expected pattern")) {
+      throw new Error(
+        "Could not prepare recorded audio in this Telegram WebView. Please try recording again or use text chat.",
+      );
+    }
     throw new Error(`Could not prepare recorded audio for Gemini: ${message}`);
   } finally {
     void context.close().catch(() => {});
