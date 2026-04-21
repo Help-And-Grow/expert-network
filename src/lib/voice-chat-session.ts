@@ -14,6 +14,7 @@ import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-
 export const MAX_TURNS = 5;
 const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 const QWEN_VOICE_CHAT_MODEL = getQwenTextModel();
+const VOICE_SYNTHESIS_TIMEOUT_MS = 12_000;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -365,7 +366,12 @@ async function synthesizeVoiceIfAvailable(
   gender?: string | null,
 ): Promise<{ audioBase64: string; format: string } | null> {
   try {
-    return await synthesizeVoice(text, voiceModelId, gender);
+    return await Promise.race([
+      synthesizeVoice(text, voiceModelId, gender),
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), VOICE_SYNTHESIS_TIMEOUT_MS);
+      }),
+    ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[voice-chat] Voice synthesis unavailable:", message);
@@ -549,11 +555,11 @@ export async function processVoiceDrafts(
     throw new Error("At least one audio clip is required.");
   }
 
-  const parts: string[] = [];
-  for (const clip of clips) {
-    const text = await transcribeAudio(clip.audioBase64, clip.mimeType);
-    if (text) parts.push(text);
-  }
+  const parts = (
+    await Promise.all(
+      clips.map((clip) => transcribeAudio(clip.audioBase64, clip.mimeType)),
+    )
+  ).filter((text) => text.trim().length > 0);
 
   const userText = parts.join("\n");
   if (!userText.trim()) {
