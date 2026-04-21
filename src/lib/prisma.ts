@@ -1,21 +1,11 @@
-import { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
 
 import { assertProductionEnv } from "@/lib/env";
 
 assertProductionEnv();
 
-const BOOKING_SCHEMA_COMPAT_OMIT = {
-  booking: {
-    isPremiumLive: true,
-    liveRoomId: true,
-    liveDurationMinutes: true,
-    liveAccessChargedAt: true,
-  },
-} as const satisfies Prisma.PrismaClientOptions["omit"];
-
 const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof createCompatPrismaClient> | undefined;
-  prismaFull: PrismaClient | undefined;
+  prisma: PrismaClient | undefined;
 };
 
 function createPrismaAdapter() {
@@ -36,21 +26,14 @@ function createPrismaAdapter() {
   return new PrismaPg(pool);
 }
 
-function createCompatPrismaClient() {
-  // Keep the main app working while TRTC schema fields are ahead of the current database.
-  const adapter = createPrismaAdapter();
-  return new PrismaClient({ adapter, omit: BOOKING_SCHEMA_COMPAT_OMIT });
-}
-
-function createFullPrismaClient() {
+function createPrismaClient() {
   const adapter = createPrismaAdapter();
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createCompatPrismaClient();
-export const prismaFull = globalForPrisma.prismaFull ?? createFullPrismaClient();
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prismaFull = prisma;
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
-  globalForPrisma.prismaFull = prismaFull;
 }
