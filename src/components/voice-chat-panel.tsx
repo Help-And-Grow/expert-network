@@ -9,7 +9,6 @@ import {
   Play,
   Pause,
   Volume2,
-  Languages,
   Loader2,
   X,
   Send,
@@ -18,7 +17,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useVoiceChatTranslations } from "@/hooks/use-voice-chat-translations";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import {
   createAudioMediaRecorder,
@@ -28,10 +26,6 @@ import {
   normalizeRecordedAudioForGemini,
 } from "@/lib/browser-audio";
 import { prepareAudioSourceForElement } from "@/lib/client-audio-source";
-import {
-  getVoiceChatTranslationLabel,
-  inferVoiceChatTranslationTarget,
-} from "@/lib/voice-chat-translation";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -102,7 +96,6 @@ export function VoiceChatPanel({
   const [showStarters, setShowStarters] = useState(true);
   const [greetingLoading, setGreetingLoading] = useState(false);
   const [deviceVoiceSupported, setDeviceVoiceSupported] = useState(false);
-  const { resetTranslations, toggleTranslation, translations } = useVoiceChatTranslations();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -265,7 +258,6 @@ export function VoiceChatPanel({
       setShowStarters(true);
       setError(null);
       setGreetingLoading(false);
-      resetTranslations();
       msgIdRef.current = 0;
       stopPlayback();
       return;
@@ -346,7 +338,6 @@ export function VoiceChatPanel({
     expertId,
     fallbackGreetingText,
     playExpertAudio,
-    resetTranslations,
     speakWithDeviceVoice,
     stopPlayback,
   ]);
@@ -679,45 +670,6 @@ export function VoiceChatPanel({
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => void toggleTranslation(msg.id, msg.text)}
-                    className="inline-flex h-7 items-center gap-1 rounded-full border border-border/80 bg-background/70 px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-indigo-400/40 hover:text-foreground"
-                    aria-label="Translate message"
-                    title="Translate message"
-                  >
-                    {translations[msg.id]?.status === "loading" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Languages className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {translations[msg.id]?.status === "loading"
-                        ? "Translating"
-                        : translations[msg.id]?.status === "error"
-                          ? "Retry"
-                          : translations[msg.id]?.status === "ready" &&
-                              translations[msg.id]?.visible
-                            ? "Hide"
-                            : getVoiceChatTranslationLabel(
-                                translations[msg.id]?.targetLanguage ??
-                                  inferVoiceChatTranslationTarget(msg.text),
-                              )}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {msg.role === "assistant" && translations[msg.id]?.visible && (
-                <div className="mt-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-                  {translations[msg.id]?.status === "ready" && (
-                    <p className="whitespace-pre-wrap text-foreground">
-                      {translations[msg.id]?.translatedText}
-                    </p>
-                  )}
-                  {translations[msg.id]?.status === "error" && (
-                    <p>{translations[msg.id]?.error ?? "Could not translate this message."}</p>
-                  )}
                 </div>
               )}
             </div>

@@ -2,17 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Clock3, Languages, Loader2, Send, Sparkles, X } from "lucide-react";
+import { Clock3, Loader2, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useVoiceChatTranslations } from "@/hooks/use-voice-chat-translations";
 import { Textarea } from "@/components/ui/textarea";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import { prepareAudioSourceForElement } from "@/lib/client-audio-source";
-import {
-  getVoiceChatTranslationLabel,
-  inferVoiceChatTranslationTarget,
-} from "@/lib/voice-chat-translation";
 import { cn } from "@/lib/utils";
 
 interface VoiceChatModalProps {
@@ -63,7 +58,6 @@ export function VoiceChatModal({
   const [maxDuration, setMaxDuration] = useState(180);
   const [turnInfo, setTurnInfo] = useState({ count: 0, max: 5 });
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const { toggleTranslation, translations } = useVoiceChatTranslations();
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -481,47 +475,6 @@ export function VoiceChatModal({
             >
               <p className="whitespace-pre-wrap">{message.text}</p>
 
-              {message.role === "assistant" && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void toggleTranslation(message.id, message.text)}
-                    className="inline-flex h-7 items-center gap-1 rounded-full border border-border/80 bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-indigo-400/40 hover:text-foreground"
-                  >
-                    {translations[message.id]?.status === "loading" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Languages className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {translations[message.id]?.status === "loading"
-                        ? "Translating"
-                        : translations[message.id]?.status === "error"
-                          ? "Retry"
-                          : translations[message.id]?.status === "ready" &&
-                              translations[message.id]?.visible
-                            ? "Hide"
-                            : getVoiceChatTranslationLabel(
-                                translations[message.id]?.targetLanguage ??
-                                  inferVoiceChatTranslationTarget(message.text),
-                              )}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {message.role === "assistant" && translations[message.id]?.visible && (
-                <div className="mt-2 rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-xs text-muted-foreground">
-                  {translations[message.id]?.status === "ready" && (
-                    <p className="whitespace-pre-wrap text-foreground">
-                      {translations[message.id]?.translatedText}
-                    </p>
-                  )}
-                  {translations[message.id]?.status === "error" && (
-                    <p>{translations[message.id]?.error ?? "Could not translate this message."}</p>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>
