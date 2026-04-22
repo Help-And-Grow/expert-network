@@ -7,7 +7,7 @@
  *   <Icon name="play" size={32} />
  */
 import { useMemo } from 'react';
-import { View, Text } from '@tarojs/core';
+import { View, Text } from '@tarojs/components';
 
 // SVG path 数据（Lucide 风格，24x24 viewBox）
 const PATHS: Record<string, string> = {
