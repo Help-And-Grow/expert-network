@@ -87,6 +87,7 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 - API routes return `NextResponse.json()` with consistent error shapes
 - Use `export const maxDuration` for long-running serverless functions
 - All notification calls (Telegram, WeChat) must be `.catch(() => {})` to not block responses
+- Debug APIs under `/api/debug/*` must stay admin-gated; production reads require `DEBUG_API_ENABLED=1`, and destructive mutations additionally require `DEBUG_MUTATION_ENABLED=1`
 
 ## Where to Look
 

@@ -2,10 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
-import {
-  getVoiceChatTranslationLanguageName,
-  type VoiceChatTranslationTarget,
-} from "@/lib/voice-chat-translation";
 import { getQwenTextModel } from "@/lib/ai/provider-catalog";
 import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
 import OpenAI from "openai";
@@ -393,35 +389,6 @@ export function buildRealtimeChatGreetingText(profile: ExpertVoiceChatProfile): 
     return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a clear first take.`;
   }
   return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a clear direction first.`;
-}
-
-export async function translateVoiceChatText(
-  text: string,
-  targetLanguage: VoiceChatTranslationTarget,
-): Promise<string> {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    throw new Error("text is required");
-  }
-
-  const translated = await generateQwenReply([
-    {
-      role: "system",
-      content: [
-        "You are a precise translator for short chat messages.",
-        `Translate the text into ${getVoiceChatTranslationLanguageName(targetLanguage)}.`,
-        "Preserve the original meaning, tone, names, and formatting.",
-        "Do not explain anything and do not add quotation marks.",
-        "If the text is already in the target language, return it unchanged.",
-      ].join(" "),
-    },
-    {
-      role: "user",
-      content: trimmed,
-    },
-  ]);
-
-  return translated.trim();
 }
 
 /** Opening greeting TTS only — does not consume a voice-chat turn or touch conversation state. */

@@ -173,6 +173,10 @@ const envSchema = z
     DEV_AUTH_EMAIL: z.string().min(1).optional(),
     /** Local dev only: role for the auto-provisioned dev-login user. */
     DEV_AUTH_ROLE: z.enum(["EXPERT", "FOUNDER", "ADMIN"]).optional(),
+    /** Enable admin-gated `/api/debug/*` reads in production. Keep unset by default. */
+    DEBUG_API_ENABLED: z.enum(["1"]).optional(),
+    /** Enable destructive admin-gated debug mutations such as clean/delete/db-push. */
+    DEBUG_MUTATION_ENABLED: z.enum(["1"]).optional(),
     /** Hidden credentials-based sign-in for production-safe browser E2E. */
     E2E_AUTH_EMAIL: z.string().email().optional(),
     E2E_AUTH_ROLE: z.enum(["EXPERT", "FOUNDER", "ADMIN"]).optional(),

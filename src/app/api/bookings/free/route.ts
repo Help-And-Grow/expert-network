@@ -1,26 +1,48 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
+import { apiLog } from "@/lib/api-logger";
 import { triggerBookingEmails } from "@/lib/booking-emails";
 import { findOverlappingBooking } from "@/lib/booking-utils";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { resolveUserId } from "@/lib/request-auth";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
+import { z } from "zod";
+
+const freeBookingBodySchema = z.object({
+  expertId: z.string().trim().min(1),
+  sessionType: z.enum(["ONLINE", "OFFLINE"]),
+  startTime: z.string().trim().min(1),
+  endTime: z.string().trim().min(1),
+  timezone: z.string().trim().min(1).optional(),
+  meetingLink: z.string().optional().nullable(),
+  offlineAddress: z.string().optional().nullable(),
+});
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   try {
     const userId = await resolveUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress } = body;
+    const rateLimited = checkRateLimit(request, {
+      namespace: "bookings:free",
+      identifier: userId,
+      limit: 12,
+      windowMs: 5 * 60_000,
+    });
+    if (rateLimited) return rateLimited;
 
-    if (!expertId || !sessionType || !startTime || !endTime) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const parsed = freeBookingBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
+    const body = parsed.data;
+    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress } = body;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -110,10 +132,21 @@ export async function POST(request: NextRequest) {
       timezone: timezone || "Asia/Singapore",
     }).catch(() => {});
 
+    apiLog("info", "bookings/free", "booking_created", request, {
+      userId,
+      expertId,
+      sessionType,
+      bookingId: booking.id,
+      durationMs: Date.now() - startedAt,
+    });
+
     return NextResponse.json({ bookingId: booking.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[bookings/free POST]", message, error);
+    apiLog("error", "bookings/free", "failed", request, {
+      durationMs: Date.now() - startedAt,
+      error: message,
+    });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -43,6 +43,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 | Date | Note |
 |------|------|
 | 2026-04-10 | **Database cleanup:** DB9/TiDB runtime paths removed. `DATABASE_URL` is the Supabase/Postgres source of truth; `HICLAW_POSTGRES_URL` is optional for isolation. |
+| 2026-04-22 | **Security/reliability pass:** `/api/debug/*` gated behind admin + debug flags, first-pass Zod validation/rate limiting for booking/voice/auth routes, and Playwright smoke expanded for API boundary checks. |
 | 2026-03-31 | **Task E closed (PM):** **mem9** remains the primary expert-memory system; pgvector is optional only. |
 | 2026-03-28 | tRPC surface documented in tech-stack §3.1; npm audit triage + `serialize-javascript` override + [npm-audit-production.md](../../design-docs/npm-audit-production.md); tasks A/B closed. |
 | 2026-03-24 | Env validation; tracker created. |

@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
+import { isDebugAccessDenied, requireDebugAccess } from "@/lib/debug-api";
 import { retrieveBalance } from "@/lib/stripe";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const access = await requireDebugAccess(request);
+  if (isDebugAccessDenied(access)) return access;
+
   try {
     const balance = await retrieveBalance();
     const available = balance.available as { currency: string }[] | undefined;

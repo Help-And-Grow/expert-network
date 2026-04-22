@@ -72,11 +72,44 @@ test.describe("local smoke", () => {
     await expect(
       page.getByRole("heading", { name: /Learn by doing\. Grow by helping\./i }),
     ).toBeVisible();
-    await expect(page.getByText(/Expert network for real sessions/i)).toBeVisible();
-    await expect(page.getByRole("link", { name: /Get Started/i })).toBeVisible();
+    await expect(
+      page.getByText(/expert network for real conversations and trusted sessions/i),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /Explore experts/i })).toBeVisible();
+  });
+
+  test("critical API boundaries return safe responses", async ({ request }) => {
+    const voiceConfig = await request.get("/api/voice-chat/config");
+    expect(voiceConfig.ok()).toBeTruthy();
+    await expect(voiceConfig.json()).resolves.toMatchObject({
+      mode: expect.any(String),
+    });
+
+    const unauthenticatedCheckout = await request.post("/api/bookings/checkout", {
+      data: {},
+    });
+    expect(unauthenticatedCheckout.status()).toBe(401);
+
+    const unauthenticatedFreeBooking = await request.post("/api/bookings/free", {
+      data: {},
+    });
+    expect(unauthenticatedFreeBooking.status()).toBe(401);
+
+    const unauthenticatedDebugRead = await request.get("/api/debug/users");
+    expect([401, 404]).toContain(unauthenticatedDebugRead.status());
+
+    const unauthenticatedDebugMutation = await request.post("/api/debug/clean");
+    expect([401, 404]).toContain(unauthenticatedDebugMutation.status());
+
+    const removedTranslateApi = await request.post("/api/voice-chat/translate", {
+      data: { text: "hello", targetLanguage: "chinese" },
+    });
+    expect(removedTranslateApi.status()).toBe(404);
   });
 
   test("dev login reaches meetups and admin provider screens", async ({ page }) => {
+    test.skip(!process.env.DATABASE_URL, "DATABASE_URL is required for auth-backed smoke.");
+
     await signInAsLocalDev(page, "/booking");
     await page.goto("/booking");
     await expect(page.getByText("My Meetups")).toBeVisible({ timeout: 15_000 });
@@ -85,6 +118,17 @@ test.describe("local smoke", () => {
     await page.goto("/admin/ai-provider");
     await expect(page.getByText("AI Provider Control")).toBeVisible();
     await expect(page.getByLabel("Provider")).toBeVisible();
+  });
+
+  test("admin-only debug reads work after dev admin login", async ({ page }) => {
+    test.skip(!process.env.DATABASE_URL, "DATABASE_URL is required for auth-backed smoke.");
+
+    await signInAsLocalDev(page, "/booking");
+
+    const response = await page.context().request.get("/api/debug/users");
+    expect(response.ok()).toBeTruthy();
+    const json = (await response.json()) as Record<string, unknown>;
+    expect(json).toHaveProperty("User");
   });
 });
 

@@ -4,7 +4,7 @@
 **Date:** 2026-03  
 **Status:** Active — **follow-up only** (large backlog items are already implemented in-repo)
 
-**2026-04 update:** Database guidance is now **Supabase/Postgres only**. Treat older DB9 references in this historical doc as superseded context, not current setup instructions.
+**2026-04 update:** Database guidance is now **Postgres only**. `DATABASE_URL` is the marketplace source of truth; `HICLAW_POSTGRES_URL` is optional for HiClaw isolation. Treat older DB9/TiDB references as superseded context, not current setup instructions.
 
 **Completed work (archive):** Auth.js v5, Postgres-only Prisma + HiClaw session access, env validation, Inngest wiring, optional pgvector dual-write, tRPC bootstrap, WeChat `shared-api`, npm audit CI/process, `miniprogram-ci` under `wechat/`. See the progress log in [tech-stack-improvements-tasks.md](../exec-plans/active/tech-stack-improvements-tasks.md) and ops notes in [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md).
 
@@ -122,7 +122,7 @@ Posture and remaining transitive risk (EAS SDK → Hardhat) are documented in **
 
 ### 3.3 Decisions closed (PM, 2026-03)
 
-- **Data stores:** **Supabase** = marketplace (`DATABASE_URL` / Prisma). **DB9** = HiClaw agent store (`DB9_DATABASE_URL`). No plan to merge into one physical Postgres unless strategy changes ([tasks tracker](../exec-plans/active/tech-stack-improvements-tasks.md) task **C** — done).
+- **Data stores:** **Postgres** = marketplace (`DATABASE_URL` / Prisma). HiClaw uses the same database by default or `HICLAW_POSTGRES_URL` when isolation is explicitly needed ([tasks tracker](../exec-plans/active/tech-stack-improvements-tasks.md) task **C** — done).
 - **Expert memory:** **mem9** is the primary product path (PingCAP / mem9 partnership). **pgvector** in Postgres remains an **optional** dual-write experiment (`USE_PGVECTOR_MEMORY=1`) — not the default roadmap ([tasks tracker](../exec-plans/active/tech-stack-improvements-tasks.md) task **E** — done).
 
 ### 3.4 Still open (ops / hygiene)
@@ -163,8 +163,7 @@ Use `production`, `preview`, or `development` as the environment argument. Prefe
 
 **HiClaw + on-chain sync + reputation** (see [postgres-cutover-runbook.md](../exec-plans/active/postgres-cutover-runbook.md)):
 
-- `HICLAW_POSTGRES_URL` **or** `DB9_DATABASE_URL` — Postgres for HiClaw tables.
-- `TIDB_DATABASE_URL` — **only** if you keep the legacy name: value must be **`postgres://` or `postgresql://`**, never `mysql://`.
+- `HICLAW_POSTGRES_URL` — optional dedicated Postgres for HiClaw tables; omit it to reuse `DATABASE_URL`.
 
 **Optional:**
 
@@ -184,7 +183,7 @@ Platform-wide guidance (stateless functions, regions, Cron, Blob, AI Gateway, Wo
 
 ## Summary
 
-- **mem9** = primary expert memory (PingCAP / mem9 partner); **pgvector** = optional dual-write in Postgres if enabled; **DB9** = HiClaw agent data (separate from marketplace Supabase).
+- **mem9** = primary expert memory (PingCAP / mem9 partner); **pgvector** = optional dual-write in Postgres if enabled; **HiClaw** = same Postgres by default, optionally isolated with `HICLAW_POSTGRES_URL`.
 - **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
 - **tRPC** = §3.1 inventory matches `src/trpc/procedures/`; extend by adding files + merging in `root.ts`.
 - **npm audit (prod)** = §3.2 + [npm-audit-production.md](npm-audit-production.md); EAS/Hardhat transitive advisories tracked until upstream.

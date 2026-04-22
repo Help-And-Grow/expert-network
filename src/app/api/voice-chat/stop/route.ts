@@ -1,10 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
+import { apiLog } from "@/lib/api-logger";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { resolveUserId } from "@/lib/request-auth";
 import { isRealtimeEnabled } from "@/lib/voice-chat-config";
 import { getRealtimeSession, removeRealtimeSession } from "@/lib/voice-chat-session";
 
+const stopVoiceChatBodySchema = z
+  .object({
+    sessionId: z.string().trim().min(1).optional(),
+    channelName: z.string().trim().min(1).optional(),
+  })
+  .refine((body) => body.sessionId || body.channelName, {
+    message: "sessionId is required",
+  });
+
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   if (!isRealtimeEnabled()) {
     return NextResponse.json(
       { error: "Real-time AI chat is not enabled" },
@@ -17,17 +30,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Please sign in to chat with experts." }, { status: 401 });
   }
 
-  let body: { sessionId?: string; channelName?: string };
-  try {
-    body = await request.json();
-  } catch {
+  const rateLimited = checkRateLimit(request, {
+    namespace: "voice-chat:stop",
+    identifier: userId,
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (rateLimited) return rateLimited;
+
+  const parsed = stopVoiceChatBodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const sessionId = body.sessionId ?? body.channelName;
-  if (!sessionId) {
-    return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
-  }
+  const sessionId = parsed.data.sessionId ?? parsed.data.channelName!;
 
   const session = getRealtimeSession(sessionId);
   if (!session) {
@@ -41,6 +57,13 @@ export async function POST(request: NextRequest) {
   removeRealtimeSession(sessionId);
 
   const durationMs = Date.now() - session.startedAt;
+
+  apiLog("info", "voice-chat/stop", "session_stopped", request, {
+    userId,
+    sessionId,
+    sessionDurationMs: durationMs,
+    durationMs: Date.now() - startedAt,
+  });
 
   return NextResponse.json({
     ok: true,
