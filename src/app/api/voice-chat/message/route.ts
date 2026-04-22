@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
+import { apiLog } from "@/lib/api-logger";
 import { buildProfileAudioDataUrl } from "@/lib/profile-media";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { resolveUserId } from "@/lib/request-auth";
 import {
   isAsyncEnabled,
@@ -15,6 +18,26 @@ import {
 
 export const maxDuration = 60;
 
+const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_AUDIO_CLIPS = 3;
+const MAX_AUDIO_BASE64_CHARS = 14_000_000;
+
+const textMessageBodySchema = z.object({
+  expertId: z.string().trim().min(1),
+  text: z.string().optional(),
+  includeAudio: z.boolean().optional(),
+  audioClips: z
+    .array(
+      z.object({
+        audioBase64: z.string().max(MAX_AUDIO_BASE64_CHARS).optional(),
+        mimeType: z.string().trim().max(120).optional(),
+      }),
+    )
+    .max(MAX_AUDIO_CLIPS)
+    .optional(),
+  sessionId: z.string().trim().min(1).optional(),
+});
+
 /**
  * POST /api/voice-chat/message
  *
@@ -22,14 +45,24 @@ export const maxDuration = 60;
  * Used by async voice chat and realtime AI chat.
  */
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   const userId = await resolveUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Please sign in to chat with experts." }, { status: 401 });
   }
 
+  const rateLimited = checkRateLimit(request, {
+    namespace: "voice-chat:message",
+    identifier: userId,
+    limit: 24,
+    windowMs: 60_000,
+  });
+  if (rateLimited) return rateLimited;
+
   const contentType = request.headers.get("content-type") ?? "";
 
   try {
+    let response: NextResponse;
     if (contentType.includes("multipart/form-data")) {
       if (!isAsyncEnabled()) {
         return NextResponse.json(
@@ -37,18 +70,29 @@ export async function POST(request: NextRequest) {
           { status: 503 },
         );
       }
-      return await handleVoiceMessage(request, userId);
-    }
-    if (!isAsyncEnabled() && !isRealtimeEnabled()) {
+      response = await handleVoiceMessage(request, userId);
+    } else if (!isAsyncEnabled() && !isRealtimeEnabled()) {
       return NextResponse.json(
         { error: "AI chat is not enabled for the current configuration." },
         { status: 503 },
       );
+    } else {
+      response = await handleTextMessage(request, userId);
     }
-    return await handleTextMessage(request, userId);
+    apiLog("info", "voice-chat/message", "completed", request, {
+      userId,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+      multipart: contentType.includes("multipart/form-data"),
+    });
+    return response;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[voice-chat/message]", msg);
+    apiLog("error", "voice-chat/message", "failed", request, {
+      userId,
+      durationMs: Date.now() - startedAt,
+      error: msg,
+    });
 
     const status = msg.includes("Turn limit")
       ? 429
@@ -71,6 +115,9 @@ async function handleVoiceMessage(request: NextRequest, userId: string) {
   }
   if (!audioFile || !(audioFile instanceof Blob)) {
     return NextResponse.json({ error: "audio file is required" }, { status: 400 });
+  }
+  if (audioFile.size > MAX_AUDIO_UPLOAD_BYTES) {
+    return NextResponse.json({ error: "audio file is too large" }, { status: 413 });
   }
 
   const arrayBuf = await audioFile.arrayBuffer();
@@ -95,23 +142,13 @@ async function handleVoiceMessage(request: NextRequest, userId: string) {
 }
 
 async function handleTextMessage(request: NextRequest, userId: string) {
-  let body: {
-    expertId?: string;
-    text?: string;
-    includeAudio?: boolean;
-    audioClips?: Array<{ audioBase64?: string; mimeType?: string }>;
-    sessionId?: string;
-  };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
+  const parsed = textMessageBodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
+  const body = parsed.data;
   const { expertId, text, audioClips, includeAudio = true, sessionId } = body;
-  if (!expertId) {
-    return NextResponse.json({ error: "expertId is required" }, { status: 400 });
-  }
   if (Array.isArray(audioClips) && audioClips.length > 0) {
     if (!isAsyncEnabled()) {
       return NextResponse.json(

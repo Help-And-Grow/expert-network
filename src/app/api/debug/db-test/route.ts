@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
+import { isDebugAccessDenied, requireDebugAccess } from "@/lib/debug-api";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const access = await requireDebugAccess(request);
+  if (isDebugAccessDenied(access)) return access;
+
   const info: Record<string, unknown> = {
     dbUrl: process.env.DATABASE_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),
     directUrl: process.env.DIRECT_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),

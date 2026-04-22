@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
+import { isDebugAccessDenied, requireDebugAccess } from "@/lib/debug-api";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +68,10 @@ const CREATE_TABLES = [
   },
 ];
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const access = await requireDebugAccess(request, { mutation: true });
+  if (isDebugAccessDenied(access)) return access;
+
   const log: string[] = [];
 
   try {

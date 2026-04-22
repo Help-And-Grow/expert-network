@@ -9,7 +9,7 @@
 
 ### Database
 - Prisma with connection pooling via Supabase Pooler
-- `connectTimeout: 10000` for MySQL adapter
+- PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://` or `postgres://`
 - Cold start mitigation: keep Vercel functions warm for payment-critical routes
 
 ### Payment Reliability
@@ -30,12 +30,13 @@
 ## Monitoring
 
 - Vercel function logs (console.error with `[domain/action]` prefix)
+- Structured request logs with request IDs for selected booking and voice-chat routes
 - Stripe Dashboard for webhook delivery monitoring
 - Manual check of Vercel deployment status
 
 ## Improvement Targets
 
-- [ ] Add structured logging with request IDs for tracing
+- [ ] Expand structured logging with request IDs across webhooks, admin mutations, and provider calls
 - [ ] Set up Vercel Analytics for core web vitals
 - [ ] Add health check endpoint (`/api/health`)
 - [ ] Implement circuit breaker for external API calls (Stripe, AI providers)

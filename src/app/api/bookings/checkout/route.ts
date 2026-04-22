@@ -1,28 +1,48 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { apiLog } from "@/lib/api-logger";
 import { findOverlappingBooking } from "@/lib/booking-utils";
 import { redeemTokens } from "@/lib/hg-token";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { createCheckoutSession, calculateBookingAmount, getPlatformFeePercent } from "@/lib/stripe";
+import { z } from "zod";
+
+const checkoutBodySchema = z.object({
+  expertId: z.string().trim().min(1),
+  sessionType: z.enum(["ONLINE", "OFFLINE"]),
+  startTime: z.string().trim().min(1),
+  endTime: z.string().trim().min(1),
+  timezone: z.string().trim().min(1).optional(),
+  meetingLink: z.string().optional().nullable(),
+  offlineAddress: z.string().optional().nullable(),
+  redeemTokenCount: z.coerce.number().int().min(0).optional(),
+});
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const rateLimited = checkRateLimit(request, {
+      namespace: "bookings:checkout",
+      identifier: session.user.id,
+      limit: 12,
+      windowMs: 5 * 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
+    const parsed = checkoutBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const body = parsed.data;
     const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress, redeemTokenCount } =
       body;
-
-    if (!expertId || !sessionType || !startTime || !endTime) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -154,10 +174,21 @@ export async function POST(request: NextRequest) {
       cancel_url: `${origin}/experts/${expertId}/book?cancelled=true`,
     });
 
+    apiLog("info", "bookings/checkout", "checkout_created", request, {
+      userId: session.user.id,
+      expertId,
+      sessionType,
+      amountCents: adjustedDepositCents,
+      durationMs: Date.now() - startedAt,
+    });
+
     return NextResponse.json({ checkoutUrl: checkoutSession.url });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[bookings/checkout POST]", message, error);
+    apiLog("error", "bookings/checkout", "failed", request, {
+      durationMs: Date.now() - startedAt,
+      error: message,
+    });
     return NextResponse.json(
       { error: "Failed to create checkout session", detail: message },
       { status: 500 }

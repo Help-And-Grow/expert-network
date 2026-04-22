@@ -1,11 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { isDebugAccessDenied, requireDebugAccess } from "@/lib/debug-api";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const access = await requireDebugAccess(request, { mutation: true });
+    if (isDebugAccessDenied(access)) return access;
+
     const { userId } = await request.json();
     if (!userId) {
       return NextResponse.json({ error: "Missing userId" }, { status: 400 });

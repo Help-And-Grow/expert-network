@@ -12,12 +12,12 @@
 ## Upcoming Work
 
 - [x] **Next.js 15 upgrade** — [completed plan](exec-plans/completed/nextjs-15-upgrade.md) (run manual QA on preview before prod)
-- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 10-turn) + realtime AI chat; Web, Telegram, WeChat
-- [ ] **AI Voice Chat — Realtime deployment** — Realtime chat now runs directly from the app with Gemini; verify the timed chat UX on web and Telegram when `VOICE_CHAT_MODE` includes `realtime`
+- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 5-reply free cap) + realtime AI chat; Web, Telegram, WeChat
+- [ ] **AI Voice Chat — Realtime deployment** — Realtime readiness depends on DashScope/Qwen (`DASHSCOPE_API_KEY`); verify the timed chat UX on web and Telegram when `VOICE_CHAT_MODE` includes `realtime`
 - [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
 - [ ] Expert earnings dashboard (view payouts, transaction history)
 - [ ] Group sessions / workshop meetup support
-- [ ] Multi-language support (English, Chinese, Malay)
+- [ ] Avatar language switching quality (English, Chinese, Malay) — keep chat UI free of translation buttons
 - [ ] Push notifications for meetup reminders
 
 ## Recently Completed
@@ -50,6 +50,6 @@
 | 2026-03 | Use Qwen as primary AI in production | Better Chinese language support for SEA market |
 | 2026-03 | Remove WhatsApp integration | Low adoption, maintenance burden |
 | 2026-03 | Stripe Express Connect for experts | Simplest marketplace payout model |
-| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async, realtime, or both; realtime is a timed Gemini-backed AI chat |
+| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async, realtime, or both; public voice stack is DashScope/Qwen with a 5-reply async cap |
 
 See [docs/exec-plans/](exec-plans/) for detailed execution plans.

@@ -16,6 +16,7 @@ All API routes authenticate via `resolveUserId(request)` which checks WeChat JWT
 - Expert profile operations check `expert.userId === userId`
 - Booking operations check `booking.founderId === userId` or `booking.expertId` ownership
 - Admin routes are gated (currently by hardcoded checks)
+- Debug routes are admin-gated; production debug reads require `DEBUG_API_ENABLED=1`, and destructive debug mutations additionally require `DEBUG_MUTATION_ENABLED=1`
 
 ## Secrets Management
 
@@ -53,7 +54,6 @@ All API routes authenticate via `resolveUserId(request)` which checks WeChat JWT
 
 ## Known Gaps
 
-- [ ] No rate limiting on API routes (relies on Vercel's built-in limits)
+- [ ] Rate limiting is partial and in-memory for high-risk auth, booking, and voice-chat routes; use a durable/global limiter if abuse grows
 - [ ] No CSRF protection beyond NextAuth's built-in
-- [ ] Debug routes (`/api/debug/*`) should be removed or gated in production
 - [ ] No audit log for admin actions

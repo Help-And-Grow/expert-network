@@ -1,21 +1,35 @@
 import { NextResponse } from "next/server";
 
 import { encode } from "next-auth/jwt";
+import { z } from "zod";
 
 import { getAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   validateAndParseTelegramInitData,
   parseTelegramInitDataUnsafe,
   type TelegramUser,
 } from "@/lib/telegram-server";
 
+const telegramAuthBodySchema = z.object({
+  initData: z.string().trim().min(1),
+});
+
 export async function POST(request: Request) {
   try {
-    const { initData } = await request.json();
-    if (!initData) {
-      return NextResponse.json({ error: "Missing initData" }, { status: 400 });
+    const rateLimited = checkRateLimit(request, {
+      namespace: "auth:telegram",
+      limit: 30,
+      windowMs: 5 * 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
+    const parsed = telegramAuthBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
+    const { initData } = parsed.data;
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {

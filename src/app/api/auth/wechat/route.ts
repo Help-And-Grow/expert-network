@@ -3,9 +3,11 @@ import { type NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 import { SignJWT } from "jose";
+import { z } from "zod";
 
 import { getAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const WECHAT_APP_ID = process.env.WECHAT_APP_ID;
 const WECHAT_APP_SECRET = process.env.WECHAT_APP_SECRET;
@@ -22,13 +24,26 @@ interface Code2SessionResponse {
   errmsg?: string;
 }
 
+const wechatAuthBodySchema = z.object({
+  code: z.string().trim().min(1),
+  nickName: z.string().optional().nullable(),
+  avatarUrl: z.string().optional().nullable(),
+});
+
 export async function POST(request: NextRequest) {
   try {
-    const { code, nickName, avatarUrl } = await request.json();
+    const rateLimited = checkRateLimit(request, {
+      namespace: "auth:wechat",
+      limit: 30,
+      windowMs: 5 * 60_000,
+    });
+    if (rateLimited) return rateLimited;
 
-    if (!code) {
-      return NextResponse.json({ error: "Missing code" }, { status: 400 });
+    const parsed = wechatAuthBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
+    const { code, nickName, avatarUrl } = parsed.data;
 
     if (!WECHAT_APP_ID || !WECHAT_APP_SECRET) {
       return NextResponse.json(
