@@ -1,4 +1,4 @@
-import type { ProfileInput, ImageInput } from "./types";
+import type { ImageInput, ProfileInput } from "./types";
 
 // ---------------------------------------------------------------------------
 // Social link formatting
@@ -21,21 +21,12 @@ export function formatSocialLinks(data: ProfileInput): string {
 // Image prompt
 // ---------------------------------------------------------------------------
 
-const DOMAIN_VISUALS: Record<string, string> = {
-  "Marketing & BD":
-    "megaphone waves, handshake silhouette, growth analytics charts, globe with connection arcs",
-  Headhunter:
-    "magnifying glass over profile cards, talent pipeline, connecting dots",
-  Law: "balanced scales, gavel silhouette, document layers with legal seals",
-  Funding:
-    "rising bar charts, currency symbols, rocket launch trail, investor handshake",
-};
-
 export function buildImagePrompt(data: ImageInput): string {
   const bioSnippet = data.bio.slice(0, 200);
-  const visualElements = data.domains
-    .map((d) => DOMAIN_VISUALS[d] || d.toLowerCase())
-    .join("; ");
+  const visualElements =
+    bioSnippet.length > 0
+      ? `clean professional motifs inspired by: ${bioSnippet}`
+      : "clean professional motifs, subtle studio lighting, thoughtful business context";
 
   const genderDesc =
     data.gender === "female"
@@ -50,7 +41,7 @@ export function buildImagePrompt(data: ImageInput): string {
     ? ` The character's name is "${data.nickName}" — reflect a culturally appropriate appearance for this name.`
     : "";
 
-  return `A stylized digital avatar illustration of a ${personDesc}. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette.${nameHint} Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
+  return `A stylized digital avatar illustration of a ${personDesc}. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette.${nameHint} Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire. Context: ${bioSnippet}. No text or watermarks in the image.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +105,6 @@ export function buildProfilePromptWithNativeSearch(
   return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both coach and player (learn by doing, grow by helping); profiles may serve people scheduling meetups for insight OR offering their own expertise to share.
 
 Expert's name: ${data.nickName}
-Professional domains: ${data.domains.join(", ")}
 Social profiles:
 ${socialLinks}${resumeSection}
 
@@ -157,7 +147,6 @@ export function buildProfilePromptFromResearch(
   return `You are creating a professional profile on Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Everyone can be both expert and player (learn by doing, grow by helping); profiles may serve people scheduling meetups for insight OR offering their own expertise to share.
 
 Expert's name: ${data.nickName}
-Professional domains: ${data.domains.join(", ")}
 
 === RESEARCH RESULTS (from Google Search) ===
 ${searchResults}
@@ -264,7 +253,7 @@ Based on your deep analysis of the user's needs and the expert pool, recommend t
 4. "sessionTypes": Available session types
 
 IMPORTANT — relevance rules:
-- Only recommend experts whose domains, bio, services, or agent memory clearly relate to the query topic.
+- Only recommend experts whose bio, services, or agent memory clearly relate to the query topic.
 - Do NOT recommend experts just because they are popular or highly rated — relevance to the query is the ONLY criterion.
 - If NO expert in the pool has relevant expertise for this query, return empty "recommendations" with a helpful "noMatchMessage" suggesting what kind of expert the user should look for, or how to refine their search.
 

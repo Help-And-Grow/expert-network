@@ -20,7 +20,7 @@ As a founder, I want to describe my problem in natural language and get matched 
 ## Technical Implementation
 
 - `POST /api/experts/match` with `{ query: string }`
-- Fetches all published experts with domains, bio, services
+- Fetches all published experts with bio, services, ratings, and memory context
 - Enriches with mem9 memory context (if available)
 - Sends to AI provider with structured prompt
 - Returns `{ recommendations: [...], noMatchMessage?: string }`

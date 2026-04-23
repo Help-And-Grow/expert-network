@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { domainStrings } from "@/lib/domains";
 import { env } from "@/lib/env";
+import { serviceTitles } from "@/lib/expert-topics";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { getQwenTextModel } from "@/lib/ai/provider-catalog";
 import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
@@ -56,7 +56,6 @@ export interface ExpertVoiceChatProfile {
   ownerUserId: string;
   name: string;
   bio: string | null;
-  domains: string[];
   /** Long-form intro script from onboarding — strong factual anchor for the persona. */
   avatarScript: string | null;
   /** Human-readable lines derived from servicesOffered JSON. */
@@ -120,7 +119,6 @@ export async function loadExpertVoiceChatProfile(
       gender: true,
       avatarScript: true,
       servicesOffered: true,
-      domains: { select: { domain: true } },
       fishAudioModelId: true,
       user: { select: { id: true, name: true, nickName: true } },
     },
@@ -140,7 +138,6 @@ export async function loadExpertVoiceChatProfile(
     ownerUserId: expert.user.id,
     name: expert.user.nickName ?? expert.user.name ?? "Expert",
     bio: expert.bio,
-    domains: domainStrings(expert.domains),
     avatarScript: expert.avatarScript,
     servicesOfferedSummary,
     gender: expert.gender,
@@ -151,7 +148,7 @@ export async function loadExpertVoiceChatProfile(
 
 function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
   return [
-    `You are ${profile.name}, a real expert in ${profile.domains.join(", ")}.`,
+    `You are ${profile.name}, a real expert on Help & Grow.`,
     profile.bio ? `Your background: ${profile.bio}` : "",
     profile.avatarScript
       ? `Your public introduction script (match this voice and factual claims):\n${profile.avatarScript}`
@@ -188,8 +185,8 @@ async function loadUserVoiceContext(
     prisma.expert.findUnique({
       where: { userId },
       select: {
-        domains: { select: { domain: true } },
         bio: true,
+        servicesOffered: true,
       },
     }),
     prisma.booking.findMany({
@@ -208,9 +205,9 @@ async function loadUserVoiceContext(
   const displayName = user?.nickName ?? user?.name;
   if (displayName) lines.push(`User name: ${displayName}`);
   if (expertProfile) {
-    const domains = domainStrings(expertProfile.domains);
-    if (domains.length > 0) {
-      lines.push(`User also offers expertise in: ${domains.join(", ")}`);
+    const titles = serviceTitles(expertProfile.servicesOffered);
+    if (titles.length > 0) {
+      lines.push(`User also offers help with: ${titles.join(", ")}`);
     }
     if (expertProfile.bio) {
       lines.push(`User profile summary: ${expertProfile.bio.slice(0, 280)}`);
@@ -375,17 +372,11 @@ async function synthesizeVoiceIfAvailable(
 
 export function buildVoiceChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
-  if (profile.domains.length > 0) {
-    return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a short, direct point of view first.`;
-  }
   return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a concise first take.`;
 }
 
 export function buildRealtimeChatGreetingText(profile: ExpertVoiceChatProfile): string {
   const firstName = profile.name.split(/\s+/)[0] || profile.name;
-  if (profile.domains.length > 0) {
-    return `Hi, I'm ${firstName}. Tell me the main problem you want to solve, and I'll give you a clear first take.`;
-  }
   return `Hi, I'm ${firstName}. Tell me what's going on, and I'll give you a clear direction first.`;
 }
 

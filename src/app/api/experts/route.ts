@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
-import { domainStrings } from "@/lib/domains";
+import { legacyExpertDomains, matchesExpertTopics } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
@@ -41,14 +41,11 @@ export async function GET(request: NextRequest) {
 
     const domains = domainParam
       ? domainParam.split(",").map((d) => d.trim()).filter(Boolean)
-      : undefined;
+      : [];
 
     const where = {
       isPublished: true,
       userId: { not: userId },
-      ...(domains && domains.length > 0
-        ? { domains: { some: { domain: { in: domains } } } }
-        : {}),
       ...(sessionTypeParam
         ? sessionTypeParam === "BOTH"
           ? {}
@@ -65,10 +62,7 @@ export async function GET(request: NextRequest) {
       prisma.expert.findMany({
         where,
         orderBy,
-        skip,
-        take,
         include: {
-          domains: true,
           user: {
             select: {
               id: true,
@@ -83,18 +77,30 @@ export async function GET(request: NextRequest) {
     ]);
 
     const vendorSite = isVendorAiStackSiteRequest(request);
-    const result = experts.map((e) => {
-      const { domains: domainRows, servicesOffered, ...rest } = e;
+    const filteredExperts = experts.filter((expert) =>
+      matchesExpertTopics(
+        {
+          name: expert.user.name,
+          nickName: expert.user.nickName,
+          bio: expert.bio,
+          servicesOffered: expert.servicesOffered,
+        },
+        domains,
+      ),
+    );
+    const paginatedExperts = filteredExperts.slice(skip, skip + take);
+    const result = paginatedExperts.map((e) => {
+      const { servicesOffered, ...rest } = e;
       return {
         ...rest,
-        domains: vendorSite ? [] : domainStrings(domainRows),
+        domains: vendorSite ? [] : legacyExpertDomains(),
         servicesOffered: vendorSite ? null : servicesOffered,
       };
     });
 
     return NextResponse.json({
       experts: result,
-      total,
+      total: domains.length > 0 ? filteredExperts.length : total,
       skip,
       take,
     });

@@ -56,7 +56,6 @@ export interface ExpertProfileSeed {
   expertId: string;
   nickName: string;
   bio: string;
-  domains: string[];
   services: unknown[];
   socialLinks: Record<string, string | null>;
 }
@@ -81,13 +80,6 @@ export async function seedExpertProfile(seed: ExpertProfileSeed): Promise<void> 
       entries.push({
         content: `Professional biography: ${seed.bio}`,
         tags: ["profile", "bio"],
-      });
-    }
-
-    if (seed.domains.length > 0) {
-      entries.push({
-        content: `Service domains: ${seed.domains.join(", ")}`,
-        tags: ["profile", "domains"],
       });
     }
 

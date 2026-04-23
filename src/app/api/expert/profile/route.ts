@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { domainStrings, setExpertDomains } from "@/lib/domains";
+import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
     const expert = await prisma.expert.findUnique({
       where: { userId },
       include: {
-        domains: true,
         user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
       },
     });
@@ -32,13 +31,12 @@ export async function GET(request: NextRequest) {
       documentData: _dd,
       fishAudioModelId: _fm,
       tonMnemonicEnc: _tm,
-      domains: domainRows,
       servicesOffered,
       ...rest
     } = expert;
     return NextResponse.json({
       ...rest,
-      domains: vendorSite ? [] : domainStrings(domainRows),
+      domains: vendorSite ? [] : legacyExpertDomains(),
       servicesOffered: vendorSite ? null : servicesOffered,
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
@@ -67,11 +65,8 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     const updateData: Record<string, unknown> = {};
-    let newDomains: string[] | undefined;
+    const hasLegacyDomainsInput = Array.isArray(body.domains);
 
-    if (Array.isArray(body.domains)) {
-      newDomains = body.domains as string[];
-    }
     if (typeof body.bio === "string") {
       updateData.bio = body.bio;
     }
@@ -91,7 +86,7 @@ export async function PATCH(request: NextRequest) {
       updateData.weeklySchedule = body.weeklySchedule;
     }
 
-    if (Object.keys(updateData).length === 0 && newDomains === undefined) {
+    if (Object.keys(updateData).length === 0 && !hasLegacyDomainsInput) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
@@ -102,23 +97,18 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    if (newDomains !== undefined) {
-      await setExpertDomains(expert.id, newDomains);
-    }
-
     const updated = await prisma.expert.findUnique({
       where: { id: expert.id },
       include: {
-        domains: true,
         user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
       },
     });
 
     const vendorSite = isVendorAiStackSiteRequest(request);
-    const { domains: domainRows, servicesOffered, ...rest } = updated!;
+    const { servicesOffered, ...rest } = updated!;
     return NextResponse.json({
       ...rest,
-      domains: vendorSite ? [] : domainStrings(domainRows),
+      domains: vendorSite ? [] : legacyExpertDomains(),
       servicesOffered: vendorSite ? null : servicesOffered,
     });
   } catch (error) {

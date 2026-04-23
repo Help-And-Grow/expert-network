@@ -32,7 +32,7 @@
 | Domain | Responsibility | Key Files |
 |--------|---------------|-----------|
 | **Auth** | Multi-platform authentication (Auth.js / NextAuth v5, Telegram, WeChat) | `src/auth.ts`, `src/lib/request-auth.ts`, `src/lib/telegram-server.ts` |
-| **Experts** | Profile management, domains, availability, pricing | `src/app/api/experts/`, `src/app/api/expert/` |
+| **Experts** | Profile management, services, availability, pricing | `src/app/api/experts/`, `src/app/api/expert/` |
 | **Meetups** (Prisma: `Booking`) | Meetup scheduling, timezone handling, conflict detection | `src/app/api/bookings/`, `src/lib/booking-utils.ts` |
 | **Payments** | Stripe checkout, TON crypto, WeChat Pay, free sessions | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
 | **Appreciations** (Prisma: `Review`) | Post-meetup ratings with coach follow-up | `src/app/api/reviews/` |
@@ -152,7 +152,6 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 |-------|---------|
 | User | Account identity with multi-platform IDs; `role` is authorization only (`USER` or `ADMIN`) |
 | Expert | Coach capability/profile linked to User — pricing, schedule, Stripe Connect |
-| ExpertDomain | Many-to-many expert ↔ domain mapping |
 | AvailableSlot | Explicit availability windows |
 | Booking | Player ↔ coach meetup records with payment tracking (product copy: **meetup**) |
 | Review | Appreciation + coach follow-up (product copy: avoid “review”) |
@@ -172,7 +171,7 @@ Each expert gets a persistent cloud memory space via [mem9.ai](https://mem9.ai) 
 
 ```
 Expert onboarded → ensureExpertSpace() → mem9 space created
-                → seedExpertProfile()  → bio, domains, services stored as memories
+                → seedExpertProfile()  → bio and services stored as memories
                                          ↓
 Meetup scheduled → `storeBookingEvent()` → meetup details added to memory
 Appreciation saved → `storeReviewEvent()` → rating + comment added to memory (tags: appreciation)

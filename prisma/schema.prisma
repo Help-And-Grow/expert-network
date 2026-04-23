@@ -109,19 +109,8 @@ model Expert {
   availableSlots      AvailableSlot[]
   bookings            Booking[]
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  domains             ExpertDomain[]
   pompCredentials     POMPCredential[]
   reviews             Review[]
-}
-
-model ExpertDomain {
-  id       String @id @default(cuid())
-  expertId String
-  domain   String
-  expert   Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
-
-  @@unique([expertId, domain])
-  @@index([expertId])
 }
 
 model AvailableSlot {

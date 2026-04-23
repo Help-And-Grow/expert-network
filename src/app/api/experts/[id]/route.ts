@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import type { ExperienceCapabilities } from "@expert-network/shared-api";
 
-import { domainStrings } from "@/lib/domains";
+import { legacyExpertDomains } from "@/lib/expert-topics";
 import { supportsPayNowForCurrency } from "@/lib/paynow";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -67,7 +67,6 @@ export async function GET(
         isPublished: true,
       },
       include: {
-        domains: true,
         user: {
           select: {
             id: true,
@@ -132,7 +131,6 @@ export async function GET(
       substack: _ss,
       instagram: _ig,
       xiaohongshu: _xh,
-      domains: domainRows,
       servicesOffered,
       ...rest
     } = expert;
@@ -148,7 +146,7 @@ export async function GET(
     const vendorSite = isVendorAiStackSiteRequest(request);
     const payload = {
       ...rest,
-      domains: vendorSite ? [] : domainStrings(domainRows),
+      domains: vendorSite ? [] : legacyExpertDomains(),
       servicesOffered: vendorSite ? null : servicesOffered,
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,

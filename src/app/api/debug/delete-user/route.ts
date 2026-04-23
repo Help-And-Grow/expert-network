@@ -41,12 +41,6 @@ export async function POST(request: NextRequest) {
       });
       log.push(`Deleted ${slots.count} available slots`);
 
-      await prisma.$executeRawUnsafe(
-        `DELETE FROM "ExpertDomain" WHERE "expertId" = $1`,
-        expertId
-      );
-      log.push("Deleted expert domains");
-
       await prisma.expert.delete({ where: { id: expertId } });
       log.push("Deleted expert profile");
     }

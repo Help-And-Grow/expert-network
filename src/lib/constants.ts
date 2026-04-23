@@ -1,12 +1,3 @@
-export const DOMAINS = [
-  "Marketing & BD",
-  "Headhunter",
-  "Law",
-  "Funding",
-] as const;
-
-export type Domain = (typeof DOMAINS)[number];
-
 export const SESSION_TYPES = ["ONLINE", "OFFLINE", "BOTH"] as const;
 
 export const ONBOARDING_STEPS = [

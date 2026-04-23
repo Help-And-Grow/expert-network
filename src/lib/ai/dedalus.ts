@@ -78,7 +78,6 @@ Return ONLY a valid JSON object with these fields:
       {
         role: "user",
         content: `Create a professional profile for ${data.nickName}.
-Domains: ${data.domains.join(", ")}
 
 Sources:
 ${sources || "No external sources provided."}`,
@@ -101,7 +100,7 @@ ${sources || "No external sources provided."}`,
         },
         body: JSON.stringify({
           model: getDedalusImageModel(),
-          prompt: `Professional avatar illustration for ${data.nickName}, a ${data.domains.join("/")} expert. ${data.gender || ""}. Modern, clean, friendly style with a subtle gradient background. No text.`,
+          prompt: `Professional avatar illustration for ${data.nickName}. ${data.gender || ""}. Modern, clean, friendly style with a subtle gradient background. No text.`,
           n: 1,
           size: "1024x1024",
         }),
@@ -165,7 +164,7 @@ ${sources || "No external sources provided."}`,
     const messages: ChatMessage[] = [
       {
         role: "system",
-        content: `You are an expert matching assistant. Given the user's query and available experts, recommend the best matches. Only recommend experts whose domains, bio, or services clearly relate to the query topic. If no expert matches, return empty recommendations with a helpful noMatchMessage.
+        content: `You are an expert matching assistant. Given the user's query and available experts, recommend the best matches. Only recommend experts whose bio, services, or memory clearly relate to the query topic. If no expert matches, return empty recommendations with a helpful noMatchMessage.
 
 Available experts:
 ${expertSummaries}

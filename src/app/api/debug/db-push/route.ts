@@ -46,28 +46,6 @@ const ADD_INDEXES = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "User_telegramId_key" ON "User"("telegramId")`,
 ];
 
-const CREATE_TABLES = [
-  {
-    name: "ExpertDomain",
-    sql: `CREATE TABLE IF NOT EXISTS "ExpertDomain" (
-      "id" TEXT NOT NULL,
-      "expertId" TEXT NOT NULL,
-      "domain" TEXT NOT NULL,
-      CONSTRAINT "ExpertDomain_pkey" PRIMARY KEY ("id")
-    )`,
-    indexes: [
-      `CREATE UNIQUE INDEX IF NOT EXISTS "ExpertDomain_expertId_domain_key" ON "ExpertDomain"("expertId", "domain")`,
-      `CREATE INDEX IF NOT EXISTS "ExpertDomain_expertId_idx" ON "ExpertDomain"("expertId")`,
-    ],
-    fk: `DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExpertDomain_expertId_fkey') THEN
-        ALTER TABLE "ExpertDomain" ADD CONSTRAINT "ExpertDomain_expertId_fkey"
-        FOREIGN KEY ("expertId") REFERENCES "Expert"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-      END IF;
-    END $$`,
-  },
-];
-
 export async function POST(request: NextRequest) {
   const access = await requireDebugAccess(request, { mutation: true });
   if (isDebugAccessDenied(access)) return access;
@@ -75,21 +53,6 @@ export async function POST(request: NextRequest) {
   const log: string[] = [];
 
   try {
-    // Create missing tables
-    for (const t of CREATE_TABLES) {
-      const exists = await prisma.$queryRawUnsafe<{ tablename: string }[]>(
-        `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='${t.name}'`
-      );
-      if (exists.length === 0) {
-        await prisma.$executeRawUnsafe(t.sql);
-        for (const idx of t.indexes) await prisma.$executeRawUnsafe(idx);
-        await prisma.$executeRawUnsafe(t.fk);
-        log.push(`Created table ${t.name}`);
-      } else {
-        log.push(`Table ${t.name} already exists`);
-      }
-    }
-
     // Add missing columns
     for (const col of ADD_COLUMNS) {
       try {
@@ -119,10 +82,10 @@ export async function POST(request: NextRequest) {
     for (const u of users) log.push(`  ${u.name || "(no name)"} <${u.email}> tg:${u.telegramUsername || "-"}`);
 
     const experts = await prisma.expert.findMany({
-      include: { user: { select: { name: true } }, domains: true },
+      include: { user: { select: { name: true } } },
     });
     log.push(`Experts: ${experts.length} found`);
-    for (const e of experts) log.push(`  ${e.user.name} published=${e.isPublished} domains=${e.domains.length}`);
+    for (const e of experts) log.push(`  ${e.user.name} published=${e.isPublished}`);
 
     return NextResponse.json({ status: "ok", log });
   } catch (e: unknown) {

@@ -2,8 +2,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 import { absoluteAppUrl } from "@/lib/app-origin";
+import {
+  buildExpertFocusLabel,
+  buildExpertSearchText,
+  legacyExpertDomains,
+  matchesExpertTopics,
+  serviceTitles,
+  stringifyServicesOffered,
+} from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
-import { DOMAINS } from "@/lib/constants";
 
 export const maxDuration = 30;
 
@@ -15,14 +22,19 @@ function createServer(originRequest: Request) {
 
   server.tool(
     "list_domains",
-    "List all expertise domains available on the platform",
+    "Describe the platform's current expert taxonomy support.",
     {},
     async () => ({
       content: [
         {
           type: "text" as const,
           text: JSON.stringify(
-            { domains: DOMAINS, count: DOMAINS.length },
+            {
+              domains: [],
+              count: 0,
+              message:
+                "Help & Grow no longer uses a fixed ExpertDomain taxonomy. Match experts by query, bio, and services.",
+            },
             null,
             2
           ),
@@ -33,7 +45,7 @@ function createServer(originRequest: Request) {
 
   server.tool(
     "search_experts",
-    "Search for experts by domain, keyword, or session type. Returns a list of matching experts with their profiles, ratings, and pricing.",
+    "Search for experts by keyword or session type. The legacy domains filter is treated as extra topic text.",
     {
       query: z
         .string()
@@ -43,7 +55,7 @@ function createServer(originRequest: Request) {
         .array(z.string())
         .optional()
         .describe(
-          "Filter by expertise domains (e.g. ['Fundraising', 'Product Management'])"
+          "Legacy topic filter matched against bio and services text (for example ['Fundraising', 'Product Management'])"
         ),
       sessionType: z
         .enum(["ONLINE", "OFFLINE"])
@@ -60,10 +72,6 @@ function createServer(originRequest: Request) {
       const take = limit || 10;
 
       const where: Record<string, unknown> = { isPublished: true };
-
-      if (domains && domains.length > 0) {
-        where.domains = { some: { domain: { in: domains } } };
-      }
 
       if (sessionType) {
         where.sessionType = { in: [sessionType, "BOTH"] };
@@ -87,17 +95,39 @@ function createServer(originRequest: Request) {
         where,
         include: {
           user: { select: { name: true, nickName: true } },
-          domains: { select: { domain: true } },
         },
         orderBy: [{ avgRating: "desc" }, { reviewCount: "desc" }],
-        take,
       });
 
-      const results = experts.map((e) => ({
+      const filteredExperts = experts
+        .filter((expert) =>
+          matchesExpertTopics(
+            {
+              name: expert.user.name,
+              nickName: expert.user.nickName,
+              bio: expert.bio,
+              servicesOffered: expert.servicesOffered,
+            },
+            domains ?? [],
+          ),
+        )
+        .filter((expert) =>
+          query
+            ? buildExpertSearchText({
+                name: expert.user.name,
+                nickName: expert.user.nickName,
+                bio: expert.bio,
+                servicesOffered: expert.servicesOffered,
+              }).includes(query.toLowerCase())
+            : true,
+        )
+        .slice(0, take);
+
+      const results = filteredExperts.map((e) => ({
         expertId: e.id,
         name: e.user.nickName || e.user.name || "Expert",
         bio: e.bio?.slice(0, 300) || "",
-        domains: e.domains.map((d) => d.domain),
+        domains: legacyExpertDomains(),
         sessionType: e.sessionType,
         rating: e.avgRating,
         reviewCount: e.reviewCount,
@@ -136,7 +166,6 @@ function createServer(originRequest: Request) {
         where: { id: expertId, isPublished: true },
         include: {
           user: { select: { name: true, nickName: true, image: true } },
-          domains: { select: { domain: true } },
         },
       });
 
@@ -166,7 +195,7 @@ function createServer(originRequest: Request) {
         name: expert.user.nickName || expert.user.name || "Expert",
         image: expert.user.image,
         bio: expert.bio,
-        domains: expert.domains.map((d) => d.domain),
+        domains: legacyExpertDomains(),
         services,
         sessionType: expert.sessionType,
         priceOnline: expert.priceOnlineCents
@@ -325,7 +354,6 @@ function createServer(originRequest: Request) {
         where: { isPublished: true },
         include: {
           user: { select: { name: true, nickName: true } },
-          domains: { select: { domain: true } },
         },
         orderBy: [{ avgRating: "desc" }],
         take: 50,
@@ -334,7 +362,7 @@ function createServer(originRequest: Request) {
       const summaries = experts
         .map(
           (e) =>
-            `ID:${e.id} | ${e.user.nickName || e.user.name} | Domains: ${e.domains.map((d) => d.domain).join(",")} | Rating: ${e.avgRating || "N/A"} | ${e.sessionType} | Bio: ${(e.bio || "").slice(0, 150)}`
+            `ID:${e.id} | ${e.user.nickName || e.user.name} | Focus: ${buildExpertFocusLabel(e) ?? "General professional support"} | Rating: ${e.avgRating || "N/A"} | ${e.sessionType} | Bio: ${(e.bio || "").slice(0, 150)} | Services: ${stringifyServicesOffered(e.servicesOffered) || "(none)"}`
         )
         .join("\n");
 
@@ -346,23 +374,30 @@ function createServer(originRequest: Request) {
       const scored = experts
         .map((e) => {
           let score = 0;
-          const domainText = e.domains.map((d) => d.domain).join(" ").toLowerCase();
+          const servicesText = stringifyServicesOffered(e.servicesOffered).toLowerCase();
           const bioText = (e.bio || "").toLowerCase();
-          const matchedDomains: string[] = [];
+          const searchText = buildExpertSearchText({
+            name: e.user.name,
+            nickName: e.user.nickName,
+            bio: e.bio,
+            servicesOffered: e.servicesOffered,
+          });
+          const matchedServices: string[] = [];
 
           for (const word of queryWords) {
-            if (domainText.includes(word)) {
+            if (servicesText.includes(word)) {
               score += 3;
-              e.domains.forEach((d) => {
-                if (d.domain.toLowerCase().includes(word)) matchedDomains.push(d.domain);
+              serviceTitles(e.servicesOffered).forEach((service) => {
+                if (service.toLowerCase().includes(word)) matchedServices.push(service);
               });
             }
-            if (bioText.includes(word)) score += 1;
+            if (bioText.includes(word)) score += 2;
+            if (searchText.includes(word)) score += 1;
           }
 
           if (e.avgRating && e.avgRating > 0) score += e.avgRating;
 
-          return { expert: e, score, matchedDomains: Array.from(new Set(matchedDomains)) };
+          return { expert: e, score, matchedServices: Array.from(new Set(matchedServices)) };
         })
         .filter((s) => s.score > 0)
         .sort((a, b) => b.score - a.score)
@@ -371,12 +406,12 @@ function createServer(originRequest: Request) {
       const recommendations = scored.map((s) => ({
         expertId: s.expert.id,
         name: s.expert.user.nickName || s.expert.user.name || "Expert",
-        domains: s.expert.domains.map((d) => d.domain),
+        domains: legacyExpertDomains(),
         rating: s.expert.avgRating,
         reason:
-          s.matchedDomains.length > 0
-            ? `Matched domains: ${s.matchedDomains.join(", ")}`
-            : `Relevant based on bio/experience`,
+          s.matchedServices.length > 0
+            ? `Matched services: ${s.matchedServices.join(", ")}`
+            : `Relevant based on ${buildExpertFocusLabel(s.expert) ?? "bio/experience"}`,
         profileUrl: absoluteAppUrl(`/experts/${s.expert.id}`, originRequest),
       }));
 
@@ -389,8 +424,7 @@ function createServer(originRequest: Request) {
                 query,
                 recommendations: [],
                 message:
-                  "No exact matches found. Here are all available domains: " +
-                  DOMAINS.join(", "),
+                  "No exact matches found. Try a more specific goal or describe the kind of help you need.",
                 allExperts: summaries,
               }),
             },

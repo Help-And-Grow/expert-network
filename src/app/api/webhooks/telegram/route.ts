@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       if (queryText === "me" || queryText === "") {
         const user = await prisma.user.findFirst({
           where: { telegramId: fromId },
-          include: { expert: { include: { domains: true } } },
+          include: { expert: true },
         });
 
         if (user?.expert && user.expert.isPublished) {

@@ -2,7 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { matchExperts, normalizeQuery } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
-import { domainStrings } from "@/lib/domains";
+import {
+  buildExpertFocusLabel,
+  buildExpertSearchText,
+  stringifyServicesOffered,
+} from "@/lib/expert-topics";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -13,7 +17,6 @@ type MatchExpertRow = {
   bio: string | null;
   sessionType: string;
   servicesOffered: unknown;
-  domains: { domain: string }[];
   userId: string;
   user: { nickName: string | null; name: string | null };
   reviewCount: number;
@@ -35,16 +38,19 @@ function keywordMatch(
   const scored = experts
     .map((e) => {
       let score = 0;
-      const domainStr = domainStrings(e.domains).join(" ").toLowerCase();
       const bio = (e.bio ?? "").toLowerCase();
       const name = (e.user.nickName ?? e.user.name ?? "").toLowerCase();
-      const services = JSON.stringify(e.servicesOffered ?? []).toLowerCase();
+      const services = stringifyServicesOffered(e.servicesOffered).toLowerCase();
+      const haystack = buildExpertSearchText({
+        name: e.user.name,
+        nickName: e.user.nickName,
+        bio: e.bio,
+        servicesOffered: e.servicesOffered,
+      });
 
-      const haystack = `${domainStr} ${bio} ${services} ${name}`;
       for (const w of words) {
-        if (domainStr.includes(w)) score += 3;
+        if (services.includes(w)) score += 3;
         if (bio.includes(w)) score += 2;
-        if (services.includes(w)) score += 1;
         if (name.includes(w)) score += 1;
       }
       if (haystack.includes(nq.original.toLowerCase())) score += 2;
@@ -65,7 +71,7 @@ function keywordMatch(
       name: r.expert.user.nickName ?? r.expert.user.name ?? "Expert",
       reason: vendorSite
         ? "Matches your search based on their profile."
-        : `Matches your search based on their expertise in ${domainStrings(r.expert.domains).join(", ")}.`,
+        : `Matches your search based on ${buildExpertFocusLabel(r.expert) ?? "their profile and services"}.`,
       sessionTypes: [r.expert.sessionType],
     })),
   };
@@ -86,7 +92,7 @@ function exploratoryFallback(experts: MatchExpertRow[], vendorSite: boolean) {
       name: e.user.nickName ?? e.user.name ?? "Expert",
       reason: vendorSite
         ? "Active expert on Help & Grow. Add more detail to your search for a tighter match."
-        : `Active expert on Help & Grow (${domainStrings(e.domains).join(", ") || "multiple areas"}). Add more detail to your search for a tighter match.`,
+        : `Active expert on Help & Grow (${buildExpertFocusLabel(e) ?? "multiple services"}). Add more detail to your search for a tighter match.`,
       sessionTypes: [e.sessionType],
     })),
     noMatchMessage:
@@ -141,7 +147,6 @@ export async function POST(request: NextRequest) {
         ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
       },
       include: {
-        domains: true,
         user: { select: { nickName: true, name: true } },
       },
     });
@@ -162,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     const expertSummaries = experts
       .map((e, i) => {
-        const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nDomains: ${domainStrings(e.domains).join(", ")}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${JSON.stringify(e.servicesOffered ?? [])}`;
+        const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nFocus: ${buildExpertFocusLabel(e) ?? "General professional support"}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${stringifyServicesOffered(e.servicesOffered) || "(none)"}`;
         const memories = memoryResults[i];
         if (memories.length > 0) {
           return `${base}\nAgent Memory: ${memories.join("; ")}`;
