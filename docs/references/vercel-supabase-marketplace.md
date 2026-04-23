@@ -39,6 +39,8 @@ This repo ships SQL in [`prisma/migrations/`](../../prisma/migrations/). On **Ve
 
 If `migrate deploy` fails with **“database schema is not empty”** (you already applied tables manually), either align the DB with migrations using Prisma’s [baselining](https://www.prisma.io/docs/orm/prisma-migrate/workflows/baselining) workflow, or reset the empty branch DB and redeploy.
 
+After deploy, **`GET /api/db-health`** returns `{ ok: true, db: "up" }` when Prisma can run `SELECT 1` (cannot live under `/api/health/db` because `/api/health` is already a route file). **`GET /api/v1/experts`** includes a **`prismaCode`** field on 500 responses when Prisma surfaces a known request error (for example `P2021` if a table is missing).
+
 ## Related docs
 
 - [Postgres cutover runbook](../exec-plans/active/postgres-cutover-runbook.md) — `DATABASE_URL`, HiClaw URLs, migrations

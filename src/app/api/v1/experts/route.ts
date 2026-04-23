@@ -76,8 +76,18 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ experts: results, total: results.length });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[v1/experts GET]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const prismaCode =
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof (error as { code: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : undefined;
+    return NextResponse.json(
+      { error: "Internal server error", ...(prismaCode ? { prismaCode } : {}) },
+      { status: 500 },
+    );
   }
 }
