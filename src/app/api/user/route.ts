@@ -94,8 +94,31 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.user.delete({
-      where: { id: userId },
+    await prisma.$transaction(async (tx) => {
+      // Resolve expert id (if any) before cascading deletes
+      const expert = await tx.expert.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+
+      if (expert) {
+        // Nullify TokenLedger.bookingId for bookings owned by this expert
+        // (bookingId is nullable; no cascade defined on that FK)
+        await tx.tokenLedger.updateMany({
+          where: { booking: { expertId: expert.id } },
+          data: { bookingId: null },
+        });
+      }
+
+      // Nullify TokenLedger.bookingId for bookings where user is the founder
+      await tx.tokenLedger.updateMany({
+        where: { booking: { founderId: userId } },
+        data: { bookingId: null },
+      });
+
+      // Now delete the user — cascades handle Account, Session, Expert,
+      // AvailableSlot, Booking, Review, POMPCredential, TokenLedger rows
+      await tx.user.delete({ where: { id: userId } });
     });
 
     return NextResponse.json({ success: true });
