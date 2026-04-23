@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "userId and role are required" }, { status: 400 });
     }
 
-    if (!["ADMIN", "EXPERT", "FOUNDER"].includes(role)) {
+    if (!["ADMIN", "USER"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 

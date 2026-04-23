@@ -24,10 +24,10 @@ function SignInForm() {
   const router = useRouter();
   const { status } = useSession();
   const { isTelegram } = useTelegram();
-  const role = searchParams.get("role");
-  const isExpert = role === "expert";
+  const intent = searchParams.get("intent") ?? searchParams.get("role");
+  const isCoachIntent = intent === "coach" || intent === "expert";
   const callbackUrl =
-    searchParams.get("callbackUrl") ?? (isExpert ? "/onboarding" : "/");
+    searchParams.get("callbackUrl") ?? (isCoachIntent ? "/onboarding" : "/");
 
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
@@ -128,7 +128,7 @@ function SignInForm() {
           <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Expert Network
           </span>
-          <span className="block">{isExpert ? "Join the community" : "Sign in"}</span>
+          <span className="block">{isCoachIntent ? "Join the community" : "Sign in"}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">

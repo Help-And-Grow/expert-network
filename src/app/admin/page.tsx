@@ -130,8 +130,8 @@ function roleColor(role: string) {
   switch (role) {
     case "ADMIN":
       return "bg-purple-100 text-purple-700";
-    case "EXPERT":
-      return "bg-indigo-100 text-indigo-700";
+    case "USER":
+      return "bg-slate-100 text-slate-700";
     default:
       return "bg-gray-100 text-gray-700";
   }
@@ -465,8 +465,7 @@ function AdminContent() {
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
                           className="text-xs border rounded px-2 py-1 bg-background"
                         >
-                          <option value="FOUNDER">FOUNDER</option>
-                          <option value="EXPERT">EXPERT</option>
+                          <option value="USER">USER</option>
                           <option value="ADMIN">ADMIN</option>
                         </select>
                       </div>

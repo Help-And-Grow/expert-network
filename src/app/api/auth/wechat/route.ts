@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
           wechatUnionId: unionid || null,
           nickName: nickName || null,
           image: avatarUrl || null,
-          role: "FOUNDER",
+          role: "USER",
         },
       });
     } else if (unionid && !user.wechatUnionId) {

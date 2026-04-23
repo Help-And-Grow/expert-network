@@ -1,16 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import type { UserRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
-
-const VALID_ROLES: UserRole[] = ["EXPERT", "FOUNDER", "ADMIN"];
-
-function parseRole(value: unknown): UserRole | null {
-  return typeof value === "string" && VALID_ROLES.includes(value as UserRole)
-    ? (value as UserRole)
-    : null;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,7 +53,6 @@ export async function PATCH(request: NextRequest) {
           ? body.nickName
           : null
         : undefined;
-    const role = parseRole(body.role);
     const telegramUsername =
       body.telegramUsername !== undefined
         ? typeof body.telegramUsername === "string"
@@ -70,9 +60,8 @@ export async function PATCH(request: NextRequest) {
           : null
         : undefined;
 
-    const updateData: { nickName?: string | null; role?: UserRole; telegramUsername?: string | null } = {};
+    const updateData: { nickName?: string | null; telegramUsername?: string | null } = {};
     if (nickName !== undefined) updateData.nickName = nickName;
-    if (role !== null) updateData.role = role;
     if (telegramUsername !== undefined) updateData.telegramUsername = telegramUsername;
 
     if (Object.keys(updateData).length === 0) {
