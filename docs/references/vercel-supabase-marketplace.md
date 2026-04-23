@@ -16,7 +16,7 @@ Treat connection strings and service keys as secrets; they live only in Vercel E
 
 Per [Supabase — Vercel Marketplace](https://supabase.com/docs/guides/integrations/vercel-marketplace), synced names often include:
 
-- `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, and related `POSTGRES_*` fragments
+- `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, and related `POSTGRES_*` fragments (this app can use `POSTGRES_URL` as a fallback when `DATABASE_URL` / `POSTGRES_PRISMA_URL` are unset)
 - `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
@@ -33,7 +33,7 @@ Optional Supabase Storage / client features use `NEXT_PUBLIC_SUPABASE_URL` plus 
 
 ## Migrations on Vercel
 
-This repo ships SQL in [`prisma/migrations/`](../../prisma/migrations/). On **Vercel** (`VERCEL=1`), the build runs [`scripts/prisma-migrate-if-vercel.mjs`](../../scripts/prisma-migrate-if-vercel.mjs) before `prisma generate`, which executes **`prisma migrate deploy`** so a new empty Postgres gets the full schema on the next deploy.
+This repo ships SQL in [`prisma/migrations/`](../../prisma/migrations/). On **Vercel** (`VERCEL=1`), **`npm install`’s `postinstall`** runs [`scripts/prisma-migrate-if-vercel.mjs`](../../scripts/prisma-migrate-if-vercel.mjs) after `prisma generate`, which executes **`prisma migrate deploy`** so a new empty Postgres gets the full schema. (Install often receives Marketplace DB env before the compile step; if migrate is skipped, confirm those variables are enabled for **Build** in the Vercel project.)
 
 - **Pooled URLs:** [`withSupabasePoolerPrismaParams`](../../src/lib/postgres-connection-url.ts) appends `pgbouncer=true` when the host looks like Supabase’s transaction pooler (`*.pooler.supabase.com` or port `6543`), which Prisma needs for prepared-statement behavior.
 

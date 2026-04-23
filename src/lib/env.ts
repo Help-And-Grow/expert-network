@@ -31,8 +31,12 @@ function withVercelSupabaseMarketplaceAliases(
   env: Record<string, string | undefined>,
 ): Record<string, string | undefined> {
   const next = { ...env };
-  if (!next.DATABASE_URL && next.POSTGRES_PRISMA_URL) {
-    next.DATABASE_URL = next.POSTGRES_PRISMA_URL;
+  if (!next.DATABASE_URL) {
+    if (next.POSTGRES_PRISMA_URL) {
+      next.DATABASE_URL = next.POSTGRES_PRISMA_URL;
+    } else if (next.POSTGRES_URL) {
+      next.DATABASE_URL = next.POSTGRES_URL;
+    }
   }
   if (!next.NEXT_PUBLIC_SUPABASE_ANON_KEY && next.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     next.NEXT_PUBLIC_SUPABASE_ANON_KEY = next.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

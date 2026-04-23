@@ -15,7 +15,8 @@ function hasDbUrl() {
     process.env.DIRECT_URL ||
       process.env.POSTGRES_URL_NON_POOLING ||
       process.env.DATABASE_URL ||
-      process.env.POSTGRES_PRISMA_URL,
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL,
   );
 }
 
@@ -24,8 +25,11 @@ if (process.env.VERCEL !== "1") {
 }
 
 if (!hasDbUrl()) {
-  console.warn("[prisma-migrate-if-vercel] VERCEL=1 but no DATABASE_URL / POSTGRES_* — skipping migrate deploy");
+  console.warn(
+    "[prisma-migrate-if-vercel] VERCEL=1 but no DATABASE_URL / POSTGRES_* — skipping migrate deploy (ensure Supabase integration vars are enabled for Build)",
+  );
   process.exit(0);
 }
 
+console.log("[prisma-migrate-if-vercel] Running prisma migrate deploy…");
 execSync("npx prisma migrate deploy", { stdio: "inherit", cwd: root, env: process.env });
