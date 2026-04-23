@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import { matchExperts } from "@/lib/ai";
-import { domainStrings } from "@/lib/domains";
+import { buildExpertFocusLabel, stringifyServicesOffered } from "@/lib/expert-topics";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 
@@ -42,7 +42,6 @@ export async function chat(
   const allExperts = await prisma.expert.findMany({
     where: { isPublished: true },
     include: {
-      domains: true,
       user: { select: { nickName: true, name: true } },
     },
   });
@@ -63,7 +62,6 @@ export async function chat(
 
   const expertSummaries = allExperts
     .map((e, i) => {
-      const domains = domainStrings(e.domains).join(", ");
       const minPrice = Math.min(
         e.priceOnlineCents || Infinity,
         e.priceOfflineCents || Infinity
@@ -72,7 +70,9 @@ export async function chat(
         minPrice < Infinity
           ? `From ${e.currency} ${(minPrice / 100).toFixed(0)}/hr`
           : "Price not set";
-      const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nDomains: ${domains}\nSession types: ${e.sessionType}\nPrice: ${priceStr}\nBio: ${e.bio ?? "(none)"}\nServices: ${JSON.stringify(e.servicesOffered ?? [])}`;
+      const focus = buildExpertFocusLabel(e) ?? "General professional support";
+      const services = stringifyServicesOffered(e.servicesOffered) || "(none)";
+      const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nFocus: ${focus}\nSession types: ${e.sessionType}\nPrice: ${priceStr}\nBio: ${e.bio ?? "(none)"}\nServices: ${services}`;
       const memories = memoryResults[i];
       if (memories.length > 0) {
         return `${base}\nAgent Memory: ${memories.join("; ")}`;

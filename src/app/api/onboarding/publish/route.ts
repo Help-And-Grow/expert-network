@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { domainStrings } from "@/lib/domains";
 import { seedExpertProfile } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -14,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     const expert = await prisma.expert.findUnique({
       where: { userId },
-      include: { user: true, domains: true },
+      include: { user: true },
     });
 
     if (!expert) {
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
       expertId: expert.id,
       nickName: expert.user.nickName ?? expert.user.name ?? "Expert",
       bio: expert.bio ?? "",
-      domains: domainStrings(expert.domains),
       services: (expert.servicesOffered as unknown[]) ?? [],
       socialLinks: {
         linkedIn: expert.linkedIn,

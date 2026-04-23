@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { DOMAINS } from "@/lib/constants";
 
 export async function GET() {
-  return NextResponse.json({ domains: DOMAINS });
+  return NextResponse.json({
+    domains: [],
+    message: "No fixed domain taxonomy is configured. Match experts by query, bio, and services.",
+  });
 }

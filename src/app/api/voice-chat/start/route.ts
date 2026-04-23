@@ -94,6 +94,6 @@ export async function POST(request: NextRequest) {
     sessionId,
     maxDurationSeconds: RT_MAX_DURATION_SECONDS,
     expertName: profile.name,
-    expertDomains: profile.domains,
+    expertDomains: [],
   });
 }

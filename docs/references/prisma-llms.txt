@@ -23,7 +23,7 @@ npx prisma studio          — Visual database browser
 
 ## Query Patterns Used
 
-prisma.expert.findUnique({ where: { id }, include: { user: true, domains: true } })
+prisma.expert.findUnique({ where: { id }, include: { user: true } })
 prisma.booking.findFirst({ where: { stripeCheckoutSessionId: sessionId } })
 prisma.expert.updateMany({ where: { stripeAccountId: acctId }, data: { status } })
 prisma.booking.create({ data: { ... }, include: { expert: { include: { user: true } }, founder: true } })

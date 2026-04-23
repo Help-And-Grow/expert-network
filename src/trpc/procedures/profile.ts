@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { protectedProcedure } from "../init";
 
@@ -19,9 +20,6 @@ export const profileProcedures = {
 
     const expertPromise = prisma.expert.findUnique({
       where: { userId: ctx.userId },
-      include: {
-        domains: { select: { domain: true, id: true } },
-      },
     });
 
     const [user, expert] = await Promise.all([userPromise, expertPromise]);
@@ -34,7 +32,8 @@ export const profileProcedures = {
       user,
       expert: expert ? {
         ...expert,
-        domainNames: expert.domains.map(d => d.domain)
+        domains: legacyExpertDomains(),
+        domainNames: legacyExpertDomains(),
       } : null,
     };
   }),

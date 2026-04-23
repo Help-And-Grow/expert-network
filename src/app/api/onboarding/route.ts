@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
-import { domainStrings, setExpertDomains } from "@/lib/domains";
+import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const hasLegacyDomainsInput = Array.isArray(body.domains);
 
     const socialLinks: SocialLinks = {};
     for (const key of SOCIAL_LINK_KEYS) {
@@ -61,12 +62,6 @@ export async function POST(request: NextRequest) {
           typeof body[key] === "string" ? body[key] : String(body[key] ?? "");
       }
     }
-
-    const newDomains =
-      Array.isArray(body.domains) && body.domains.every((d: unknown) => typeof d === "string")
-        ? (body.domains as string[])
-        : undefined;
-
     const sessionType = parseSessionType(body.sessionType);
     const onboardingStep = parseOnboardingStep(body.onboardingStep);
     const bio =
@@ -100,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (priceOfflineCents !== undefined) updateData.priceOfflineCents = priceOfflineCents;
     if (weeklySchedule !== undefined) updateData.weeklySchedule = weeklySchedule;
 
-    if (Object.keys(updateData).length === 0 && newDomains === undefined) {
+    if (Object.keys(updateData).length === 0 && !hasLegacyDomainsInput) {
       return NextResponse.json(
         { error: "No valid fields to update" },
         { status: 400 }
@@ -127,17 +122,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (newDomains !== undefined) {
-      await setExpertDomains(expert.id, newDomains);
-    }
-
     const result = await prisma.expert.findUnique({
       where: { id: expert.id },
-      include: { domains: true },
     });
 
-    const { domains: domainRows, ...rest } = result!;
-    return NextResponse.json({ ...rest, domains: domainStrings(domainRows) });
+    return NextResponse.json({ ...result!, domains: legacyExpertDomains() });
   } catch (error) {
     console.error("[onboarding POST]", error);
     return NextResponse.json(
@@ -156,7 +145,7 @@ export async function GET(request: NextRequest) {
 
     const expert = await prisma.expert.findUnique({
       where: { userId },
-      include: { user: true, domains: true },
+      include: { user: true },
     });
 
     if (!expert) {
@@ -167,9 +156,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const { domains: domainRows, ...rest } = expert;
     return NextResponse.json({
-      expert: { ...rest, domains: domainStrings(domainRows) },
+      expert: { ...expert, domains: legacyExpertDomains() },
       onboardingStep: expert.onboardingStep,
       isPublished: expert.isPublished,
     });

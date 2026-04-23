@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { domainStrings } from "@/lib/domains";
 import { generateProfileImageResilient } from "@/lib/profile-media";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -14,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     const expert = await prisma.expert.findUnique({
       where: { userId },
-      include: { user: true, domains: true },
+      include: { user: true },
     });
 
     if (!expert) {
@@ -25,7 +24,6 @@ export async function POST(request: NextRequest) {
 
     const profileImage = await generateProfileImageResilient({
       nickName,
-      domains: domainStrings(expert.domains),
       bio: expert.bio ?? "",
       gender: expert.gender ?? undefined,
     });

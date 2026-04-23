@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const tables = [
-      "ExpertDomain",
       "AvailableSlot",
       "Review",
       "Booking",

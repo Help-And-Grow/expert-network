@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { generateExpertProfile } from "@/lib/ai";
-import { domainStrings } from "@/lib/domains";
 import { generateProfileImageResilient } from "@/lib/profile-media";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const expert = await prisma.expert.findUnique({
       where: { userId },
-      include: { user: true, domains: true },
+      include: { user: true },
     });
 
     if (!expert) {
@@ -29,7 +28,6 @@ export async function POST(request: NextRequest) {
 
     const nickName =
       expert.user.nickName ?? expert.user.name ?? "Expert";
-    const domains = domainStrings(expert.domains);
 
     const profileInput = {
       linkedIn: expert.linkedIn ?? undefined,
@@ -38,7 +36,6 @@ export async function POST(request: NextRequest) {
       substack: expert.substack ?? undefined,
       instagram: expert.instagram ?? undefined,
       xiaohongshu: expert.xiaohongshu ?? undefined,
-      domains,
       nickName,
       resumeText: expert.avatarScript ?? undefined,
     };
@@ -48,8 +45,7 @@ export async function POST(request: NextRequest) {
       generateExpertProfile(profileInput),
       generateProfileImageResilient({
         nickName,
-        domains,
-        bio: domains.join(", "),
+        bio: expert.bio ?? "",
         gender: expert.gender ?? undefined,
       }).catch((error) => {
         console.error("[onboarding/generate POST] profile image generation failed", error);

@@ -9,7 +9,6 @@ export interface ProfileInput {
   substack?: string;
   instagram?: string;
   xiaohongshu?: string;
-  domains: string[];
   nickName: string;
   resumeText?: string;
 }
@@ -28,7 +27,6 @@ export interface ProfileOutput {
 
 export interface ImageInput {
   nickName: string;
-  domains: string[];
   bio: string;
   gender?: string;
 }

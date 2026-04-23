@@ -1,6 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { absoluteAppUrl } from "@/lib/app-origin";
-import { domainStrings } from "@/lib/domains";
+import {
+  buildExpertFocusLabel,
+  buildExpertSearchText,
+  legacyExpertDomains,
+  serviceTitles,
+  stringifyServicesOffered,
+} from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
@@ -19,7 +25,6 @@ export async function GET(request: NextRequest) {
       where: { isPublished: true },
       include: {
         user: { select: { name: true, nickName: true } },
-        domains: true,
       },
       orderBy: [{ avgRating: "desc" }],
       take: 50,
@@ -30,25 +35,30 @@ export async function GET(request: NextRequest) {
     const scored = experts
       .map((e) => {
         let score = 0;
-        const domainText = domainStrings(e.domains).join(" ").toLowerCase();
+        const searchText = buildExpertSearchText({
+          name: e.user.name,
+          nickName: e.user.nickName,
+          bio: e.bio,
+          servicesOffered: e.servicesOffered,
+        });
         const bioText = (e.bio || "").toLowerCase();
-        const services = JSON.stringify(e.servicesOffered ?? []).toLowerCase();
-        const matchedDomains: string[] = [];
+        const servicesText = stringifyServicesOffered(e.servicesOffered).toLowerCase();
+        const matchedServices: string[] = [];
 
         for (const word of queryWords) {
-          if (domainText.includes(word)) {
+          if (servicesText.includes(word)) {
             score += 3;
-            domainStrings(e.domains).forEach((d) => {
-              if (d.toLowerCase().includes(word)) matchedDomains.push(d);
+            serviceTitles(e.servicesOffered).forEach((service) => {
+              if (service.toLowerCase().includes(word)) matchedServices.push(service);
             });
           }
           if (bioText.includes(word)) score += 2;
-          if (services.includes(word)) score += 1;
+          if (searchText.includes(word)) score += 1;
         }
 
         if (e.avgRating && e.avgRating > 0) score += e.avgRating;
 
-        return { expert: e, score, matchedDomains: Array.from(new Set(matchedDomains)) };
+        return { expert: e, score, matchedServices: Array.from(new Set(matchedServices)) };
       })
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
@@ -58,13 +68,13 @@ export async function GET(request: NextRequest) {
     const recommendations = scored.map((s) => ({
       id: s.expert.id,
       name: s.expert.user.nickName || s.expert.user.name || "Expert",
-      domains: vendorSite ? [] : domainStrings(s.expert.domains),
+      domains: vendorSite ? [] : legacyExpertDomains(),
       rating: s.expert.avgRating,
       reason: vendorSite
         ? "Relevant based on your search."
-        : s.matchedDomains.length > 0
-          ? `Matched domains: ${s.matchedDomains.join(", ")}`
-          : "Relevant based on bio/experience",
+        : s.matchedServices.length > 0
+          ? `Matched services: ${s.matchedServices.join(", ")}`
+          : `Relevant based on ${buildExpertFocusLabel(s.expert) ?? "bio and services"}`,
       profileUrl: absoluteAppUrl(`/experts/${s.expert.id}`, request),
     }));
 
@@ -72,7 +82,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         query,
         recommendations: [],
-        message: "No matches found. Try broader terms like 'marketing', 'funding', 'law', or 'headhunter'.",
+        message: "No matches found. Try broader terms like 'fundraising', 'marketing strategy', or 'hiring'.",
       });
     }
 

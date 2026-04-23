@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
-import { setExpertDomains, domainStrings } from "@/lib/domains";
 import { protectedProcedure } from "../init";
 
 const ONBOARDING_STEPS = ["SOCIAL_LINKS", "DOMAINS", "SESSION_PREFS", "AI_GENERATION", "PREVIEW", "PUBLISHED"] as const;
@@ -10,7 +10,6 @@ export const onboardingProcedures = {
   getOnboardingExpert: protectedProcedure.query(async ({ ctx }) => {
     const expert = await prisma.expert.findUnique({
       where: { userId: ctx.userId },
-      include: { domains: true },
     });
 
     if (!expert) {
@@ -24,7 +23,7 @@ export const onboardingProcedures = {
     return {
       expert: {
         ...expert,
-        domains: domainStrings(expert.domains),
+        domains: legacyExpertDomains(),
       },
       onboardingStep: expert.onboardingStep,
       isPublished: expert.isPublished,
@@ -49,7 +48,7 @@ export const onboardingProcedures = {
       weeklySchedule: z.any().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { domains, ...updateData } = input;
+      const { domains: _domains, ...updateData } = input;
 
       let expert = await prisma.expert.findUnique({
         where: { userId: ctx.userId },
@@ -71,18 +70,13 @@ export const onboardingProcedures = {
         }
       }
 
-      if (domains !== undefined) {
-        await setExpertDomains(expert.id, domains);
-      }
-
       const updated = await prisma.expert.findUnique({
         where: { id: expert.id },
-        include: { domains: true },
       });
 
       return {
         ...updated!,
-        domains: domainStrings(updated!.domains),
+        domains: legacyExpertDomains(),
       };
     }),
 };

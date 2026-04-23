@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
@@ -28,16 +29,13 @@ export async function GET(request: NextRequest) {
 
   const expert = await prisma.expert.findUnique({
     where: { userId },
-    include: {
-      domains: { select: { domain: true } },
-    },
   });
 
   const vendorSite = isVendorAiStackSiteRequest(request);
   const expertData = expert
     ? {
         id: expert.id,
-        domains: vendorSite ? [] : expert.domains.map((d) => d.domain),
+        domains: vendorSite ? [] : legacyExpertDomains(),
         sessionType: expert.sessionType,
         bio: expert.bio,
         servicesOffered: vendorSite ? null : expert.servicesOffered,

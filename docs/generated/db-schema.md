@@ -7,7 +7,7 @@
 ## Entity Relationship Diagram
 
 ```
-User 1──1 Expert 1──* ExpertDomain
+User 1──1 Expert
   │                  1──* AvailableSlot
   │                  1──* Booking ──1 Review
   │                  1──* Review
@@ -69,15 +69,6 @@ Extended profile linked 1:1 to User.
 | reviewCount | Int | Count of appreciations (API/UI: avoid “review”) |
 | tonWalletAddress | String? | TON crypto wallet |
 | mem9SpaceId | String? | Persistent memory space |
-
-### ExpertDomain
-Many-to-many: Expert ↔ domain string.
-
-| Field | Type | Notes |
-|-------|------|-------|
-| expertId | String | FK → Expert |
-| domain | String | Domain name |
-| | | @@unique([expertId, domain]) |
 
 ### AvailableSlot
 Explicit availability windows (supplements weeklySchedule).
