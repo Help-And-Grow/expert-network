@@ -9,7 +9,11 @@ function connectionString() {
   if (!url) {
     throw new Error("Set DIRECT_URL or DATABASE_URL before running this migration.");
   }
-  return url;
+  const parsed = new URL(url);
+  if (parsed.searchParams.has("sslmode") && !parsed.searchParams.has("uselibpqcompat")) {
+    parsed.searchParams.set("uselibpqcompat", "true");
+  }
+  return parsed.toString();
 }
 
 async function enumValues(client) {
