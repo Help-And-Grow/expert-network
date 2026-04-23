@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { withSupabasePoolerPrismaParams } from "@/lib/postgres-connection-url";
+
 /**
  * Vercel and dashboards often store "unset" optional vars as "".
  * Zod treats "" as present, so e.g. z.string().url().optional() still fails on "".
@@ -40,7 +42,8 @@ function withVercelSupabaseMarketplaceAliases(
 
 /** Prisma and DB helpers read `process.env` directly; use this for Vercel Supabase Marketplace parity. */
 export function resolvePrimaryDatabaseUrl(): string | undefined {
-  return withVercelSupabaseMarketplaceAliases(sanitizedProcessEnv()).DATABASE_URL;
+  const url = withVercelSupabaseMarketplaceAliases(sanitizedProcessEnv()).DATABASE_URL;
+  return url ? withSupabasePoolerPrismaParams(url) : undefined;
 }
 
 function postgresConnectionUrl(message: string) {

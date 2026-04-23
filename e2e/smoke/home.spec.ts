@@ -6,6 +6,6 @@ test.describe("Marketing home", () => {
     await expect(page).toHaveTitle(/Help & Grow/i);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Learn by doing/i);
     await expect(page.getByRole("link", { name: /Sign In/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Chat to match/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Find your match/i })).toBeVisible();
   });
 });

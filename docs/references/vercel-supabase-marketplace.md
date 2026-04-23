@@ -31,6 +31,14 @@ In [`src/lib/env.ts`](../../src/lib/env.ts) (validation) and [`src/lib/prisma.ts
 
 Optional Supabase Storage / client features use `NEXT_PUBLIC_SUPABASE_URL` plus the anon/publishable key.
 
+## Migrations on Vercel
+
+This repo ships SQL in [`prisma/migrations/`](../../prisma/migrations/). On **Vercel** (`VERCEL=1`), the build runs [`scripts/prisma-migrate-if-vercel.mjs`](../../scripts/prisma-migrate-if-vercel.mjs) before `prisma generate`, which executes **`prisma migrate deploy`** so a new empty Postgres gets the full schema on the next deploy.
+
+- **Pooled URLs:** [`withSupabasePoolerPrismaParams`](../../src/lib/postgres-connection-url.ts) appends `pgbouncer=true` when the host looks like Supabase’s transaction pooler (`*.pooler.supabase.com` or port `6543`), which Prisma needs for prepared-statement behavior.
+
+If `migrate deploy` fails with **“database schema is not empty”** (you already applied tables manually), either align the DB with migrations using Prisma’s [baselining](https://www.prisma.io/docs/orm/prisma-migrate/workflows/baselining) workflow, or reset the empty branch DB and redeploy.
+
 ## Related docs
 
 - [Postgres cutover runbook](../exec-plans/active/postgres-cutover-runbook.md) — `DATABASE_URL`, HiClaw URLs, migrations
