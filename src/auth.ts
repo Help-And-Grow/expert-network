@@ -55,7 +55,7 @@ if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
 /** One-click local sign-in when `next dev` + DEV_AUTH_EMAIL (never enabled in production builds). */
 if ((process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && env.DEV_AUTH_EMAIL) {
   const devEmail = env.DEV_AUTH_EMAIL.trim().toLowerCase();
-  const devRole = env.DEV_AUTH_ROLE ?? "FOUNDER";
+  const devRole = env.DEV_AUTH_ROLE ?? "USER";
   providers.push(
     Credentials({
       id: "dev-login",
@@ -149,7 +149,7 @@ const authConfig = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as { role?: string }).role || "FOUNDER";
+        token.role = (user as { role?: string }).role || "USER";
         token.nickName = (user as { nickName?: string }).nickName;
       }
       return token;

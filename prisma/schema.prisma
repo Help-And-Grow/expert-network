@@ -51,7 +51,7 @@ model User {
   email             String?       @unique
   emailVerified     DateTime?
   image             String?
-  role              UserRole      @default(FOUNDER)
+  role              UserRole      @default(USER)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   telegramId        String?       @unique
@@ -250,8 +250,7 @@ model TokenLedger {
 }
 
 enum UserRole {
-  EXPERT
-  FOUNDER
+  USER
   ADMIN
 }
 

@@ -190,20 +190,10 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (status === "unauthenticated" && !isTelegram) {
-      router.push("/auth/signin?role=expert");
+      router.push("/auth/signin?intent=coach");
       return;
     }
-    if (status === "authenticated") {
-      const userRole = (session?.user as { role?: string })?.role;
-      if (userRole !== "EXPERT") {
-        fetch("/api/user", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", ...tgHeaders },
-          body: JSON.stringify({ role: "EXPERT" }),
-        }).catch(console.error);
-      }
-    }
-  }, [status, session, router, isTelegram, tgHeaders]);
+  }, [status, router, isTelegram]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

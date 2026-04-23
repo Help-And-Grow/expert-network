@@ -183,7 +183,6 @@ async function loadUserVoiceContext(
       select: {
         name: true,
         nickName: true,
-        role: true,
       },
     }),
     prisma.expert.findUnique({
@@ -208,7 +207,6 @@ async function loadUserVoiceContext(
   const lines: string[] = [];
   const displayName = user?.nickName ?? user?.name;
   if (displayName) lines.push(`User name: ${displayName}`);
-  if (user?.role) lines.push(`User role on platform: ${user.role}`);
   if (expertProfile) {
     const domains = domainStrings(expertProfile.domains);
     if (domains.length > 0) {

@@ -22,7 +22,7 @@ User 1──1 Expert 1──* ExpertDomain
 
 | Enum | Values |
 |------|--------|
-| `UserRole` | EXPERT, FOUNDER, ADMIN |
+| `UserRole` | USER, ADMIN |
 | `SessionType` | ONLINE, OFFLINE, BOTH |
 | `BookingStatus` | PENDING, CONFIRMED, COMPLETED, CANCELLED |
 | `OnboardingStep` | SOCIAL_LINKS, DOMAINS, SESSION_PREFS, AI_GENERATION, PREVIEW, PUBLISHED |
@@ -38,7 +38,7 @@ Primary user model for all platforms.
 | name | String? | Display name |
 | nickName | String? | Preferred name (from Telegram/WeChat) |
 | email | String? | Unique, for web auth |
-| role | UserRole | Default: FOUNDER |
+| role | UserRole | Default: USER; authorization only, not coach/player identity |
 | telegramId | String? | Unique, for Telegram auth |
 | telegramUsername | String? | For notifications |
 | wechatOpenId | String? | Unique, for WeChat auth |

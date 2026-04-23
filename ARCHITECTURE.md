@@ -150,11 +150,11 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 | Model | Purpose |
 |-------|---------|
-| User | All users (founders, experts, admins) with multi-platform IDs |
-| Expert | Extended profile linked to User — pricing, schedule, Stripe Connect |
+| User | Account identity with multi-platform IDs; `role` is authorization only (`USER` or `ADMIN`) |
+| Expert | Coach capability/profile linked to User — pricing, schedule, Stripe Connect |
 | ExpertDomain | Many-to-many expert ↔ domain mapping |
 | AvailableSlot | Explicit availability windows |
-| Booking | Meetup records with payment tracking (product copy: **meetup**) |
+| Booking | Player ↔ coach meetup records with payment tracking (product copy: **meetup**) |
 | Review | Appreciation + coach follow-up (product copy: avoid “review”) |
 
 ## Payment Architecture
