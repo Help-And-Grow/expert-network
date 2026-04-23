@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { isDebugAccessDenied, requireDebugAccess } from "@/lib/debug-api";
+import { resolvePrimaryDatabaseUrl } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -9,12 +10,16 @@ export async function GET(request: NextRequest) {
   const access = await requireDebugAccess(request);
   if (isDebugAccessDenied(access)) return access;
 
+  const resolvedDb = resolvePrimaryDatabaseUrl();
   const info: Record<string, unknown> = {
-    dbUrl: process.env.DATABASE_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),
+    dbUrl: resolvedDb
+      ? resolvedDb.replace(/:[^@]+@/, ":***@").substring(0, 80)
+      : undefined,
     directUrl: process.env.DIRECT_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),
     hiClawDbUrl:
       process.env.HICLAW_POSTGRES_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80) ??
       "(falls back to DATABASE_URL)",
+    dbProvider: process.env.DB_PROVIDER || "(not set)",
     timestamp: new Date().toISOString(),
   };
 

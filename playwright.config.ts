@@ -1,7 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/**
+ * When `PLAYWRIGHT_BASE_URL` is set (e.g. CI against production), tests hit that URL and no
+ * local `webServer` is started. Otherwise defaults match `.github/workflows/ui-smoke.yml`.
+ */
+const prodBase = process.env.PLAYWRIGHT_BASE_URL?.replace(/\/$/, "") ?? null;
+
 const port = 3000;
-const baseURL = `http://localhost:${port}`;
+const baseURL = prodBase ?? `http://localhost:${port}`;
+const useWebServer = !prodBase;
 
 /** Keep in sync with `.github/workflows/ui-smoke.yml` job `env` defaults. */
 const defaultAuthSecret = "playwright-local-auth-secret-0123456789";
@@ -17,23 +24,27 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: process.env.CI ? "retain-on-failure" : "off",
   },
-  webServer: {
-    command: `npx -y node@20 ./node_modules/next/dist/bin/next dev -p ${port} -H 0.0.0.0`,
-    env: {
-      ...process.env,
-      NEXTAUTH_URL: `http://localhost:${port}`,
-      AUTH_SECRET: process.env.AUTH_SECRET ?? defaultAuthSecret,
-      DEV_AUTH_EMAIL: process.env.DEV_AUTH_EMAIL ?? "admin-smoke@localhost",
-      DEV_AUTH_ROLE: process.env.DEV_AUTH_ROLE ?? "ADMIN",
-    },
-    url: `${baseURL}/api/health`,
-    reuseExistingServer: !process.env.CI,
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 120_000,
-  },
+  ...(useWebServer
+    ? {
+        webServer: {
+          command: `npx -y node@20 ./node_modules/next/dist/bin/next dev -p ${port} -H 0.0.0.0`,
+          env: {
+            ...process.env,
+            NEXTAUTH_URL: `http://localhost:${port}`,
+            AUTH_SECRET: process.env.AUTH_SECRET ?? defaultAuthSecret,
+            DEV_AUTH_EMAIL: process.env.DEV_AUTH_EMAIL ?? "admin-smoke@localhost",
+            DEV_AUTH_ROLE: process.env.DEV_AUTH_ROLE ?? "ADMIN",
+          },
+          url: `${baseURL}/api/health`,
+          reuseExistingServer: !process.env.CI,
+          stdout: "pipe",
+          stderr: "pipe",
+          timeout: 120_000,
+        },
+      }
+    : {}),
   projects: [
     {
       name: "chromium",

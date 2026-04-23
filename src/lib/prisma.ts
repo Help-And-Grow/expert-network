@@ -1,6 +1,6 @@
 import { PrismaClient } from "@/generated/prisma/client";
 
-import { assertProductionEnv } from "@/lib/env";
+import { assertProductionEnv, resolvePrimaryDatabaseUrl } from "@/lib/env";
 
 assertProductionEnv();
 
@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaAdapter() {
-  const url = process.env.DATABASE_URL || "postgresql://mock:mock@localhost:5432/mock";
+  const url = resolvePrimaryDatabaseUrl() || "postgresql://mock:mock@localhost:5432/mock";
 
   if (url.startsWith("mysql://")) {
     throw new Error(
@@ -21,7 +21,7 @@ function createPrismaAdapter() {
   const { Pool } = require("pg");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { PrismaPg } = require("@prisma/adapter-pg");
-  
+
   const pool = new Pool({ connectionString: url });
   return new PrismaPg(pool);
 }

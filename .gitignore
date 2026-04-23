@@ -8,8 +8,12 @@ node_modules/
 
 # testing
 /coverage
-/playwright-report
-/test-results
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Playwright saved login (never commit)
+e2e/.auth/*.json
 
 # next.js
 /.next/
@@ -49,3 +53,4 @@ next-env.d.ts
 private.*.key
 wechat/private.*.key
 .cursor/mcp.json
+expert-network.code-workspace

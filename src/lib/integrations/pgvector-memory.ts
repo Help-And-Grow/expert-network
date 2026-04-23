@@ -6,6 +6,8 @@
 
 import { randomUUID } from "crypto";
 
+import { resolvePrimaryDatabaseUrl } from "@/lib/env";
+
 import { Pool } from "pg";
 import { env } from "@/lib/env";
 
@@ -17,11 +19,10 @@ function getPool(): Pool | null {
     pool = null;
     return null;
   }
+  const primary = resolvePrimaryDatabaseUrl();
   const url =
     process.env.PGVECTOR_DATABASE_URL ||
-    (process.env.DATABASE_URL?.startsWith("postgresql")
-      ? process.env.DATABASE_URL
-      : "");
+    (primary?.startsWith("postgresql") || primary?.startsWith("postgres") ? primary : "");
   if (!url) {
     pool = null;
     return null;

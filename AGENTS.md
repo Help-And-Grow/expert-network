@@ -12,7 +12,7 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://`
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be Postgres-shaped (or use Vercel-synced `POSTGRES_PRISMA_URL` — see [vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md))
 - **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
 - **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
@@ -33,6 +33,7 @@ src/
   lib/               ← Core business logic, integrations, AI providers
   hooks/             ← Custom React hooks
 wechat/              ← WeChat Mini Program (Taro + React)
+e2e/                 ← Playwright: `smoke/`, `booking/`, `auth/` (`npm run test:e2e`, `npm run test:e2e:ci`)
 ```
 
 ## Documentation Map
@@ -54,6 +55,7 @@ See `docs/` for full details:
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
+| Vercel + Supabase DB | [docs/references/vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md) | Marketplace Postgres env names, `POSTGRES_PRISMA_URL` → Prisma mapping |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 
@@ -110,5 +112,33 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |
 | Premium live consultation | `docs/design-docs/premium-live-consultation.md`, `src/app/api/trtc/token/route.ts`, `src/lib/trtc.ts`, `prisma/schema.prisma` |
-| Run browser smoke tests | `playwright.config.ts`, `e2e/`, `npm run test:ui`, `.github/workflows/ui-smoke.yml` |
+| Run browser smoke tests | `playwright.config.ts`, `e2e/`, `npm run test:ui`, `.github/workflows/ui-smoke.yml`; production URL smoke: `npm run test:e2e:ci`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| E2E docs | [e2e/README.md](e2e/README.md) |
+| Vercel OpenTelemetry / trace drains | `src/instrumentation.ts`, [docs/references/vercel-open-telemetry.md](docs/references/vercel-open-telemetry.md) |
+| Vercel env (dev / preview / prod) | [docs/references/vercel-environments-solo-pm.md](docs/references/vercel-environments-solo-pm.md) |
 | Update product specs | `docs/product-specs/` |
+
+<!-- VERCEL BEST PRACTICES START -->
+## Best practices for developing on Vercel
+
+These defaults are optimized for AI coding agents (and humans) working on apps that deploy to Vercel.
+
+- Treat Vercel Functions as stateless + ephemeral (no durable RAM/FS, no background daemons), use Blob or marketplace integrations for preserving state
+- Edge Functions (standalone) are deprecated; prefer Vercel Functions
+- Don't start new projects on Vercel KV/Postgres (both discontinued); use Marketplace Redis/Postgres instead
+- Store secrets in Vercel Env Variables; not in git or `NEXT_PUBLIC_*`
+- Provision Marketplace native integrations with `vercel integration add` (CI/agent-friendly)
+- Sync env + project settings with `vercel env pull` / `vercel pull` when you need local/offline parity
+- Use `waitUntil` for post-response work; avoid the deprecated Function `context` parameter
+- Set Function regions near your primary data source; avoid cross-region DB/service roundtrips
+- Tune Fluid Compute knobs (e.g., `maxDuration`, memory/CPU) for long I/O-heavy calls (LLMs, APIs)
+- Use Runtime Cache for fast **regional** caching + tag invalidation (don't treat it as global KV)
+- Use Cron Jobs for schedules; cron runs in UTC and triggers your production URL via HTTP GET
+- Use Vercel Blob for uploads/media; Use Edge Config for small, globally-read config
+- If Enable Deployment Protection is enabled, use a bypass secret to directly access them
+- Add OpenTelemetry via `@vercel/otel` on Node; don't expect OTEL support on the Edge runtime
+- Enable Web Analytics + Speed Insights early
+- Use AI Gateway for model routing, set AI_GATEWAY_API_KEY, using a model string (e.g. 'anthropic/claude-sonnet-4.6'), Gateway is already default in AI SDK
+  needed. Always curl https://ai-gateway.vercel.sh/v1/models first; never trust model IDs from memory
+- For durable agent loops or untrusted code: use Workflow (pause/resume/state) + Sandbox; use Vercel MCP for secure infra access
+<!-- VERCEL BEST PRACTICES END -->

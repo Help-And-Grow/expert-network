@@ -1,0 +1,45 @@
+# Browser E2E (Playwright). Does not need Stripe keys here — tests call your deployed site.
+# Deploy smoke (deploy-smoke.yml) is separate: curl-only, not Playwright. See e2e/README.md.
+name: Playwright E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Origin to test (no trailing slash)"
+        required: true
+        default: "https://expert-network.vercel.app"
+  schedule:
+    # Weekly automatic smoke (Mondays 06:00 UTC). Disable by removing this block if you prefer manual only.
+    - cron: "0 6 * * 1"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npm run test:e2e:install
+
+      - name: Run Playwright (CI smoke paths)
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://expert-network.vercel.app' }}
+        run: npm run test:e2e:ci
+
+      - name: Upload HTML report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

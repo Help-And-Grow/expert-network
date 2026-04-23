@@ -20,6 +20,29 @@ function sanitizedProcessEnv(): Record<string, string | undefined> {
   return out;
 }
 
+/**
+ * Vercel Marketplace Supabase sync often sets POSTGRES_PRISMA_URL and
+ * NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY instead of DATABASE_URL / ANON_KEY.
+ * Map them so Prisma and optional client code see the names this repo documents.
+ */
+function withVercelSupabaseMarketplaceAliases(
+  env: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const next = { ...env };
+  if (!next.DATABASE_URL && next.POSTGRES_PRISMA_URL) {
+    next.DATABASE_URL = next.POSTGRES_PRISMA_URL;
+  }
+  if (!next.NEXT_PUBLIC_SUPABASE_ANON_KEY && next.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    next.NEXT_PUBLIC_SUPABASE_ANON_KEY = next.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  }
+  return next;
+}
+
+/** Prisma and DB helpers read `process.env` directly; use this for Vercel Supabase Marketplace parity. */
+export function resolvePrimaryDatabaseUrl(): string | undefined {
+  return withVercelSupabaseMarketplaceAliases(sanitizedProcessEnv()).DATABASE_URL;
+}
+
 function postgresConnectionUrl(message: string) {
   return z
     .string({ required_error: message })
@@ -215,7 +238,7 @@ function shouldSkipEnvValidation(): boolean {
 if (shouldSkipEnvValidation()) {
   _env = sanitizedProcessEnv() as unknown as z.infer<typeof envSchema>;
 } else {
-  const result = envSchema.safeParse(sanitizedProcessEnv());
+  const result = envSchema.safeParse(withVercelSupabaseMarketplaceAliases(sanitizedProcessEnv()));
   if (!result.success) {
     const fieldErrors = result.error.flatten().fieldErrors;
     const detail = JSON.stringify(fieldErrors);

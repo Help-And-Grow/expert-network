@@ -6,7 +6,7 @@ The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma
 
 ### Core app (Prisma)
 
-- **`DATABASE_URL`** — must be `postgres://` or `postgresql://` (Supabase, Neon, etc.).
+- **`DATABASE_URL`** — must be `postgres://` or `postgresql://` (Supabase, Neon, etc.). On **Vercel Marketplace Supabase**, the integration may only sync **`POSTGRES_PRISMA_URL`**; this app treats that as `DATABASE_URL` when `DATABASE_URL` is unset — see [vercel-supabase-marketplace.md](../../references/vercel-supabase-marketplace.md).
 
 ### HiClaw session DB (Next.js: `/api/webhook/onchain`, `/api/reputation/:expertId`, admin “HiClaw DB”)
 
