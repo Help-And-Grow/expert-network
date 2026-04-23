@@ -9,8 +9,9 @@ test.describe("Book a session (UI smoke)", () => {
     request,
   }) => {
     const list = await request.get("/api/v1/experts?limit=1");
-    expect(list.ok()).toBeTruthy();
-    const body = (await list.json()) as { experts?: Array<{ id: string }> };
+    const listText = await list.text();
+    expect(list.ok(), `HTTP ${list.status()} — ${listText}`).toBeTruthy();
+    const body = JSON.parse(listText) as { experts?: Array<{ id: string }> };
     const expertId = body.experts?.[0]?.id;
     test.skip(!expertId, "No published experts in this environment");
 

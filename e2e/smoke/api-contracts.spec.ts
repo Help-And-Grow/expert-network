@@ -15,8 +15,9 @@ test.describe("Public + auth-gated API contracts", () => {
 
   test("GET /api/v1/experts returns list", async ({ request }) => {
     const res = await request.get("/api/v1/experts?limit=5");
-    expect(res.ok()).toBeTruthy();
-    const body = (await res.json()) as { experts?: unknown[] };
+    const text = await res.text();
+    expect(res.ok(), `HTTP ${res.status()} — ${text}`).toBeTruthy();
+    const body = JSON.parse(text) as { experts?: unknown[] };
     expect(Array.isArray(body.experts)).toBe(true);
   });
 
