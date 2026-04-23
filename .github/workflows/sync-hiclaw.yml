@@ -8,6 +8,7 @@ on:
 
 jobs:
   sync-hiclaw:
+    if: false # Disabled until May 1 due to Action minute quota limits
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository

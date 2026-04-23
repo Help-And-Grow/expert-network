@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   playwright-smoke:
+    if: false # Disabled until May 1 due to Action minute quota limits
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:

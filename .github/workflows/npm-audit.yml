@@ -11,6 +11,7 @@ on:
 
 jobs:
   audit:
+    if: false # Disabled until May 1 due to Action minute quota limits
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
