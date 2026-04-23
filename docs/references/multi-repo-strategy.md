@@ -1,34 +1,40 @@
 # Repo & Showcase Deployment Strategy
 
-This document outlines the architectural plan and operational guidelines for managing the Help & Grow platform across multiple GitHub repositories while keeping the public showcase deployment standardized on Alibaba Cloud Qwen / DashScope.
+This document defines how Help & Grow is operated across two GitHub repositories while keeping the live Vercel deployment stable and predictable.
 
-## 1. Dual Repository Strategy
+## 1. Source of Truth
 
-To balance rapid, experimental development with stable, open-source presentations (for hackathons, investors, and partners), the codebase is split into two synchronized repositories:
+Help & Grow uses a **primary repo + periodic public mirror** model.
 
-### A. The Origin Repository (`jlzxwt8/expert-network`)
-- **Visibility:** Private
-- **Purpose:** 
-  - Core R&D environment.
-  - Testing bleeding-edge multi-agent frameworks (OpenClaw, HiClaw, Scion, BytePlus Coze).
-  - Storing experimental prompts, proprietary AI logic, and sensitive integration keys.
-- **Iteration Cycle:** High frequency, experimental branches, rapid prototyping.
+### A. Primary Repository (`jlzxwt8/expert-network`)
+- **Role:** Canonical engineering repo and default working remote.
+- **Vercel:** This is the Git source that production and preview deployments are expected to follow unless explicitly reconfigured.
+- **Purpose:**
+  - Daily feature work
+  - Schema and infrastructure changes
+  - Production fixes
+  - Experiments that are still part of the main product line
+- **Default rule:** Agents should read from, branch from, merge into, and push to `origin` unless the user explicitly asks to sync the public repo.
 
-### B. The Showcase Repository (`Help-And-Grow/expert-network`)
-- **Visibility:** Public
-- **Purpose:** 
-  - Stable, open-source reference for the community.
-  - Clean, sanitized codebase for hackathons, investor demos, and partner showcases.
-- **Iteration Cycle:** Periodically synced from the Origin repository when features reach a stable, demo-ready state. Sensitive hardcoded keys and purely experimental logic must be stripped before pushing.
+### B. Public Repository (`Help-And-Grow/expert-network`)
+- **Role:** Public, community-facing mirror.
+- **Purpose:**
+  - Open-source visibility
+  - Hackathon submissions
+  - Demo-ready snapshots for community contributors
+- **Default rule:** Do **not** push every change here. Sync only when the user explicitly asks, typically before hackathons or curated public releases.
 
 ---
 
-## 2. Showcase Deployment Architecture
+## 2. Deployment Architecture
 
-Instead of duplicating code, the Showcase repository powers a single public vendor stack using a single codebase.
+The production Vercel project is operated under the **Help And Grow** Vercel team, but the connected Git source for normal iteration is the primary repository: `jlzxwt8/expert-network`.
 
-The public `Help-And-Grow/expert-network` repo is standardized on one showcase deployment:
-1. **`expert-network`**: Uses the Alibaba DashScope / Qwen provider (`AI_PROVIDER="qwen"`).
+Current operating model:
+1. **Git source for deploys:** `jlzxwt8/expert-network`
+2. **Vercel project owner:** `Help And Grow`
+3. **Public mirror:** `Help-And-Grow/expert-network` only when explicitly synced
+4. **Default provider stack for the public deployment:** Alibaba DashScope / Qwen (`AI_PROVIDER="qwen"`)
 
 ### Vercel dashboard URLs (avoid 404)
 
@@ -60,27 +66,52 @@ If **`https://<project-slug>.vercel.app/`** returns **HTTP 404** with **`content
 5. **Vercel CLI** — If `vercel project ls` shows no projects, the CLI scope may be the wrong team (e.g. `helpandgrow` vs **`jlzxwt8s-projects`**). Match the **team switcher** in the dashboard before running `vercel link` / env commands.
 6. **Redeploy did not help** — Compare **Project → Settings → General** (Root Directory, Framework Preset, Build / Output settings) with a project that works (e.g. `expert-network`). Open the production deployment → confirm **Functions** / build output lists Next routes. If the domain is **Valid**, production is **Ready**, and unauthenticated requests still get **`x-vercel-error: NOT_FOUND`** on **`project.vercel.app`**, contact **Vercel support** with that header’s **`x-vercel-id`** — this is platform routing, not application HTML.
 
-### How it works:
-The showcase deployment is linked to the **same** GitHub repository branch (`Help-And-Grow/expert-network:main`). The public repo should keep `AI_PROVIDER="qwen"` and Alibaba-first speech defaults in versioned config so the runtime does not drift toward other vendor stacks.
+### How it works
+
+The live project should be treated as:
+
+- **Team / dashboard owner:** `helpandgrow`
+- **Git deployment source:** `jlzxwt8/expert-network`
+- **Default production branch:** `main`
+
+Do not assume the GitHub org and the Vercel team are the same thing. The dashboard owner controls the project, but the connected Git repository controls automatic deploys.
 
 ---
 
-## 3. Operational Guidelines (Long-Term Self-Iteration)
+## 3. Operational Guidelines
 
-To maintain this system long-term without configuration drift, follow these operational workflows:
+To avoid repository drift, use these workflows.
 
-### Syncing Code (Private -> Public)
-When a feature in the private repository is ready for public showcase:
-1. Ensure no sensitive keys (API keys, DB credentials) are hardcoded.
-2. Push the changes to the public repository:
-   ```bash
-   git push origin main      # Pushes to private R&D repo
-   git push hackathon main   # Pushes to public showcase repo
-   ```
-3. Vercel will automatically detect the push to the `hackathon` remote and trigger a new build for the showcase project.
+### Normal development
+For normal product work:
 
-### Managing Showcase Environment Variables
-Managing environment variables is simpler when the public repo stays on one provider stack. We keep the `scripts/vercel-merge-env.mjs` utility to safely propagate shared core settings (like Database URLs, Auth Secrets) while preserving Alibaba-specific keys.
+```bash
+git push origin <branch>
+```
+
+- Merge to `origin/main` for production-bound changes.
+- Let Vercel build from the primary repository.
+- Do not push to `hackathon` unless the user explicitly asks for a public sync.
+
+### Public sync / hackathon prep
+When the user explicitly wants the public repo updated:
+1. Confirm the code is safe to publish.
+2. Push or cherry-pick the approved branch/commit to `Help-And-Grow/expert-network`.
+3. Re-verify docs, env assumptions, and any sanitized public-facing defaults.
+
+Example:
+
+```bash
+git push origin main
+git push hackathon main
+```
+
+That dual push is an exception workflow, not the default.
+
+### Managing Vercel environment variables
+Treat the Help And Grow Vercel project as the runtime source of truth, regardless of which GitHub repo is public.
+
+Managing environment variables is simpler when the live deployment stays on one provider stack. We keep the `scripts/vercel-merge-env.mjs` utility to safely propagate shared core settings (like database URLs and auth secrets) while preserving Alibaba-specific keys.
 
 **Workflow to update environments:**
 ```bash
