@@ -31,5 +31,36 @@ if (!hasDbUrl()) {
   process.exit(0);
 }
 
+const opts = { cwd: root, env: process.env };
+
+function runMigrateDeploy() {
+  // Capture output so we can inspect it on failure, but mirror it in real time.
+  try {
+    const out = execSync("npx prisma migrate deploy", { ...opts, stdio: "pipe" });
+    process.stdout.write(out ?? "");
+  } catch (err) {
+    process.stdout.write(err.stdout ?? "");
+    process.stderr.write(err.stderr ?? "");
+    return err;
+  }
+  return null;
+}
+
 console.log("[prisma-migrate-if-vercel] Running prisma migrate deploy…");
-execSync("npx prisma migrate deploy", { stdio: "inherit", cwd: root, env: process.env });
+const firstErr = runMigrateDeploy();
+if (firstErr) {
+  const combined = (firstErr.stdout?.toString() ?? "") + (firstErr.stderr?.toString() ?? "");
+  // P3005: tables exist but no migration history (e.g. DB was set up outside of
+  // Prisma Migrate). Resolve the baseline so future deploys apply cleanly.
+  if (combined.includes("P3005") || combined.includes("database schema is not empty")) {
+    console.warn("[prisma-migrate-if-vercel] P3005 — resolving baseline migration and retrying…");
+    execSync("npx prisma migrate resolve --applied 20260424120000_baseline", {
+      ...opts,
+      stdio: "inherit",
+    });
+    const retryErr = runMigrateDeploy();
+    if (retryErr) throw retryErr;
+  } else {
+    throw firstErr;
+  }
+}
