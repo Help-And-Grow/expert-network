@@ -42,6 +42,7 @@ The preview interaction is voice-only on WeChat:
 - opening the voice-chat surface should greet the player aloud immediately when the device/browser allows it
 - on web, unauthenticated visitors should be prompted to sign in before voice chat starts
 - greeting and default expert replies should start in English unless the player explicitly asks to continue in another language
+- on web, every assistant reply should try generated expert audio first and fall back to device speech if audio is missing or autoplay is blocked
 - users should ask the AI avatar to switch language directly; keep the chat UI and API surface free of separate translation controls
 - player records up to 3 short clips as one question bundle
 - player confirms once

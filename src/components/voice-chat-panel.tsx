@@ -232,6 +232,19 @@ export function VoiceChatPanel({
     [stopPlayback],
   );
 
+  const autoPlayAssistantReply = useCallback(
+    async (message: Message) => {
+      let played = false;
+      if (message.audioSrc) {
+        played = await playExpertAudio(message.audioSrc, message.id);
+      }
+      if (!played && hasDeviceVoiceSupport()) {
+        speakWithDeviceVoice(message.text, message.id);
+      }
+    },
+    [playExpertAudio, speakWithDeviceVoice],
+  );
+
   useEffect(() => () => {
     stopPlayback();
   }, [stopPlayback]);
@@ -299,31 +312,26 @@ export function VoiceChatPanel({
           );
           if (cancelled) return;
 
-          let played = false;
-          if (data.replyAudio) {
-            played = await playExpertAudio(data.replyAudio, id);
-          }
-          if (!played && hasDeviceVoiceSupport()) {
-            speakWithDeviceVoice(greetingText, id);
-          }
+          await autoPlayAssistantReply({
+            id,
+            role: "assistant",
+            text: greetingText,
+            audioSrc: data.replyAudio,
+          });
         } else {
           const id = nextId();
-          setMessages((prev) =>
-            prev.length === 0 ? [{ id, role: "assistant", text: fallbackGreetingText }] : prev,
-          );
-          if (!cancelled && hasDeviceVoiceSupport()) {
-            speakWithDeviceVoice(fallbackGreetingText, id);
+          const fallbackMessage: Message = { id, role: "assistant", text: fallbackGreetingText };
+          setMessages((prev) => (prev.length === 0 ? [fallbackMessage] : prev));
+          if (!cancelled) {
+            await autoPlayAssistantReply(fallbackMessage);
           }
         }
       } catch {
         if (!cancelled) {
           const id = nextId();
-          setMessages((prev) =>
-            prev.length === 0 ? [{ id, role: "assistant", text: fallbackGreetingText }] : prev,
-          );
-          if (hasDeviceVoiceSupport()) {
-            speakWithDeviceVoice(fallbackGreetingText, id);
-          }
+          const fallbackMessage: Message = { id, role: "assistant", text: fallbackGreetingText };
+          setMessages((prev) => (prev.length === 0 ? [fallbackMessage] : prev));
+          await autoPlayAssistantReply(fallbackMessage);
         }
       } finally {
         if (!cancelled) setGreetingLoading(false);
@@ -336,9 +344,8 @@ export function VoiceChatPanel({
   }, [
     open,
     expertId,
+    autoPlayAssistantReply,
     fallbackGreetingText,
-    playExpertAudio,
-    speakWithDeviceVoice,
     stopPlayback,
   ]);
 
@@ -430,9 +437,7 @@ export function VoiceChatPanel({
         };
         setMessages((prev) => [...prev, aiMsg]);
         setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-        if (data.replyAudio) {
-          void playExpertAudio(data.replyAudio, aiMsg.id);
-        }
+        void autoPlayAssistantReply(aiMsg);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
         setError(msg);
@@ -442,7 +447,7 @@ export function VoiceChatPanel({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expertId, playExpertAudio],
+    [expertId, autoPlayAssistantReply],
   );
 
   const sendText = useCallback(async (overrideText?: string) => {
@@ -475,9 +480,7 @@ export function VoiceChatPanel({
       };
       setMessages((prev) => [...prev, aiMsg]);
       setTurnInfo({ count: data.turnCount, max: data.maxTurns });
-      if (data.replyAudio) {
-        void playExpertAudio(data.replyAudio, aiMsg.id);
-      }
+      void autoPlayAssistantReply(aiMsg);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
@@ -485,7 +488,7 @@ export function VoiceChatPanel({
       setProcessing(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expertId, textInput, processing, playExpertAudio, unlockAudioPlayback]);
+  }, [expertId, textInput, processing, autoPlayAssistantReply, unlockAudioPlayback]);
 
   const togglePlayback = useCallback(
     (msg: Message) => {
