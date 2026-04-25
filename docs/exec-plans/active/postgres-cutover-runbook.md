@@ -36,7 +36,7 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 
 ## Deploy checklist
 
-1. Set **`DATABASE_URL`** (or rely on **`POSTGRES_PRISMA_URL` / `POSTGRES_URL`** from Vercel Supabase) to Postgres on Vercel. Vercel **`npm install` postinstall** runs **`prisma migrate deploy`** when `VERCEL=1` so an empty database receives [`prisma/migrations`](../../../prisma/migrations/) — see [vercel-supabase-marketplace.md](../../references/vercel-supabase-marketplace.md).
+1. Set **`DATABASE_URL`** (or rely on **`POSTGRES_PRISMA_URL` / `POSTGRES_URL`** from Vercel Supabase) to Postgres on Vercel. Vercel **`npm install` postinstall** runs **`prisma migrate deploy`** when `VERCEL=1` so an empty database receives [`prisma/migrations`](../../../prisma/migrations/) — see [vercel-supabase-marketplace.md](../../references/vercel-supabase-marketplace.md). Transient Supabase pooler failures are retried and may be skipped with a warning; set `PRISMA_MIGRATE_STRICT=1` if the build must fail instead.
 2. Set **`HICLAW_POSTGRES_URL`** to the **same** or a dedicated Postgres that holds HiClaw tables (`sessions`, etc.). If unset, the app will reuse `DATABASE_URL`.
 3. Run **Apply HiClaw schema** from **Admin → HiClaw DB** (`/admin/tidb`) or execute the DDL your team uses for that database.
 4. Register **`https://<your-domain>/api/inngest`** in Inngest Cloud and set signing + event keys if using scheduled or event-driven functions.
