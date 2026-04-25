@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
-import { findOverlappingBooking } from "@/lib/booking-utils";
+import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -67,10 +67,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const overlap = await findOverlappingBooking(expertId, start, end);
+    if (expert.userId === userId) {
+      return NextResponse.json({ error: "You cannot book yourself" }, { status: 400 });
+    }
+
+    const overlap = await findParticipantBookingConflict({
+      expertId,
+      expertUserId: expert.userId,
+      founderId: userId,
+      startTime: start,
+      endTime: end,
+    });
     if (overlap) {
       return NextResponse.json(
-        { error: "Time slot already booked" },
+        { error: "One participant already has a meetup during this time. Please choose a different slot." },
         { status: 409 }
       );
     }

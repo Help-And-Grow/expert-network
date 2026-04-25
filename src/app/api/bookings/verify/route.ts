@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
 import { triggerBookingEmails } from "@/lib/booking-emails";
+import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
@@ -86,6 +87,8 @@ export async function POST(request: NextRequest) {
     );
     const isLegacyDeposit =
       bookingPaymentType === "booking_deposit" && dueNowCents < totalPaidCents;
+    const bookingStart = new Date(meta.startTime!);
+    const bookingEnd = new Date(meta.endTime!);
 
     const doubleCheck = await prisma.booking.findFirst({
       where: { stripeCheckoutSessionId: sessionId },
@@ -98,13 +101,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const conflict = await findParticipantBookingConflict({
+      expertId: meta.expertId!,
+      founderId: meta.founderId!,
+      startTime: bookingStart,
+      endTime: bookingEnd,
+    });
+    if (conflict) {
+      return NextResponse.json(
+        {
+          error:
+            "One participant already has a meetup during this time. Please contact support so we can resolve the paid checkout.",
+        },
+        { status: 409 },
+      );
+    }
+
     const booking = await prisma.booking.create({
       data: {
         expertId: meta.expertId!,
         founderId: meta.founderId!,
         sessionType: (meta.sessionType || "ONLINE") as SessionType,
-        startTime: new Date(meta.startTime!),
-        endTime: new Date(meta.endTime!),
+        startTime: bookingStart,
+        endTime: bookingEnd,
         timezone: meta.timezone || "Asia/Singapore",
         meetingLink: (meta.sessionType || "ONLINE") === "ONLINE"
           ? (meta.meetingLink || generateMeetingLink())

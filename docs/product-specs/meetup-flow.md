@@ -30,7 +30,7 @@ On web, when direct PayNow QR is not configured for the deployment environment, 
 
 - Slots generated from expert's `weeklySchedule` if no explicit `AvailableSlot` records
 - Multi-slot selection for longer meetups
-- Overlap detection prevents double-booking
+- Overlap detection prevents participant double-booking across both roles: the same user cannot be scheduled as coach and player at the same time
 - Meeting link required before payment for online meetups
 - Free meetups skip payment and create a `Booking` row directly
 - Telegram payment path is TON-only

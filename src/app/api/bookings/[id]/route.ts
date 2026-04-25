@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-import { findOverlappingBooking } from "@/lib/booking-utils";
+import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { notifyCancellation, notifyReschedule, notifyLocationUpdate } from "@/lib/telegram-bot";
@@ -188,10 +188,17 @@ export async function PATCH(
         return NextResponse.json({ error: "endTime must be after startTime" }, { status: 400 });
       }
 
-      const overlap = await findOverlappingBooking(booking.expertId, newStart, newEnd, id);
+      const overlap = await findParticipantBookingConflict({
+        expertId: booking.expertId,
+        expertUserId: booking.expert.userId,
+        founderId: booking.founderId,
+        startTime: newStart,
+        endTime: newEnd,
+        excludeBookingId: id,
+      });
       if (overlap) {
         return NextResponse.json(
-          { error: "New time slot conflicts with another booking" },
+          { error: "One participant already has a meetup during this time. Please choose a different slot." },
           { status: 409 }
         );
       }

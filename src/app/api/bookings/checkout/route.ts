@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { apiLog } from "@/lib/api-logger";
-import { findOverlappingBooking } from "@/lib/booking-utils";
+import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { redeemTokens } from "@/lib/hg-token";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -66,10 +66,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "You cannot book yourself" }, { status: 400 });
     }
 
-    const overlap = await findOverlappingBooking(expertId, start, end);
+    const overlap = await findParticipantBookingConflict({
+      expertId,
+      expertUserId: expert.userId,
+      founderId: session.user.id,
+      startTime: start,
+      endTime: end,
+    });
     if (overlap) {
       return NextResponse.json(
-        { error: "This time slot is already booked. Please choose a different time." },
+        { error: "One participant already has a meetup during this time. Please choose a different slot." },
         { status: 409 }
       );
     }

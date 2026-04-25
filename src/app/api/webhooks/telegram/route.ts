@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
+import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { chat } from "@/lib/chat-engine";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
@@ -157,14 +158,34 @@ export async function POST(request: NextRequest) {
       );
       const isLegacyDeposit =
         payload.type === "booking_deposit" && paidAmountCents < totalCents;
+      const bookingStart = new Date(payload.startTime);
+      const bookingEnd = new Date(payload.endTime);
+
+      const conflict = await findParticipantBookingConflict({
+        expertId: payload.expertId,
+        founderId: payload.founderId,
+        startTime: bookingStart,
+        endTime: bookingEnd,
+      });
+      if (conflict) {
+        console.error(
+          `[webhooks/telegram] Paid checkout conflicts with booking ${conflict.id}; not creating confirmed booking.`,
+        );
+        await sendMessage(
+          botToken,
+          chatId,
+          "Payment received, but this time slot now conflicts with another meetup. Please contact support so we can resolve it."
+        );
+        return NextResponse.json({ ok: true });
+      }
 
       const booking = await prisma.booking.create({
         data: {
           expertId: payload.expertId,
           founderId: payload.founderId,
           sessionType: (payload.sessionType || "ONLINE") as SessionType,
-          startTime: new Date(payload.startTime),
-          endTime: new Date(payload.endTime),
+          startTime: bookingStart,
+          endTime: bookingEnd,
           timezone: payload.timezone || "Asia/Singapore",
           meetingLink: payload.meetingLink || null,
           status: "CONFIRMED",
