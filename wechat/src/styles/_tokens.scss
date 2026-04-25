@@ -3,16 +3,16 @@
 // 对齐 Web 端设计体系，适配微信小程序浅色模式
 // ============================================
 
-// --- 品牌色（与 Web --primary 一致）---
+// --- 品牌色（与 Web --primary 统一，Indigo-600）---
 $color-primary:         #4f46e5;  // Indigo-600
 $color-primary-hover:   #4338ca;  // Indigo-700
 $color-primary-light:   #eef2ff;  // Indigo-50
 $color-primary-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
 
-// --- 品牌蓝（小程序特有，用于气泡/按钮）---
-$color-brand-blue:      #1f3fff;
-$color-brand-blue-light: #5b6cff;
-$color-brand-blue-gradient: linear-gradient(135deg, #1f3fff, #5b6cff);
+// --- 品牌蓝（保留用于气泡/按钮等强调场景，与 Web --brand 一致）---
+$color-brand-blue:      #6366f1;
+$color-brand-blue-light: #8b5cf6;
+$color-brand-blue-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
 
 // --- 语义色 ---
 $color-success:         #10b981;

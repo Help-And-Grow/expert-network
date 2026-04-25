@@ -28,9 +28,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+    box-shadow: $shadow-brand-lg;
     letter-spacing: -1px;
-    animation: pulse-brand 2s ease-in-out infinite;
   }
 
   &__title {
@@ -47,8 +46,17 @@
     font-size: $font-size-md;
     color: #7c3aed;
     font-weight: $font-weight-semibold;
-    margin-bottom: $spacing-5;
+    margin-bottom: $spacing-3;
     letter-spacing: 0.5px;
+  }
+
+  &__tagline {
+    display: block;
+    font-size: $font-size-base;
+    color: $color-text-brand-blue;
+    font-weight: $font-weight-medium;
+    margin-bottom: $spacing-5;
+    letter-spacing: 1px;
   }
 
   &__desc {

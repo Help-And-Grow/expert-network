@@ -12,6 +12,7 @@ import { getApiBase, getToken } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
 import { normalizeRouteId } from "../../shared/route-params";
+import { getDomainLabel } from "../../shared/types";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
 import { buildWebProfileLoginUrl, buildWebBookUrl } from "../../shared/web-booking";
@@ -270,7 +271,7 @@ export default function ExpertPage() {
         {expert.domains && expert.domains.length > 0 && (
           <View className="expert-profile__domains">
             {expert.domains.map((d) => (
-              <Text key={d} className="expert-profile__domain-chip">{d}</Text>
+              <Text key={d} className="expert-profile__domain-chip">{getDomainLabel(d)}</Text>
             ))}
           </View>
         )}

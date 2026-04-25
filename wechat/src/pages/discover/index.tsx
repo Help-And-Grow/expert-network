@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Input } from "@tarojs/components";
 import Taro, { useDidShow, useLoad } from "@tarojs/taro";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { get, post } from "../../shared/api";
 import Icon from "../../components/Icon";
@@ -20,6 +20,41 @@ const QUICK_TAGS = [
   { label: "法律合规", prompt: "我想尽快确认公司合同与合规风险，找法律专家" },
   { label: "融资策略", prompt: "我需要融资策略与投资人沟通建议" },
 ] as const;
+
+/** Local match-result cache keyed by query to avoid redundant API calls */
+const MATCH_CACHE_KEY = "hg-discover-match-cache-v1";
+const MATCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+interface CachedMatch {
+  query: string;
+  result: MatchResponse;
+  ts: number;
+}
+
+function loadMatchCache(): Map<string, CachedMatch> {
+  try {
+    const raw = Taro.getStorageSync(MATCH_CACHE_KEY);
+    if (!raw) return new Map();
+    const arr = JSON.parse(raw) as CachedMatch[];
+    const map = new Map<string, CachedMatch>();
+    const now = Date.now();
+    for (const c of arr) {
+      if (now - c.ts < MATCH_CACHE_TTL) map.set(c.query, c);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+function saveMatchCache(map: Map<string, CachedMatch>) {
+  try {
+    const arr = Array.from(map.values()).slice(-30); // keep last 30 entries
+    Taro.setStorageSync(MATCH_CACHE_KEY, JSON.stringify(arr));
+  } catch {
+    // quota
+  }
+}
 
 function hasChineseText(value?: string): boolean {
   return Boolean(value && /[\u4e00-\u9fa5]/.test(value));
@@ -108,16 +143,35 @@ export default function DiscoverPage() {
   const [matching, setMatching] = useState(false);
   const [draft, setDraft] = useState("");
   const [scrollIntoView, setScrollIntoView] = useState("");
+  const matchingRef = useRef(false);
+  const cacheRef = useRef(loadMatchCache());
   const [chatMessages, setChatMessages] = useState<DiscoverMatchChatMessage[]>(() => {
     return loadDiscoverMatchFromWeChatStorage() ?? [];
   });
 
   const runMatch = useCallback(async (query: string) => {
     const q = query.trim();
-    if (!q || matching) return;
+    if (!q || matchingRef.current) return;
+    matchingRef.current = true;
+    setMatching(true);
     const withUser: DiscoverMatchChatMessage[] = [...chatMessages, { role: "user", content: q }];
     setChatMessages(withUser);
-    setMatching(true);
+
+    // Check cache first
+    const cached = cacheRef.current.get(q);
+    if (cached) {
+      matchingRef.current = false;
+      setMatching(false);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          recommendations: cached.result.recommendations ?? [],
+          noMatchMessage: cached.result.noMatchMessage,
+        },
+      ]);
+      return;
+    }
 
     const history = discoverMatchMessagesToApiHistory(withUser);
 
@@ -128,12 +182,17 @@ export default function DiscoverPage() {
       });
 
       if (res.statusCode === 200) {
+        const result = res.data;
+        // Cache the result
+        cacheRef.current.set(q, { query: q, result, ts: Date.now() });
+        saveMatchCache(cacheRef.current);
+
         setChatMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            recommendations: res.data.recommendations ?? [],
-            noMatchMessage: res.data.noMatchMessage,
+            recommendations: result.recommendations ?? [],
+            noMatchMessage: result.noMatchMessage,
           },
         ]);
       } else {
@@ -154,9 +213,10 @@ export default function DiscoverPage() {
         },
       ]);
     } finally {
+      matchingRef.current = false;
       setMatching(false);
     }
-  }, [matching, chatMessages]);
+  }, [chatMessages]);
 
   const openExpert = useCallback((expertId: string) => {
     Taro.navigateTo({ url: `/pages/expert/index?id=${expertId}` });
@@ -213,10 +273,18 @@ export default function DiscoverPage() {
       >
         {chatMessages.length === 0 && !matching && (
           <View className="discover__chat-hint">
-            <Text className="discover__chat-hint-title">专家匹配</Text>
+            <View className="discover__chat-hint-icon">
+              <Icon name="sparkles" size={40} color="#6366f1" />
+            </View>
+            <Text className="discover__chat-hint-title">发现你的专家</Text>
             <Text className="discover__chat-hint-desc">
-              用一句话描述你的问题或场景，AI 为你匹配最合适的专家。
+              描述你的问题或场景，AI 帮你找到最合适的专家
             </Text>
+            <View className="discover__chat-hint-examples">
+              <Text className="discover__chat-hint-example">"我需要融资策略建议"</Text>
+              <Text className="discover__chat-hint-example">"帮我优化招聘流程"</Text>
+              <Text className="discover__chat-hint-example">"新加坡公司合规咨询"</Text>
+            </View>
           </View>
         )}
 
@@ -232,10 +300,10 @@ export default function DiscoverPage() {
                 {m.recommendations && m.recommendations.length > 0 ? (
                   <View className="discover__match-list">
                     <Text className="discover__match-heading">
-                      为你匹配到 {m.recommendations.length} 位专家
+                      ✨ 为你匹配到 {m.recommendations.length} 位专家
                     </Text>
                     {m.recommendations.map((item) => (
-                      <View key={item.expertId} className="discover__match-card">
+                      <View key={item.expertId} className="discover__match-card" hoverClass="discover__match-card--hover" onClick={() => openExpert(item.expertId)}>
                         <View className="discover__match-avatar">
                           {item.name
                             .split(" ")
@@ -245,23 +313,19 @@ export default function DiscoverPage() {
                             .slice(0, 2)}
                         </View>
                         <View className="discover__match-body">
-                          <Text className="discover__match-name">{item.name}</Text>
-                          {item.sessionTypes && item.sessionTypes.length > 0 && (
-                            <View className="discover__match-domains">
-                              {item.sessionTypes.slice(0, 3).map((d) => (
-                                <Text key={d} className="discover__match-domain-chip">{d}</Text>
-                              ))}
+                          <View className="discover__match-name-row">
+                            <Text className="discover__match-name">{item.name}</Text>
+                            <View className="discover__match-arrow">
+                              <Icon name="chevronRight" size={16} color="#9ca3af" />
                             </View>
-                          )}
+                          </View>
                           <Text className="discover__match-reason">
                             {normalizeRecommendationReason(item.reason)}
                           </Text>
-                          <View
-                            className="discover__match-btn"
-                            hoverClass="discover__match-btn--hover"
-                            onClick={() => openExpert(item.expertId)}
-                          >
-                            <Icon name="chevronRight" size={14} color="#fff" /> 查看主页
+                          <View className="discover__match-btn-row">
+                            <View className="discover__match-btn">
+                              查看主页
+                            </View>
                           </View>
                         </View>
                       </View>
@@ -282,7 +346,12 @@ export default function DiscoverPage() {
 
         {matching && (
           <View className="discover__typing">
-            <Text className="discover__typing-text">正在匹配…</Text>
+            <View className="discover__typing-dots">
+              <View className="discover__typing-dot" />
+              <View className="discover__typing-dot discover__typing-dot--2" />
+              <View className="discover__typing-dot discover__typing-dot--3" />
+            </View>
+            <Text className="discover__typing-text">AI 正在为你匹配专家…</Text>
           </View>
         )}
 
@@ -311,7 +380,7 @@ export default function DiscoverPage() {
           className="discover__composer-input"
           type="text"
           value={draft}
-          placeholder="说说你的问题或场景…"
+          placeholder="描述你的问题或场景…"
           confirmType="send"
           onInput={(e) => setDraft(e.detail.value)}
           onConfirm={sendDraft}
@@ -321,7 +390,7 @@ export default function DiscoverPage() {
           hoverClass="discover__composer-send--hover"
           onClick={sendDraft}
         >
-          <Text className="discover__composer-send-text">发送</Text>
+          <Icon name="send" size={20} color="#fff" />
         </View>
       </View>
     </View>

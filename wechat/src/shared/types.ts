@@ -169,6 +169,9 @@ export const DOMAIN_LABELS: Record<string, string> = {
   Headhunter: "招聘与猎头",
   Law: "法律与合规",
   Funding: "融资与资本",
+  ONLINE: "线上",
+  OFFLINE: "线下",
+  BOTH: "线上 + 线下",
 };
 
 export function getDomainLabel(domain: string): string {

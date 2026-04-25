@@ -23,12 +23,13 @@ export default function IndexPage() {
       <View style={{ height: `${statusBarHeight}px` }} />
       <View className="landing__hero">
         <View className="landing__logo-wrap">
-          <View className="landing__logo animate-pulse-brand">H&G</View>
+          <View className="landing__logo">H&G</View>
         </View>
         <Text className="landing__title">帮助与成长</Text>
-        <Text className="landing__subtitle">Expert Network</Text>
+        <Text className="landing__subtitle">AI Native Expert Network</Text>
+        <Text className="landing__tagline">每个人既是教练，也是选手</Text>
         <Text className="landing__desc">
-          在这里，专业经验以更高效的方式被看见、被连接、被兑现。你既能向合适的人求助与交流，也能把自己的经验分享出去并沉淀为长期服务。
+          在这里，专业经验以更高效的方式被看见、被连接、被兑现。
         </Text>
       </View>
 
