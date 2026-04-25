@@ -127,7 +127,7 @@ If you later add a **non-production** credential login or a test header restrict
 
 ### C. Stripe / PayNow
 
-- **Stripe Checkout** is on `checkout.stripe.com`. The opt-in test `e2e/auth/authenticated/stripe-deposit.spec.ts` only checks **redirect** to Stripe; it does not complete payment.
+- **Stripe Checkout** is on `checkout.stripe.com`. The opt-in full-payment redirect test `e2e/auth/authenticated/stripe-deposit.spec.ts` only checks **redirect** to Stripe; it does not complete payment.
 - Use **Stripe test mode** on staging (`pk_test_…`, `sk_test_…`) and [test cards](https://docs.stripe.com/testing).
 - **PayNow** appears on Stripe’s hosted page for eligible regions/methods — assert URL on Stripe, not bank completion.
 

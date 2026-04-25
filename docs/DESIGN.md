@@ -66,4 +66,4 @@
 - Post-meetup feedback uses two distinct surfaces:
   - appreciation: warm/pink, written by the player
   - coach follow-up: indigo, written by the coach
-- Free pricing should feel like a pleasant unlock, not a payment edge case. Remove deposit language from zero-price experiences.
+- Free pricing should feel like a pleasant unlock, not a payment edge case. Remove payment-due language from zero-price experiences.

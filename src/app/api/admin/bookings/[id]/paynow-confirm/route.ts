@@ -39,7 +39,7 @@ export async function POST(
       );
     }
 
-    if (booking.paymentStatus === "deposit_paid") {
+    if (booking.paymentStatus === "fully_paid") {
       return NextResponse.json({ status: "already_confirmed", bookingId: booking.id });
     }
 
@@ -65,7 +65,7 @@ export async function POST(
       where: { id: booking.id },
       data: {
         status: "CONFIRMED",
-        paymentStatus: "deposit_paid",
+        paymentStatus: "fully_paid",
         paynowPayerReference: payerReference || null,
         paynowConfirmedAt: new Date(),
       },
@@ -91,7 +91,7 @@ export async function POST(
       status: updated.status,
     }).catch(() => {});
 
-    const depositLabel = `${updated.currency} ${((updated.depositAmountCents || 0) / 100).toFixed(2)}`;
+    const paymentLabel = `${updated.currency} ${((updated.depositAmountCents || 0) / 100).toFixed(2)}`;
 
     notifyExpertBooking({
       expertTelegramId: updated.expert.user.telegramId,
@@ -99,7 +99,7 @@ export async function POST(
       founderName: updated.founder.nickName ?? updated.founder.name ?? "Client",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch(() => {});
 
@@ -109,7 +109,7 @@ export async function POST(
       expertName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch(() => {});
 

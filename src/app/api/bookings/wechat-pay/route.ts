@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { totalCents, depositCents } = calculateBookingAmount(
+    const { totalCents, dueNowCents } = calculateBookingAmount(
       pricePerHour,
       start,
       end
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
           : null,
         status: "PENDING",
         totalAmountCents: totalCents,
-        depositAmountCents: depositCents,
+        depositAmountCents: dueNowCents,
         currency: expert.currency,
         paymentMethod: "wechat_pay",
         paymentStatus: "pending",
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         .catch(() => {});
     }
 
-    const depositCNY = convertSGDToCNY(depositCents);
+    const paymentCNY = convertSGDToCNY(dueNowCents);
     const expertName =
       expert.user.nickName ?? expert.user.name ?? "Expert";
 
@@ -151,14 +151,14 @@ export async function POST(request: NextRequest) {
       ? await createPartnerUnifiedOrder({
           outTradeNo: booking.id,
           description: `Session with ${expertName}`,
-          totalAmountCNY: depositCNY,
+          totalAmountCNY: paymentCNY,
           openid: user.wechatOpenId,
           subMchId,
         })
       : await createUnifiedOrder({
           outTradeNo: booking.id,
           description: `Session with ${expertName}`,
-          totalAmountCNY: depositCNY,
+          totalAmountCNY: paymentCNY,
           openid: user.wechatOpenId,
         });
 
@@ -167,8 +167,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       bookingId: booking.id,
       paymentParams,
-      depositSGD: (depositCents / 100).toFixed(2),
-      depositCNY: (depositCNY / 100).toFixed(2),
+      paymentSGD: (dueNowCents / 100).toFixed(2),
+      paymentCNY: (paymentCNY / 100).toFixed(2),
+      depositSGD: (dueNowCents / 100).toFixed(2),
+      depositCNY: (paymentCNY / 100).toFixed(2),
       totalSGD: (totalCents / 100).toFixed(2),
     });
   } catch (err) {

@@ -92,11 +92,11 @@ Session records with full payment tracking.
 | timezone | String | Default: "Asia/Singapore" |
 | status | BookingStatus | Default: PENDING |
 | totalAmountCents | Int? | Full session price |
-| depositAmountCents | Int? | 50% deposit |
+| depositAmountCents | Int? | Legacy name; amount paid upfront for new bookings |
 | paymentMethod | String? | "stripe" / "ton" / "wechat" / "free" |
-| paymentStatus | String | "pending" / "deposit_paid" / "fully_paid" |
+| paymentStatus | String | "pending" / "fully_paid" (`deposit_paid` remains for legacy rows) |
 | stripeCheckoutSessionId | String? | For idempotent booking creation |
-| remainderChargedAt | DateTime? | When remainder was collected |
+| remainderChargedAt | DateTime? | Legacy remainder collection timestamp |
 | wechatProfitShareStatus | String? | Partner profit-sharing: pending / success / failed / skipped |
 
 ### Review

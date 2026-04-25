@@ -151,6 +151,12 @@ export async function POST(request: NextRequest) {
     if (payment) {
       const payload = JSON.parse(payment.invoice_payload);
       const chatId = update.message.chat.id;
+      const totalCents = Number(payload.totalCents ?? 0);
+      const paidAmountCents = Number(
+        payload.amountCents ?? payload.dueNowCents ?? payload.depositCents ?? totalCents
+      );
+      const isLegacyDeposit =
+        payload.type === "booking_deposit" && paidAmountCents < totalCents;
 
       const booking = await prisma.booking.create({
         data: {
@@ -162,11 +168,11 @@ export async function POST(request: NextRequest) {
           timezone: payload.timezone || "Asia/Singapore",
           meetingLink: payload.meetingLink || null,
           status: "CONFIRMED",
-          totalAmountCents: payload.totalCents,
-          depositAmountCents: payload.depositCents,
+          totalAmountCents: totalCents,
+          depositAmountCents: paidAmountCents,
           currency: payload.currency || "SGD",
           paymentMethod: "telegram_payments",
-          paymentStatus: "deposit_paid",
+          paymentStatus: isLegacyDeposit ? "deposit_paid" : "fully_paid",
           stripePaymentIntentId: payment.telegram_payment_charge_id || null,
         },
         include: {
@@ -190,14 +196,14 @@ export async function POST(request: NextRequest) {
         `✅ *Booking confirmed!*\nYour session with ${booking.expert.user.nickName || booking.expert.user.name || "the expert"} is booked. You'll receive details shortly.`
       );
 
-      const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
+      const paymentLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
       notifyExpertBooking({
         expertTelegramId: booking.expert.user.telegramId,
         expertTelegramUsername: booking.expert.user.telegramUsername,
         founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
         sessionType: booking.sessionType,
         startTime: booking.startTime,
-        depositAmount: depositLabel,
+        depositAmount: paymentLabel,
         timezone: booking.timezone,
       }).catch(() => {});
 

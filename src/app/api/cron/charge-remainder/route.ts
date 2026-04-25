@@ -3,8 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { runChargeRemainderCron } from "@/lib/jobs/charge-remainder-cron";
 
 /**
- * Vercel Cron job: charges the remainder for bookings where the session
- * ended more than 24 hours ago and deposit has been paid.
+ * Vercel Cron job: completes ended bookings and sends meetup reminders.
+ * Remainder charging has been retired; bookings are fully paid upfront.
  *
  * Secured by the CRON_SECRET header (automatically set by Vercel).
  */
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       skipped: true,
       reason:
-        "CRON_DELEGATED_TO_INNGEST=1 — remainder job runs on Inngest schedule instead.",
+        "CRON_DELEGATED_TO_INNGEST=1 — booking maintenance job runs on Inngest schedule instead.",
     });
   }
 

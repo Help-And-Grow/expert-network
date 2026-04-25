@@ -74,16 +74,16 @@ Postgres fits **agent-local state** and **infrastructure you control**: same SQL
 
 ### What is already wired
 
-- **Endpoint:** `GET/POST/PUT` `/api/inngest` registers **`chargeRemainderScheduled`** (daily cron) and **`pompIssueOnBookingCompleted`** (event `app/booking.completed`).
-- **Shared business logic:** `runChargeRemainderCron()` in `src/lib/jobs/charge-remainder-cron.ts` (also used by Vercel cron).
+- **Endpoint:** `GET/POST/PUT` `/api/inngest` registers **`chargeRemainderScheduled`** (daily booking maintenance cron) and **`pompIssueOnBookingCompleted`** (event `app/booking.completed`).
+- **Shared business logic:** `runChargeRemainderCron()` in `src/lib/jobs/charge-remainder-cron.ts` (also used by Vercel cron; name retained for route compatibility).
 - **Event emission:** `emitBookingCompletedPomp()` in `src/lib/inngest/emit.ts` runs only if **`INNGEST_EVENT_KEY`** is set; otherwise booking completion can still issue POMP **inline** (existing fallback).
 
 ### When Inngest is worth enabling
 
-- You want a **dashboard**, **retries**, and **step visibility** for scheduled remainder charging or async POMP without building that yourself.
+- You want a **dashboard**, **retries**, and **step visibility** for scheduled booking maintenance or async POMP without building that yourself.
 - You deploy on **Vercel** and are fine with a **third-party** orchestrator (US/EU SaaS — check data residency if that matters).
 
-**Setup:** Create an app in Inngest Cloud, point it at `https://<your-domain>/api/inngest`, set **`INNGEST_SIGNING_KEY`** on Vercel. For events from the server, set **`INNGEST_EVENT_KEY`**. If Inngest owns the daily job, set **`CRON_DELEGATED_TO_INNGEST=1`** so `/api/cron/charge-remainder` **no-ops** and you do not double-charge.
+**Setup:** Create an app in Inngest Cloud, point it at `https://<your-domain>/api/inngest`, set **`INNGEST_SIGNING_KEY`** on Vercel. For events from the server, set **`INNGEST_EVENT_KEY`**. If Inngest owns the daily job, set **`CRON_DELEGATED_TO_INNGEST=1`** so `/api/cron/charge-remainder` **no-ops** and you do not run duplicate booking maintenance.
 
 ### When to skip or minimize Inngest
 
@@ -93,7 +93,7 @@ Postgres fits **agent-local state** and **infrastructure you control**: same SQL
 
 ### Suggestion for this codebase
 
-- **Default production path for a China/Alibaba-weighted stack:** **FC timer → existing cron URL** for remainder charging; leave **`INNGEST_EVENT_KEY`** unset unless you specifically want async POMP in Inngest.
+- **Default production path for a China/Alibaba-weighted stack:** **FC timer → existing cron URL** for booking maintenance; leave **`INNGEST_EVENT_KEY`** unset unless you specifically want async POMP in Inngest.
 - **Use Inngest** when the team wants **one** hosted job layer for multiple event types and is comfortable with vendor coupling for those workflows.
 
 ---
@@ -168,7 +168,7 @@ Use `production`, `preview`, or `development` as the environment argument. Prefe
 **Optional:**
 
 - `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` — if using Inngest (§2).
-- `CRON_DELEGATED_TO_INNGEST=1` — only when Inngest runs the daily remainder job (avoid double runs with Vercel Cron).
+- `CRON_DELEGATED_TO_INNGEST=1` — only when Inngest runs the daily booking maintenance job (avoid double runs with Vercel Cron).
 - `CRON_SECRET` — Vercel Cron and any external caller (e.g. Alibaba FC) should send `Authorization: Bearer <CRON_SECRET>` to `/api/cron/charge-remainder` when this is set.
 - `USE_PGVECTOR_MEMORY=1`, `OPENAI_API_KEY`, `PGVECTOR_DATABASE_URL` — if using the pgvector mirror (§1).
 - All other keys from **`.env.example`** (Stripe, Google OAuth, email, AI providers, etc.) as your features require.
@@ -184,7 +184,7 @@ Platform-wide guidance (stateless functions, regions, Cron, Blob, AI Gateway, Wo
 ## Summary
 
 - **mem9** = primary expert memory (PingCAP / mem9 partner); **pgvector** = optional dual-write in Postgres if enabled; **HiClaw** = same Postgres by default, optionally isolated with `HICLAW_POSTGRES_URL`.
-- **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled work in your stack.
+- **Inngest** = optional reliability/dashboard layer; **Alibaba FC cron → `/api/cron/charge-remainder`** is the natural alternative for scheduled booking maintenance in your stack.
 - **tRPC** = §3.1 inventory matches `src/trpc/procedures/`; extend by adding files + merging in `root.ts`.
 - **npm audit (prod)** = §3.2 + [npm-audit-production.md](npm-audit-production.md); EAS/Hardhat transitive advisories tracked until upstream.
 - **Vercel env** = set via dashboard or **`vercel env add`** (§4); cross-check against `.env.example` and the runbook.

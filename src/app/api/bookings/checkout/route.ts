@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { totalCents, depositCents } = calculateBookingAmount(
+    const { totalCents, dueNowCents } = calculateBookingAmount(
       pricePerHour,
       start,
       end
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       tokensDebited = result.tokensDebited;
     }
 
-    const adjustedDepositCents = Math.max(0, depositCents - tokenDiscountCents);
+    const adjustedDueNowCents = Math.max(0, dueNowCents - tokenDiscountCents);
     const adjustedTotalCents = Math.max(0, totalCents - tokenDiscountCents);
 
     const origin =
@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
         meetingLink: meetingLink || "",
         offlineAddress: offlineAddress || "",
         totalCents: String(adjustedTotalCents),
-        depositCents: String(adjustedDepositCents),
+        dueNowCents: String(adjustedDueNowCents),
+        depositCents: String(adjustedDueNowCents),
         currency: expert.currency,
         tokenDiscount: String(tokenDiscountCents),
         tokensRedeemed: String(tokensDebited),
@@ -128,14 +129,14 @@ export async function POST(request: NextRequest) {
 
     if (expert.stripeAccountId && expert.stripeAccountStatus === "active") {
       const feePercent = getPlatformFeePercent();
-      const applicationFee = Math.round(adjustedDepositCents * (feePercent / 100));
+      const applicationFee = Math.round(adjustedDueNowCents * (feePercent / 100));
       paymentIntentData.application_fee_amount = applicationFee;
       paymentIntentData.transfer_data = {
         destination: expert.stripeAccountId,
       };
     }
 
-    if (adjustedDepositCents <= 0) {
+    if (adjustedDueNowCents <= 0) {
       return NextResponse.json({
         freeCheckout: true,
         tokenDiscount: tokenDiscountCents,
@@ -144,29 +145,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const paymentMethodOptions: Record<string, unknown> = {
-      card: { setup_future_usage: "off_session" },
-    };
-
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
       line_items: [
         {
           price_data: {
             currency: expert.currency.toLowerCase(),
-            unit_amount: adjustedDepositCents,
+            unit_amount: adjustedDueNowCents,
             product_data: {
-              name: `Session Deposit — ${expert.user.nickName || expert.user.name || "Expert"}`,
-              description: `${sessionType} session on ${start.toLocaleDateString()}. 50% deposit${tokensDebited > 0 ? ` (${tokensDebited} H&G tokens applied)` : ""}.`,
+              name: `Session — ${expert.user.nickName || expert.user.name || "Expert"}`,
+              description: `${sessionType} session on ${start.toLocaleDateString()}. Full payment due now${tokensDebited > 0 ? ` (${tokensDebited} H&G tokens applied)` : ""}.`,
             },
           },
           quantity: 1,
         },
       ],
       payment_intent_data: paymentIntentData,
-      payment_method_options: paymentMethodOptions,
+      payment_method_options: {},
       metadata: {
-        type: "booking_deposit",
+        type: "booking_full_payment",
         expertId,
         founderId: session.user.id,
       },
@@ -178,7 +175,7 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       expertId,
       sessionType,
-      amountCents: adjustedDepositCents,
+      amountCents: adjustedDueNowCents,
       durationMs: Date.now() - startedAt,
     });
 

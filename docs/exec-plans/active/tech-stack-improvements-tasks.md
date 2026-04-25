@@ -23,7 +23,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 
 | # | Task | In plain English | Status |
 |---|------|------------------|--------|
-| D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid double runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
+| D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid duplicate booking maintenance runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
 | F | **Vercel env** | Set `HICLAW_POSTGRES_URL` if HiClaw should use a dedicated database, otherwise keep `DATABASE_URL` as the shared Supabase Postgres source of truth; rotate toward `AUTH_SECRET`. **How:** [tech-stack-improvements.md §4](../../design-docs/tech-stack-improvements.md#4-vercel-cli-managing-environment-variables) (CLI commands + full checklist). Platform habits: [vercel-best-practices.md](../../design-docs/vercel-best-practices.md). | **Ongoing** |
 | G | **Post-deploy / toggle smoke** | **Public:** `npm run smoke:public` (or `scripts/smoke-public-endpoints.sh`) + deploy workflow. **Manual:** one **meetup** path + expert profile on staging after infra toggles. | **Ongoing** (public smoke vs prod URL passed 2026-03) |
 

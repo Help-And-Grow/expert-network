@@ -18,7 +18,7 @@ The marketplace needs to collect payments from **players** (founders) and distri
 ## Decision
 
 ### Payment Methods
-- **Stripe Checkout (web primary)**: hosted checkout for deposits on web, with Stripe-managed payment-method selection
+- **Stripe Checkout (web primary)**: hosted checkout for full upfront payment on web, with Stripe-managed payment-method selection
 - **TON** (Telegram primary): On-chain transfers via TonConnect for Telegram users
 - **WeChat Pay**: JSAPI for WeChat Mini Program users
 - **Free sessions**: Direct `Booking` row creation for experts with zero pricing
@@ -33,20 +33,20 @@ Legacy note:
 - Fee applied as `application_fee_amount` on Checkout Sessions
 
 ### WeChat Pay (service provider + 分账)
-When `WECHAT_PAY_PARTNER_MODE=true`, the mini program uses **partner JSAPI** (`/v3/pay/partner/transactions/jsapi`) with `settle_info.profit_sharing: true` so the sub-merchant (expert’s `Expert.wechatSubMchId` / 特约商户号) receives the payment. After `TRANSACTION.SUCCESS`, the server calls **`/v3/profitsharing/orders`** to move the platform share (same percentage as Stripe, from deposit in CNY) to the platform merchant (`WECHAT_PAY_PLATFORM_MCH_ID`, defaulting to the service provider mchid). Receiver `name` must be RSA-OAEP-SHA256 encrypted per WeChat Pay API v3; set `WECHAT_PAY_PLATFORM_MERCHANT_NAME`, `WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM`, and `WECHAT_PAY_PLATFORM_CERT_SERIAL`. Status is stored on `Booking.wechatProfitShareStatus`. Without partner mode, the legacy **direct merchant** JSAPI path is unchanged.
+When `WECHAT_PAY_PARTNER_MODE=true`, the mini program uses **partner JSAPI** (`/v3/pay/partner/transactions/jsapi`) with `settle_info.profit_sharing: true` so the sub-merchant (expert’s `Expert.wechatSubMchId` / 特约商户号) receives the payment. After `TRANSACTION.SUCCESS`, the server calls **`/v3/profitsharing/orders`** to move the platform share (same percentage as Stripe, from the paid CNY amount) to the platform merchant (`WECHAT_PAY_PLATFORM_MCH_ID`, defaulting to the service provider mchid). Receiver `name` must be RSA-OAEP-SHA256 encrypted per WeChat Pay API v3; set `WECHAT_PAY_PLATFORM_MERCHANT_NAME`, `WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM`, and `WECHAT_PAY_PLATFORM_CERT_SERIAL`. Status is stored on `Booking.wechatProfitShareStatus`. Without partner mode, the legacy **direct merchant** JSAPI path is unchanged.
 
-### Deposit Model
-- 50% deposit charged when the meetup is initiated (`Booking` created)
-- Web deposit flow:
+### Full Upfront Payment Model
+- Full payment is charged when the meetup is initiated (`Booking` created)
+- Web payment flow:
   - create Stripe Checkout Session
   - founder completes hosted checkout
   - booking is created/confirmed through webhook or verify path
-- Telegram deposit flow:
+- Telegram payment flow:
   - create pending booking
   - founder approves TON transaction in wallet
   - booking confirms through TON completion endpoint
-- Remainder auto-charged 24h after session ends (daily cron) where possible
-- Card saved via `setup_future_usage: "off_session"` for remainder
+- New bookings are written as `paymentStatus = "fully_paid"` after payment confirmation
+- Legacy remainder endpoints/webhook handling remain for old records, but no new half-paid bookings are created
 
 ### Stripe Double-Write Pattern
 Booking creation happens via two independent paths:

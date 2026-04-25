@@ -644,9 +644,9 @@ export default function ExpertProfilePage() {
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             {hasFreeMeetup
-              ? "Free meetups get a brighter MVP treatment here. No deposit is needed before you confirm."
+              ? "Free meetups are confirmed directly."
               : hasPaidMeetup
-                ? "50% deposit when you schedule. Remainder charged 24h after the meetup."
+                ? "Full payment is required when you schedule."
                 : ""}
           </p>
         </section>

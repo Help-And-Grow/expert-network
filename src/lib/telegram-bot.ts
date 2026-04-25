@@ -118,7 +118,7 @@ export async function notifyExpertBooking(params: {
     `*${params.founderName}* scheduled a ${params.sessionType.toLowerCase()} meetup with you.`,
     ``,
     `🗓 ${dateStr}`,
-    `💰 Deposit: ${params.depositAmount}`,
+    `💰 Paid upfront: ${params.depositAmount}`,
     ``,
     `Open the app to view details.`,
   ].join("\n");
@@ -160,9 +160,7 @@ export async function notifyFounderBooking(params: {
     `Your ${params.sessionType.toLowerCase()} meetup with *${params.expertName}* is confirmed.`,
     ``,
     `🗓 ${dateStr}`,
-    `💰 Deposit paid: ${params.depositAmount}`,
-    ``,
-    `The remainder will be charged 24h after the meetup.`,
+    `💰 Paid in full: ${params.depositAmount}`,
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [

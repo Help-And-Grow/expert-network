@@ -49,21 +49,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Booking is not awaiting TON payment" }, { status: 400 });
     }
 
-    const depositCents = booking.depositAmountCents ?? Math.ceil((booking.totalAmountCents ?? 0) / 2);
+    const paymentCents = booking.depositAmountCents ?? booking.totalAmountCents ?? 0;
     const tonRate = await getSGDToTONRate();
-    const depositSGD = depositCents / 100;
-    const depositTON = depositSGD / tonRate;
-    const depositNanoTON = Math.ceil(depositTON * 1e9);
+    const paymentSGD = paymentCents / 100;
+    const paymentTON = paymentSGD / tonRate;
+    const paymentNanoTON = Math.ceil(paymentTON * 1e9);
 
     const comment = `booking:${booking.id}`;
 
     return NextResponse.json({
       bookingId: booking.id,
       walletAddress: walletAddr,
-      amountNanoTON: depositNanoTON.toString(),
+      amountNanoTON: paymentNanoTON.toString(),
       comment,
-      depositTON: depositTON.toFixed(4),
-      depositSGD: depositSGD.toFixed(2),
+      paymentTON: paymentTON.toFixed(4),
+      paymentSGD: paymentSGD.toFixed(2),
+      depositTON: paymentTON.toFixed(4),
+      depositSGD: paymentSGD.toFixed(2),
       tonRate: tonRate.toFixed(2),
     });
   } catch (error) {

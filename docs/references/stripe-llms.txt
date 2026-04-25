@@ -7,7 +7,6 @@ in Vercel's serverless environment. See `src/lib/stripe.ts`.
 
 - POST /v1/checkout/sessions — Create payment checkout
 - GET /v1/checkout/sessions/:id — Retrieve session after payment
-- POST /v1/payment_intents — Create payment intent (for remainder charging)
 - GET /v1/payment_intents/:id — Retrieve payment intent
 - POST /v1/accounts — Create Connected Account (Express)
 - POST /v1/account_links — Generate KYC onboarding URL
@@ -15,8 +14,8 @@ in Vercel's serverless environment. See `src/lib/stripe.ts`.
 
 ## Webhook Events Handled
 
-- checkout.session.completed — Creates booking on deposit payment
-- payment_intent.succeeded — Marks booking as fully paid (remainder)
+- checkout.session.completed — Creates booking on full payment
+- payment_intent.succeeded — Legacy remainder handler for old rows only
 - account.updated — Syncs Connected Account status
 
 ## Authentication

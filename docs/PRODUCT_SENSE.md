@@ -33,7 +33,7 @@ Members are **not** only “buyers” or “sellers.” Everyone has expertise w
 3. **Multi-platform parity**: Same core experience on web, Telegram, and WeChat
 4. **Trust through structure**: Verified profiles, transparent pricing, two-way **appreciation** (and coach follow-up)
 5. **Minimal friction**: Expert-style onboarding in minutes (AI-assisted profile from links)
-6. **Fair marketplace**: Deposit model protects both sides; platform fee is transparent
+6. **Fair marketplace**: Full upfront payment protects both sides; platform fee is transparent
 
 ## Key User Journeys
 
@@ -41,7 +41,7 @@ Members are **not** only “buyers” or “sellers.” Everyone has expertise w
 
 1. Describe need via AI match or browse the network
 2. View profile (bio, domains, pricing, appreciations, availability)
-3. Select slot(s) and pay deposit
+3. Select slot(s) and pay the full amount upfront
 4. Attend meetup (online link or offline)
 5. Leave **appreciation** after the meetup
 
@@ -50,4 +50,4 @@ Members are **not** only “buyers” or “sellers.” Everyone has expertise w
 1. Sign up, connect social / context for the AI profile
 2. AI-assisted bio and assets; set availability, pricing, session types
 3. Stripe Connect for payouts
-4. Notifications, conduct meetups; remainder charging per product rules
+4. Notifications, conduct meetups; payout/payment records are already settled upfront

@@ -15,7 +15,7 @@
 ### Payment Reliability
 - **Double-write pattern**: `Booking` row created by both webhook AND checkout success page verify (product: **meetup** confirmed)
 - **Idempotency**: Webhook checks `stripeCheckoutSessionId` before creating duplicate rows
-- **Remainder charging**: Daily cron (`/api/cron/charge-remainder`) with per-meetup error isolation
+- **Booking maintenance cron**: Daily cron (`/api/cron/charge-remainder`) auto-completes ended meetups and sends reminders; remainder charging is retired for new bookings
 - **Webhook monitoring**: `maxDuration=30` on webhook handler; diagnostic logging for signature failures
 
 ## Known Failure Modes

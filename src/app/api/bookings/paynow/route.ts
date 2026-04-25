@@ -97,13 +97,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { totalCents, depositCents } = calculateBookingAmount(
+    const { totalCents, dueNowCents } = calculateBookingAmount(
       pricePerHour,
       start,
       end
     );
 
-    if (depositCents <= 0) {
+    if (dueNowCents <= 0) {
       return NextResponse.json(
         { error: "No payment due. Please use free booking flow." },
         { status: 400 }
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     const { payload, qrDataUrl } = await buildPayNowQrDataUrl({
       uen: payNowConfig.uen,
       companyName: payNowConfig.companyName,
-      amountCents: depositCents,
+      amountCents: dueNowCents,
       reference: paynowReference,
       editableAmount: payNowConfig.editableAmount,
     });
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         offlineAddress: offlineAddress || null,
         status: "PENDING",
         totalAmountCents: totalCents,
-        depositAmountCents: depositCents,
+        depositAmountCents: dueNowCents,
         currency: expert.currency,
         paymentMethod: "paynow",
         paymentStatus: "pending_paynow",
@@ -146,8 +146,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       bookingId: booking.id,
       paynowReference,
-      amountCents: depositCents,
-      amountLabel: `${expert.currency} ${(depositCents / 100).toFixed(2)}`,
+      amountCents: dueNowCents,
+      amountLabel: `${expert.currency} ${(dueNowCents / 100).toFixed(2)}`,
       qrDataUrl,
       payload,
       receiver: {

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       prisma.booking.count(),
       prisma.booking.count({ where: { status: "CONFIRMED" } }),
       prisma.booking
-        .aggregate({ _sum: { totalAmountCents: true }, where: { paymentStatus: "PAID" } })
+        .aggregate({ _sum: { totalAmountCents: true }, where: { paymentStatus: "fully_paid" } })
         .then((r) => r._sum.totalAmountCents || 0),
       prisma.invitationCode.count(),
       prisma.invitationCode.count({ where: { usedCount: { gt: 0 } } }),

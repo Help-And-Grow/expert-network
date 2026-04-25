@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { createPaymentIntent } from "@/lib/stripe";
 import { sendSessionReminder } from "@/lib/telegram-bot";
 
 export type ChargeRemainderCronResult = {
@@ -13,7 +12,8 @@ export type ChargeRemainderCronResult = {
 
 /**
  * Core logic for the Vercel cron route (and future job runners e.g. Inngest).
- * Auto-completes ended sessions, charges Stripe remainders, flags manual remainder flows, sends Telegram reminders.
+ * Auto-completes ended sessions and sends Telegram reminders.
+ * Remainder charging is retired because bookings now require full payment upfront.
  */
 export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResult> {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -31,11 +31,16 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
     );
   }
 
-  const bookings = await prisma.booking.findMany({
+  const legacyDepositBookings = await prisma.booking.findMany({
     where: {
       paymentStatus: "deposit_paid",
       remainderChargedAt: null,
       endTime: { lt: cutoff },
+    },
+    select: {
+      id: true,
+      totalAmountCents: true,
+      depositAmountCents: true,
     },
   });
 
@@ -43,7 +48,7 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
   let failed = 0;
   let manualDue = 0;
 
-  for (const booking of bookings) {
+  for (const booking of legacyDepositBookings) {
     const remainderCents =
       (booking.totalAmountCents || 0) - (booking.depositAmountCents || 0);
 
@@ -56,65 +61,11 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
         },
       });
       charged++;
-      continue;
-    }
-
-    if (
-      booking.paymentMethod === "stripe" &&
-      booking.stripeCustomerId &&
-      booking.stripePaymentMethodId
-    ) {
-      try {
-        const pi = await createPaymentIntent({
-          amount: remainderCents,
-          currency: (booking.currency || "sgd").toLowerCase(),
-          customer: booking.stripeCustomerId,
-          payment_method: booking.stripePaymentMethodId,
-          off_session: true,
-          confirm: true,
-          metadata: {
-            type: "booking_remainder",
-            bookingId: booking.id,
-          },
-        });
-
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            paymentStatus: "fully_paid",
-            stripeRemainderPIId: pi.id,
-            remainderChargedAt: new Date(),
-          },
-        });
-
-        charged++;
-      } catch (err) {
-        console.error(
-          `[charge-remainder-cron] Failed for booking ${booking.id}:`,
-          err,
-        );
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { paymentStatus: "failed" },
-        });
-        failed++;
-      }
-      continue;
-    }
-
-    if (
-      booking.paymentMethod === "stripe" ||
-      booking.paymentMethod === "ton" ||
-      booking.paymentMethod === "telegram_payments" ||
-      booking.paymentMethod === "paynow" ||
-      booking.paymentMethod === "wechat_pay"
-    ) {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { paymentStatus: "remainder_due" },
-      });
+    } else {
       manualDue++;
-      continue;
+      console.warn(
+        `[charge-remainder-cron] Legacy half-paid booking ${booking.id} still has ${remainderCents} cents unpaid; automatic remainder charging is retired.`,
+      );
     }
   }
 
@@ -124,7 +75,7 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
   const upcomingBookings = await prisma.booking.findMany({
     where: {
       status: "CONFIRMED",
-      paymentStatus: "deposit_paid",
+      paymentStatus: { in: ["fully_paid", "deposit_paid"] },
       startTime: { gte: reminderStart, lte: reminderEnd },
     },
     include: {
@@ -158,11 +109,11 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
   }
 
   console.log(
-    `[charge-remainder-cron] Processed ${bookings.length} bookings: ${charged} charged, ${failed} failed, ${manualDue} manual due, ${reminders} reminders sent`,
+    `[charge-remainder-cron] Processed ${legacyDepositBookings.length} legacy bookings: ${charged} normalized, ${failed} failed, ${manualDue} legacy half-paid skipped, ${reminders} reminders sent`,
   );
 
   return {
-    processed: bookings.length,
+    processed: legacyDepositBookings.length,
     charged,
     failed,
     manualDue,

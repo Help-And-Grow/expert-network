@@ -288,11 +288,23 @@ export function calculateBookingAmount(
   pricePerHourCents: number,
   startTime: Date,
   endTime: Date
-): { totalCents: number; depositCents: number; remainderCents: number } {
+): {
+  totalCents: number;
+  dueNowCents: number;
+  depositCents: number;
+  remainderCents: number;
+} {
   const durationMs = endTime.getTime() - startTime.getTime();
   const durationMinutes = Math.max(30, Math.round(durationMs / (60 * 1000)));
   const totalCents = Math.round(pricePerHourCents * durationMinutes / 60);
-  const depositCents = Math.ceil(totalCents / 2);
-  const remainderCents = totalCents - depositCents;
-  return { totalCents, depositCents, remainderCents };
+  const dueNowCents = totalCents;
+
+  // Legacy callers and DB columns still use "deposit" naming. New bookings
+  // require full payment upfront, so the legacy deposit amount equals due-now.
+  return {
+    totalCents,
+    dueNowCents,
+    depositCents: dueNowCents,
+    remainderCents: 0,
+  };
 }

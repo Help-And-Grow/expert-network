@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       where: { id: bookingId },
       data: {
         status: "CONFIRMED",
-        paymentStatus: "deposit_paid",
+        paymentStatus: "fully_paid",
         stripePaymentIntentId: boc.slice(0, 255),
       },
       include: {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const depositLabel = `${updated.currency} ${((updated.depositAmountCents || 0) / 100).toFixed(2)}`;
+    const paymentLabel = `${updated.currency} ${((updated.depositAmountCents || 0) / 100).toFixed(2)}`;
 
     storeBookingEvent({
       expertId: updated.expertId,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       founderName: updated.founder.nickName ?? updated.founder.name ?? "Client",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch((e) => console.error("[ton-confirm] expert notify error:", e));
 
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       expertName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch((e) => console.error("[ton-confirm] founder notify error:", e));
 

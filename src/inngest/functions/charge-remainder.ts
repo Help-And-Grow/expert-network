@@ -11,7 +11,7 @@ import { inngest } from "../client";
 export const chargeRemainderScheduled = inngest.createFunction(
   {
     id: "charge-remainder-scheduled",
-    name: "Charge booking remainders",
+    name: "Booking maintenance",
     triggers: [cron("0 0 * * *")],
   },
   async ({ step }) => {

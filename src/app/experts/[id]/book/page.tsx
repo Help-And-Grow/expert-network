@@ -131,8 +131,8 @@ export default function BookSessionPage() {
   const tonWallet = useTonWallet();
   const [tonPending, setTonPending] = useState<{
     bookingId: string;
-    depositTON: string;
-    depositSGD: string;
+    paymentTON: string;
+    paymentSGD: string;
   } | null>(null);
   const telegramInitData = getTelegramInitData();
   const isTelegramSurface = isTelegram || Boolean(telegramInitData);
@@ -186,8 +186,7 @@ export default function BookSessionPage() {
     : 30;
 
   const totalCents = pricePerHour ? Math.round(pricePerHour * slotDurationMinutes / 60) : 0;
-  const depositCents = Math.ceil(totalCents / 2);
-  const remainderCents = totalCents - depositCents;
+  const dueNowCents = totalCents;
 
   const typeFromUrl = searchParams.get("type");
   useEffect(() => {
@@ -325,8 +324,8 @@ export default function BookSessionPage() {
       createdBookingId = data.bookingId;
       setTonPending({
         bookingId: data.bookingId,
-        depositTON: data.depositTON,
-        depositSGD: data.depositSGD,
+        paymentTON: data.paymentTON ?? data.depositTON,
+        paymentSGD: data.paymentSGD ?? data.depositSGD,
       });
 
       const commentCell = beginCell()
@@ -644,22 +643,16 @@ export default function BookSessionPage() {
               <>
                 <hr className="border-indigo-300/20" />
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Deposit (50%) — due now</span>
+                  <span className="text-muted-foreground">Full payment — due now</span>
                   <span className="font-bold text-indigo-100">
-                    {expertPricing?.currency || "SGD"} {(depositCents / 100).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Remainder — charged 24h after meetup</span>
-                  <span className="text-muted-foreground">
-                    {expertPricing?.currency || "SGD"} {(remainderCents / 100).toFixed(2)}
+                    {expertPricing?.currency || "SGD"} {(dueNowCents / 100).toFixed(2)}
                   </span>
                 </div>
               </>
             )}
             {totalCents === 0 && (
               <div className="surface-success rounded-lg px-3 py-2 text-sm">
-                This meetup is free. We skip deposit language here and confirm it directly.
+                This meetup is free and will be confirmed directly.
               </div>
             )}
           </section>
@@ -677,8 +670,8 @@ export default function BookSessionPage() {
               <Loader2 className="h-8 w-8 mx-auto text-indigo-600 animate-spin" />
               <h3 className="font-semibold text-base">Waiting for payment</h3>
               <p className="text-sm text-muted-foreground">
-                <span className="font-mono font-bold">{tonPending.depositTON} TON</span>{" "}
-                (≈ SGD {tonPending.depositSGD})
+                <span className="font-mono font-bold">{tonPending.paymentTON} TON</span>{" "}
+                (≈ SGD {tonPending.paymentSGD})
               </p>
               <p className="text-xs text-muted-foreground">
                 Approve the transaction in your wallet
@@ -708,7 +701,7 @@ export default function BookSessionPage() {
                 <>
                   <Wallet className="h-5 w-5" />
                   Pay with TON — {expertPricing?.currency || "SGD"}{" "}
-                  {(depositCents / 100).toFixed(2)}
+                  {(dueNowCents / 100).toFixed(2)}
                 </>
               )}
             </Button>
@@ -731,7 +724,7 @@ export default function BookSessionPage() {
                       : "Opening Stripe Checkout..."}
                 </>
               ) : totalCents > 0 ? (
-                `Pay with Stripe Checkout — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+                `Pay with Stripe Checkout — ${expertPricing?.currency || "SGD"} ${(dueNowCents / 100).toFixed(2)}`
               ) : (
                 "Confirm meetup"
               )}

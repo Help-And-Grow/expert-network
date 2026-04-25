@@ -88,11 +88,9 @@ function CheckoutSuccessContent() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
             <CheckCircle className="h-8 w-8 text-emerald-300" />
           </div>
-          <h1 className="text-xl font-bold">Deposit Paid!</h1>
+          <h1 className="text-xl font-bold">Payment Complete!</h1>
           <p className="text-muted-foreground text-sm">
-            Your 50% deposit has been charged and the session is confirmed. The
-            remaining balance will be automatically charged 24 hours after the
-            session ends.
+            Your payment has been charged in full and the session is confirmed.
           </p>
           <div className="flex gap-3 pt-2">
             <Button

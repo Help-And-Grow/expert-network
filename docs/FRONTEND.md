@@ -37,7 +37,7 @@ Next.js App Router with file-based routing under `src/app/`.
 - Public expert pages are privacy-first: do not render email, Telegram, WeChat, or social IDs.
 - Users must not match with, book, or voice-chat with themselves; owner views hide those CTAs.
 - MVP voice is system-managed: hide voice-clone controls in product UI and use a professional default voice by gender.
-- Free meetups should not mention deposits; offline meetup links should open Google Maps on web when an address is present.
+- Free meetups should not mention payment due; offline meetup links should open Google Maps on web when an address is present.
 - WeChat and web booking dashboards should both surface player appreciation and coach follow-up directly on the meetup card.
 
 ## Key Components

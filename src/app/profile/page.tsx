@@ -1055,7 +1055,7 @@ export default function ProfilePage() {
                   
                   return (
                     <p className="text-xs text-muted-foreground">
-                      Players pay a 50% deposit when they schedule. The remainder is charged 24h after the meetup.
+                      Players pay the full amount when they schedule.
                     </p>
                   );
                 })()}

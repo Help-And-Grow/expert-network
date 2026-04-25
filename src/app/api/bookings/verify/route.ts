@@ -44,8 +44,10 @@ export async function POST(request: NextRequest) {
 
     const checkoutSession = await retrieveCheckoutSession(sessionId);
 
+    const bookingPaymentType = checkoutSession.metadata?.type;
     if (
-      checkoutSession.metadata?.type !== "booking_deposit" ||
+      (bookingPaymentType !== "booking_full_payment" &&
+        bookingPaymentType !== "booking_deposit") ||
       checkoutSession.metadata?.founderId !== userId
     ) {
       return NextResponse.json(
@@ -77,6 +79,13 @@ export async function POST(request: NextRequest) {
     }
 
     const meta = { ...(checkoutSession.metadata ?? {}), ...piMeta };
+    const totalPaidCents = parseInt(meta.totalCents || "0", 10);
+    const dueNowCents = parseInt(
+      meta.dueNowCents || meta.depositCents || meta.totalCents || "0",
+      10
+    );
+    const isLegacyDeposit =
+      bookingPaymentType === "booking_deposit" && dueNowCents < totalPaidCents;
 
     const doubleCheck = await prisma.booking.findFirst({
       where: { stripeCheckoutSessionId: sessionId },
@@ -101,15 +110,17 @@ export async function POST(request: NextRequest) {
           ? (meta.meetingLink || generateMeetingLink())
           : null,
         status: "CONFIRMED",
-        totalAmountCents: parseInt(meta.totalCents || "0", 10),
-        depositAmountCents: parseInt(meta.depositCents || "0", 10),
+        totalAmountCents: totalPaidCents,
+        depositAmountCents: dueNowCents,
         currency: meta.currency || "SGD",
         paymentMethod: "stripe",
-        paymentStatus: "deposit_paid",
+        paymentStatus: isLegacyDeposit ? "deposit_paid" : "fully_paid",
         stripeCheckoutSessionId: sessionId,
         stripePaymentIntentId: pi || null,
         stripeCustomerId: customerId || null,
         stripePaymentMethodId: paymentMethodId || null,
+        tokenDiscount: parseInt(meta.tokenDiscount || "0", 10) || 0,
+        tokensRedeemed: parseInt(meta.tokensRedeemed || "0", 10) || 0,
       },
       include: {
         expert: { include: { user: true } },
@@ -128,7 +139,7 @@ export async function POST(request: NextRequest) {
       status: booking.status,
     }).catch(() => {});
 
-    const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
+    const paymentLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
 
     notifyExpertBooking({
       expertTelegramId: booking.expert.user.telegramId,
@@ -137,7 +148,7 @@ export async function POST(request: NextRequest) {
         booking.founder.nickName ?? booking.founder.name ?? "Client",
       sessionType: booking.sessionType,
       startTime: booking.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: booking.timezone,
     }).catch(() => {});
 
@@ -148,7 +159,7 @@ export async function POST(request: NextRequest) {
         booking.expert.user.nickName ?? booking.expert.user.name ?? "Expert",
       sessionType: booking.sessionType,
       startTime: booking.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: booking.timezone,
     }).catch(() => {});
 

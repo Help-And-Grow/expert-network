@@ -26,7 +26,7 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 
 - **`INNGEST_SIGNING_KEY`** — verify requests to `/api/inngest`.
 - **`INNGEST_EVENT_KEY`** — server-side `inngest.send()` (e.g. `app/booking.completed` for POMP).
-- **`CRON_DELEGATED_TO_INNGEST=1`** — when the daily charge-remainder job runs in Inngest, skip duplicate work on the Vercel cron route (if configured).
+- **`CRON_DELEGATED_TO_INNGEST=1`** — when the daily booking maintenance job runs in Inngest, skip duplicate work on the Vercel cron route (if configured).
 
 ### pgvector backfill (optional)
 

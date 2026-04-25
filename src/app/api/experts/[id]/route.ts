@@ -37,14 +37,17 @@ function buildPaymentCapabilities(currency: string | null | undefined) {
   const payNowAvailable = supportsPayNowForCurrency(currency);
   const stripeCheckoutAvailable = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
 
+  const preferredWebPaymentMethod = payNowAvailable
+    ? "paynow"
+    : stripeCheckoutAvailable
+      ? "stripe_checkout"
+      : null;
+
   return {
     payNowAvailable,
     stripeCheckoutAvailable,
-    preferredWebDepositMethod: payNowAvailable
-      ? "paynow"
-      : stripeCheckoutAvailable
-        ? "stripe_checkout"
-        : null,
+    preferredWebPaymentMethod,
+    preferredWebDepositMethod: preferredWebPaymentMethod,
   };
 }
 

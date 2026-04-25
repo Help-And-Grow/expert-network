@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       where: { id: bookingId },
       data: {
         status: "CONFIRMED",
-        paymentStatus: "deposit_paid",
+        paymentStatus: "fully_paid",
         wechatTransactionId: decrypted.transaction_id,
       },
       include: {
@@ -111,9 +111,9 @@ export async function POST(request: NextRequest) {
     triggerBookingEmails(updated);
 
     const subMchId = updated.expert.wechatSubMchId?.trim();
-    const depositCnyFen = convertSGDToCNY(updated.depositAmountCents ?? 0);
+    const paymentCnyFen = convertSGDToCNY(updated.depositAmountCents ?? 0);
     const platformFen = computeWechatPlatformShareFen(
-      depositCnyFen,
+      paymentCnyFen,
       wechatPlatformFeePercent()
     );
     if (
@@ -160,9 +160,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const depositLabel = updated.depositAmountCents
+    const paymentLabel = updated.depositAmountCents
       ? `${updated.currency} ${(updated.depositAmountCents / 100).toFixed(2)}`
-      : "deposit";
+      : "payment";
 
     storeBookingEvent({
       expertId: updated.expertId,
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         updated.founder.nickName ?? updated.founder.name ?? "Client",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch((e: unknown) =>
       console.error("[wechat-pay-webhook] expert notify error:", e)
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         "Expert",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch((e: unknown) =>
       console.error("[wechat-pay-webhook] founder notify error:", e)
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
       expertName: updated.founder.nickName ?? updated.founder.name ?? "Client",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch(() => {});
     notifyWechatBookingConfirmed({
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
       expertName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
-      depositAmount: depositLabel,
+      depositAmount: paymentLabel,
       timezone: updated.timezone,
     }).catch(() => {});
 

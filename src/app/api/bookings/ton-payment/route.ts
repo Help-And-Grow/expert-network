@@ -87,16 +87,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { totalCents, depositCents } = calculateBookingAmount(
+    const { totalCents, dueNowCents } = calculateBookingAmount(
       pricePerHour,
       start,
       end
     );
 
     const tonRate = await getSGDToTONRate();
-    const depositSGD = depositCents / 100;
-    const depositTON = depositSGD / tonRate;
-    const depositNanoTON = Math.ceil(depositTON * 1e9);
+    const paymentSGD = dueNowCents / 100;
+    const paymentTON = paymentSGD / tonRate;
+    const paymentNanoTON = Math.ceil(paymentTON * 1e9);
 
     // PENDING holds the slot; user confirms after paying in wallet.
     // Unconfirmed PENDING bookings expire after 30 minutes (cleaned lazily).
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         offlineAddress: offlineAddress || null,
         status: "PENDING",
         totalAmountCents: totalCents,
-        depositAmountCents: depositCents,
+        depositAmountCents: dueNowCents,
         currency: expert.currency,
         paymentMethod: "ton",
         paymentStatus: "pending",
@@ -126,10 +126,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       bookingId: booking.id,
       walletAddress: walletAddr,
-      amountNanoTON: depositNanoTON.toString(),
+      amountNanoTON: paymentNanoTON.toString(),
       comment,
-      depositTON: depositTON.toFixed(4),
-      depositSGD: depositSGD.toFixed(2),
+      paymentTON: paymentTON.toFixed(4),
+      paymentSGD: paymentSGD.toFixed(2),
+      depositTON: paymentTON.toFixed(4),
+      depositSGD: paymentSGD.toFixed(2),
       tonRate: tonRate.toFixed(2),
     });
   } catch (error) {

@@ -327,12 +327,12 @@ export function wechatPlatformFeePercent(): number {
 }
 
 /**
- * Deposit amount in CNY fen allocated to the platform (rounded down), for profit-sharing request.
+ * Paid amount in CNY fen allocated to the platform (rounded down), for profit-sharing request.
  */
 export function computeWechatPlatformShareFen(
-  depositCnyFen: number,
+  paymentCnyFen: number,
   feePercent: number
 ): number {
-  if (depositCnyFen <= 0 || feePercent <= 0) return 0;
-  return Math.floor((depositCnyFen * feePercent) / 100);
+  if (paymentCnyFen <= 0 || feePercent <= 0) return 0;
+  return Math.floor((paymentCnyFen * feePercent) / 100);
 }
