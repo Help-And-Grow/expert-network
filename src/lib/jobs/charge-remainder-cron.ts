@@ -45,7 +45,7 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
   });
 
   let charged = 0;
-  let failed = 0;
+  const failed = 0;
   let manualDue = 0;
 
   for (const booking of legacyDepositBookings) {

@@ -313,7 +313,6 @@ export default function DashboardPage() {
                     applyOptimisticAppreciation={applyOptimisticAppreciation}
                     revertPendingReviewIfAny={revertPendingReviewIfAny}
                     applyOptimisticExpertSuggestion={applyOptimisticExpertSuggestion}
-                    currentUserId={userData?.id}
                     isExpert={!isMenteeForThis}
                     roleLabel={isMenteeForThis ? "Player" : "Coach"}
                   />
@@ -343,7 +342,6 @@ export default function DashboardPage() {
                     applyOptimisticAppreciation={applyOptimisticAppreciation}
                     revertPendingReviewIfAny={revertPendingReviewIfAny}
                     applyOptimisticExpertSuggestion={applyOptimisticExpertSuggestion}
-                    currentUserId={userData?.id}
                     roleLabel={isMenteeForThis ? "Player" : "Coach"}
                   />
                 );
@@ -368,7 +366,6 @@ const BookingCard = memo(function BookingCard({
   applyOptimisticAppreciation,
   revertPendingReviewIfAny,
   applyOptimisticExpertSuggestion,
-  currentUserId,
   isExpert,
   roleLabel,
 }: {
@@ -382,7 +379,6 @@ const BookingCard = memo(function BookingCard({
   applyOptimisticAppreciation: (bookingId: string, commentText: string) => void;
   revertPendingReviewIfAny: (bookingId: string) => void;
   applyOptimisticExpertSuggestion: (bookingId: string, text: string) => void;
-  currentUserId?: string;
   roleLabel?: string;
 }) {
   const [reviewSyncError, setReviewSyncError] = useState<string | null>(null);
