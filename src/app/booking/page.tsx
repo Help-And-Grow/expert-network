@@ -357,6 +357,7 @@ export default function DashboardPage() {
                   <BookingCard
                     key={b.id}
                     booking={b}
+                    allBookings={bookings}
                     showFounder={!isMenteeForThis}
                     statusVariant={statusVariant}
                     onUpdate={loadDashboard}
@@ -384,6 +385,7 @@ export default function DashboardPage() {
                   <BookingCard
                     key={b.id}
                     booking={b}
+                    allBookings={bookings}
                     showFounder={!isMenteeForThis}
                     statusVariant={statusVariant}
                     showLeaveAppreciation={isMenteeForThis && b.status === "COMPLETED" && !b.review}
@@ -409,6 +411,7 @@ export default function DashboardPage() {
 
 const BookingCard = memo(function BookingCard({
   booking,
+  allBookings,
   showFounder,
   showLeaveAppreciation,
   statusVariant,
@@ -421,6 +424,7 @@ const BookingCard = memo(function BookingCard({
   roleLabel,
 }: {
   booking: Booking;
+  allBookings: Booking[];
   showFounder?: boolean;
   showLeaveAppreciation?: boolean;
   isExpert?: boolean;
@@ -641,11 +645,23 @@ const BookingCard = memo(function BookingCard({
     setSlotsLoading(true);
     setSelectedRescheduleSlot(null);
 
+    // Collect the user's other active bookings (both as player and coach) to block those slots
+    const userOtherBookings = allBookings.filter(
+      (b) =>
+        b.id !== booking.id &&
+        (b.status === "PENDING" || b.status === "CONFIRMED")
+    );
+
     fetch(`/api/experts/${booking.expert.id}/slots`)
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.slots ?? [];
-        const booked: { startTime: string; endTime: string }[] = data?.bookedSlots ?? [];
+        // bookedSlots from API covers the expert's side; merge with user's own bookings
+        const apiBooked: { startTime: string; endTime: string }[] = data?.bookedSlots ?? [];
+        const booked: { startTime: string; endTime: string }[] = [
+          ...apiBooked,
+          ...userOtherBookings.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
+        ];
 
         const isOverlapping = (slot: { startTime: string; endTime: string }) => {
           const sS = new Date(slot.startTime).getTime();
@@ -701,7 +717,7 @@ const BookingCard = memo(function BookingCard({
       })
       .catch(() => setRescheduleSlots([]))
       .finally(() => setSlotsLoading(false));
-  }, [rescheduleDate, booking.expert?.id, expertSchedule]);
+  }, [rescheduleDate, booking.expert?.id, expertSchedule, allBookings, booking.id]);
 
   const handleReschedule = async () => {
     if (!selectedRescheduleSlot) return;
