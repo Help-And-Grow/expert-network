@@ -220,12 +220,19 @@ export default function BookSessionPage() {
     setSlots([]);
     setSelectedSlots([]);
 
-    fetch(`/api/experts/${expertId}/slots`)
-      .then((res) => res.json())
-      .then((data) => {
+    Promise.all([
+      fetch(`/api/experts/${expertId}/slots`).then((res) => res.json()),
+      fetch("/api/bookings", { cache: "no-store" }).then((res) => res.ok ? res.json() : { bookings: [] }).catch(() => ({ bookings: [] })),
+    ])
+      .then(([slotsData, bookingsData]) => {
         if (cancelled) return;
-        const list = Array.isArray(data) ? data : data?.slots ?? [];
-        const booked: BookedSlot[] = data?.bookedSlots ?? [];
+        const list = Array.isArray(slotsData) ? slotsData : slotsData?.slots ?? [];
+        // Merge expert-side booked slots with the current user's own active bookings
+        const apiBooked: BookedSlot[] = slotsData?.bookedSlots ?? [];
+        const userBookings: BookedSlot[] = (bookingsData?.bookings ?? [])
+          .filter((b: { status: string }) => b.status === "PENDING" || b.status === "CONFIRMED")
+          .map((b: { startTime: string; endTime: string }) => ({ startTime: b.startTime, endTime: b.endTime }));
+        const booked: BookedSlot[] = [...apiBooked, ...userBookings];
         const now = new Date();
 
         // Explicit AvailableSlot records for this date
