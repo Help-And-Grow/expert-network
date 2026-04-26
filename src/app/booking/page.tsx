@@ -24,6 +24,8 @@ import {
   MessageSquarePlus,
   Heart,
   MessageSquareHeart,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +33,14 @@ import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,6 +94,47 @@ function parseBookingReviewFromApi(raw: unknown): BookingReview | null {
     suggestionAt,
     createdAt: o.createdAt,
   };
+}
+
+type BookingAction = "cancel" | "reschedule" | "location";
+
+type ActionFeedback = {
+  kind: "success" | "error" | "info";
+  message: string;
+};
+
+function ModalFeedback({ feedback }: { feedback: ActionFeedback | null }) {
+  if (!feedback) return null;
+
+  const Icon =
+    feedback.kind === "success"
+      ? CheckCircle2
+      : feedback.kind === "error"
+        ? AlertCircle
+        : Loader2;
+
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
+        feedback.kind === "success" &&
+          "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+        feedback.kind === "error" &&
+          "border-destructive/30 bg-destructive/10 text-destructive",
+        feedback.kind === "info" &&
+          "border-indigo-500/30 bg-indigo-500/10 text-indigo-100",
+      )}
+      role={feedback.kind === "error" ? "alert" : "status"}
+    >
+      <Icon
+        className={cn(
+          "mt-0.5 h-4 w-4 shrink-0",
+          feedback.kind === "info" && "animate-spin",
+        )}
+      />
+      <span>{feedback.message}</span>
+    </div>
+  );
 }
 
 interface Booking {
@@ -400,6 +451,8 @@ const BookingCard = memo(function BookingCard({
   const [expertSchedule, setExpertSchedule] = useState<Record<string, { start: string; end: string }[]> | null>(null);
   const [savingLocation, setSavingLocation] = useState(false);
   const [locationValue, setLocationValue] = useState(booking.offlineAddress || booking.meetingLink || "");
+  const [modalFeedback, setModalFeedback] = useState<ActionFeedback | null>(null);
+  const [confirmAction, setConfirmAction] = useState<BookingAction | null>(null);
 
   const name = showFounder
     ? booking.founder?.nickName || booking.founder?.name || "Founder"
@@ -415,6 +468,34 @@ const BookingCard = memo(function BookingCard({
   const [deleting, setDeleting] = useState(false);
   const todayRef = useRef(new Date());
   const disablePastDates = useCallback((date: Date) => date < todayRef.current, []);
+  const activeModalAction: BookingAction | null = showCancel
+    ? "cancel"
+    : showReschedule
+      ? "reschedule"
+      : showLocation
+        ? "location"
+        : null;
+  const selectedRescheduleSummary = selectedRescheduleSlot
+    ? `${format(parseISO(selectedRescheduleSlot.startTime), "MMM d, yyyy, h:mm a")} - ${format(parseISO(selectedRescheduleSlot.endTime), "h:mm a")}`
+    : "";
+  const locationLabel = isOnline ? "meeting link" : "location";
+  const resetModalState = () => {
+    setModalFeedback(null);
+    setConfirmAction(null);
+  };
+  const openActionDialog = (action: BookingAction) => {
+    setActionError(null);
+    resetModalState();
+    setShowCancel(action === "cancel");
+    setShowReschedule(action === "reschedule");
+    setShowLocation(action === "location");
+  };
+  const closeActionDialog = () => {
+    setShowCancel(false);
+    setShowReschedule(false);
+    setShowLocation(false);
+    resetModalState();
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -520,7 +601,7 @@ const BookingCard = memo(function BookingCard({
 
   const handleCancel = async () => {
     setCancelling(true);
-    setActionError(null);
+    setModalFeedback({ kind: "info", message: "Cancelling this meetup..." });
     try {
       const tgHeaders = getHeaders();
       const res = await fetch(`/api/bookings/${booking.id}`, {
@@ -530,13 +611,14 @@ const BookingCard = memo(function BookingCard({
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        setActionError(d.error || "Cancel failed");
+        setModalFeedback({ kind: "error", message: d.error || "Cancel failed" });
         return;
       }
-      setShowCancel(false);
+      setConfirmAction(null);
+      setModalFeedback({ kind: "success", message: "Meetup cancelled. The other party has been notified." });
       await onUpdate();
     } catch {
-      setActionError("Network error — please try again");
+      setModalFeedback({ kind: "error", message: "Network error — please try again" });
     } finally { setCancelling(false); }
   };
 
@@ -624,7 +706,7 @@ const BookingCard = memo(function BookingCard({
   const handleReschedule = async () => {
     if (!selectedRescheduleSlot) return;
     setRescheduling(true);
-    setActionError(null);
+    setModalFeedback({ kind: "info", message: "Rescheduling this meetup..." });
     try {
       const tgHeaders = getHeaders();
       const res = await fetch(`/api/bookings/${booking.id}`, {
@@ -638,19 +720,20 @@ const BookingCard = memo(function BookingCard({
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        setActionError(d.error || "Reschedule failed");
+        setModalFeedback({ kind: "error", message: d.error || "Reschedule failed" });
         return;
       }
-      setShowReschedule(false);
+      setConfirmAction(null);
+      setModalFeedback({ kind: "success", message: "Meetup rescheduled. The other party has been notified." });
       await onUpdate();
     } catch {
-      setActionError("Network error — please try again");
+      setModalFeedback({ kind: "error", message: "Network error — please try again" });
     } finally { setRescheduling(false); }
   };
 
   const handleSaveLocation = async () => {
     setSavingLocation(true);
-    setActionError(null);
+    setModalFeedback({ kind: "info", message: `Saving the ${locationLabel}...` });
     try {
       const tgHeaders = getHeaders();
       const res = await fetch(`/api/bookings/${booking.id}`, {
@@ -663,13 +746,14 @@ const BookingCard = memo(function BookingCard({
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        setActionError(d.error || "Save failed");
+        setModalFeedback({ kind: "error", message: d.error || "Save failed" });
         return;
       }
-      setShowLocation(false);
+      setConfirmAction(null);
+      setModalFeedback({ kind: "success", message: `${isOnline ? "Meeting link" : "Location"} updated. The other party has been notified.` });
       await onUpdate();
     } catch {
-      setActionError("Network error — please try again");
+      setModalFeedback({ kind: "error", message: "Network error — please try again" });
     } finally { setSavingLocation(false); }
   };
 
@@ -748,7 +832,7 @@ const BookingCard = memo(function BookingCard({
                 variant="outline"
                 size="sm"
                 className="text-red-600 hover:text-red-700"
-                onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}
+                onClick={() => openActionDialog("cancel")}
               >
                 <X className="mr-1 h-3.5 w-3.5" />Cancel
               </Button>
@@ -789,7 +873,7 @@ const BookingCard = memo(function BookingCard({
                 variant="outline"
                 size="sm"
                 className="text-red-600 hover:text-red-700"
-                onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}
+                onClick={() => openActionDialog("cancel")}
               >
                 <X className="mr-1 h-3.5 w-3.5" />Cancel
               </Button>
@@ -802,17 +886,17 @@ const BookingCard = memo(function BookingCard({
             <Separator className="my-3" />
             <div className="flex flex-wrap gap-2">
               {canRescheduleOrCancel && (
-                <Button variant="outline" size="sm" onClick={() => { setShowReschedule(!showReschedule); setShowCancel(false); setShowLocation(false); }}>
+                <Button variant="outline" size="sm" onClick={() => openActionDialog("reschedule")}>
                   <RotateCcw className="mr-1 h-3.5 w-3.5" />Reschedule
                 </Button>
               )}
               {canChangeLocation && (
-                <Button variant="outline" size="sm" onClick={() => { setShowLocation(!showLocation); setShowCancel(false); setShowReschedule(false); }}>
+                <Button variant="outline" size="sm" onClick={() => openActionDialog("location")}>
                   <MapPinned className="mr-1 h-3.5 w-3.5" />{isOnline ? "Meeting Link" : "Location"}
                 </Button>
               )}
               {canRescheduleOrCancel && (
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}>
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => openActionDialog("cancel")}>
                   <X className="mr-1 h-3.5 w-3.5" />Cancel
                 </Button>
               )}
@@ -842,83 +926,172 @@ const BookingCard = memo(function BookingCard({
           </>
         )}
 
-        {showCancel && (
-          <div className="surface-danger mt-3 space-y-2 rounded-lg p-3">
-            <p className="text-sm font-medium text-rose-100">Cancel this meetup?</p>
-            <Input placeholder="Reason (optional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
-            <div className="flex gap-2">
-              <Button size="sm" variant="destructive" onClick={handleCancel} disabled={cancelling}>
-                {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Cancel"}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowCancel(false)}>Back</Button>
-            </div>
-          </div>
-        )}
+        <Dialog open={activeModalAction !== null} onOpenChange={(open) => { if (!open) closeActionDialog(); }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {activeModalAction === "cancel"
+                  ? "Cancel meetup"
+                  : activeModalAction === "reschedule"
+                    ? "Reschedule meetup"
+                    : "Update meetup details"}
+              </DialogTitle>
+              <DialogDescription>
+                {activeModalAction === "cancel"
+                  ? "Review the cancellation before it is sent."
+                  : activeModalAction === "reschedule"
+                    ? "Choose a new available slot, then confirm the change."
+                    : `Change the ${locationLabel}, then confirm the update.`}
+              </DialogDescription>
+            </DialogHeader>
 
-        {showReschedule && (
-          <div className="mt-3 space-y-3 rounded-lg border p-3">
-            <p className="text-sm font-medium">Pick a new date & time</p>
-            <CalendarPicker mode="single" selected={rescheduleDate} onSelect={setRescheduleDate} disabled={disablePastDates} className="rounded-md border" />
-            {rescheduleDate && (
-              slotsLoading ? (
-                <div className="flex items-center gap-2 py-3 justify-center">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Loading slots...</span>
-                </div>
-              ) : rescheduleSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No available slots for this date.</p>
+            <ModalFeedback feedback={modalFeedback} />
+
+            {activeModalAction === "cancel" && (
+              <div className="space-y-3">
+                <Input
+                  placeholder="Reason (optional)"
+                  value={cancelReason}
+                  onChange={(e) => {
+                    setCancelReason(e.target.value);
+                    resetModalState();
+                  }}
+                  disabled={cancelling || modalFeedback?.kind === "success"}
+                />
+                {confirmAction === "cancel" && modalFeedback?.kind !== "success" && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                    This will cancel the meetup and notify the other party.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeModalAction === "reschedule" && (
+              <div className="space-y-3">
+                <CalendarPicker
+                  mode="single"
+                  selected={rescheduleDate}
+                  onSelect={(date) => {
+                    setRescheduleDate(date);
+                    resetModalState();
+                  }}
+                  disabled={disablePastDates}
+                  className="rounded-md border"
+                />
+                {rescheduleDate && (
+                  slotsLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Loading slots...</span>
+                    </div>
+                  ) : rescheduleSlots.length === 0 ? (
+                    <p className="py-2 text-sm text-muted-foreground">No available slots for this date.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {rescheduleSlots.map((slot) => (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          disabled={rescheduling || modalFeedback?.kind === "success"}
+                          onClick={() => {
+                            setSelectedRescheduleSlot(slot);
+                            resetModalState();
+                          }}
+                          className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                            selectedRescheduleSlot?.startTime === slot.startTime
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-input bg-muted/50 hover:bg-muted"
+                          }`}
+                        >
+                          {format(parseISO(slot.startTime), "h:mm a")}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                )}
+                {confirmAction === "reschedule" && selectedRescheduleSlot && modalFeedback?.kind !== "success" && (
+                  <div className="rounded-md border bg-muted/50 p-3 text-sm">
+                    Confirm moving this meetup to {selectedRescheduleSummary}?
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeModalAction === "location" && (
+              <div className="space-y-3">
+                {isOnline ? (
+                  <Input
+                    placeholder="https://zoom.us/j/..."
+                    value={locationValue}
+                    onChange={(e) => {
+                      setLocationValue(e.target.value);
+                      resetModalState();
+                    }}
+                    disabled={savingLocation || modalFeedback?.kind === "success"}
+                  />
+                ) : (
+                  <AddressAutocompleteInput
+                    placeholder="Type 4+ characters (e.g. postal code), then choose an exact address"
+                    value={locationValue}
+                    onChange={(value) => {
+                      setLocationValue(value);
+                      resetModalState();
+                    }}
+                    disabled={savingLocation || modalFeedback?.kind === "success"}
+                  />
+                )}
+                {confirmAction === "location" && modalFeedback?.kind !== "success" && (
+                  <div className="rounded-md border bg-muted/50 p-3 text-sm">
+                    Confirm this {locationLabel}: {locationValue.trim() || "empty value"}?
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              {modalFeedback?.kind === "success" ? (
+                <Button size="sm" onClick={closeActionDialog}>Done</Button>
               ) : (
-                <div className="grid grid-cols-3 gap-1.5">
-                  {rescheduleSlots.map((slot) => (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      onClick={() => setSelectedRescheduleSlot(slot)}
-                      className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
-                        selectedRescheduleSlot?.startTime === slot.startTime
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-input bg-muted/50 hover:bg-muted"
-                      }`}
-                    >
-                      {format(parseISO(slot.startTime), "h:mm a")}
-                    </button>
-                  ))}
-                </div>
-              )
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleReschedule} disabled={!selectedRescheduleSlot || rescheduling}>
-                {rescheduling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Reschedule"}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowReschedule(false)}>Back</Button>
-            </div>
-          </div>
-        )}
-
-        {showLocation && (
-          <div className="mt-3 space-y-2 rounded-lg border p-3">
-            <p className="text-sm font-medium">{isOnline ? "Meeting Link" : "Address"}</p>
-            {isOnline ? (
-              <Input
-                placeholder="https://zoom.us/j/..."
-                value={locationValue}
-                onChange={(e) => setLocationValue(e.target.value)}
-              />
-            ) : (
-              <AddressAutocompleteInput
-                placeholder="Type 4+ characters (e.g. postal code), then choose an exact address"
-                value={locationValue}
-                onChange={setLocationValue}
-              />
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleSaveLocation} disabled={savingLocation}>
-                {savingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowLocation(false)}>Back</Button>
-            </div>
-          </div>
-        )}
+                <>
+                  <Button size="sm" variant="ghost" onClick={closeActionDialog}>Back</Button>
+                  {activeModalAction === "cancel" && (
+                    confirmAction === "cancel" ? (
+                      <Button size="sm" variant="destructive" onClick={handleCancel} disabled={cancelling}>
+                        {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm cancel"}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="destructive" onClick={() => setConfirmAction("cancel")}>
+                        Review cancel
+                      </Button>
+                    )
+                  )}
+                  {activeModalAction === "reschedule" && (
+                    confirmAction === "reschedule" ? (
+                      <Button size="sm" onClick={handleReschedule} disabled={!selectedRescheduleSlot || rescheduling}>
+                        {rescheduling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm reschedule"}
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => setConfirmAction("reschedule")} disabled={!selectedRescheduleSlot}>
+                        Review reschedule
+                      </Button>
+                    )
+                  )}
+                  {activeModalAction === "location" && (
+                    confirmAction === "location" ? (
+                      <Button size="sm" onClick={handleSaveLocation} disabled={savingLocation || locationValue.trim().length === 0}>
+                        {savingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm update"}
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => setConfirmAction("location")} disabled={locationValue.trim().length === 0}>
+                        Review update
+                      </Button>
+                    )
+                  )}
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {showLeaveAppreciation && (
           <PlayerAppreciationForm

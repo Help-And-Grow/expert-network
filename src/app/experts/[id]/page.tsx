@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -28,6 +28,7 @@ import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
+import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -330,6 +331,14 @@ export default function ExpertProfilePage() {
     fetchReviews(true);
   };
 
+  const openServiceDocument = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      openExternalUrl(`/api/experts/${id}/document`);
+    },
+    [id],
+  );
+
   if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -597,6 +606,9 @@ export default function ExpertProfilePage() {
           <a
             href={`/api/experts/${id}/document`}
             download
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={openServiceDocument}
             className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium transition-colors hover:bg-slate-900"
           >
             <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />

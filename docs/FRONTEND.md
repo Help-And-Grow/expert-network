@@ -39,6 +39,8 @@ Next.js App Router with file-based routing under `src/app/`.
 - MVP voice is system-managed: hide voice-clone controls in product UI and use a professional default voice by gender.
 - Free meetups should not mention payment due; offline meetup links should open Google Maps on web when an address is present.
 - WeChat and web booking dashboards should both surface player appreciation and coach follow-up directly on the meetup card.
+- Meetup cancel, reschedule, and meeting-link/location edits use modal confirmation with in-modal success/error feedback; slot-conflict errors should not render as page-level banners.
+- Telegram Mini App document downloads must open through the Telegram external-link bridge because in-WebView `download` links can be ignored.
 
 ## Key Components
 

@@ -38,10 +38,20 @@ export function getTelegramInitData(): string | null {
  * In web: uses window.open().
  */
 export function openExternalUrl(url: string) {
+  if (typeof window === "undefined") return;
+  const resolvedUrl = new URL(url, window.location.origin).toString();
+
   if (isTelegramMiniApp()) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).Telegram?.WebApp?.openLink?.(url);
-  } else {
-    window.open(url, "_blank", "noopener,noreferrer");
+    const webApp = (window as any).Telegram?.WebApp;
+    if (typeof webApp?.openLink === "function") {
+      webApp.openLink(resolvedUrl, { try_instant_view: false });
+      return;
+    }
+  }
+
+  const opened = window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    window.location.assign(resolvedUrl);
   }
 }
