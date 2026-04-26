@@ -169,7 +169,7 @@ function SignInForm() {
           </div>
         )}
 
-        {devAvailable && (
+        {devAvailable && (magicLinkAvailable || googleAvailable) && (
           <div className="relative">
             <Separator className="my-4" />
             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -243,7 +243,7 @@ function SignInForm() {
           </Button>
         )}
 
-        {!magicLinkAvailable && !googleAvailable && (
+        {!devAvailable && !magicLinkAvailable && !googleAvailable && (
           <p className="rounded-lg border border-border/80 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
             Sign-in options are not configured on this deployment yet.
           </p>
