@@ -555,6 +555,7 @@ export default function ProfilePage() {
 
   const handleDeleteAccount = async () => {
     if (!confirm("Are you sure you want to delete your account? This action cannot be undone.")) return;
+    if (!confirm("This is your final warning. Are you ABSOLUTELY sure you want to delete your account? All your data will be permanently lost.")) return;
     
     setDeletingAccount(true);
     try {
