@@ -30,20 +30,46 @@ export async function GET(
       data: { status: "CANCELLED", cancelReason: "Payment not confirmed within 30 minutes" },
     });
 
-    const slots = await prisma.availableSlot.findMany({
-      where: { expertId, isBooked: false, endTime: { gt: now } },
-      orderBy: { startTime: "asc" },
-    });
+    const [slots, expert, expertBookings] = await Promise.all([
+      prisma.availableSlot.findMany({
+        where: { expertId, isBooked: false, endTime: { gt: now } },
+        orderBy: { startTime: "asc" },
+      }),
+      // Need the expert's userId to also find bookings where they are the player/founder
+      prisma.expert.findUnique({ where: { id: expertId }, select: { userId: true } }),
+      prisma.booking.findMany({
+        where: {
+          expertId,
+          status: { in: ["PENDING", "CONFIRMED"] },
+          endTime: { gt: now },
+        },
+        select: { startTime: true, endTime: true },
+        orderBy: { startTime: "asc" },
+      }),
+    ]);
 
-    const bookedSlots = await prisma.booking.findMany({
-      where: {
-        expertId,
-        status: { in: ["PENDING", "CONFIRMED"] },
-        endTime: { gt: now },
-      },
-      select: { startTime: true, endTime: true },
-      orderBy: { startTime: "asc" },
-    });
+    // Also block slots where the expert is busy as a player (founder) in another booking
+    const founderBookings = expert
+      ? await prisma.booking.findMany({
+          where: {
+            founderId: expert.userId,
+            status: { in: ["PENDING", "CONFIRMED"] },
+            endTime: { gt: now },
+          },
+          select: { startTime: true, endTime: true },
+        })
+      : [];
+
+    // Deduplicate by merging both sets
+    const seen = new Set<string>();
+    const bookedSlots: { startTime: Date; endTime: Date }[] = [];
+    for (const b of [...expertBookings, ...founderBookings]) {
+      const key = `${b.startTime.toISOString()}-${b.endTime.toISOString()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        bookedSlots.push(b);
+      }
+    }
 
     return NextResponse.json({ slots, bookedSlots });
   } catch (error) {
