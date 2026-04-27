@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
       orderBy: { startTime: "asc" },
       include: {
         expert: { include: { user: true } },
-        founder: true,
+        founder: { include: { expert: { select: { id: true, isPublished: true } } } },
         review: {
           select: {
             id: true,

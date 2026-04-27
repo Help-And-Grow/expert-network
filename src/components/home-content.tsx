@@ -24,7 +24,7 @@ import { getTelegramInitData } from "@/lib/telegram";
 export function HomeContent() {
   const { isTelegram } = useTelegram();
   const { status, user } = useAuth();
-  const [hasExpert, setHasExpert] = useState<boolean | null>(null);
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const [expertLoading, setExpertLoading] = useState(false);
 
   useEffect(() => {
@@ -38,13 +38,13 @@ export function HomeContent() {
 
     fetch("/api/user", { headers })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setHasExpert(!!data?.expert))
-      .catch(() => setHasExpert(false))
+      .then((data) => setOnboardingDone(!!data?.expert?.isPublished))
+      .catch(() => setOnboardingDone(false))
       .finally(() => setExpertLoading(false));
   }, [status, isTelegram, user?.id]);
 
   const isLoggedIn = status === "authenticated" || isTelegram;
-  const showExpertLoading = expertLoading || (isLoggedIn && hasExpert === null);
+  const showExpertLoading = expertLoading || (isLoggedIn && onboardingDone === null);
 
   return (
     <div className="app-shell min-h-screen w-full max-w-lg mx-auto flex flex-col">
@@ -104,7 +104,9 @@ export function HomeContent() {
                     size="lg"
                     className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
                   >
-                    <Link href="/booking">My Meetups</Link>
+                    <Link href={onboardingDone ? "/booking" : "/onboarding"}>
+                      {onboardingDone ? "My Meetups" : "Onboard"}
+                    </Link>
                   </Button>
                 )}
               </>

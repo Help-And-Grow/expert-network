@@ -162,6 +162,7 @@ interface Booking {
     id: string;
     name: string | null;
     nickName: string | null;
+    expert?: { id: string; isPublished: boolean } | null;
   };
   review?: BookingReview | null;
 }
@@ -461,6 +462,11 @@ const BookingCard = memo(function BookingCard({
   const name = showFounder
     ? booking.founder?.nickName || booking.founder?.name || "Founder"
     : booking.expert?.user?.nickName || booking.expert?.user?.name || "Expert";
+  const profileExpertId = showFounder
+    ? booking.founder?.expert?.isPublished
+      ? booking.founder.expert.id
+      : null
+    : booking.expert?.id ?? null;
   const isOnline = booking.sessionType === "ONLINE";
   const start = parseISO(booking.startTime);
   const msUntilStart = start.getTime() - Date.now();
@@ -784,7 +790,18 @@ const BookingCard = memo(function BookingCard({
         )}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-medium">{name}</p>
+            <p className="font-medium">
+              {profileExpertId ? (
+                <Link
+                  href={`/experts/${profileExpertId}`}
+                  className="hover:underline focus:underline focus:outline-none"
+                >
+                  {name}
+                </Link>
+              ) : (
+                name
+              )}
+            </p>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(start, "MMM d, yyyy")}</span>
               <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{format(start, "h:mm a")}</span>
