@@ -254,6 +254,13 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showMessage("File too large. Maximum 4MB.", "document", true, 5000);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -261,10 +268,18 @@ export default function ProfilePage() {
     try {
       const res = await fetch("/api/onboarding/upload", {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const raw = await res.text();
+      let data: { error?: string; success?: boolean } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        // Non-JSON response (e.g. Vercel's 413 "Request Entity Too Large" HTML page).
+        if (!res.ok) throw new Error(`Upload failed (status ${res.status})`);
+      }
+      if (!res.ok) throw new Error(data.error ?? `Upload failed (status ${res.status})`);
       setUploadedFileName(file.name);
       showMessage("Document uploaded!", "document");
       fetchProfile();
@@ -1201,7 +1216,7 @@ export default function ProfilePage() {
                   )}
                 </Button>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  PDF, DOCX, TXT, or MD up to 5MB
+                  PDF up to 4MB
                 </p>
               </CardContent>
             </Card>
