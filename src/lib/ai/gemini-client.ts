@@ -4,13 +4,6 @@ import { GoogleGenAI } from "@google/genai";
 
 import { env } from "@/lib/env";
 
-import {
-  getGeminiImageModel,
-  getGeminiTextModel,
-} from "./provider-catalog";
-
-export { getGeminiImageModel, getGeminiTextModel };
-
 function setupServiceAccountAuth() {
   const encoded = env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (!encoded || process.env.GOOGLE_APPLICATION_CREDENTIALS) return;

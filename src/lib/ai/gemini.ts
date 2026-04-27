@@ -3,12 +3,11 @@ import { Modality } from "@google/genai";
 import { env } from "@/lib/env";
 
 import { BaseAIProvider } from "./base-provider";
+import { createGeminiClient, createGeminiImageClient } from "./gemini-client";
 import {
-  createGeminiClient,
-  createGeminiImageClient,
   getGeminiImageModel,
   getGeminiTextModel,
-} from "./gemini-client";
+} from "./provider-catalog";
 import {
   formatSocialLinks,
   buildProfilePromptWithNativeSearch,

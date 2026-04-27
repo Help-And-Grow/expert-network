@@ -8,7 +8,8 @@
 
 import { env } from "@/lib/env";
 
-import { createGeminiClient, getGeminiTextModel } from "./gemini-client";
+import { createGeminiClient } from "./gemini-client";
+import { getGeminiTextModel } from "./provider-catalog";
 import {
   buildSearchPrompt,
   formatSocialLinks,
