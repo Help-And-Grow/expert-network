@@ -3,22 +3,15 @@ import * as fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 
 import { env } from "@/lib/env";
+
 import {
+  getGeminiImageModel,
+  getGeminiTextModel,
   GEMINI_DEFAULT_IMAGE_MODEL,
   GEMINI_DEFAULT_TEXT_MODEL,
 } from "./provider-catalog";
 
-export async function getGeminiTextModel(): Promise<string> {
-  const { getSystemConfig } = await import("@/lib/system-config");
-  const dbModel = await getSystemConfig("GEMINI_TEXT_MODEL");
-  return dbModel || env.GEMINI_TEXT_MODEL?.trim() || GEMINI_DEFAULT_TEXT_MODEL;
-}
-
-export async function getGeminiImageModel(): Promise<string> {
-  const { getSystemConfig } = await import("@/lib/system-config");
-  const dbModel = await getSystemConfig("GEMINI_IMAGE_MODEL");
-  return dbModel || env.GEMINI_IMAGE_MODEL?.trim() || GEMINI_DEFAULT_IMAGE_MODEL;
-}
+export { getGeminiImageModel, getGeminiTextModel };
 
 function setupServiceAccountAuth() {
   const encoded = env.GOOGLE_SERVICE_ACCOUNT_KEY;

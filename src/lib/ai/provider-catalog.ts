@@ -273,3 +273,24 @@ export function getQwenTextModel(): string {
 export function getQwenImageModel(): string {
   return env.QWEN_IMAGE_MODEL?.trim() || QWEN_DEFAULT_IMAGE_MODEL;
 }
+
+
+export async function getGeminiTextModel(): Promise<string> {
+  const state = await getProviderModelState("gemini");
+  return state.textModel || GEMINI_DEFAULT_TEXT_MODEL;
+}
+
+export async function getGeminiImageModel(): Promise<string> {
+  const state = await getProviderModelState("gemini");
+  return state.imageModel || GEMINI_DEFAULT_IMAGE_MODEL;
+}
+
+export async function getDedalusTextModel(): Promise<string> {
+  const state = await getProviderModelState("dedalus");
+  return state.textModel || DEDALUS_DEFAULT_TEXT_MODEL;
+}
+
+export async function getDedalusImageModel(): Promise<string> {
+  const state = await getProviderModelState("dedalus");
+  return state.imageModel || DEDALUS_DEFAULT_IMAGE_MODEL;
+}

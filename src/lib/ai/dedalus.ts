@@ -35,7 +35,7 @@ async function chat(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: model || getDedalusTextModel(),
+      model: model || await getDedalusTextModel(),
       messages,
       temperature: 0.7,
     }),
@@ -99,7 +99,7 @@ ${sources || "No external sources provided."}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: getDedalusImageModel(),
+          model: await getDedalusImageModel(),
           prompt: `Professional avatar illustration for ${data.nickName}. ${data.gender || ""}. Modern, clean, friendly style with a subtle gradient background. No text.`,
           n: 1,
           size: "1024x1024",
