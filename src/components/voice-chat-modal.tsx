@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Clock3, Loader2, Send, Sparkles, X } from "lucide-react";
 
@@ -69,6 +70,14 @@ export function VoiceChatModal({
   const pendingSessionIdRef = useRef<string | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const shouldStopAfterConnectRef = useRef(false);
+
+  const router = useRouter();
+  const redirectToSignIn = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const callbackUrl = `${window.location.pathname}${window.location.search}`;
+    onClose();
+    router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }, [onClose, router]);
 
   messagesRef.current = messages;
 
@@ -180,6 +189,7 @@ export function VoiceChatModal({
     await fetch("/api/voice-chat/stop", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ sessionId: activeSessionId }),
     }).catch(() => {});
   }, []);
@@ -217,8 +227,13 @@ export function VoiceChatModal({
       const res = await fetch("/api/voice-chat/greeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ expertId }),
       });
+      if (res.status === 401) {
+        redirectToSignIn();
+        return;
+      }
       const data = (await res.json()) as { replyText?: string; replyAudio?: string | null };
       if (!res.ok || !data.replyText) return;
       if (messagesRef.current.length > 0) return;
@@ -252,6 +267,7 @@ export function VoiceChatModal({
     nextMessageId,
     playGreetingAudio,
     speakGreetingWithDeviceVoice,
+    redirectToSignIn,
   ]);
 
   useEffect(() => {
@@ -262,8 +278,13 @@ export function VoiceChatModal({
         const res = await fetch("/api/voice-chat/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ expertId }),
         });
+        if (res.status === 401) {
+          if (!cancelled) redirectToSignIn();
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
           sessionId?: string;
@@ -317,7 +338,7 @@ export function VoiceChatModal({
         timerRef.current = null;
       }
     };
-  }, [expertId, fetchGreeting, stopSessionById]);
+  }, [expertId, fetchGreeting, stopSessionById, redirectToSignIn]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -335,6 +356,7 @@ export function VoiceChatModal({
         const res = await fetch("/api/voice-chat/message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             expertId,
             sessionId,
@@ -342,6 +364,10 @@ export function VoiceChatModal({
             includeAudio: false,
           }),
         });
+        if (res.status === 401) {
+          redirectToSignIn();
+          return;
+        }
         const data = (await res.json()) as {
           error?: string;
           replyText?: string;
@@ -366,7 +392,7 @@ export function VoiceChatModal({
         setSending(false);
       }
     },
-    [expertId, nextMessageId, sending, sessionId, sessionState],
+    [expertId, nextMessageId, sending, sessionId, sessionState, redirectToSignIn],
   );
 
   const handleClose = useCallback(async () => {

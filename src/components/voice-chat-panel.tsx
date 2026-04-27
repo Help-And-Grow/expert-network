@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import {
   Mic,
@@ -96,6 +97,14 @@ export function VoiceChatPanel({
   const [showStarters, setShowStarters] = useState(true);
   const [greetingLoading, setGreetingLoading] = useState(false);
   const [deviceVoiceSupported, setDeviceVoiceSupported] = useState(false);
+
+  const router = useRouter();
+  const redirectToSignIn = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const callbackUrl = `${window.location.pathname}${window.location.search}`;
+    onClose();
+    router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }, [onClose, router]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -287,6 +296,10 @@ export function VoiceChatPanel({
           credentials: "include",
           body: JSON.stringify({ expertId }),
         });
+        if (res.status === 401) {
+          if (!cancelled) redirectToSignIn();
+          return;
+        }
         const data = (await res.json()) as {
           replyText?: string;
           replyAudio?: string;
@@ -347,6 +360,7 @@ export function VoiceChatPanel({
     autoPlayAssistantReply,
     fallbackGreetingText,
     stopPlayback,
+    redirectToSignIn,
   ]);
 
   const startRecording = useCallback(async () => {
@@ -417,9 +431,14 @@ export function VoiceChatPanel({
 
         const res = await fetch("/api/voice-chat/message", {
           method: "POST",
+          credentials: "include",
           body: formData,
         });
 
+        if (res.status === 401) {
+          redirectToSignIn();
+          return;
+        }
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to send message");
 
@@ -447,7 +466,7 @@ export function VoiceChatPanel({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expertId, autoPlayAssistantReply],
+    [expertId, autoPlayAssistantReply, redirectToSignIn],
   );
 
   const sendText = useCallback(async (overrideText?: string) => {
@@ -466,9 +485,14 @@ export function VoiceChatPanel({
       const res = await fetch("/api/voice-chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ expertId, text }),
       });
 
+      if (res.status === 401) {
+        redirectToSignIn();
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send message");
 
@@ -488,7 +512,7 @@ export function VoiceChatPanel({
       setProcessing(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expertId, textInput, processing, autoPlayAssistantReply, unlockAudioPlayback]);
+  }, [expertId, textInput, processing, autoPlayAssistantReply, unlockAudioPlayback, redirectToSignIn]);
 
   const togglePlayback = useCallback(
     (msg: Message) => {
