@@ -126,7 +126,9 @@ const envSchema = z
     GEMINI_TTS_MODEL: z.string().optional(),
     GEMINI_TTS_VOICE_MALE: z.string().optional(),
     GEMINI_TTS_VOICE_FEMALE: z.string().optional(),
-    /** Vertex AI region for image generation only. `gemini-2.5-flash-image` is not in every region; default `global` when unset. */
+    /** Gemini text embedding model used by pgvector memory (default `gemini-embedding-001`). */
+    GEMINI_EMBEDDING_MODEL: z.string().optional(),
+    /** Vertex AI region for image generation only. `gemini-3.1-flash-image-preview` is not in every region; default `global` when unset. */
     GEMINI_IMAGE_VERTEX_LOCATION: z.string().optional(),
 
     DASHSCOPE_API_KEY: z.string().optional(),

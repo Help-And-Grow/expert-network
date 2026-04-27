@@ -10,6 +10,7 @@ import { resolvePrimaryDatabaseUrl } from "@/lib/env";
 
 import { Pool } from "pg";
 import { env } from "@/lib/env";
+import { createGeminiClient } from "@/lib/ai/gemini-client";
 
 let pool: Pool | null | undefined;
 
@@ -31,30 +32,30 @@ function getPool(): Pool | null {
   return pool;
 }
 
-async function fetchOpenAiEmbedding(text: string): Promise<number[] | null> {
-  const key = env.OPENAI_API_KEY;
-  if (!key) return null;
+const EMBEDDING_DIMENSIONS = 1536;
+
+async function fetchGeminiEmbedding(
+  text: string,
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY",
+): Promise<number[] | null> {
+  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) return null;
   const input = text.slice(0, 8000);
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
-      input,
-    }),
-  });
-  if (!res.ok) {
-    console.warn("[pgvector-memory] OpenAI embeddings error:", await res.text());
+  try {
+    const client = createGeminiClient();
+    const res = await client.models.embedContent({
+      model: env.GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+      contents: input,
+      config: {
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+        taskType,
+      },
+    });
+    const emb = res.embeddings?.[0]?.values;
+    return Array.isArray(emb) ? emb : null;
+  } catch (err) {
+    console.warn("[pgvector-memory] Gemini embedding error:", err);
     return null;
   }
-  const data = (await res.json()) as {
-    data?: { embedding: number[] }[];
-  };
-  const emb = data.data?.[0]?.embedding;
-  return Array.isArray(emb) ? emb : null;
 }
 
 function toVectorLiteral(values: number[]): string {
@@ -70,7 +71,10 @@ export async function storeExpertMemoryChunk(params: {
   const p = getPool();
   if (!p) return;
   try {
-    const embedding = await fetchOpenAiEmbedding(params.content);
+    const embedding = await fetchGeminiEmbedding(
+      params.content,
+      "RETRIEVAL_DOCUMENT",
+    );
     const id = randomUUID();
     await p.query(
       `INSERT INTO expert_memory_embeddings (id, expert_id, content, tags, source, embedding)
@@ -97,7 +101,7 @@ export async function searchExpertMemoryChunks(
   const p = getPool();
   if (!p) return [];
   try {
-    const qEmb = await fetchOpenAiEmbedding(query);
+    const qEmb = await fetchGeminiEmbedding(query, "RETRIEVAL_QUERY");
     if (qEmb && qEmb.length > 0) {
       const vec = toVectorLiteral(qEmb);
       const r = await p.query<{ content: string }>(

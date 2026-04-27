@@ -55,7 +55,7 @@ function isRetryableGeminiTransportError(err: unknown): boolean {
 
 export class GeminiProvider extends BaseAIProvider {
   private ai = createGeminiClient();
-  /** Separate Vertex region when text location lacks gemini-2.5-flash-image support. */
+  /** Separate Vertex region when text location lacks gemini-3.1-flash-image-preview support. */
   private imageAi = createGeminiImageClient();
 
   constructor() {

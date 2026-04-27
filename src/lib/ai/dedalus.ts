@@ -245,7 +245,7 @@ Return ONLY a valid JSON object:
           ] as unknown as string,
         },
       ],
-      "google/gemini-2.5-flash"
+      "google/gemini-3-flash-preview"
     );
     return text;
   }

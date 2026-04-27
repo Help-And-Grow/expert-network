@@ -11,7 +11,7 @@ import type {
 } from "./types";
 
 /** @see https://ai.google.dev/gemini-api/docs/speech-generation */
-const DEFAULT_GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+const DEFAULT_GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview";
 
 function getTtsModel(): string {
   return env.GEMINI_TTS_MODEL?.trim() || DEFAULT_GEMINI_TTS_MODEL;
