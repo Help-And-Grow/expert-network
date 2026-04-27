@@ -7,8 +7,6 @@ import { env } from "@/lib/env";
 import {
   getGeminiImageModel,
   getGeminiTextModel,
-  GEMINI_DEFAULT_IMAGE_MODEL,
-  GEMINI_DEFAULT_TEXT_MODEL,
 } from "./provider-catalog";
 
 export { getGeminiImageModel, getGeminiTextModel };

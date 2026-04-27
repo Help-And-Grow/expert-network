@@ -7,9 +7,9 @@ import {
 import { BaseAIProvider } from "./base-provider";
 import {
   createGeminiClient,
-  getGeminiImageModel,
 } from "./gemini-client";
 import {
+  getGeminiImageModel,
   getZAIImageModel,
   getZAITextModel,
   getZAIVertexTextModel,
@@ -139,7 +139,7 @@ export class ZAIProvider extends BaseAIProvider {
       try {
         const gemini = createGeminiClient();
         const response = await gemini.models.generateContent({
-          model: getGeminiImageModel(),
+          model: await getGeminiImageModel(),
           contents: prompt,
           config: { responseModalities: ["IMAGE"] },
         });
