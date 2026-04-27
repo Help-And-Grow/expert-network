@@ -7,7 +7,7 @@ import { getStorageProvider, getActiveStorageProviderName } from "@/lib/storage"
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  STORAGE_PROVIDER: z.enum(["vercel", "gcs", "db"]).optional(),
+  STORAGE_PROVIDER: z.enum(["vercel", "gcs", "tencent-cos", "db"]).optional(),
 });
 
 export async function GET(request: NextRequest) {

@@ -112,7 +112,7 @@ const envSchema = z
       .default("qwen"),
 
     STORAGE_PROVIDER: z
-      .enum(["vercel", "gcs", "db"])
+      .enum(["vercel", "gcs", "tencent-cos", "db"])
       .default("db"),
 
     GEMINI_API_KEY: z.string().optional(),
@@ -227,6 +227,13 @@ const envSchema = z
     BLOB_READ_WRITE_TOKEN: z.string().optional(),
     /** GCS Bucket name. */
     GCS_BUCKET_NAME: z.string().optional(),
+    /** Tencent COS credentials (cam.tencentcloud.com → API keys). */
+    TENCENT_COS_SECRET_ID: z.string().optional(),
+    TENCENT_COS_SECRET_KEY: z.string().optional(),
+    /** Bucket name including AppID suffix, e.g. "hg-wechat-1300000000". */
+    TENCENT_COS_BUCKET: z.string().optional(),
+    /** COS region, e.g. "ap-guangzhou" / "ap-singapore". */
+    TENCENT_COS_REGION: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (process.env.NODE_ENV !== "production") return;

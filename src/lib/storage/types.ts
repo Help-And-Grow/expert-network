@@ -13,4 +13,4 @@ export interface StorageProvider {
   isConfigured(): boolean;
 }
 
-export type StorageProviderName = "vercel" | "gcs" | "db";
+export type StorageProviderName = "vercel" | "gcs" | "tencent-cos" | "db";

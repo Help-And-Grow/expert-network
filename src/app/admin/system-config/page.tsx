@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type StorageProviderName = "vercel" | "gcs" | "db";
+type StorageProviderName = "vercel" | "gcs" | "tencent-cos" | "db";
 
 type ConfigStatus = {
   STORAGE_PROVIDER: StorageProviderName;
@@ -148,6 +148,7 @@ export default function AdminCloudConfigPage() {
                     <SelectItem value="db">Database (Data URLs - Legacy)</SelectItem>
                     <SelectItem value="vercel">Vercel Blob</SelectItem>
                     <SelectItem value="gcs">Google Cloud Storage</SelectItem>
+                    <SelectItem value="tencent-cos">Tencent COS (China)</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-slate-500">
@@ -186,6 +187,9 @@ export default function AdminCloudConfigPage() {
                   )}
                   {selectedStorage === "gcs" && (
                     <p className="mt-1">Uses Google Cloud Storage. Requires <code>GCS_BUCKET_NAME</code> and <code>GOOGLE_CLOUD_PROJECT</code> / Service Account.</p>
+                  )}
+                  {selectedStorage === "tencent-cos" && (
+                    <p className="mt-1">Uses Tencent COS for China-local low-latency storage. Requires <code>TENCENT_COS_SECRET_ID</code>, <code>TENCENT_COS_SECRET_KEY</code>, <code>TENCENT_COS_BUCKET</code>, and <code>TENCENT_COS_REGION</code>.</p>
                   )}
                 </div>
               </div>

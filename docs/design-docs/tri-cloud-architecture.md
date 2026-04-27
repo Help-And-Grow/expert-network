@@ -22,8 +22,11 @@ We have implemented a factory-based storage system that supports multiple driver
   - `DatabaseStorageProvider`: (Legacy) Stores files as Base64 in the DB.
   - `VercelBlobProvider`: Fast edge storage for Vercel deployments.
   - `GoogleCloudStorageProvider`: Scalable storage for GCP deployments.
-  - `TencentCOSProvider`: (Planned) Low-latency storage for China-based users.
-- **Auto-Routing**: The system can dynamically route uploads based on the active `STORAGE_PROVIDER` setting.
+  - `TencentCOSStorageProvider`: Low-latency storage for China-based users (`src/lib/storage/tencent-cos.ts`).
+- **Auto-Routing**: The factory inspects request-origin headers stamped by the TCB proxy. WeChat-originated requests route to Tencent COS automatically when configured; everything else uses the `STORAGE_PROVIDER` setting.
+
+### WeChat → GCP Bridge (TCB Proxy)
+A Tencent CloudBase HTTP-trigger function (`infra/tcb-proxy/`) terminates inside the WeChat-allowlisted CN domain set and forwards traffic to the Cloud Run origin in `asia-southeast1`. It stamps `x-forwarded-via: tcb-proxy` and `x-forwarded-from: wechat` so the Next.js origin can make region-aware decisions (see `lib/request-origin.ts`).
 
 ## AI Integration
 Gemini is the primary AI engine, integrated via both AI Studio and Vertex AI (for enterprise/GCP workloads).
@@ -31,7 +34,6 @@ Gemini is the primary AI engine, integrated via both AI Studio and Vertex AI (fo
 - **Model Registry**: Model IDs (Text/Image) are now fetched asynchronously from `SystemConfig` or environment variables, allowing for seamless upgrades (e.g., Gemini 3 Flash -> Pro).
 
 ## Remaining Work
-1. **Tencent COS Driver**: Implement `src/lib/storage/drivers/tencent-cos.ts`.
-2. **WeChat Proxy Gateway**: Deploy a Tencent Cloud Base (TCB) function to bridge WeChat traffic to GCP Asia-Southeast1.
-3. **Regional Storage Switching**: Logic to automatically select COS for WeChat-originating media uploads.
-4. **Environment Sync**: Standardize `.env` variables across GCP and Vercel for the new config system.
+1. **Environment Sync**: Standardize `.env` variables across GCP and Vercel for the new config system.
+2. **Tencent COS bucket provisioning**: stand up the actual COS bucket + CAM credentials (code is ready; `TENCENT_COS_*` env vars need values).
+3. **TCB deployment**: register the function from `infra/tcb-proxy/` against the production CloudBase env and bind the WeChat-allowlisted custom domain.

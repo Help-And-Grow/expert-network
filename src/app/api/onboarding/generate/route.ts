@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     let finalImageUrl = profileImage;
     if (profileImage && profileImage.startsWith("data:")) {
       try {
-        const storage = await getStorageProvider();
+        const storage = await getStorageProvider({ request });
         const [meta, data] = profileImage.split(",");
         const mime = meta.match(/:(.*?);/)?.[1] || "image/png";
         const buffer = Buffer.from(data, "base64");

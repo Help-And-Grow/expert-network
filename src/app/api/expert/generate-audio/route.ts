@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         : new Error("Voice synthesis returned no playable audio.");
     }
 
-    const storage = await getStorageProvider();
+    const storage = await getStorageProvider({ request });
     const storagePath = `experts/${expert.id}/audio-intro-${Date.now()}.mp3`;
     const audioUrl = await storage.upload(storagePath, audioBuffer, {
       contentType: audioMime,

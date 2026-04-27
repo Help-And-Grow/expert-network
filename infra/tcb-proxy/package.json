@@ -1,0 +1,14 @@
+{
+  "name": "hg-tcb-proxy",
+  "version": "0.1.0",
+  "description": "Tencent CloudBase HTTP-trigger function bridging WeChat Mini Program traffic to the GCP Cloud Run origin.",
+  "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "deploy": "tcb fn deploy hg-proxy --force",
+    "logs": "tcb fn log hg-proxy"
+  }
+}
