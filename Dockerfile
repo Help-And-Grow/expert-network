@@ -5,7 +5,9 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci
+COPY scripts ./scripts
+COPY prisma ./prisma
+RUN npm ci --legacy-peer-deps
 
 # Stage 2: Build the application
 FROM node:20-alpine AS builder

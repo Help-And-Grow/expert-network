@@ -245,6 +245,7 @@ export function computeProviderHealth(keys: Set<string>) {
   >;
 }
 
+
 export function getOpenAITextModel(): string {
   return env.OPENAI_TEXT_MODEL?.trim() || OPENAI_DEFAULT_TEXT_MODEL;
 }
@@ -271,20 +272,4 @@ export function getQwenTextModel(): string {
 
 export function getQwenImageModel(): string {
   return env.QWEN_IMAGE_MODEL?.trim() || QWEN_DEFAULT_IMAGE_MODEL;
-}
-
-export function getGeminiTextModel(): string {
-  return env.GEMINI_TEXT_MODEL?.trim() || GEMINI_DEFAULT_TEXT_MODEL;
-}
-
-export function getGeminiImageModel(): string {
-  return env.GEMINI_IMAGE_MODEL?.trim() || GEMINI_DEFAULT_IMAGE_MODEL;
-}
-
-export function getDedalusTextModel(): string {
-  return env.DEDALUS_MODEL?.trim() || DEDALUS_DEFAULT_TEXT_MODEL;
-}
-
-export function getDedalusImageModel(): string {
-  return env.DEDALUS_IMAGE_MODEL?.trim() || DEDALUS_DEFAULT_IMAGE_MODEL;
 }

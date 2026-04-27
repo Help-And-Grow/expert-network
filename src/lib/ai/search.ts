@@ -43,7 +43,7 @@ export async function searchSocialProfiles(
 
   try {
     const response = await gemini.models.generateContent({
-      model: getGeminiTextModel(),
+      model: await getGeminiTextModel(),
       contents: prompt,
       config: { tools: [{ googleSearch: {} }] },
     });
@@ -72,7 +72,7 @@ export async function extractPdfWithGemini(base64: string): Promise<string> {
   }
 
   const response = await gemini.models.generateContent({
-    model: getGeminiTextModel(),
+    model: await getGeminiTextModel(),
     contents: [
       {
         role: "user",
