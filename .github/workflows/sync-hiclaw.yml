@@ -1,14 +1,11 @@
 name: Sync HiClaw Upstream
 
 on:
-  schedule:
-    # Run every Monday at 00:00 UTC
-    - cron: '0 0 * * 1'
-  workflow_dispatch: # Allows manual triggering from the GitHub Actions UI
+  workflow_dispatch: # Manual trigger only — schedule re-enabled after May 1 2026
 
 jobs:
   sync-hiclaw:
-    if: false # Disabled until May 1 due to Action minute quota limits
+    # Re-enable schedule trigger (cron: '0 0 * * 1') after May 1 2026 quota resets
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
