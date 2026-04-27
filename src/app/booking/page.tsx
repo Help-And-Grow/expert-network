@@ -792,9 +792,10 @@ const BookingCard = memo(function BookingCard({
               {profileExpertId ? (
                 <Link
                   href={`/experts/${profileExpertId}`}
-                  className="hover:underline focus:underline focus:outline-none"
+                  className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary focus:outline-none focus:decoration-primary"
                 >
                   {name}
+                  <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
                 </Link>
               ) : (
                 name
