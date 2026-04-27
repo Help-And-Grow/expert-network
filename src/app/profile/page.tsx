@@ -214,6 +214,9 @@ export default function ProfilePage() {
     setSavingIntro(true);
     try {
       await saveSection({ avatarScript: introScript, bio });
+      setProfile((prev) =>
+        prev ? { ...prev, avatarScript: introScript, bio } : prev,
+      );
       setEditingIntro(false);
       showMessage("Introduction saved!", "intro");
     } catch (err) {
