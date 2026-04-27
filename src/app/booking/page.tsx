@@ -463,9 +463,7 @@ const BookingCard = memo(function BookingCard({
     ? booking.founder?.nickName || booking.founder?.name || "Founder"
     : booking.expert?.user?.nickName || booking.expert?.user?.name || "Expert";
   const profileExpertId = showFounder
-    ? booking.founder?.expert?.isPublished
-      ? booking.founder.expert.id
-      : null
+    ? booking.founder?.expert?.id ?? null
     : booking.expert?.id ?? null;
   const isOnline = booking.sessionType === "ONLINE";
   const start = parseISO(booking.startTime);
