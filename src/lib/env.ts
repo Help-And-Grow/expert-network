@@ -111,6 +111,10 @@ const envSchema = z
       .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
       .default("qwen"),
 
+    STORAGE_PROVIDER: z
+      .enum(["vercel", "gcs", "db"])
+      .default("db"),
+
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLOUD_PROJECT: z.string().optional(),
     GOOGLE_CLOUD_LOCATION: z.string().optional(),
@@ -218,6 +222,11 @@ const envSchema = z
     VERCEL_MANAGED_TEAM_ID: z.string().optional(),
     VERCEL_MANAGED_PROJECT: z.string().optional(),
     VERCEL_DEPLOY_HOOK_URL: z.string().url().optional(),
+
+    /** Vercel Blob storage token. */
+    BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    /** GCS Bucket name. */
+    GCS_BUCKET_NAME: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (process.env.NODE_ENV !== "production") return;

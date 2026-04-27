@@ -8,12 +8,16 @@ import {
   GEMINI_DEFAULT_TEXT_MODEL,
 } from "./provider-catalog";
 
-export function getGeminiTextModel(): string {
-  return env.GEMINI_TEXT_MODEL?.trim() || GEMINI_DEFAULT_TEXT_MODEL;
+export async function getGeminiTextModel(): Promise<string> {
+  const { getSystemConfig } = await import("@/lib/system-config");
+  const dbModel = await getSystemConfig("GEMINI_TEXT_MODEL");
+  return dbModel || env.GEMINI_TEXT_MODEL?.trim() || GEMINI_DEFAULT_TEXT_MODEL;
 }
 
-export function getGeminiImageModel(): string {
-  return env.GEMINI_IMAGE_MODEL?.trim() || GEMINI_DEFAULT_IMAGE_MODEL;
+export async function getGeminiImageModel(): Promise<string> {
+  const { getSystemConfig } = await import("@/lib/system-config");
+  const dbModel = await getSystemConfig("GEMINI_IMAGE_MODEL");
+  return dbModel || env.GEMINI_IMAGE_MODEL?.trim() || GEMINI_DEFAULT_IMAGE_MODEL;
 }
 
 function setupServiceAccountAuth() {

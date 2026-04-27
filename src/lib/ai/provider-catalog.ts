@@ -56,9 +56,9 @@ export const ZAI_DEFAULT_VERTEX_TEXT_MODEL = "glm-5-maas";
 export const ZAI_DEFAULT_IMAGE_MODEL = "glm-image";
 export const QWEN_DEFAULT_TEXT_MODEL = "qwen3.6-plus";
 export const QWEN_DEFAULT_IMAGE_MODEL = "wan2.7-image-pro";
-export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3-flash-preview";
-export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image-preview";
-export const DEDALUS_DEFAULT_TEXT_MODEL = "google/gemini-3-flash-preview";
+export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.1-flash";
+export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
+export const DEDALUS_DEFAULT_TEXT_MODEL = "google/gemini-2.5-flash";
 export const DEDALUS_DEFAULT_IMAGE_MODEL = "openai/dall-e-3";
 export const BYTEPLUS_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
 export const VOLCENGINE_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
@@ -178,8 +178,10 @@ export function normalizeAIProviderName(
   return ALL_AI_PROVIDERS.find((provider) => provider === normalized) ?? null;
 }
 
-export function getActiveAIProviderName(): AIProviderName {
-  return normalizeAIProviderName(env.AI_PROVIDER) ?? "qwen";
+export async function getActiveAIProviderName(): Promise<AIProviderName> {
+  const { getSystemConfig } = await import("@/lib/system-config");
+  const dbProvider = await getSystemConfig("AI_PROVIDER");
+  return normalizeAIProviderName(dbProvider || env.AI_PROVIDER) ?? "gemini";
 }
 
 export function getProviderModelDefaults(provider: AIProviderName): {
@@ -193,16 +195,28 @@ export function getProviderModelDefaults(provider: AIProviderName): {
   };
 }
 
-export function getProviderModelState(provider: AIProviderName): {
+export async function getProviderModelState(provider: AIProviderName): Promise<{
   textModel: string | null;
   imageModel: string | null;
   textModelEnvKey: string | null;
   imageModelEnvKey: string | null;
-} {
+}> {
   const meta = AI_PROVIDER_CATALOG[provider];
+  const { getSystemConfig } = await import("@/lib/system-config");
+
+  let dbTextModel: string | null = null;
+  let dbImageModel: string | null = null;
+
+  if (meta.textModelEnvKey) {
+    dbTextModel = await getSystemConfig(meta.textModelEnvKey);
+  }
+  if (meta.imageModelEnvKey) {
+    dbImageModel = await getSystemConfig(meta.imageModelEnvKey);
+  }
+
   return {
-    textModel: getModelEnvValue(meta.textModelEnvKey) || meta.defaultTextModel || null,
-    imageModel: getModelEnvValue(meta.imageModelEnvKey) || meta.defaultImageModel || null,
+    textModel: dbTextModel || getModelEnvValue(meta.textModelEnvKey) || meta.defaultTextModel || null,
+    imageModel: dbImageModel || getModelEnvValue(meta.imageModelEnvKey) || meta.defaultImageModel || null,
     textModelEnvKey: meta.textModelEnvKey ?? null,
     imageModelEnvKey: meta.imageModelEnvKey ?? null,
   };

@@ -83,8 +83,13 @@ export async function GET(
       return NextResponse.json({ error: "No audio intro" }, { status: 404 });
     }
 
+    const audioUrl = expert.audioIntroUrl;
+    if (audioUrl.startsWith("http")) {
+      return NextResponse.redirect(audioUrl);
+    }
+
     // Support audio/mp3, audio/mpeg, audio/mp4, etc. (base64 may wrap)
-    const match = expert.audioIntroUrl.match(
+    const match = audioUrl.match(
       /^data:(audio\/[^;]+);base64,([\s\S]+)$/
     );
     if (!match) {

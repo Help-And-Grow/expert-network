@@ -348,6 +348,9 @@ function AdminContent() {
               <Link href="/admin/ai-provider">AI Provider</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/system-config">Cloud & Infra</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/admin/tidb">HiClaw DB</Link>
             </Button>
             <Button

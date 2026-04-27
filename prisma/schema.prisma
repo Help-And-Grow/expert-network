@@ -264,3 +264,9 @@ enum OnboardingStep {
   PREVIEW
   PUBLISHED
 }
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -5,6 +5,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   // Avoid picking a parent-folder lockfile as the tracing root (e.g. ~/package-lock.json).
   outputFileTracingRoot: path.join(__dirname),
   images: {

@@ -78,7 +78,7 @@ export class GeminiProvider extends BaseAIProvider {
       config.systemInstruction = systemInstruction;
     }
 
-    const model = getGeminiTextModel();
+    const model = await getGeminiTextModel();
     const genConfig = config as Parameters<
       typeof this.ai.models.generateContent
     >[0]["config"];
@@ -153,7 +153,7 @@ export class GeminiProvider extends BaseAIProvider {
     );
 
     const response = await this.ai.models.generateContent({
-      model: getGeminiTextModel(),
+      model: await getGeminiTextModel(),
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_PROMPTS.PROFILE_BUILDER,
@@ -194,7 +194,7 @@ export class GeminiProvider extends BaseAIProvider {
     try {
       // Vertex / AI Studio: image models expect TEXT + IMAGE modalities (IMAGE-only often returns no inline image).
       const response = await this.imageAi.models.generateContent({
-        model: getGeminiImageModel(),
+        model: await getGeminiImageModel(),
         contents: prompt,
         config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
       });
@@ -236,7 +236,7 @@ export class GeminiProvider extends BaseAIProvider {
     const base64 = buffer.toString("base64");
 
     const response = await this.ai.models.generateContent({
-      model: getGeminiTextModel(),
+      model: await getGeminiTextModel(),
       contents: [
         {
           role: "user",

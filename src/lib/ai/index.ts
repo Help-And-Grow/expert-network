@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
-import { env } from "@/lib/env";
 import type { AIProvider } from "./types";
 
 export type {
@@ -59,9 +58,10 @@ const PROVIDERS: Record<string, () => AIProvider> = {
 
 let _provider: AIProvider | null = null;
 
-function provider(): AIProvider {
+async function provider(): Promise<AIProvider> {
   if (!_provider) {
-    const name = env.AI_PROVIDER || "qwen";
+    const { getActiveAIProviderName } = await import("./provider-catalog");
+    const name = await getActiveAIProviderName();
     const factory = PROVIDERS[name];
     if (!factory) {
       throw new Error(
@@ -89,38 +89,38 @@ export function createAIProviderForName(name: string): AIProvider {
 // Public API — unchanged, consumers keep importing these functions
 // ---------------------------------------------------------------------------
 
-export function generateExpertProfile(
+export async function generateExpertProfile(
   ...args: Parameters<AIProvider["generateExpertProfile"]>
 ) {
-  return provider().generateExpertProfile(...args);
+  return (await provider()).generateExpertProfile(...args);
 }
 
-export function generateProfileImage(
+export async function generateProfileImage(
   ...args: Parameters<AIProvider["generateProfileImage"]>
 ) {
-  return provider().generateProfileImage(...args);
+  return (await provider()).generateProfileImage(...args);
 }
 
-export function improveWriting(
+export async function improveWriting(
   ...args: Parameters<AIProvider["improveWriting"]>
 ) {
-  return provider().improveWriting(...args);
+  return (await provider()).improveWriting(...args);
 }
 
-export function normalizeQuery(
+export async function normalizeQuery(
   ...args: Parameters<AIProvider["normalizeQuery"]>
 ) {
-  return provider().normalizeQuery(...args);
+  return (await provider()).normalizeQuery(...args);
 }
 
-export function matchExperts(
+export async function matchExperts(
   ...args: Parameters<AIProvider["matchExperts"]>
 ) {
-  return provider().matchExperts(...args);
+  return (await provider()).matchExperts(...args);
 }
 
-export function extractTextFromPdf(
+export async function extractTextFromPdf(
   ...args: Parameters<AIProvider["extractTextFromPdf"]>
 ) {
-  return provider().extractTextFromPdf(...args);
+  return (await provider()).extractTextFromPdf(...args);
 }

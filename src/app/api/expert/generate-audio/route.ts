@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import {
-  buildProfileAudioDataUrl,
   getProfileIntroVoiceSynthesisProviders,
 } from "@/lib/profile-media";
+import { getStorageProvider } from "@/lib/storage";
+import { normalizeAudioForBrowserPlayback } from "@/lib/audio-format";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
@@ -42,7 +43,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let dataUrl: string | null = null;
+    let audioBuffer: Buffer | null = null;
+    let audioMime: string | null = null;
     let lastError: unknown = null;
 
     for (const voiceSynthesis of voiceSynthesisProviders) {
@@ -54,25 +56,43 @@ export async function POST(request: NextRequest) {
           format: "mp3",
           speed: 1.0,
         });
-        dataUrl = buildProfileAudioDataUrl(result);
+        
+        const normalizedBase64 = result.audioBase64.replace(/\s+/g, "");
+        const buffer = Buffer.from(normalizedBase64, "base64");
+        if (buffer.length === 0) {
+          throw new Error("Voice synthesis returned empty audio.");
+        }
+        const normalized = normalizeAudioForBrowserPlayback({
+          buffer,
+          declaredMime: result.format?.includes("/") ? result.format : null,
+          declaredFormat: result.format,
+        });
+        audioBuffer = normalized.buffer;
+        audioMime = normalized.mimeType;
         break;
       } catch (error) {
         lastError = error;
       }
     }
 
-    if (!dataUrl) {
+    if (!audioBuffer || !audioMime) {
       throw lastError instanceof Error
         ? lastError
         : new Error("Voice synthesis returned no playable audio.");
     }
 
-    await prisma.expert.update({
-      where: { id: expert.id },
-      data: { audioIntroUrl: dataUrl },
+    const storage = await getStorageProvider();
+    const storagePath = `experts/${expert.id}/audio-intro-${Date.now()}.mp3`;
+    const audioUrl = await storage.upload(storagePath, audioBuffer, {
+      contentType: audioMime,
     });
 
-    return NextResponse.json({ audioIntroUrl: dataUrl });
+    await prisma.expert.update({
+      where: { id: expert.id },
+      data: { audioIntroUrl: audioUrl },
+    });
+
+    return NextResponse.json({ audioIntroUrl: audioUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[expert/generate-audio POST]", message, error);

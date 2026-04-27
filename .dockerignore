@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.github
+.vercel
+.vscode
+*.log
+.env*.local
+build
+dist
+e2e
+test-results
