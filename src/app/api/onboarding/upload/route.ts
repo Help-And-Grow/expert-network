@@ -4,6 +4,10 @@ import { extractTextFromPdf } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
+export const maxDuration = 60;
+
+const PDF_EXTRACTION_TIMEOUT_MS = 30_000;
+
 export async function POST(request: NextRequest) {
   try {
     const userId = await resolveUserId(request);
@@ -35,21 +39,38 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    let text = "";
-
-    try {
-      text = await extractTextFromPdf(buffer);
-    } catch (e) {
-      console.warn("[upload] PDF text extraction failed, saving file without text:", e instanceof Error ? e.message : e);
-    }
-
-    const trimmedText = text.trim().slice(0, 5000);
     const base64File = buffer.toString("base64");
     const dataUrl = `data:application/pdf;base64,${base64File}`;
 
     let expert = await prisma.expert.findUnique({
       where: { userId },
     });
+
+    // Only run the (slow) Gemini PDF→text extraction when avatarScript is
+    // actually needed. On a "Replace PDF" against an expert who already has a
+    // bio we'd otherwise waste 10-30s on a multimodal call that gets ignored.
+    const needsAvatarScriptFromPdf = !expert || !expert.bio;
+    let trimmedText = "";
+
+    if (needsAvatarScriptFromPdf) {
+      try {
+        const text = await Promise.race([
+          extractTextFromPdf(buffer),
+          new Promise<string>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("PDF extraction timed out")),
+              PDF_EXTRACTION_TIMEOUT_MS,
+            ),
+          ),
+        ]);
+        trimmedText = text.trim().slice(0, 5000);
+      } catch (e) {
+        console.warn(
+          "[upload] PDF text extraction failed, saving file without text:",
+          e instanceof Error ? e.message : e,
+        );
+      }
+    }
 
     const documentFields = {
       documentName: file.name,
