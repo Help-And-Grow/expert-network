@@ -10,6 +10,9 @@ export const DISCOVER_MATCH_STORAGE_KEY = "hg-discover-match-chat-v1";
 export type DiscoverMatchRecommendation = {
   expertId: string;
   name: string;
+  /** Short summary of the expert (bio snippet). Preferred for the card. */
+  summary?: string;
+  /** AI-generated rationale for why this expert matches the query. */
   reason: string;
   sessionTypes: string[];
 };

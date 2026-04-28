@@ -23,6 +23,21 @@ type MatchExpertRow = {
   avgRating: number;
 };
 
+const SUMMARY_MAX_CHARS = 180;
+
+function buildExpertSummary(expert: MatchExpertRow): string {
+  const bio = expert.bio?.trim();
+  if (bio) {
+    if (bio.length <= SUMMARY_MAX_CHARS) return bio;
+    return `${bio.slice(0, SUMMARY_MAX_CHARS - 1).trimEnd()}…`;
+  }
+  const focus = buildExpertFocusLabel(expert);
+  if (focus) return `Offers ${focus}.`;
+  const services = stringifyServicesOffered(expert.servicesOffered);
+  if (services) return `Services: ${services}`;
+  return "Active expert on Help & Grow.";
+}
+
 function keywordMatch(
   nq: NormalizedQuery,
   experts: MatchExpertRow[],
@@ -69,6 +84,7 @@ function keywordMatch(
     recommendations: scored.map((r) => ({
       expertId: r.expert.id,
       name: r.expert.user.nickName ?? r.expert.user.name ?? "Expert",
+      summary: buildExpertSummary(r.expert),
       reason: vendorSite
         ? "Matches your search based on their profile."
         : `Matches your search based on ${buildExpertFocusLabel(r.expert) ?? "their profile and services"}.`,
@@ -90,6 +106,7 @@ function exploratoryFallback(experts: MatchExpertRow[], vendorSite: boolean) {
     recommendations: top.map((e) => ({
       expertId: e.id,
       name: e.user.nickName ?? e.user.name ?? "Expert",
+      summary: buildExpertSummary(e),
       reason: vendorSite
         ? "Active expert on Help & Grow. Add more detail to your search for a tighter match."
         : `Active expert on Help & Grow (${buildExpertFocusLabel(e) ?? "multiple services"}). Add more detail to your search for a tighter match.`,
@@ -177,10 +194,25 @@ export async function POST(request: NextRequest) {
       .join("\n\n---\n\n");
 
     // Step 4: LLM match (with normalized context)
+    const expertById = new Map(experts.map((e) => [e.id, e]));
+    const enrichWithSummary = <
+      R extends { expertId: string; summary?: string },
+    >(
+      recs: R[] | undefined,
+    ): R[] | undefined =>
+      recs?.map((rec) => {
+        if (rec.summary) return rec;
+        const expert = expertById.get(rec.expertId);
+        return expert ? { ...rec, summary: buildExpertSummary(expert) } : rec;
+      });
+
     try {
       const result = await matchExperts(query, expertSummaries, history, nq);
       if ((result.recommendations?.length ?? 0) > 0) {
-        return NextResponse.json(result);
+        return NextResponse.json({
+          ...result,
+          recommendations: enrichWithSummary(result.recommendations) ?? [],
+        });
       }
 
       // Step 5: Keyword fallback using LLM-generated keywords

@@ -12,6 +12,7 @@ export interface ChatMessage {
 export interface ExpertRecommendation {
   expertId: string;
   name: string;
+  summary?: string;
   reason: string;
   sessionTypes: string[];
   profileUrl: string;
@@ -101,9 +102,16 @@ export async function chat(
             expert.priceOfflineCents || Infinity
           )
         : Infinity;
+      const bio = expert?.bio?.trim();
+      const summary = bio
+        ? bio.length <= 180
+          ? bio
+          : `${bio.slice(0, 179).trimEnd()}…`
+        : undefined;
       return {
         expertId: rec.expertId,
         name: rec.name,
+        summary,
         reason: rec.reason,
         sessionTypes: rec.sessionTypes,
         profileUrl: `${APP_BASE_URL}/experts/${rec.expertId}`,

@@ -72,6 +72,9 @@ export interface ExpertsResponse {
 export interface MatchRecommendation {
   expertId: string;
   name: string;
+  /** Short summary of the expert (bio snippet). Preferred for the card. */
+  summary?: string;
+  /** AI-generated rationale for why this expert matches the query. */
   reason: string;
   sessionTypes: string[];
 }

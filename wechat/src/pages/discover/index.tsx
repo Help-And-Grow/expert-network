@@ -76,6 +76,15 @@ function normalizeRecommendationReason(reason?: string): string {
   return hasChineseText(reason) ? reason : "与你当前问题最相关的经验与服务方向。";
 }
 
+function normalizeRecommendationSummary(
+  summary: string | undefined,
+  reason: string | undefined,
+): string {
+  const trimmed = summary?.trim();
+  if (trimmed) return trimmed;
+  return normalizeRecommendationReason(reason);
+}
+
 function useInviteGuard() {
   const [hasInvite, setHasInvite] = useState<boolean | null>(null);
 
@@ -320,7 +329,7 @@ export default function DiscoverPage() {
                             </View>
                           </View>
                           <Text className="discover__match-reason">
-                            {normalizeRecommendationReason(item.reason)}
+                            {normalizeRecommendationSummary(item.summary, item.reason)}
                           </Text>
                           <View className="discover__match-btn-row">
                             <View className="discover__match-btn">
