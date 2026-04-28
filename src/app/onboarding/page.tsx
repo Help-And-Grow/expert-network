@@ -15,7 +15,6 @@ import {
   Sparkles,
   Upload,
   FileText,
-  Volume2,
   Wallet,
   CheckCircle,
   DollarSign,
@@ -58,7 +57,6 @@ type Step =
   | "AVAILABILITY"
   | "STRIPE_KYC"
   | "AI_GENERATION"
-  | "VOICE_SAMPLE"
   | "PREVIEW";
 
 type Message = {
@@ -90,27 +88,26 @@ function getProgressValue(step: Step): number {
     case "NICKNAME":
       return 10;
     case "TELEGRAM_ID":
-      return 12;
-    case "GENDER":
       return 15;
-    case "WALLET":
+    case "GENDER":
       return 20;
+    case "WALLET":
+      return 25;
     case "SOCIAL_LINKS":
     case "DOCUMENT_UPLOAD":
-    case "SESSION_PREFS":
-      return 25;
-    case "PRICING":
       return 35;
+    case "SESSION_PREFS":
+      return 45;
+    case "PRICING":
+      return 55;
     case "AVAILABILITY":
-      return 42;
-    case "STRIPE_KYC":
-      return 46;
-    case "AI_GENERATION":
-      return 50;
-    case "VOICE_SAMPLE":
       return 65;
-    case "PREVIEW":
+    case "STRIPE_KYC":
       return 75;
+    case "AI_GENERATION":
+      return 90;
+    case "PREVIEW":
+      return 100;
     default:
       return 0;
   }
@@ -148,11 +145,11 @@ export default function OnboardingPage() {
   const [priceOffline, setPriceOffline] = useState("");
   const [onboardSchedule, setOnboardSchedule] = useState<WeeklySchedule>({});
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
-  const [generatingDefaultAudio, setGeneratingDefaultAudio] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [stripeKycLoading, setStripeKycLoading] = useState(false);
   const [stripeKycDone] = useState(false);
+  const [generationFailed, setGenerationFailed] = useState(false);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -505,17 +502,6 @@ export default function OnboardingPage() {
     startAIGeneration();
   };
 
-  // Voice sample question
-  useEffect(() => {
-    if (currentStep !== "VOICE_SAMPLE") return;
-    addStepMessage("voice-sample", {
-      id: "voice-sample",
-      role: "ai",
-      content:
-        "Your profile is ready. We will generate a professional default voice introduction based on gender for MVP. You can continue now and preview it before publishing.",
-      type: "text",
-    });
-  }, [currentStep, addStepMessage]);
 
   const saveOnboarding = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/onboarding", {
@@ -731,15 +717,14 @@ export default function OnboardingPage() {
 
   const startAIGeneration = async () => {
     setCurrentStep("AI_GENERATION");
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: "ai-processing",
-        role: "ai",
-        content: "Generating your profile — searching social profiles, writing bio, and creating your avatar image...",
-        type: "text",
-      },
-    ]);
+    setGenerationFailed(false);
+    addStepMessage("ai-processing", {
+      id: "ai-processing",
+      role: "ai",
+      content:
+        "All set — generating your profile now. Writing your bio, picking your avatar image, and recording your voice intro. This takes about 20–30 seconds.",
+      type: "text",
+    });
 
     try {
       const res = await fetch("/api/onboarding/generate", {
@@ -757,43 +742,36 @@ export default function OnboardingPage() {
         videoScript: data.videoScript ?? "",
         profileImage: data.profileImage ?? null,
       });
-      setCurrentStep("VOICE_SAMPLE");
+      if (data.audioIntroUrl) {
+        setAudioIntroUrl(data.audioIntroUrl);
+      }
+      setCurrentStep("PREVIEW");
     } catch (err) {
       console.error("AI generation error:", err);
+      setGenerationFailed(true);
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-error-${Date.now()}`,
           role: "ai",
-          content: "Something went wrong generating your profile. Please try again.",
+          content:
+            "Profile generation hit a snag — the AI provider may be rate-limited. Tap Retry to try again, or skip and edit manually on the next screen.",
           type: "text",
         },
       ]);
-      setCurrentStep("SESSION_PREFS");
+      // Stay on AI_GENERATION; the UI shows a Retry button.
     }
   };
 
-  const handleContinueToPreview = async () => {
-    if (audioIntroUrl) {
-      setCurrentStep("PREVIEW");
-      return;
-    }
-    setGeneratingDefaultAudio(true);
-    try {
-      const audioRes = await fetch("/api/expert/generate-audio", {
-        method: "POST",
-        headers: { ...tgHeaders },
-      });
-      if (audioRes.ok) {
-        const audioData = await audioRes.json();
-        setAudioIntroUrl(audioData.audioIntroUrl ?? null);
-      }
-    } catch {
-      // Continue to preview even if audio generation fails
-    } finally {
-      setGeneratingDefaultAudio(false);
-      setCurrentStep("PREVIEW");
-    }
+  const handleSkipGeneration = () => {
+    // Lets the user proceed to PREVIEW with a placeholder profile if all
+    // AI providers are down. They can edit the bio inline before publishing.
+    setGeneratedProfile({
+      bio: "",
+      videoScript: "",
+      profileImage: null,
+    });
+    setCurrentStep("PREVIEW");
   };
 
   const handleBioSave = async () => {
@@ -1393,44 +1371,31 @@ export default function OnboardingPage() {
         )}
 
         {currentStep === "AI_GENERATION" && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-          </div>
-        )}
-
-        {currentStep === "VOICE_SAMPLE" && (
-          <div className="space-y-3">
-            {audioIntroUrl && (
-              <AudioPlayer
-                src={audioIntroUrl}
-                label="Your voice introduction preview"
-              />
-            )}
-
-            <Button
-              variant={audioIntroUrl ? "default" : "outline"}
-              className={cn("w-full min-h-[44px]", audioIntroUrl && "bg-indigo-600 hover:bg-indigo-700")}
-              onClick={handleContinueToPreview}
-              disabled={generatingDefaultAudio}
-            >
-              {generatingDefaultAudio ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating voice intro...
-                </>
-              ) : audioIntroUrl ? (
-                <>
-                  <Volume2 className="mr-2 h-4 w-4" />
-                  Continue to Preview
-                </>
-              ) : (
-                <>
-                  <Volume2 className="mr-2 h-4 w-4" />
-                  Generate Voice & Continue
-                </>
-              )}
-            </Button>
-          </div>
+          generationFailed ? (
+            <div className="space-y-2">
+              <Button
+                onClick={startAIGeneration}
+                size="lg"
+                className="w-full min-h-[44px] bg-indigo-600 hover:bg-indigo-700"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                Retry generation
+              </Button>
+              <Button
+                onClick={handleSkipGeneration}
+                size="lg"
+                variant="outline"
+                className="w-full min-h-[44px]"
+              >
+                <SkipForward className="mr-2 h-4 w-4" />
+                Skip and edit manually
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+            </div>
+          )
         )}
       </div>
     </div>
