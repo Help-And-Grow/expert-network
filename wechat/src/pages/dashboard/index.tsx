@@ -151,9 +151,9 @@ export default function DashboardPage() {
         </View>
       ) : displayBookings.length === 0 ? (
         <View className="dashboard__empty">
-          <Text className="dashboard__empty-icon">
-            {tab === "upcoming" ? "📅" : "📋"}
-          </Text>
+          <View className="dashboard__empty-icon">
+            <Icon name={tab === "upcoming" ? "calendar" : "fileText"} size={48} color="#94a3b8" />
+          </View>
           <Text className="dashboard__empty-text">
             {tab === "upcoming"
               ? "暂无即将开始的见面"
@@ -197,7 +197,12 @@ export default function DashboardPage() {
                     {expertName.charAt(0).toUpperCase()}
                   </View>
                   <View className="dashboard__card-info">
-                    <Text className="dashboard__card-name">{expertName}</Text>
+                    <Text className="dashboard__card-name">
+                      {expertName}
+                      <View className="dashboard__card-name-link">
+                        <Icon name="externalLink" size={12} color="#4f46e5" />
+                      </View>
+                    </Text>
                     <Text className="dashboard__card-time">
                       <Icon name="calendar" size={14} color="#64748b" />
                       {formatDateTime(booking.startTime, booking.timezone)}
@@ -210,7 +215,11 @@ export default function DashboardPage() {
 
                 <View className="dashboard__card-details">
                   <Text className="dashboard__card-type">
-                    {booking.sessionType === "OFFLINE" ? "📍 线下" : "🖥 线上"}
+                    {booking.sessionType === "OFFLINE" ? (
+                      <><Icon name="mapPin" size={14} color="#64748b" /> 线下</>
+                    ) : (
+                      <><Icon name="monitor" size={14} color="#64748b" /> 线上</>
+                    )}
                   </Text>
                 </View>
 
@@ -233,20 +242,20 @@ export default function DashboardPage() {
 
                 {booking.offlineAddress && (
                   <View className="dashboard__card-link">
-                    <Text className="dashboard__card-link-label">📍 {booking.offlineAddress}</Text>
+                    <Text className="dashboard__card-link-label"><Icon name="mapPin" size={14} color="#64748b" /> {booking.offlineAddress}</Text>
                   </View>
                 )}
 
                 {booking.review?.comment && (
                   <View className="dashboard__feedback dashboard__feedback--appreciation">
-                    <Text className="dashboard__feedback-label">💗 Player appreciation</Text>
+                    <Text className="dashboard__feedback-label"><Icon name="heart" size={14} color="#ec4899" /> Player appreciation</Text>
                     <Text className="dashboard__feedback-text">{booking.review.comment}</Text>
                   </View>
                 )}
 
                 {booking.review?.expertSuggestion && (
                   <View className="dashboard__feedback dashboard__feedback--suggestion">
-                    <Text className="dashboard__feedback-label">✨ Coach follow-up</Text>
+                    <Text className="dashboard__feedback-label"><Icon name="sparkles" size={14} color="#6366f1" /> Coach follow-up</Text>
                     <Text className="dashboard__feedback-text">{booking.review.expertSuggestion}</Text>
                   </View>
                 )}

@@ -117,6 +117,12 @@
     color: $color-text-heading;
   }
 
+  &__card-name-link {
+    display: inline-flex;
+    margin-left: $spacing-2;
+    vertical-align: middle;
+  }
+
   &__card-time {
     display: block;
     font-size: $font-size-base;

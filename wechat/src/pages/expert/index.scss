@@ -387,6 +387,17 @@
     text-align: center;
   }
 
+  &__price-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-lg;
+    background: $color-bg-muted;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto $spacing-3;
+  }
+
   &__price-label {
     display: block;
     font-size: $font-size-md;

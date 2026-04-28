@@ -8,12 +8,11 @@ import Taro, {
 } from "@tarojs/taro";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { get } from "../../shared/api";
-import { getApiBase, getToken } from "../../shared/auth";
+import { getApiBase, getToken, isLoggedIn, wxLogin } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
 import { normalizeRouteId } from "../../shared/route-params";
-import { getDomainLabel } from "../../shared/types";
-import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
+import type { ExpertDetail, Review, ReviewsResponse, ServiceItem } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
 import { buildWebProfileLoginUrl, buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
@@ -268,13 +267,19 @@ export default function ExpertPage() {
             <Icon name="verified" size={14} color="#059669" /> 已认证
           </View>
         )}
-        {expert.domains && expert.domains.length > 0 && (
+        {expert.servicesOffered && expert.servicesOffered.length > 0 ? (
           <View className="expert-profile__domains">
-            {expert.domains.map((d) => (
-              <Text key={d} className="expert-profile__domain-chip">{getDomainLabel(d)}</Text>
+            {expert.servicesOffered.map((s) => (
+              <Text key={s.title} className="expert-profile__domain-chip">{s.title}</Text>
             ))}
           </View>
-        )}
+        ) : expert.domains && expert.domains.length > 0 ? (
+          <View className="expert-profile__domains">
+            {expert.domains.map((d) => (
+              <Text key={d} className="expert-profile__domain-chip">{d}</Text>
+            ))}
+          </View>
+        ) : null}
         <View className="expert-profile__rating">
           <View className="expert-profile__stars">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -335,7 +340,27 @@ export default function ExpertPage() {
           <View
             className="expert-profile__voice-chat-btn"
             hoverClass="expert-profile__voice-chat-btn--hover"
-            onClick={() => setShowVoiceChat(true)}
+            onClick={async () => {
+              if (!isLoggedIn()) {
+                const { confirm } = await Taro.showModal({
+                  title: "需要登录",
+                  content: "语音提问需要先登录，是否现在登录？",
+                  confirmText: "登录",
+                  cancelText: "取消",
+                });
+                if (!confirm) return;
+                try {
+                  Taro.showLoading({ title: "登录中..." });
+                  await wxLogin();
+                  Taro.hideLoading();
+                } catch {
+                  Taro.hideLoading();
+                  Taro.showToast({ title: "登录失败", icon: "none" });
+                  return;
+                }
+              }
+              setShowVoiceChat(true);
+            }}
           >
             <View className="expert-profile__voice-chat-icon">
               <Icon name="microphone" size={28} color="#4f46e5" />
@@ -429,6 +454,39 @@ export default function ExpertPage() {
           {expert.avatarScript || "暂未填写介绍"}
         </Text>
       </View>
+
+      {/* Session Pricing */}
+      {(expert.priceOnlineCents != null || expert.priceOfflineCents != null) && (
+        <View className="expert-profile__section">
+          <Text className="expert-profile__section-title">见面方式与价格</Text>
+          <View className="expert-profile__prices">
+            {expert.priceOnlineCents != null && (
+              <View className="expert-profile__price-card">
+                <View className="expert-profile__price-icon">
+                  <Icon name="monitor" size={20} color="#4f46e5" />
+                </View>
+                <Text className="expert-profile__price-label">线上见面</Text>
+                <Text className="expert-profile__price-value">
+                  ${(expert.priceOnlineCents / 100).toFixed(0)}
+                </Text>
+                <Text className="expert-profile__price-note">每次 30 分钟</Text>
+              </View>
+            )}
+            {expert.priceOfflineCents != null && (
+              <View className="expert-profile__price-card">
+                <View className="expert-profile__price-icon">
+                  <Icon name="mapPin" size={20} color="#059669" />
+                </View>
+                <Text className="expert-profile__price-label">线下见面</Text>
+                <Text className="expert-profile__price-value">
+                  ${(expert.priceOfflineCents / 100).toFixed(0)}
+                </Text>
+                <Text className="expert-profile__price-note">每次 30 分钟</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Appreciations */}
       <View className="expert-profile__section">

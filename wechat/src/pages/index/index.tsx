@@ -1,7 +1,9 @@
 import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "../../components/Icon";
+import { get } from "../../shared/api";
+import { isLoggedIn } from "../../shared/auth";
 import "./index.scss";
 
 export default function IndexPage() {
@@ -9,6 +11,23 @@ export default function IndexPage() {
     const sysInfo = Taro.getSystemInfoSync();
     return sysInfo.statusBarHeight || 20;
   });
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isLoggedIn()) {
+      setOnboardingDone(false);
+      return;
+    }
+    get<{ expert?: { isPublished?: boolean } }>("/api/user")
+      .then((res) => {
+        if (res.statusCode === 200) {
+          setOnboardingDone(!!res.data?.expert?.isPublished);
+        } else {
+          setOnboardingDone(false);
+        }
+      })
+      .catch(() => setOnboardingDone(false));
+  }, []);
 
   const goDiscover = () => {
     Taro.switchTab({ url: "/pages/discover/index" });
@@ -16,6 +35,10 @@ export default function IndexPage() {
 
   const goOnboarding = () => {
     Taro.navigateTo({ url: "/pages/onboarding/index" });
+  };
+
+  const goDashboard = () => {
+    Taro.switchTab({ url: "/pages/dashboard/index" });
   };
 
   return (
@@ -44,9 +67,9 @@ export default function IndexPage() {
         <View
           className="landing__btn landing__btn--outline"
           hoverClass="landing__btn--hover"
-          onClick={goOnboarding}
+          onClick={onboardingDone ? goDashboard : goOnboarding}
         >
-          成为专家
+          {onboardingDone ? "我的见面" : "成为专家"}
         </View>
       </View>
 

@@ -3,7 +3,8 @@ import Taro, { useLoad, useDidShow, useShareAppMessage } from "@tarojs/taro";
 import { useState, useCallback } from "react";
 import { get } from "../../shared/api";
 import { getApiBase, getUser } from "../../shared/auth";
-import type { ExpertDetail, AuthUser } from "../../shared/types";
+import Icon from "../../components/Icon";
+import type { ExpertDetail, AuthUser, ServiceItem } from "../../shared/types";
 import "./index.scss";
 
 export default function ProfilePage() {
@@ -101,8 +102,8 @@ export default function ProfilePage() {
             <Text className="profile__stat-label">认可</Text>
           </View>
           <View className="profile__stat">
-            <Text className="profile__stat-value">{expert.domains.length}</Text>
-            <Text className="profile__stat-label">领域</Text>
+            <Text className="profile__stat-value">{expert.servicesOffered?.length ?? expert.domains.length}</Text>
+            <Text className="profile__stat-label">服务</Text>
           </View>
         </View>
       )}
@@ -128,7 +129,7 @@ export default function ProfilePage() {
               }}
             >
               <View className="profile__menu-icon-wrap profile__menu-icon-wrap--blue">
-                <Text className="profile__menu-icon">👤</Text>
+                <Icon name="user" size={28} color="#4f46e5" />
               </View>
               <View className="profile__menu-content">
                 <Text className="profile__menu-label">我的公开主页</Text>
@@ -144,7 +145,7 @@ export default function ProfilePage() {
               }}
             >
               <View className="profile__menu-icon-wrap profile__menu-icon-wrap--purple">
-                <Text className="profile__menu-icon">✏️</Text>
+                <Icon name="edit" size={28} color="#7c3aed" />
               </View>
               <View className="profile__menu-content">
                 <Text className="profile__menu-label">编辑主页</Text>
@@ -160,7 +161,7 @@ export default function ProfilePage() {
               }}
             >
               <View className="profile__menu-icon-wrap profile__menu-icon-wrap--green">
-                <Text className="profile__menu-icon">📅</Text>
+                <Icon name="calendar" size={28} color="#059669" />
               </View>
               <View className="profile__menu-content">
                 <Text className="profile__menu-label">管理可安排见面的时间</Text>
@@ -180,7 +181,7 @@ export default function ProfilePage() {
             }
           >
             <View className="profile__menu-icon-wrap profile__menu-icon-wrap--amber">
-              <Text className="profile__menu-icon">🌟</Text>
+              <Icon name="star" size={28} color="#d97706" />
             </View>
             <View className="profile__menu-content">
               <Text className="profile__menu-label">成为专家</Text>
@@ -199,7 +200,7 @@ export default function ProfilePage() {
           }}
         >
           <View className="profile__menu-icon-wrap profile__menu-icon-wrap--teal">
-            <Text className="profile__menu-icon">📤</Text>
+            <Icon name="share" size={28} color="#0d9488" />
           </View>
           <View className="profile__menu-content">
             <Text className="profile__menu-label">分享给朋友</Text>
@@ -221,7 +222,7 @@ export default function ProfilePage() {
           }}
         >
           <View className="profile__menu-icon-wrap profile__menu-icon-wrap--gray">
-            <Text className="profile__menu-icon">ℹ️</Text>
+            <Icon name="info" size={28} color="#64748b" />
           </View>
           <View className="profile__menu-content">
             <Text className="profile__menu-label">关于我们</Text>
