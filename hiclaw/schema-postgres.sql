@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS evaluator_critiques (
 
 CREATE INDEX IF NOT EXISTS idx_evaluator_critiques_session ON evaluator_critiques (session_id);
 
--- Optional: expert memory embeddings (pgvector) for shadow / search — enable extension on DB9/Postgres first.
+-- Optional: expert memory embeddings (pgvector) for shadow / search — enable the extension first.
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS expert_memory_embeddings (

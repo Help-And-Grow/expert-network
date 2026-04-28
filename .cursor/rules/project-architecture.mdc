@@ -58,7 +58,7 @@ hiclaw/service/       → HiClaw shadow service (Express): manager, shadow/evalu
 
 ## HiClaw shadow service
 
-Separate Node process documented in `hiclaw/README.md`. Session store: Postgres via HTTP SQL or `pg` (`DB9_*` / `HICLAW_POSTGRES_URL`). Next.js uses the same HiClaw tables via `src/lib/tidb.ts` (Postgres). Design: `docs/design-docs/hiclaw-agent-harness-db9.md`.
+Separate Node process documented in `hiclaw/README.md`. Session store: Postgres via `pg` (`HICLAW_POSTGRES_URL`, falls back to `DATABASE_URL`). Next.js reads the same HiClaw tables via `src/lib/tidb.ts` (Postgres; filename is historical). Design: `docs/design-docs/agent-system.md`.
 
 ## Documentation
 

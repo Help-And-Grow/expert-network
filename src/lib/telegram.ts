@@ -55,3 +55,51 @@ export function openExternalUrl(url: string) {
     window.location.assign(resolvedUrl);
   }
 }
+
+export type ShareResult = "telegram" | "web-share" | "copied" | "cancelled";
+
+/**
+ * Share a URL with optional text. Picks the best channel for the runtime:
+ * - Telegram Mini App → opens Telegram's native share sheet via t.me/share/url
+ * - Browser with Web Share API → navigator.share()
+ * - Otherwise → copies to clipboard
+ */
+export async function shareLink(input: {
+  url: string;
+  text?: string;
+}): Promise<ShareResult> {
+  if (typeof window === "undefined") return "cancelled";
+  const absoluteUrl = new URL(input.url, window.location.origin).toString();
+  const shareText = input.text ?? "";
+
+  if (isTelegramMiniApp()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const webApp = (window as any).Telegram?.WebApp;
+    const params = new URLSearchParams({ url: absoluteUrl, text: shareText });
+    const tgShareUrl = `https://t.me/share/url?${params.toString()}`;
+    if (typeof webApp?.openTelegramLink === "function") {
+      webApp.openTelegramLink(tgShareUrl);
+      return "telegram";
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nav = navigator as any;
+  if (typeof nav?.share === "function") {
+    try {
+      await nav.share({ url: absoluteUrl, text: shareText });
+      return "web-share";
+    } catch (error) {
+      const e = error as { name?: string };
+      if (e?.name === "AbortError") return "cancelled";
+    }
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(absoluteUrl);
+    return "copied";
+  }
+
+  window.prompt("Copy this link", absoluteUrl);
+  return "copied";
+}

@@ -17,6 +17,8 @@ import {
   ArrowLeft,
   Play,
   Pause,
+  Share2,
+  Check,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +30,7 @@ import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
-import { openExternalUrl } from "@/lib/telegram";
+import { openExternalUrl, shareLink } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -132,6 +134,7 @@ export default function ExpertProfilePage() {
   const [introLoading, setIntroLoading] = useState(true);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [showRealtimeChat, setShowRealtimeChat] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<"copied" | null>(null);
   const [vcConfig, setVcConfig] = useState<{
     asyncEnabled: boolean;
     realtimeEnabled: boolean;
@@ -339,6 +342,19 @@ export default function ExpertProfilePage() {
     [id],
   );
 
+  const handleShare = useCallback(async () => {
+    if (!expert) return;
+    const displayName = expert.user.nickName ?? expert.user.name ?? "an expert";
+    const result = await shareLink({
+      url: `/experts/${expert.id}`,
+      text: `Meet ${displayName} on Help & Grow — book a meetup or voice-chat for free.`,
+    });
+    if (result === "copied") {
+      setShareFeedback("copied");
+      setTimeout(() => setShareFeedback(null), 2000);
+    }
+  }, [expert]);
+
   if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -395,7 +411,27 @@ export default function ExpertProfilePage() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back
           </button>
-          <UserMenu />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share this profile"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-card/60 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-card"
+            >
+              {shareFeedback === "copied" ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-3.5 w-3.5" />
+                  Share
+                </>
+              )}
+            </button>
+            <UserMenu />
+          </div>
         </div>
       </header>
 

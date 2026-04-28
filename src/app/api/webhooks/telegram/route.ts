@@ -101,49 +101,75 @@ export async function POST(request: NextRequest) {
     if (update.inline_query) {
       const qId = update.inline_query.id;
       const fromId = String(update.inline_query.from.id);
-      const queryText = update.inline_query.query.trim().toLowerCase();
+      const queryText = update.inline_query.query.trim();
+      const queryLower = queryText.toLowerCase();
+      const results: Record<string, unknown>[] = [];
 
-      // Only handle "me" or empty query for personal profile sharing for now
-      if (queryText === "me" || queryText === "") {
-        const user = await prisma.user.findFirst({
-          where: { telegramId: fromId },
-          include: { expert: true },
-        });
-
-        if (user?.expert && user.expert.isPublished) {
-          const expert = user.expert;
-          const name = user.nickName || user.name || "Expert Profile";
-          const shareUrl = `${APP_URL}/experts/${expert.id}`;
-          const bookUrl = `${APP_URL}/experts/${expert.id}/book`;
-          const ratingText = expert.reviewCount > 0 
-            ? `⭐ ${expert.avgRating.toFixed(1)} (${expert.reviewCount} reviews)` 
+      const buildExpertCard = (
+        expert: { id: string; bio: string | null; reviewCount: number; avgRating: number },
+        user: { name: string | null; nickName: string | null; image: string | null },
+        sharerLabel?: string,
+      ): Record<string, unknown> => {
+        const name = user.nickName || user.name || "Expert";
+        const shareUrl = `${APP_URL}/experts/${expert.id}`;
+        const bookUrl = `${APP_URL}/experts/${expert.id}/book`;
+        const ratingText =
+          expert.reviewCount > 0
+            ? `⭐ ${expert.avgRating.toFixed(1)} (${expert.reviewCount} reviews)`
             : "New Expert";
+        const referrer = sharerLabel ? `\n\n_Shared by ${sharerLabel}_` : "";
+        return {
+          type: "article",
+          id: `expert_${expert.id}`,
+          title: name,
+          description: `${ratingText}\n${expert.bio?.slice(0, 100) || ""}`,
+          thumb_url: user.image || undefined,
+          input_message_content: {
+            message_text: `*${name} — Expert Profile*\n\n${expert.bio || ""}\n\n${ratingText}${referrer}`,
+            parse_mode: "Markdown",
+          },
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🚀 View Profile", web_app: { url: shareUrl } }],
+              [{ text: "📅 Book Session", web_app: { url: bookUrl } }],
+            ],
+          },
+        };
+      };
 
-          const result: Record<string, unknown> = {
-            type: "article",
-            id: `expert_${expert.id}`,
-            title: name,
-            description: `${ratingText}\n${expert.bio?.slice(0, 100) || ""}`,
-            thumb_url: user.image || undefined,
-            input_message_content: {
-              message_text: `*${name} — Expert Profile*\n\n${expert.bio || ""}\n\n${ratingText}`,
-              parse_mode: "Markdown",
-            },
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "🚀 View Profile", web_app: { url: shareUrl } }],
-                [{ text: "📅 Book Session", web_app: { url: bookUrl } }],
-              ],
-            },
-          };
+      // Resolve who is sharing (used for attribution + the "me" shortcut).
+      const sharer = await prisma.user.findFirst({
+        where: { telegramId: fromId },
+        include: { expert: true },
+      });
+      const sharerLabel = sharer?.nickName || sharer?.name || undefined;
 
-          await answerInlineQuery(botToken, qId, [result]);
-          return NextResponse.json({ ok: true });
+      // Self-share shortcut: "me" or empty query when caller has a published profile.
+      if ((queryLower === "me" || queryLower === "") && sharer?.expert?.isPublished) {
+        results.push(buildExpertCard(sharer.expert, sharer));
+      }
+
+      // Friend-to-friend search: free-text → published experts whose name/bio matches.
+      if (queryText.length >= 2 && queryLower !== "me") {
+        const matches = await prisma.expert.findMany({
+          where: {
+            isPublished: true,
+            OR: [
+              { user: { name: { contains: queryText, mode: "insensitive" } } },
+              { user: { nickName: { contains: queryText, mode: "insensitive" } } },
+              { bio: { contains: queryText, mode: "insensitive" } },
+            ],
+          },
+          include: { user: true },
+          orderBy: [{ avgRating: "desc" }, { reviewCount: "desc" }],
+          take: 10,
+        });
+        for (const expert of matches) {
+          results.push(buildExpertCard(expert, expert.user, sharerLabel));
         }
       }
 
-      // Default empty if not found
-      await answerInlineQuery(botToken, qId, []);
+      await answerInlineQuery(botToken, qId, results);
       return NextResponse.json({ ok: true });
     }
 
