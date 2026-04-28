@@ -155,6 +155,12 @@ export default function OnboardingPage() {
   /** Original placeholder text — used to detect "user has actually edited" before allowing publish. */
   const [originalFallbackBio, setOriginalFallbackBio] = useState<string | null>(null);
   const [isEditingBio, setIsEditingBio] = useState(false);
+  /** Per-generator failure reasons returned by /api/onboarding/generate, surfaced in the PREVIEW banner. */
+  const [genDiagnostics, setGenDiagnostics] = useState<{
+    text?: string;
+    image?: string;
+    audio?: string;
+  }>({});
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -752,13 +758,22 @@ export default function OnboardingPage() {
         setAudioIntroUrl(data.audioIntroUrl);
       }
       const fallback = !!data.usedFallback;
+      const diag = (data.diagnostics ?? {}) as {
+        text?: string;
+        image?: string;
+        audio?: string;
+      };
+      setGenDiagnostics(diag);
       setUsedFallbackBio(fallback);
-      if (fallback) {
+      const anyFailed = !!(diag.text || diag.image || diag.audio);
+      if (fallback || anyFailed) {
         // Auto-open the bio in edit mode + remember the placeholder so we can
-        // disable Publish until the user actually changes it.
-        setOriginalFallbackBio(script);
+        // disable Publish until the user actually changes it (only when the
+        // bio itself is the templated fallback).
+        if (fallback) setOriginalFallbackBio(script);
+        else setOriginalFallbackBio(null);
         setEditedBio(script);
-        setIsEditingBio(true);
+        setIsEditingBio(fallback);
       } else {
         setOriginalFallbackBio(null);
         setIsEditingBio(false);
@@ -891,15 +906,45 @@ export default function OnboardingPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {usedFallbackBio && (
+              {(usedFallbackBio ||
+                genDiagnostics.text ||
+                genDiagnostics.image ||
+                genDiagnostics.audio) && (
                 <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm">
                   <div className="font-semibold text-amber-200">
-                    AI was unavailable — this is a starter draft
+                    {usedFallbackBio
+                      ? "AI was unavailable — this is a starter draft"
+                      : "Some AI generators were unavailable"}
                   </div>
                   <p className="mt-1 text-amber-100/80">
-                    Personalize your introduction below before publishing — this
-                    is what shows on your public profile.
+                    {usedFallbackBio
+                      ? "Personalize your introduction below before publishing — this is what shows on your public profile."
+                      : "You can publish now and regenerate the missing pieces from your profile later."}
                   </p>
+                  {(genDiagnostics.text ||
+                    genDiagnostics.image ||
+                    genDiagnostics.audio) && (
+                    <ul className="mt-2 list-disc pl-5 text-xs text-amber-100/70 space-y-0.5">
+                      {genDiagnostics.text && (
+                        <li>
+                          <span className="font-semibold">Bio:</span>{" "}
+                          {genDiagnostics.text}
+                        </li>
+                      )}
+                      {genDiagnostics.image && (
+                        <li>
+                          <span className="font-semibold">Avatar:</span>{" "}
+                          {genDiagnostics.image}
+                        </li>
+                      )}
+                      {genDiagnostics.audio && (
+                        <li>
+                          <span className="font-semibold">Voice intro:</span>{" "}
+                          {genDiagnostics.audio}
+                        </li>
+                      )}
+                    </ul>
+                  )}
                 </div>
               )}
               {(generatedProfile.videoScript || usedFallbackBio || isEditingBio) && (

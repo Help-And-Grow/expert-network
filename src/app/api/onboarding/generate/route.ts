@@ -59,11 +59,17 @@ export async function POST(request: NextRequest) {
       resumeText: expert.avatarScript ?? undefined,
     };
 
+    /** Per-generator failure reason, surfaced to the UI so the user (or dev) knows what's wrong without reading server logs. */
+    const diagnostics: { text?: string; image?: string; audio?: string } = {};
+    const errorMessage = (error: unknown): string =>
+      error instanceof Error ? error.message : String(error);
+
     // Run text + image generation in parallel. Both have graceful fallbacks
     // so a single provider failure doesn't strand the user on a 500 page.
     const [generated, profileImage] = await Promise.all([
       generateExpertProfile(profileInput).catch((error) => {
         console.error("[onboarding/generate POST] profile text generation failed", error);
+        diagnostics.text = errorMessage(error);
         return null;
       }),
       generateProfileImageResilient({
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest) {
         gender: expert.gender ?? undefined,
       }).catch((error) => {
         console.error("[onboarding/generate POST] profile image generation failed", error);
+        diagnostics.image = errorMessage(error);
         return null;
       }),
     ]);
@@ -104,6 +111,8 @@ export async function POST(request: NextRequest) {
         });
       } catch (error) {
         console.error("[onboarding/generate POST] failed to upload image to storage", error);
+        diagnostics.image = `upload failed: ${errorMessage(error)}`;
+        finalImageUrl = null;
       }
     }
 
@@ -113,7 +122,12 @@ export async function POST(request: NextRequest) {
     let audioIntroUrl: string | null = null;
     try {
       const providers = await getProfileIntroVoiceSynthesisProviders();
-      if (providers.length > 0 && profile.videoScript) {
+      if (providers.length === 0) {
+        diagnostics.audio = "no voice synthesis providers configured (set GEMINI_API_KEY or FISH_AUDIO_API_KEY)";
+      } else if (!profile.videoScript) {
+        diagnostics.audio = "no script available — text generation must succeed first";
+      } else {
+        const synthErrors: string[] = [];
         for (const synth of providers) {
           const voiceId = synth.getDefaultVoiceId?.(expert.gender) ?? undefined;
           try {
@@ -124,7 +138,10 @@ export async function POST(request: NextRequest) {
               speed: 1.0,
             });
             const buffer = Buffer.from(result.audioBase64.replace(/\s+/g, ""), "base64");
-            if (buffer.length === 0) continue;
+            if (buffer.length === 0) {
+              synthErrors.push("empty audio buffer");
+              continue;
+            }
             const normalized = normalizeAudioForBrowserPlayback({
               buffer,
               declaredMime: result.format?.includes("/") ? result.format : null,
@@ -137,11 +154,16 @@ export async function POST(request: NextRequest) {
             break;
           } catch (synthError) {
             console.warn("[onboarding/generate POST] voice synth attempt failed", synthError);
+            synthErrors.push(errorMessage(synthError));
           }
+        }
+        if (!audioIntroUrl) {
+          diagnostics.audio = `all providers failed: ${synthErrors.join("; ")}`;
         }
       }
     } catch (error) {
       console.error("[onboarding/generate POST] voice intro generation failed", error);
+      diagnostics.audio = errorMessage(error);
     }
 
     await prisma.expert.update({
@@ -164,6 +186,7 @@ export async function POST(request: NextRequest) {
       profileImage: finalImageUrl,
       audioIntroUrl,
       usedFallback,
+      diagnostics,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
