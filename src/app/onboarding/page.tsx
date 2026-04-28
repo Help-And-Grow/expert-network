@@ -150,6 +150,11 @@ export default function OnboardingPage() {
   const [stripeKycLoading, setStripeKycLoading] = useState(false);
   const [stripeKycDone] = useState(false);
   const [generationFailed, setGenerationFailed] = useState(false);
+  /** True when the API returned a templated placeholder bio (AI provider failed). */
+  const [usedFallbackBio, setUsedFallbackBio] = useState(false);
+  /** Original placeholder text — used to detect "user has actually edited" before allowing publish. */
+  const [originalFallbackBio, setOriginalFallbackBio] = useState<string | null>(null);
+  const [isEditingBio, setIsEditingBio] = useState(false);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -737,13 +742,26 @@ export default function OnboardingPage() {
         throw new Error(errBody.detail || "Generate failed");
       }
       const data = await res.json();
+      const script = (data.videoScript ?? "") as string;
       setGeneratedProfile({
         bio: data.bio,
-        videoScript: data.videoScript ?? "",
+        videoScript: script,
         profileImage: data.profileImage ?? null,
       });
       if (data.audioIntroUrl) {
         setAudioIntroUrl(data.audioIntroUrl);
+      }
+      const fallback = !!data.usedFallback;
+      setUsedFallbackBio(fallback);
+      if (fallback) {
+        // Auto-open the bio in edit mode + remember the placeholder so we can
+        // disable Publish until the user actually changes it.
+        setOriginalFallbackBio(script);
+        setEditedBio(script);
+        setIsEditingBio(true);
+      } else {
+        setOriginalFallbackBio(null);
+        setIsEditingBio(false);
       }
       setCurrentStep("PREVIEW");
     } catch (err) {
@@ -771,6 +789,12 @@ export default function OnboardingPage() {
       videoScript: "",
       profileImage: null,
     });
+    // Treat manual-skip the same as a fallback — empty bio must be filled in
+    // before publishing. Editor opens automatically.
+    setUsedFallbackBio(true);
+    setOriginalFallbackBio("");
+    setEditedBio("");
+    setIsEditingBio(true);
     setCurrentStep("PREVIEW");
   };
 
@@ -867,24 +891,37 @@ export default function OnboardingPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {generatedProfile.videoScript && (
+              {usedFallbackBio && (
+                <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm">
+                  <div className="font-semibold text-amber-200">
+                    AI was unavailable — this is a starter draft
+                  </div>
+                  <p className="mt-1 text-amber-100/80">
+                    Personalize your introduction below before publishing — this
+                    is what shows on your public profile.
+                  </p>
+                </div>
+              )}
+              {(generatedProfile.videoScript || usedFallbackBio || isEditingBio) && (
                 <div>
                   <h3 className="mb-2 font-semibold">Introduction Script</h3>
-                  {editedBio ? (
+                  {isEditingBio ? (
                     <div className="space-y-2">
                       <Textarea
                         value={editedBio}
                         onChange={(e) => setEditedBio(e.target.value)}
                         rows={6}
+                        placeholder="Write a short introduction about your background and what you can help others with."
                         className="min-h-[120px]"
                       />
                       <Button
                         onClick={() => {
                           handleBioSave();
-                          setEditedBio("");
+                          setIsEditingBio(false);
                         }}
                         size="lg"
                         className="min-h-[44px] w-full"
+                        disabled={!editedBio.trim()}
                       >
                         <Check className="mr-2 h-4 w-4" />
                         Save
@@ -892,10 +929,17 @@ export default function OnboardingPage() {
                     </div>
                   ) : (
                     <div
-                      onClick={() => setEditedBio(generatedProfile.videoScript)}
+                      onClick={() => {
+                        setEditedBio(generatedProfile.videoScript);
+                        setIsEditingBio(true);
+                      }}
                       className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap cursor-pointer hover:border-indigo-300 transition-colors"
                     >
-                      {generatedProfile.videoScript}
+                      {generatedProfile.videoScript || (
+                        <span className="text-muted-foreground italic">
+                          Add an introduction
+                        </span>
+                      )}
                       <span className="mt-2 block text-xs text-muted-foreground">
                         Tap to edit
                       </span>
@@ -904,24 +948,40 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <Button
-                onClick={handlePublish}
-                disabled={isSubmitting}
-                size="lg"
-                className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
-              >
-                {isSubmitting ? (
+              {(() => {
+                const trimmed = generatedProfile.videoScript.trim();
+                const placeholder = (originalFallbackBio ?? "").trim();
+                const publishGated =
+                  usedFallbackBio &&
+                  (trimmed === "" || trimmed === placeholder);
+                return (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Publishing...
+                    <Button
+                      onClick={handlePublish}
+                      disabled={isSubmitting || publishGated}
+                      size="lg"
+                      className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publishing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Publish to Network
+                        </>
+                      )}
+                    </Button>
+                    {publishGated && (
+                      <p className="text-center text-xs text-amber-200/80">
+                        Edit and save your introduction to enable publishing.
+                      </p>
+                    )}
                   </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Publish to Network
-                  </>
-                )}
-              </Button>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
