@@ -11,7 +11,7 @@
           "functionRootPath": ".",
           "functions": [
             {
-              "name": "hg-proxy",
+              "name": "hg-proxy-cn",
               "handler": "index.main_handler",
               "runtime": "Nodejs18.15",
               "memorySize": 256,
