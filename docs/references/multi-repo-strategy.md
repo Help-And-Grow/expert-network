@@ -4,22 +4,17 @@ This document outlines the architectural plan and operational guidelines for man
 
 ## 1. Dual Repository Strategy
 
-To balance rapid, experimental development with stable, open-source presentations (for hackathons, investors, and partners), the codebase is split into two synchronized repositories:
+To balance rapid, experimental development with stable, open-source presentations (for hackathons, investors, and partners), the codebase is split into two synchronized repositories. This architecture ensures the open-source community and investors always see a polished, functioning product without exposing commercial secrets.
 
-### A. The Origin Repository (`jlzxwt8/expert-network`)
-- **Visibility:** Private
-- **Purpose:** 
-  - Core R&D environment.
-  - Testing bleeding-edge multi-agent frameworks (OpenClaw, HiClaw, Scion, BytePlus Coze).
-  - Storing experimental prompts, proprietary AI logic, and sensitive integration keys.
-- **Iteration Cycle:** High frequency, experimental branches, rapid prototyping.
+| Aspect | `jlzxwt8/expert-network` (Origin) | `Help-And-Grow/expert-network` (Showcase) |
+| :--- | :--- | :--- |
+| **Visibility** | Private | Public (Open-source) |
+| **Purpose** | Serves as the core R&D environment and the base for commercialization. | Acts as a stable reference for the community, hackathons, investor demos, and partner showcases. |
+| **Activity Level** | High frequency. Driven by rapid prototyping, experimental branches, and continuous daily iteration. | Periodic updates. Changes are synced from the origin repository only when features reach a stable, demo-ready state. |
+| **Features & Codebase** | Contains bleeding-edge multi-agent frameworks (e.g., OpenClaw, HiClaw, Scion, BytePlus Coze), proprietary AI logic, experimental prompts, and sensitive integration keys. | A clean, sanitized codebase stripped of sensitive keys and purely experimental logic. It is standardized around a reliable public showcase stack (e.g., Alibaba Cloud Qwen / DashScope and Tencent). |
 
-### B. The Showcase Repository (`Help-And-Grow/expert-network`)
-- **Visibility:** Public
-- **Purpose:** 
-  - Stable, open-source reference for the community.
-  - Clean, sanitized codebase for hackathons, investor demos, and partner showcases.
-- **Iteration Cycle:** Periodically synced from the Origin repository when features reach a stable, demo-ready state. Sensitive hardcoded keys and purely experimental logic must be stripped before pushing.
+### Synchronization Strategy
+Developers perform their high-velocity work in the private `jlzxwt8` repository. Once features are stabilized, the code is sanitized to remove proprietary credentials and pushed to the `Help-And-Grow` repository. This sync automatically triggers public-facing deployments (like Vercel) ensuring a polished presentation.
 
 ---
 
