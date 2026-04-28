@@ -110,6 +110,15 @@ const envSchema = z
     AI_PROVIDER: z
       .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
       .default("qwen"),
+    /**
+     * Provider used when the request originates from the WeChat Mini Program
+     * (detected via TCB-stamped headers in `lib/request-origin.ts`). Defaults
+     * to `qwen` since DashScope/Hunyuan/Volcengine endpoints all reach
+     * mainland-CN clients without leaving the GFW boundary.
+     */
+    WECHAT_AI_PROVIDER: z
+      .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
+      .optional(),
 
     STORAGE_PROVIDER: z
       .enum(["vercel", "gcs", "tencent-cos", "db"])

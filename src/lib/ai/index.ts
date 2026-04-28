@@ -56,21 +56,44 @@ const PROVIDERS: Record<string, () => AIProvider> = {
 // Singleton factory
 // ---------------------------------------------------------------------------
 
-let _provider: AIProvider | null = null;
+const _byName = new Map<string, AIProvider>();
+
+function resolveByName(name: string): AIProvider {
+  const cached = _byName.get(name);
+  if (cached) return cached;
+  const factory = PROVIDERS[name];
+  if (!factory) {
+    throw new Error(
+      `Unknown AI_PROVIDER "${name}". Available: ${Object.keys(PROVIDERS).join(", ")}`,
+    );
+  }
+  const instance = factory();
+  _byName.set(name, instance);
+  return instance;
+}
 
 async function provider(): Promise<AIProvider> {
-  if (!_provider) {
-    const { getActiveAIProviderName } = await import("./provider-catalog");
-    const name = await getActiveAIProviderName();
-    const factory = PROVIDERS[name];
-    if (!factory) {
-      throw new Error(
-        `Unknown AI_PROVIDER "${name}". Available: ${Object.keys(PROVIDERS).join(", ")}`
-      );
-    }
-    _provider = factory();
-  }
-  return _provider;
+  const { getActiveAIProviderName } = await import("./provider-catalog");
+  const name = await getActiveAIProviderName();
+  return resolveByName(name);
+}
+
+type RequestContext = {
+  request?: { headers: { get(name: string): string | null } } | null;
+};
+
+/**
+ * Region-aware provider resolution. WeChat-originated requests are routed to
+ * the configured `WECHAT_AI_PROVIDER` (defaults to Qwen via DashScope) so the
+ * inference endpoint stays inside the GFW boundary. Everything else falls
+ * back to the global default.
+ */
+export async function resolveAIProvider(
+  ctx: RequestContext = {},
+): Promise<AIProvider> {
+  const { getActiveAIProviderNameForRequest } = await import("./provider-catalog");
+  const name = await getActiveAIProviderNameForRequest(ctx.request ?? null);
+  return resolveByName(name);
 }
 
 /** One-off provider instance (e.g. vendor demo overrides) — does not use the env singleton. */

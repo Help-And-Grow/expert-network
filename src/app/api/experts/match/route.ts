@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { matchExperts, normalizeQuery } from "@/lib/ai";
+import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
 import {
   buildExpertFocusLabel,
@@ -184,10 +184,15 @@ export async function POST(request: NextRequest) {
         )
       : [];
 
+    // Region-aware provider: WeChat-originated traffic uses the WECHAT_AI_PROVIDER
+    // (default Qwen) so inference stays inside the GFW; everything else uses the
+    // global default (Gemini).
+    const ai = await resolveAIProvider({ request });
+
     // Step 1: Normalize query (translate, expand, classify intent) via LLM
     let nq: NormalizedQuery;
     try {
-      nq = await normalizeQuery(query);
+      nq = await ai.normalizeQuery(query);
       console.log("[experts/match] normalized:", JSON.stringify(nq));
     } catch (err) {
       console.warn("[experts/match] normalizeQuery failed, using raw:", err);
@@ -244,7 +249,7 @@ export async function POST(request: NextRequest) {
       });
 
     try {
-      const result = await matchExperts(query, expertSummaries, history, nq);
+      const result = await ai.matchExperts(query, expertSummaries, history, nq);
       if ((result.recommendations?.length ?? 0) > 0) {
         return NextResponse.json({
           ...result,

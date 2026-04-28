@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     const platform = typeof body.platform === "string" ? body.platform : undefined;
 
-    const result = await chat(message, history, platform);
+    const result = await chat(message, history, platform, { request });
 
     return NextResponse.json(result);
   } catch (error) {

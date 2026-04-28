@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { matchExperts } from "@/lib/ai";
+import { resolveAIProvider } from "@/lib/ai";
 import { buildExpertFocusLabel, stringifyServicesOffered } from "@/lib/expert-topics";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
@@ -28,17 +28,27 @@ export interface ChatResponse {
 const APP_BASE_URL =
   env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 
+type ChatContext = {
+  /** Optional incoming request — enables region-aware AI provider routing. */
+  request?: { headers: { get(name: string): string | null } } | null;
+};
+
 /**
  * Platform-agnostic chat engine.
  * Accepts a user message + optional conversation history, returns a natural
  * language reply with expert recommendations when relevant.
  *
  * Designed to be called from any integration: Telegram, WeChat, WhatsApp, API.
+ *
+ * Pass `{ request }` from the route handler to enable WeChat-origin AI
+ * routing (`resolveAIProvider`) so CN traffic stays on a CN-friendly
+ * provider.
  */
 export async function chat(
   message: string,
   history: ChatMessage[] = [],
-  platform?: string
+  platform?: string,
+  ctx: ChatContext = {},
 ): Promise<ChatResponse> {
   const allExperts = await prisma.expert.findMany({
     where: { isPublished: true },
@@ -90,7 +100,8 @@ export async function chat(
     const qwen = new QwenProvider();
     aiResult = await qwen.matchExperts(message, expertSummaries, historyMapped);
   } else {
-    aiResult = await matchExperts(message, expertSummaries, historyMapped);
+    const ai = await resolveAIProvider({ request: ctx.request });
+    aiResult = await ai.matchExperts(message, expertSummaries, historyMapped);
   }
 
   const experts: ExpertRecommendation[] = aiResult.recommendations.map(

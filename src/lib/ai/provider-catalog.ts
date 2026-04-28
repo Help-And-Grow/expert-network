@@ -184,6 +184,29 @@ export async function getActiveAIProviderName(): Promise<AIProviderName> {
   return normalizeAIProviderName(dbProvider || env.AI_PROVIDER) ?? "gemini";
 }
 
+/**
+ * Region-aware provider resolution.
+ *
+ * - WeChat-originated requests (stamped by the TCB proxy) use the
+ *   `WECHAT_AI_PROVIDER` SystemConfig / env, falling back to `qwen` so CN
+ *   clients hit a CN-region inference endpoint instead of crossing the GFW.
+ * - All other traffic uses the default `getActiveAIProviderName()`.
+ */
+export async function getActiveAIProviderNameForRequest(
+  request: { headers: { get(name: string): string | null } } | null | undefined,
+): Promise<AIProviderName> {
+  const { isWeChatOriginatedRequest } = await import("@/lib/request-origin");
+  if (!isWeChatOriginatedRequest(request ?? null)) {
+    return getActiveAIProviderName();
+  }
+  const { getSystemConfig } = await import("@/lib/system-config");
+  const dbProvider = await getSystemConfig("WECHAT_AI_PROVIDER");
+  const resolved = normalizeAIProviderName(
+    dbProvider || env.WECHAT_AI_PROVIDER || "qwen",
+  );
+  return resolved ?? "qwen";
+}
+
 export function getProviderModelDefaults(provider: AIProviderName): {
   textModel: string | null;
   imageModel: string | null;

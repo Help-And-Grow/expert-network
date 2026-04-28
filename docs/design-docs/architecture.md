@@ -90,6 +90,17 @@ Switching providers requires only an admin-panel change at `/admin/ai-provider` 
 - **Image generation**: ordered chain (`openai → zai → qwen → gemini → dedalus`) handled by `generateProfileImageResilient`.
 - **Voice synthesis**: `getProfileIntroVoiceSynthesisProviders` returns an ordered list; the audio route iterates until one returns playable audio.
 
+### 3.4 Region-Aware Provider Routing
+
+WeChat-originated traffic (stamped by the TCB proxy, detected via `isWeChatOriginatedRequest`) is routed to the configured `WECHAT_AI_PROVIDER` so inference stays inside the GFW boundary. Default: **Qwen** via DashScope. Operators can flip this to BytePlus, Volcengine, or another CN-region provider via `SystemConfig` key `WECHAT_AI_PROVIDER` (no redeploy) or the env var.
+
+Implementation:
+- `resolveAIProvider({ request })` in `src/lib/ai/index.ts` — request-aware factory with per-name caching.
+- `getActiveAIProviderNameForRequest(request)` in `src/lib/ai/provider-catalog.ts` — resolves the right provider name.
+- Wired into `src/app/api/experts/match/route.ts` (Discover) and `src/lib/chat-engine.ts` (the `POST /api/chat` and Telegram bot path).
+
+Non-WeChat traffic continues to use the global default (Gemini).
+
 ---
 
 ## 4. Multi-Platform Authentication
