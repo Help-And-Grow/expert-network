@@ -1,0 +1,6 @@
+{
+  "_comment": "Mainland-CN WeChat Mini Program build config. The CI/build script (scripts/build-region.mjs) reads this file and exports each entry as TARO_APP_* env vars before running `taro build --type weapp`. Values are public (URLs, region tags) — secrets stay in the Vercel/SCF runtime env.",
+  "TARO_APP_REGION": "cn",
+  "TARO_APP_API_BASE": "https://production-wechat-i8ddngeb5eafed-DEFAULT-DOMAIN.tcloudbaseapp.com",
+  "TARO_APP_DEFAULT_LANG": "zh-CN"
+}

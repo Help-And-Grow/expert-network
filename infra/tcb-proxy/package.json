@@ -8,7 +8,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "deploy": "tcb fn deploy hg-proxy --force",
+    "deploy:cn": "tcb framework deploy -c cloudbaserc.cn.json",
+    "deploy:intl": "tcb framework deploy -c cloudbaserc.intl.json",
     "logs": "tcb fn log hg-proxy"
   }
 }

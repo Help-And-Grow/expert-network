@@ -13,6 +13,8 @@
     "prepare": "husky",
     "new": "taro new",
     "build:weapp": "taro build --type weapp",
+    "build:weapp:cn": "node scripts/build-region.mjs cn",
+    "build:weapp:intl": "node scripts/build-region.mjs intl",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",
     "build:tt": "taro build --type tt",

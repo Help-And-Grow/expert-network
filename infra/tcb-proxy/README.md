@@ -6,25 +6,30 @@ Tencent CloudBase (TCB) HTTP-trigger function that bridges WeChat Mini Program t
 
 ```
 infra/tcb-proxy/
-├── index.js          # `main_handler` — request forwarder
-├── package.json      # deploy/logs scripts
-├── cloudbaserc.json  # @cloudbase/cli deployment manifest
+├── index.js                # `main_handler` — request forwarder
+├── package.json            # deploy/logs scripts
+├── cloudbaserc.cn.json     # CN env manifest (mainland WeChat MP)
+├── cloudbaserc.intl.json   # Intl env manifest (overseas WeChat MP)
 └── README.md
 ```
+
+Two TCB envs, one per WeChat audience. See [`docs/exec-plans/active/tencent-cloud-rollout.md`](../../docs/exec-plans/active/tencent-cloud-rollout.md) for the full rollout plan.
 
 ## Required environment variables (set on the function)
 
 | Variable               | Purpose                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------ |
-| `ORIGIN_BASE_URL`      | Cloud Run origin URL — e.g. `https://expert-network-xxxx-as.a.run.app`                     |
+| `ORIGIN_BASE_URL`      | Backend origin URL — Vercel today, SCF Web Function in the same region after Move 5        |
+| `PROXY_REGION`         | `cn` or `intl`. Stamped to `x-forwarded-region` so the origin picks the right DB / COS / AI |
 | `FORWARD_HEADERS`      | (Optional) comma-separated allowlist; defaults to a sensible WeChat-friendly set           |
 | `PROXY_SHARED_SECRET`  | (Optional) require clients to send `x-tcb-secret: <value>`; rejected with 403 if mismatch  |
 
 The function automatically stamps every forwarded request with:
 - `x-forwarded-via: tcb-proxy`
 - `x-forwarded-from: wechat`
+- `x-forwarded-region: <PROXY_REGION>` (when set)
 
-The Next.js origin reads these via `lib/request-origin.ts` to make region-aware decisions (e.g. routing uploads to Tencent COS instead of GCS).
+The Next.js origin reads these via `lib/request-origin.ts` to make region-aware decisions (storage routing, AI provider selection, eventually database selection).
 
 ## Deploy
 
@@ -32,13 +37,17 @@ The Next.js origin reads these via `lib/request-origin.ts` to make region-aware 
 # 1. Install Tencent CloudBase CLI globally (once)
 npm install -g @cloudbase/cli
 
-# 2. Authenticate
+# 2. Authenticate against the matching account (intl vs CN — they're different consoles)
 tcb login
 
-# 3. From this directory:
+# 3. From this directory, deploy each env separately:
 cd infra/tcb-proxy
-# fill in REPLACE_WITH_TCB_ENV_ID and the ORIGIN_BASE_URL placeholder in cloudbaserc.json first
-tcb framework deploy
+
+# Mainland CN env (CN account, cloud.tencent.com)
+tcb framework deploy -c cloudbaserc.cn.json
+
+# Overseas env (intl account, intl.cloud.tencent.com) — fill in envId first
+tcb framework deploy -c cloudbaserc.intl.json
 ```
 
 After deploy, the function is reachable at:

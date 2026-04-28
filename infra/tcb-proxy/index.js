@@ -38,6 +38,13 @@ const FORWARD_HEADERS = (process.env.FORWARD_HEADERS || DEFAULT_FORWARD_HEADERS.
 
 const PROXY_SHARED_SECRET = process.env.PROXY_SHARED_SECRET || "";
 
+/**
+ * Identifies which TCB env this function is deployed to. Stamped onto every
+ * forwarded request so the Next.js origin can pick the right database /
+ * storage bucket / AI provider per region. Set to "cn" or "intl".
+ */
+const PROXY_REGION = (process.env.PROXY_REGION || "").toLowerCase();
+
 function pickHeaders(eventHeaders) {
   const out = {};
   if (!eventHeaders) return out;
@@ -131,6 +138,9 @@ exports.main_handler = async (event) => {
   // (e.g. choose Tencent COS for uploads). See `request-origin.ts`.
   headers["x-forwarded-via"] = "tcb-proxy";
   headers["x-forwarded-from"] = "wechat";
+  if (PROXY_REGION) {
+    headers["x-forwarded-region"] = PROXY_REGION;
+  }
 
   const init = {
     method,

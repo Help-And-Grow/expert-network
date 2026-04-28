@@ -1,0 +1,37 @@
+{
+  "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+  "version": "2.0",
+  "envId": "production-wechat-i8ddngeb5eafed",
+  "framework": {
+    "name": "hg-tcb-proxy-cn",
+    "plugins": {
+      "function": {
+        "use": "@cloudbase/framework-plugin-function",
+        "inputs": {
+          "functionRootPath": ".",
+          "functions": [
+            {
+              "name": "hg-proxy",
+              "handler": "index.main_handler",
+              "runtime": "Nodejs18.15",
+              "memorySize": 256,
+              "timeout": 30,
+              "envVariables": {
+                "ORIGIN_BASE_URL": "https://expert-network.vercel.app",
+                "PROXY_REGION": "cn",
+                "PROXY_SHARED_SECRET": ""
+              },
+              "triggers": [
+                {
+                  "name": "http",
+                  "type": "web",
+                  "config": "{\"enableIntegratedResponse\":true,\"path\":\"/*\"}"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

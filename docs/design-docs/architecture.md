@@ -8,19 +8,38 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 ---
 
-## 1. Tri-Cloud Deployment
+## 1. Multi-Cloud Deployment with Regional Data Isolation
 
-The marketplace is deployed across three clouds, each chosen for a non-overlapping reason.
+The marketplace runs on three clouds, partitioned along **two boundaries**:
 
-| Cloud | Role | What runs there |
-|-------|------|-----------------|
-| **Google Cloud Platform (GCP)** | Default backend + AI provider | Cloud Run origin, Vertex AI / Gemini API, GCS for global assets |
-| **Vercel** | Edge frontend + serverless functions | Next.js app, API routes, Cron, Blob storage for non-China assets |
-| **Tencent Cloud** | China-only path for WeChat | TCB HTTP-trigger proxy in `cn-` domains, Tencent COS for low-latency CN storage, TRTC for premium live |
+1. **Audience boundary**: web users vs. WeChat users.
+2. **Data-residency boundary**: mainland-CN data must never leave the GFW; everything else lives outside.
 
-**Why three clouds, not one.** WeChat Mini Programs require all callable domains to be on the WeChat allowlist; only mainland-CN domains pass. Hosting the entire backend in a CN domain would degrade everything else. The TCB proxy terminates inside the WeChat-allowlisted CN domain set and forwards to the Cloud Run origin in `asia-southeast1`, stamping `x-forwarded-via: tcb-proxy` and `x-forwarded-from: wechat` so the origin can make region-aware decisions.
+This produces **three separate stacks**, not three roles for one shared stack.
 
-**Region pinning.** Vercel functions are pinned to `sin1` (Singapore) via `vercel.json`. This minimizes round-trip latency to BytePlus and Alibaba `ap-southeast-1` AI endpoints (<50ms), which matters most for realtime voice chat.
+| Stack | Audience | Compute | Storage | Database | AI |
+|---|---|---|---|---|---|
+| **Web (Global)** | Browsers worldwide (Telegram included) | **Vercel** Functions in `sin1` | Vercel Blob | **Supabase** Postgres in AWS `ap-southeast-1` | Gemini |
+| **WeChat — Overseas** | WeChat users outside mainland CN (HK / TW / SEA / diaspora) | **Tencent SCF Web Function** in **Intl TCB env** (`ap-singapore`) | Tencent COS (Intl, `ap-singapore`) | TencentDB Postgres (Intl, `ap-singapore`) | Gemini (route stays outside GFW) |
+| **WeChat — Mainland** | WeChat users in mainland CN | **Tencent SCF Web Function** in **CN TCB env** (`ap-shanghai`) | Tencent COS (CN, `ap-shanghai`) | TencentDB Postgres (CN, `ap-shanghai`) | Qwen / Hunyuan (DashScope or Tencent) |
+
+**Why three stacks, not one shared backend.** Mainland CN data-residency law (PIPL, the Cybersecurity Law) requires that personal data of mainland users not transit outside the country without separate cross-border-transfer compliance. A single shared backend that talks to a single shared database always crosses that line for some users. Three stacks with **per-stack databases** removes the question entirely: a CN user's data starts and ends inside CN.
+
+**Two separate WeChat Mini Program apps.** Mainland CN and overseas Mini Programs use **different `appId`s** (different WeChat Pay merchants, different review processes). The `wechat/` Taro source builds twice — once with `TARO_APP_REGION=cn`, once with `intl` — producing two `weapp` artifacts that get uploaded to two different `mp.weixin.qq.com` consoles.
+
+**Web and Telegram remain on Vercel + Supabase** — the Tencent-region split applies only to the WeChat surfaces.
+
+### TCB proxy in front of each SCF
+
+WeChat Mini Programs require callable domains to be on the WeChat allowlist; only Tencent-CDN-fronted domains (or ICP-filed custom domains) qualify. The TCB HTTP-trigger function (`infra/tcb-proxy/`) terminates inside the WeChat-allowlisted domain set and forwards to the SCF Web Function origin, stamping:
+
+- `x-forwarded-via: tcb-proxy`
+- `x-forwarded-from: wechat`
+- `x-forwarded-region: cn | intl`
+
+The Next.js origin reads these via `lib/request-origin.ts` to make region-aware decisions (storage routing, AI provider selection).
+
+**Region pinning.** Vercel functions are pinned to `sin1` (Singapore) via `vercel.json`. CN SCF runs in `ap-shanghai`, Intl SCF in `ap-singapore`. Each SCF talks only to its co-located TencentDB — no cross-region database hops on the hot path.
 
 ### Dynamic Configuration (`SystemConfig`)
 
@@ -126,10 +145,29 @@ API routes call `resolveUserId(request)` once and trust the result; no per-route
 
 ---
 
-## 5. Remaining Operational Work
+## 5. Per-Stack Configuration
 
-These three items are infra/ops, not code — code paths exist but the external resources still need provisioning:
+Each of the three stacks is one Next.js codebase deployed with **different env vars** — there is no runtime switching of database or storage at the request level for the Tencent stacks. The TCB proxy + region-aware Vercel routing handle the rest.
 
-1. **Tencent COS bucket provisioning** — stand up the actual COS bucket + CAM credentials (code is ready; `TENCENT_COS_*` env vars need values).
-2. **TCB deployment** — register the function from `infra/tcb-proxy/` against the production CloudBase env and bind the WeChat-allowlisted custom domain.
-3. **Env sync** — standardize the new tri-cloud env vars across GCP and Vercel via `vercel env pull` / direct GCP secret manager pushes.
+| Env var | Web (Vercel) | WeChat-Intl (SCF) | WeChat-CN (SCF) |
+|---|---|---|---|
+| `DATABASE_URL` | Supabase pooler | TencentDB Postgres (Intl) | TencentDB Postgres (CN) |
+| `STORAGE_PROVIDER` | `vercel` | `tencent-cos` | `tencent-cos` |
+| `TENCENT_COS_BUCKET` | unset | `hg-intl-<appid>` | `hg-cn-<appid>` |
+| `TENCENT_COS_REGION` | unset | `ap-singapore` | `ap-shanghai` |
+| `AI_PROVIDER` | `gemini` | `gemini` | `qwen` |
+| `WECHAT_AI_PROVIDER` | `qwen` (only fires for WeChat-stamped requests) | n/a (already CN-friendly) | n/a (already CN-friendly) |
+| `WECHAT_APP_ID` | n/a | overseas appId | mainland appId |
+| `NEXTAUTH_URL` | `https://expert-network.vercel.app` | Intl SCF custom domain | CN SCF custom domain (post-ICP) |
+
+The WeChat client picks which stack to hit at **build time** via `TARO_APP_REGION` and `TARO_APP_API_BASE`. See [`docs/exec-plans/active/tencent-cloud-rollout.md`](../exec-plans/active/tencent-cloud-rollout.md) for the operational checklist.
+
+## 6. What's Still on the Todo List
+
+| Item | Why it matters |
+|---|---|
+| **Two WeChat MP appIds** registered (mainland + overseas) | Different review boards, different WeChat Pay merchants |
+| **TencentDB Postgres** provisioned in both `ap-shanghai` and `ap-singapore` | Removes cross-border DB hops; satisfies CN data-residency |
+| **SCF Web Functions** deployed in both TCB envs | Move compute to Tencent — currently both TCB proxies forward to Vercel as a transitional baseline |
+| **ICP filing** for the CN custom domain | Required to bind a non-`*.tcloudbaseapp.com` domain in mainland CN |
+| **Schema migration parity** | Apply Prisma migrations to all three databases on every release |

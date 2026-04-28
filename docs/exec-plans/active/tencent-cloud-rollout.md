@@ -1,150 +1,185 @@
 # Tencent Cloud Rollout — Phased Plan
 
-**Goal:** Fully host the WeChat path on Tencent Cloud to cut CN-region latency and prepare for scale.
+**Goal:** Two regionally isolated WeChat stacks on Tencent Cloud — mainland CN data stays in CN, overseas data stays in `ap-singapore`. Web users keep the existing Vercel + Supabase path.
 **Owner:** PM (solo).
 **Companion design:** [`docs/design-docs/architecture.md`](../../design-docs/architecture.md).
 
-The 5 moves are listed in `architecture.md`. This file is the **operational checklist** — in order, with what unblocks what.
+The architecture is three stacks, not one with three roles. This file is the **operational checklist** — in order, with what unblocks what.
 
----
-
-## Move 1 — TCB proxy + Tencent COS (provisioning only)
-
-Code is already in-repo. This phase is pure ops.
-
-### 1.1 Create the TCB environment
-
-1. Sign in to [Tencent Cloud Console](https://console.cloud.tencent.com/) with an **enterprise-verified** account (personal accounts hit cap on TCB requests).
-2. Open **CloudBase (云开发)** → **环境管理** → **新建环境**.
-   - Plan: 按量计费 (pay-as-you-go) is fine for early stage.
-   - Region: **`ap-shanghai`** or **`ap-guangzhou`** — pick whichever is closest to your WeChat user majority.
-3. Note the `envId` (looks like `hg-prod-1g2x3y4z5`).
-
-### 1.2 Deploy the TCB proxy function
-
-```bash
-# one-time
-npm install -g @cloudbase/cli
-tcb login
-
-# every deploy
-cd infra/tcb-proxy
-# Edit cloudbaserc.json:
-#   "envId": "<your envId>"
-#   ORIGIN_BASE_URL: "https://expert-network.vercel.app"   # the Vercel origin for now
-tcb framework deploy
 ```
-
-Default function URL after deploy: `https://<envId>-<region>.tcloudbaseapp.com/`.
-
-### 1.3 Verify the proxy stamps headers
-
-```bash
-curl https://<envId>-<region>.tcloudbaseapp.com/api/health/origin
-# expected: {"ok":true,"wechat":true,"via":"tcb-proxy","from":"wechat"}
+                       ┌──────────────────────────────────────────────────┐
+WeChat-Mainland MP  ──→ │ CN TCB proxy ──→ CN SCF ──→ TencentDB CN (ap-shanghai) │
+                       │                  └──→ Tencent COS CN                   │
+                       │                  └──→ DashScope (Qwen)                 │
+                       └──────────────────────────────────────────────────┘
+                       ┌──────────────────────────────────────────────────┐
+WeChat-Overseas MP  ──→ │ Intl TCB proxy ─→ Intl SCF ─→ TencentDB Intl (ap-singapore) │
+                       │                   └─→ Tencent COS Intl                       │
+                       │                   └─→ Gemini                                  │
+                       └──────────────────────────────────────────────────┘
+Browser / Telegram  ──→ Vercel (sin1) ──→ Supabase (AWS ap-southeast-1) ──→ Gemini
 ```
-
-If `wechat` is `false`, the request didn't transit the proxy — confirm the `cloudbaserc.json` web trigger config and that your curl URL is the TCB function URL, not the Vercel one.
-
-### 1.4 Provision Tencent COS
-
-1. **CAM (访问管理)** → **API 密钥管理** → **新建密钥**. Copy `SecretId` + `SecretKey`.
-2. **COS (对象存储)** → **存储桶列表** → **创建存储桶**.
-   - Name: `hg-wechat-<random>` (the AppID suffix is auto-appended).
-   - Region: same as TCB env above.
-   - Permissions: **私有读写** (private). Public objects are served via temporary signed URLs from the storage provider.
-3. Set Vercel env vars:
-   ```
-   TENCENT_COS_SECRET_ID=<SecretId>
-   TENCENT_COS_SECRET_KEY=<SecretKey>
-   TENCENT_COS_BUCKET=hg-wechat-1300000000   # full name with AppID suffix
-   TENCENT_COS_REGION=ap-shanghai             # match COS bucket region
-   ```
-4. Redeploy the Next.js app on Vercel (`vercel --prod` or push to `main`).
-
-### 1.5 Add the TCB domain to WeChat allowlists
-
-In the WeChat Mini Program admin console (`mp.weixin.qq.com`):
-
-- **开发管理 → 开发设置 → 服务器域名**:
-  - `request合法域名`: add `https://<envId>-<region>.tcloudbaseapp.com`
-  - `uploadFile合法域名`: add `https://<bucket>.cos.<region>.myqcloud.com`
-  - `downloadFile合法域名`: same as uploadFile
-
-### 1.6 Point the WeChat client at the TCB proxy
-
-The Mini Program reads its API base from `process.env.TARO_APP_API_BASE` at build time (`wechat/src/shared/auth.ts:77`).
-
-```bash
-# wechat/.env.production (Taro consumes this on build)
-TARO_APP_API_BASE=https://<envId>-<region>.tcloudbaseapp.com
-```
-
-Re-run `npm run build:weapp` and re-upload via `miniprogram-ci`.
-
-### Verification
-
-| Check | Expected |
-|---|---|
-| `curl <TCB url>/api/health/origin` from a CN IP | `{"ok":true,"wechat":true,...}` |
-| WeChat client opens, hits Discover, sees experts | matches normal flow |
-| Avatar upload from WeChat lands in COS bucket | inspect COS bucket — file present |
-| Avatar upload from web (browser) lands in Vercel Blob/GCS | unchanged |
-
-**Status target after Move 1:** WeChat asset uploads stay in CN; API still goes to Vercel sin1 (acceptable until Move 2).
-
----
-
-## Move 2 — Backend on Tencent SCF Web Function
-
-Largest latency win, also the biggest move. **Do not start until Move 1 is verified.**
-
-Plan:
-
-1. Build Next.js as `output: "standalone"`. Containerize with the Tencent SCF Node 18 base image.
-2. Create a SCF Web Function in the same region as TCB env. Bind `ORIGIN_BASE_URL` of the TCB proxy to the SCF URL instead of the Vercel URL.
-3. CI: GitHub Action that builds + uploads via `tcb fn deploy`. Mirror the existing Vercel deploy workflow.
-4. Vercel stays the canonical origin for non-WeChat traffic; SCF is WeChat-only.
-5. Migrate cron: replace Vercel Cron with **SCF Timer Trigger** for `/api/cron/charge-remainder` against the SCF URL.
-
-ICP filing required only when binding a custom domain — `tcloudbaseapp.com` works without ICP.
-
----
-
-## Move 3 — WeChat-origin AI routing
-
-Picks Qwen (DashScope) for WeChat-originated requests instead of Gemini. Implemented in code.
-
-Activation:
-- Set `WECHAT_AI_PROVIDER=qwen` in Vercel + SCF env.
-- Ensure `DASHSCOPE_API_KEY` is set.
-
-No re-deploy needed beyond env push — provider resolution is per-request once the env var is read.
-
----
-
-## Move 4 — WeChat consultation page
-
-`wechat/src/pages/consultation/[bookingId]/` — mirrors the upcoming web `/consultation/[bookingId]`. Uses `trtc-wx` SDK. Backend is ready (`/api/trtc/token`).
-
-Phased per `product-features.md §2`. Not a latency move; tracked here so the WeChat surface reaches feature parity.
-
----
-
-## Move 5 — Database co-location
-
-TencentDB for PostgreSQL in `ap-shanghai`, with read replica from Supabase. Or full migration. Open question; revisit after Move 2 traces show DB latency is the next bottleneck.
 
 ---
 
 ## Status board
 
-| Move | Code | Provisioning | Verified |
-|---|---|---|---|
-| 1 — TCB + COS | ✅ done | ⬜ pending | ⬜ pending |
-| 2 — SCF backend | ⬜ not started | ⬜ pending | ⬜ pending |
-| 3 — CN-AI routing | ⬜ in progress | n/a | ⬜ pending |
-| 4 — WeChat consultation page | ⬜ not started | ⬜ pending | ⬜ pending |
-| 5 — DB co-location | ⬜ not started | ⬜ pending | ⬜ pending |
+| # | Move | Code | Provisioning | Verified |
+|---|---|---|---|---|
+| 1a | CN TCB proxy deploy | ✅ done | ⬜ pending | ⬜ pending |
+| 1b | Intl TCB proxy deploy | ✅ done | ⬜ pending | ⬜ pending |
+| 2a | Tencent COS — Intl bucket | ✅ done | ⬜ pending | ⬜ pending |
+| 2b | Tencent COS — CN bucket | ✅ done | ⬜ pending | ⬜ pending |
+| 3 | WeChat region-aware AI routing | ✅ done | n/a | ⬜ pending |
+| 4a | TencentDB Postgres — Intl (`ap-singapore`) | n/a | ⬜ pending | ⬜ pending |
+| 4b | TencentDB Postgres — CN (`ap-shanghai`) | n/a | ⬜ pending | ⬜ pending |
+| 5a | SCF Web Function — Intl deploy | ⬜ not started | ⬜ pending | ⬜ pending |
+| 5b | SCF Web Function — CN deploy | ⬜ not started | ⬜ pending | ⬜ pending |
+| 6a | WeChat MP appId — Overseas | n/a | ⬜ pending | ⬜ pending |
+| 6b | WeChat MP appId — Mainland | n/a | ⬜ pending | ⬜ pending |
+| 7 | ICP filing for CN custom domain | n/a | ⬜ pending | ⬜ pending |
+| 8 | WeChat consultation page (TRTC) | ⬜ not started | n/a | ⬜ pending |
 
-Update this table as each move lands.
+Update this table as each row lands.
+
+---
+
+## Solo-PM blockers to know about
+
+- **ICP 备案** is needed only for binding a custom CN domain. `production-wechat-i8ddngeb5eafed-<region>.tcloudbaseapp.com` works without ICP; this unblocks rows 1–5.
+- **Two WeChat Mini Program appIds** must be registered separately at `mp.weixin.qq.com`:
+  - **Mainland appId** — registered to a mainland-CN business entity, supports WeChat Pay 直连 / 服务商 mode.
+  - **Overseas appId** — registered as 海外小程序 (Hong Kong / global business entity), supports WeChat Pay HK or alternative payment rails.
+- **TencentDB region must match SCF region** — co-locate to keep query latency under 5ms.
+
+---
+
+## Phase 1 — TCB proxies (CN + Intl)
+
+Both TCB proxies forward to the Vercel origin as a transitional baseline. Once SCFs are deployed (Phase 5), `ORIGIN_BASE_URL` flips to the SCF URL.
+
+### 1.1 Deploy CN TCB proxy
+
+```bash
+cd infra/tcb-proxy
+# cloudbaserc.cn.json already targets envId=production-wechat-i8ddngeb5eafed (CN)
+# adjust ORIGIN_BASE_URL only if the Vercel URL changes
+tcb framework deploy -c cloudbaserc.cn.json
+```
+
+### 1.2 Deploy Intl TCB proxy
+
+```bash
+# Edit cloudbaserc.intl.json with the Intl envId:
+#   "envId": "<your intl envId>"
+tcb framework deploy -c cloudbaserc.intl.json
+```
+
+### 1.3 Verify both proxies stamp headers
+
+```bash
+curl https://<cn-envId>-<region>.tcloudbaseapp.com/api/health/origin
+# expected: {"ok":true,"wechat":true,"via":"tcb-proxy","from":"wechat","region":"cn"}
+
+curl https://<intl-envId>-<region>.tcloudbaseapp.com/api/health/origin
+# expected: {"ok":true,"wechat":true,"via":"tcb-proxy","from":"wechat","region":"intl"}
+```
+
+If `region` is missing, the proxy isn't yet stamping `x-forwarded-region`. Verify the corresponding `cloudbaserc.*.json` includes the env var.
+
+---
+
+## Phase 2 — Tencent COS buckets (CN + Intl)
+
+Provision two buckets — one per region — both configured as **私有读写 (private)** with signed-URL access from the SCF Web Function.
+
+| Item | CN | Intl |
+|---|---|---|
+| Region | `ap-shanghai` | `ap-singapore` |
+| Bucket name | `hg-cn-<random>` | `hg-intl-<random>` |
+| Used by | CN SCF | Intl SCF |
+| Vercel env var (transition) | `TENCENT_COS_*` | n/a (kept on Vercel only for non-WeChat) |
+
+CAM keys at https://console.cloud.tencent.com/cam/capi. The same `SecretId/SecretKey` can read both buckets if the policy allows it; for blast-radius reasons, prefer **two separate sub-account keys**, one per bucket.
+
+---
+
+## Phase 3 — WeChat region-aware AI routing (already shipped)
+
+Code is in `src/lib/ai/index.ts → resolveAIProvider({ request })`. Activation is one env var per stack:
+
+```bash
+# Vercel (no change — Gemini default)
+# Intl SCF env: keep WECHAT_AI_PROVIDER unset → falls through to AI_PROVIDER (Gemini)
+# CN SCF env: WECHAT_AI_PROVIDER=qwen (or hunyuan when supported)
+```
+
+---
+
+## Phase 4 — TencentDB Postgres (CN + Intl)
+
+For each region:
+
+1. Tencent Cloud console → **TencentDB for PostgreSQL** → **Create Instance**.
+2. Region matches the SCF region (`ap-shanghai` / `ap-singapore`).
+3. Network: same VPC + subnet as the SCF will deploy to.
+4. Apply the Prisma schema: `prisma migrate deploy` against the new DATABASE_URL.
+5. Seed admin / system_config rows as needed.
+
+**Schema parity rule**: every PR that adds a Prisma migration must apply to all three DBs (Supabase, TencentDB CN, TencentDB Intl) before the SCF deploy runs. CI step recommended.
+
+---
+
+## Phase 5 — SCF Web Function (CN + Intl)
+
+Build:
+```bash
+# next.config.js: output: "standalone"
+npm run build
+# tar the .next/standalone + .next/static + public into a deployable zip
+```
+
+Deploy (per region):
+```bash
+cd <build dir>
+tcb fn deploy --envId <cn or intl envId> --runtime Nodejs18.15 \
+  --memory 512 --timeout 60 \
+  --env DATABASE_URL=<TencentDB url for that region> \
+        STORAGE_PROVIDER=tencent-cos \
+        TENCENT_COS_BUCKET=<region bucket> \
+        TENCENT_COS_REGION=<region> \
+        AI_PROVIDER=<gemini for intl, qwen for cn> \
+        NEXTAUTH_URL=<scf custom domain or tcloudbaseapp url>
+```
+
+After both SCFs are live, edit each `cloudbaserc.*.json` to point `ORIGIN_BASE_URL` at the SCF URL instead of Vercel, then `tcb framework deploy` again.
+
+---
+
+## Phase 6 — WeChat client builds (CN + Intl)
+
+Two WeChat Mini Program builds, two appIds, two `mp.weixin.qq.com` consoles.
+
+```bash
+cd wechat
+npm run build:weapp:cn      # writes dist/cn/, sets TARO_APP_API_BASE to CN TCB URL
+npm run build:weapp:intl    # writes dist/intl/, sets TARO_APP_API_BASE to Intl TCB URL
+```
+
+Each build is uploaded via `miniprogram-ci` (or the WeChat DevTool) using the appId for that region.
+
+WeChat allowlist (per appId):
+- **Mainland appId**: `request合法域名` = CN TCB URL; `uploadFile合法域名` = `hg-cn-<random>.cos.ap-shanghai.myqcloud.com`
+- **Overseas appId**: `request合法域名` = Intl TCB URL; `uploadFile合法域名` = `hg-intl-<random>.cos.ap-singapore.myqcloud.com`
+
+---
+
+## Phase 7 — ICP filing (CN only, can run in parallel)
+
+Required only to bind a non-`*.tcloudbaseapp.com` domain on the CN side. Process at https://console.cloud.tencent.com/beian. 2–4 weeks. Until it clears, the CN stack uses the `tcloudbaseapp.com` URL.
+
+---
+
+## Phase 8 — WeChat consultation page (TRTC)
+
+Lower priority. Mirrors the upcoming web `/consultation/[bookingId]` using `trtc-wx`. Backend (`/api/trtc/token/`) is ready. Tracked here for completeness; doesn't affect the regional data-isolation rollout.

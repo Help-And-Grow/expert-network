@@ -1,0 +1,6 @@
+{
+  "_comment": "Overseas WeChat Mini Program build config. Replace TARO_APP_API_BASE with the Intl TCB function URL once intl env is provisioned (cloudbaserc.intl.json envId).",
+  "TARO_APP_REGION": "intl",
+  "TARO_APP_API_BASE": "https://REPLACE_WITH_INTL_TCB_URL.tcloudbaseapp.com",
+  "TARO_APP_DEFAULT_LANG": "en-US"
+}

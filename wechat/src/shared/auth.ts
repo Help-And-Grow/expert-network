@@ -76,3 +76,18 @@ export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
 export function getApiBase(): string {
   return process.env.TARO_APP_API_BASE || "https://expert-network.vercel.app";
 }
+
+/**
+ * Returns the regional stack this WeChat MP build is bound to. Set at build
+ * time by `scripts/build-region.mjs` (`npm run build:weapp:cn|intl`).
+ *
+ * - `cn`   → mainland China stack (TencentDB CN, COS CN, Qwen)
+ * - `intl` → overseas stack (TencentDB Intl, COS Intl, Gemini)
+ *
+ * Surfaced to support so issues can be routed to the right database without
+ * guessing which stack a user is on.
+ */
+export function getRegion(): "cn" | "intl" | "unknown" {
+  const v = (process.env.TARO_APP_REGION || "").toLowerCase();
+  return v === "cn" || v === "intl" ? v : "unknown";
+}
