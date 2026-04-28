@@ -34,6 +34,9 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+.env.production
+.env.development
+.env.staging
 # Explicit: `vercel env pull --environment production` (contains live secrets)
 .env.vercel.production.local
 # Local file for `npm run vercel:env:apply` (never commit secrets)
