@@ -1,7 +1,7 @@
 {
   "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
   "version": "2.0",
-  "envId": "REPLACE_WITH_TCB_ENV_ID",
+  "envId": "production-wechat-i8ddngeb5eafed",
   "framework": {
     "name": "hg-tcb-proxy",
     "plugins": {
@@ -17,7 +17,7 @@
               "memorySize": 256,
               "timeout": 30,
               "envVariables": {
-                "ORIGIN_BASE_URL": "https://expert-network-REPLACE.a.run.app",
+                "ORIGIN_BASE_URL": "https://expert-network.vercel.app",
                 "PROXY_SHARED_SECRET": ""
               },
               "triggers": [
