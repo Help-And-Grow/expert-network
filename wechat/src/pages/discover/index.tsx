@@ -80,8 +80,12 @@ function normalizeRecommendationSummary(
   summary: string | undefined,
   reason: string | undefined,
 ): string {
-  const trimmed = summary?.trim();
-  if (trimmed) return trimmed;
+  const trimmedReason = reason?.trim();
+  if (trimmedReason && hasChineseText(trimmedReason)) {
+    return trimmedReason;
+  }
+  const trimmedSummary = summary?.trim();
+  if (trimmedSummary) return trimmedSummary;
   return normalizeRecommendationReason(reason);
 }
 

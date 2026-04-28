@@ -53,7 +53,7 @@ const MatchRecommendationCard = memo(function MatchRecommendationCard({
           <div className="min-w-0 flex-1">
             <h4 className="font-semibold text-foreground">{rec.name}</h4>
             <p className="mt-1 text-sm text-muted-foreground line-clamp-3">
-              {rec.summary?.trim() || rec.reason}
+              {rec.reason?.trim() || rec.summary}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">

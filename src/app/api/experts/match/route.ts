@@ -10,7 +10,6 @@ import {
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
-import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 type MatchExpertRow = {
   id: string;
@@ -38,11 +37,27 @@ function buildExpertSummary(expert: MatchExpertRow): string {
   return "Active expert on Help & Grow.";
 }
 
-function keywordMatch(
-  nq: NormalizedQuery,
-  experts: MatchExpertRow[],
-  vendorSite: boolean,
-) {
+function buildKeywordReason(
+  expert: MatchExpertRow,
+  matchedTerms: string[],
+  query: string,
+): string {
+  const focus = buildExpertFocusLabel(expert);
+  const name = expert.user.nickName ?? expert.user.name ?? "This expert";
+  const terms = matchedTerms.slice(0, 3).join(", ");
+  if (terms && focus) {
+    return `${name}'s profile mentions "${terms}" — focused on ${focus}, which is relevant to "${query}".`;
+  }
+  if (focus) {
+    return `${name} focuses on ${focus} — relevant to "${query}".`;
+  }
+  if (terms) {
+    return `${name}'s profile mentions "${terms}", relevant to "${query}".`;
+  }
+  return `${name} is a published expert whose profile aligns with "${query}".`;
+}
+
+function keywordMatch(nq: NormalizedQuery, experts: MatchExpertRow[]) {
   const allTerms = [
     nq.english.toLowerCase(),
     ...nq.keywords.map((k) => k.toLowerCase()),
@@ -53,6 +68,7 @@ function keywordMatch(
   const scored = experts
     .map((e) => {
       let score = 0;
+      const matched: string[] = [];
       const bio = (e.bio ?? "").toLowerCase();
       const name = (e.user.nickName ?? e.user.name ?? "").toLowerCase();
       const services = stringifyServicesOffered(e.servicesOffered).toLowerCase();
@@ -64,36 +80,54 @@ function keywordMatch(
       });
 
       for (const w of words) {
-        if (services.includes(w)) score += 3;
-        if (bio.includes(w)) score += 2;
-        if (name.includes(w)) score += 1;
+        let hit = false;
+        if (services.includes(w)) {
+          score += 3;
+          hit = true;
+        }
+        if (bio.includes(w)) {
+          score += 2;
+          hit = true;
+        }
+        if (name.includes(w)) {
+          score += 1;
+          hit = true;
+        }
+        if (hit) matched.push(w);
       }
       if (haystack.includes(nq.original.toLowerCase())) score += 2;
 
-      return { expert: e, score };
+      return { expert: e, score, matched };
     })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
   if (scored.length === 0) {
-    return { recommendations: [] as { expertId: string; name: string; reason: string; sessionTypes: string[] }[] };
+    return {
+      recommendations: [] as {
+        expertId: string;
+        name: string;
+        summary?: string;
+        reason: string;
+        sessionTypes: string[];
+      }[],
+    };
   }
 
+  const queryLabel = nq.original || nq.english;
   return {
     recommendations: scored.map((r) => ({
       expertId: r.expert.id,
       name: r.expert.user.nickName ?? r.expert.user.name ?? "Expert",
       summary: buildExpertSummary(r.expert),
-      reason: vendorSite
-        ? "Matches your search based on their profile."
-        : `Matches your search based on ${buildExpertFocusLabel(r.expert) ?? "their profile and services"}.`,
+      reason: buildKeywordReason(r.expert, r.matched, queryLabel),
       sessionTypes: [r.expert.sessionType],
     })),
   };
 }
 
-function exploratoryFallback(experts: MatchExpertRow[], vendorSite: boolean) {
+function exploratoryFallback(experts: MatchExpertRow[]) {
   const top = [...experts]
     .sort(
       (a, b) =>
@@ -103,15 +137,19 @@ function exploratoryFallback(experts: MatchExpertRow[], vendorSite: boolean) {
     .slice(0, 3);
 
   return {
-    recommendations: top.map((e) => ({
-      expertId: e.id,
-      name: e.user.nickName ?? e.user.name ?? "Expert",
-      summary: buildExpertSummary(e),
-      reason: vendorSite
-        ? "Active expert on Help & Grow. Add more detail to your search for a tighter match."
-        : `Active expert on Help & Grow (${buildExpertFocusLabel(e) ?? "multiple services"}). Add more detail to your search for a tighter match.`,
-      sessionTypes: [e.sessionType],
-    })),
+    recommendations: top.map((e) => {
+      const focus = buildExpertFocusLabel(e);
+      const name = e.user.nickName ?? e.user.name ?? "Expert";
+      return {
+        expertId: e.id,
+        name,
+        summary: buildExpertSummary(e),
+        reason: focus
+          ? `${name} focuses on ${focus}. Add more detail to your search for a tighter match.`
+          : `${name} is an active expert on Help & Grow. Add more detail to your search for a tighter match.`,
+        sessionTypes: [e.sessionType],
+      };
+    }),
     noMatchMessage:
       "Your search was very broad. Here are some active experts \u2014 try adding a specific goal for a better match.",
   };
@@ -119,7 +157,6 @@ function exploratoryFallback(experts: MatchExpertRow[], vendorSite: boolean) {
 
 export async function POST(request: NextRequest) {
   try {
-    const vendorSite = isVendorAiStackSiteRequest(request);
     const viewerUserId = await resolveUserId(request).catch(() => null);
     const body = await request.json().catch(() => ({}));
     if (typeof body !== "object" || body === null) {
@@ -216,7 +253,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Step 5: Keyword fallback using LLM-generated keywords
-      const keyword = keywordMatch(nq, experts, vendorSite);
+      const keyword = keywordMatch(nq, experts);
       if (keyword.recommendations.length > 0) {
         return NextResponse.json({
           recommendations: keyword.recommendations,
@@ -226,7 +263,7 @@ export async function POST(request: NextRequest) {
 
       // Step 6: Only show exploratory fallback for greetings/broad queries, not specific unmatched topics
       if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
-        return NextResponse.json(exploratoryFallback(experts, vendorSite));
+        return NextResponse.json(exploratoryFallback(experts));
       }
 
       return NextResponse.json({
@@ -237,12 +274,12 @@ export async function POST(request: NextRequest) {
       });
     } catch (aiError) {
       console.error("[experts/match] AI matching failed, keyword fallback:", aiError);
-      const fallback = keywordMatch(nq, experts, vendorSite);
+      const fallback = keywordMatch(nq, experts);
       if (fallback.recommendations.length > 0) {
         return NextResponse.json(fallback);
       }
       if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
-        return NextResponse.json(exploratoryFallback(experts, vendorSite));
+        return NextResponse.json(exploratoryFallback(experts));
       }
       return NextResponse.json({
         recommendations: [],
