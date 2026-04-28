@@ -109,7 +109,7 @@ const envSchema = z
 
     AI_PROVIDER: z
       .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
-      .default("qwen"),
+      .default("gemini"),
     /**
      * Provider used when the request originates from the WeChat Mini Program
      * (detected via TCB-stamped headers in `lib/request-origin.ts`). Defaults
@@ -193,10 +193,6 @@ const envSchema = z
     WECHAT_PAY_PLATFORM_PUBLIC_KEY_PEM: z.string().optional(),
     /** Wechatpay-Serial header: platform certificate serial or public key id */
     WECHAT_PAY_PLATFORM_CERT_SERIAL: z.string().optional(),
-
-    FISH_AUDIO_API_KEY: z.string().optional(),
-    FISH_AUDIO_VOICE_ID_MALE: z.string().optional(),
-    FISH_AUDIO_VOICE_ID_FEMALE: z.string().optional(),
 
     /** Tencent RTC SDKAppID from the TRTC console. */
     TRTC_APP_ID: z.coerce.number().int().positive().optional(),

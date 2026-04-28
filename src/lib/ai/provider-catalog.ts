@@ -12,13 +12,12 @@ export const ALL_AI_PROVIDERS = [
 
 export type AIProviderName = (typeof ALL_AI_PROVIDERS)[number];
 
-export const IMAGE_FALLBACK_ORDER = [
-  "openai",
-  "zai",
-  "qwen",
-  "gemini",
-  "dedalus",
-] as const;
+/**
+ * Profile image generation chain. Tried in order; first to return an image wins.
+ * Hard-coded since the requirement is data-residency-aware (Qwen first for
+ * CN-friendly endpoint, Gemini second for global capacity).
+ */
+export const IMAGE_FALLBACK_ORDER = ["qwen", "gemini"] as const;
 
 type ModelEnvKey =
   | "OPENAI_TEXT_MODEL"

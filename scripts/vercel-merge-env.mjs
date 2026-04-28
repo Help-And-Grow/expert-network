@@ -28,21 +28,21 @@ const PROVIDER_CONFIGS = {
     aiProvider: "qwen",
     voiceDefault: "qwen-voice",
     url: "https://expert-network-alibabacloud.vercel.app",
-    keepPrefixes: ["DASHSCOPE_", "QWEN_", "FISH_AUDIO_"],
+    keepPrefixes: ["DASHSCOPE_", "QWEN_"],
     skipFromOrigin: ["GEMINI_", "GOOGLE_CLOUD_", "GOOGLE_SERVICE_", "BYTEPLUS_"]
   },
   googlecloud: {
     aiProvider: "gemini",
     voiceDefault: "gemini-voice",
     url: "https://expert-network-googlecloud.vercel.app",
-    keepPrefixes: ["GEMINI_", "GOOGLE_CLOUD_", "GOOGLE_SERVICE_", "FISH_AUDIO_", "ZAI_", "DASHSCOPE_"],
+    keepPrefixes: ["GEMINI_", "GOOGLE_CLOUD_", "GOOGLE_SERVICE_", "ZAI_", "DASHSCOPE_"],
     skipFromOrigin: ["QWEN_", "BYTEPLUS_"]
   },
   byteplus: {
     aiProvider: "byteplus",
     voiceDefault: "byteplus-voice",
     url: "https://expert-network-byteplus.vercel.app",
-    keepPrefixes: ["BYTEPLUS_", "FISH_AUDIO_", "DASHSCOPE_"],
+    keepPrefixes: ["BYTEPLUS_", "DASHSCOPE_"],
     skipFromOrigin: ["QWEN_", "GEMINI_", "GOOGLE_CLOUD_", "GOOGLE_SERVICE_"]
   }
 };

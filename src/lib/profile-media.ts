@@ -1,34 +1,29 @@
 import { createAIProviderForName, type ImageInput } from "@/lib/ai";
 import { normalizeAudioForBrowserPlayback } from "@/lib/audio-format";
-import { IMAGE_FALLBACK_ORDER } from "@/lib/ai/provider-catalog";
 import { env } from "@/lib/env";
-import { hasGoogleServiceAccountConfig } from "@/lib/google-access-token";
-import { getVoiceSynthesis } from "@/lib/integrations/config";
-import { isAlibabaCloudVendorDemoDeployment } from "@/lib/vendor-ai-stack-site";
 
 import type {
   VoiceSynthesisProvider,
   VoiceSynthesisResult,
 } from "@/lib/integrations/types";
 
-const IMAGE_UNSUPPORTED_AI_PROVIDERS = new Set(["byteplus", "volcengine"]);
-
-function currentAiProvider(): string {
-  return (env.AI_PROVIDER || "qwen").trim().toLowerCase();
-}
-
 /**
- * Alibaba showcase hosts should not inherit a mistaken non-Qwen `AI_PROVIDER`
- * from another deployment.
- * Profile images use this primary provider before Gemini fallback rules.
+ * Profile media (avatar image + voice intro) uses an explicit Qwen → Gemini
+ * chain regardless of `AI_PROVIDER`. Qwen first because DashScope's image and
+ * TTS endpoints sit in `ap-southeast-1` (and inside the GFW for CN traffic);
+ * Gemini is the fallback for capacity/availability.
  */
-function primaryProviderForProfileImage(): string {
-  if (isAlibabaCloudVendorDemoDeployment()) return "qwen";
-  return currentAiProvider();
-}
+const PROFILE_IMAGE_ORDER = ["qwen", "gemini"] as const;
+type ProfileImageProvider = (typeof PROFILE_IMAGE_ORDER)[number];
 
 function isGeminiConfigured(): boolean {
   return Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
+}
+
+function isProfileImageProviderConfigured(name: ProfileImageProvider): boolean {
+  if (name === "gemini") return isGeminiConfigured();
+  if (name === "qwen") return Boolean(env.DASHSCOPE_API_KEY?.trim());
+  return false;
 }
 
 async function generateProfileImageWithGemini(
@@ -36,36 +31,6 @@ async function generateProfileImageWithGemini(
 ): Promise<string | null> {
   const { GeminiProvider } = await import("@/lib/ai/gemini");
   return new GeminiProvider().generateProfileImage(data);
-}
-
-function isProviderConfiguredForProfileImage(providerName: string): boolean {
-  switch (providerName) {
-    case "gemini":
-      return isGeminiConfigured();
-    case "qwen":
-      return Boolean(env.DASHSCOPE_API_KEY?.trim());
-    case "openai":
-      return Boolean(env.OPENAI_API_KEY?.trim());
-    case "zai":
-      return Boolean(
-        env.ZAI_API_KEY?.trim() ||
-          (env.GOOGLE_CLOUD_PROJECT?.trim() && hasGoogleServiceAccountConfig()),
-      );
-    case "dedalus":
-      return Boolean(env.DEDALUS_API_KEY?.trim());
-    default:
-      return false;
-  }
-}
-
-function profileImageProviderOrder(primaryProvider: string): string[] {
-  const ordered = [primaryProvider, ...IMAGE_FALLBACK_ORDER];
-  return ordered.filter(
-    (providerName, index) =>
-      ordered.indexOf(providerName) === index &&
-      (providerName === primaryProvider ||
-        isProviderConfiguredForProfileImage(providerName)),
-  );
 }
 
 async function normalizeProfileImage(image: string): Promise<string | null> {
@@ -98,7 +63,7 @@ async function normalizeProfileImage(image: string): Promise<string | null> {
 }
 
 async function generateProfileImageWithProvider(
-  providerName: string,
+  providerName: ProfileImageProvider,
   data: ImageInput,
 ): Promise<string | null> {
   const image = providerName === "gemini"
@@ -111,18 +76,15 @@ async function generateProfileImageWithProvider(
 export async function generateProfileImageResilient(
   data: ImageInput,
 ): Promise<string | null> {
-  const primaryProvider = primaryProviderForProfileImage();
-  const providerOrder = profileImageProviderOrder(primaryProvider);
+  const order = PROFILE_IMAGE_ORDER.filter(isProfileImageProviderConfigured);
+  if (order.length === 0) {
+    throw new Error(
+      "No profile image provider configured. Set DASHSCOPE_API_KEY (Qwen) or GEMINI_API_KEY.",
+    );
+  }
+
   const attempts: string[] = [];
-
-  for (const providerName of providerOrder) {
-    if (
-      providerName !== primaryProvider &&
-      IMAGE_UNSUPPORTED_AI_PROVIDERS.has(providerName)
-    ) {
-      continue;
-    }
-
+  for (const providerName of order) {
     try {
       const image = await generateProfileImageWithProvider(providerName, data);
       if (image) return image;
@@ -134,35 +96,27 @@ export async function generateProfileImageResilient(
     }
   }
 
-  if (attempts.length > 0) {
-    throw new Error(
-      `No configured profile image provider produced an image. Tried ${providerOrder.join(", ")}. ${attempts.join("; ")}`,
-    );
-  }
-
-  return null;
+  throw new Error(
+    `No configured profile image provider produced an image. Tried ${order.join(", ")}. ${attempts.join("; ")}`,
+  );
 }
 
-async function createGeminiProfileIntroVoiceSynthesis(): Promise<VoiceSynthesisProvider | null> {
-  if (!isGeminiConfigured()) return null;
-  const { GeminiTtsProvider } = await import("@/lib/integrations/gemini-tts");
-  return new GeminiTtsProvider();
-}
-
+/**
+ * Profile-intro voice synthesis chain: Qwen TTS → Gemini TTS.
+ * Each provider is included only when its credentials are present, so the
+ * order returned is also the order to attempt.
+ */
 export async function getProfileIntroVoiceSynthesisProviders(): Promise<VoiceSynthesisProvider[]> {
   const providers: VoiceSynthesisProvider[] = [];
 
-  const fallback = await getVoiceSynthesis();
-  if (fallback) {
-    providers.push(fallback);
+  if (env.DASHSCOPE_API_KEY?.trim()) {
+    const { QwenTTSProvider } = await import("@/lib/integrations/qwen-tts");
+    providers.push(new QwenTTSProvider());
   }
 
-  const gemini = await createGeminiProfileIntroVoiceSynthesis().catch(() => null);
-  if (gemini) {
-    const duplicate = providers.some(
-      (provider) => provider.constructor === gemini.constructor,
-    );
-    if (!duplicate) providers.push(gemini);
+  if (isGeminiConfigured()) {
+    const { GeminiTtsProvider } = await import("@/lib/integrations/gemini-tts");
+    providers.push(new GeminiTtsProvider());
   }
 
   return providers;

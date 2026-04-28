@@ -36,48 +36,24 @@ function getDashscopeKeyIssue(): string | null {
   return null;
 }
 
-const aiProvider = (env.AI_PROVIDER || "qwen").trim().toLowerCase();
+const aiProvider = (env.AI_PROVIDER || "gemini").trim().toLowerCase();
 const geminiVoiceReady = Boolean(
   env.GOOGLE_CLOUD_PROJECT?.trim() || env.GEMINI_API_KEY?.trim(),
 );
-const hasFish = Boolean(env.FISH_AUDIO_API_KEY);
 const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
 
-/** Alibaba DashScope is the canonical speech stack for the public repo. */
-const voiceStackPrefersDashScope =
-  aiProvider === "qwen" ||
-  aiProvider === "byteplus";
-
 /**
- * Select TTS provider respecting AI_PROVIDER first, then falling back by key availability.
- * - qwen  → always qwen-tts (DashScope)
- * - byteplus → qwen-tts (DashScope ASR/TTS) unless only Gemini/Fish keys present
- * - gemini → gemini-tts if ready, else fish, else qwen
- * - others → gemini if ready, else fish, else qwen
+ * Voice synthesis selection (single-provider for non-profile-intro callers).
+ * Profile-intro uses the explicit Qwen → Gemini chain in `profile-media.ts`.
+ *
+ * Order: Qwen TTS (DashScope) → Gemini TTS. Same priority across CN/global so
+ * voice replies stay inside the GFW where the Qwen key is set.
  */
-let voiceSynthesisProvider: "fish-audio" | "qwen-tts" | "gemini-tts";
-if (voiceStackPrefersDashScope) {
-  // These providers use DashScope for TTS; never auto-select Gemini TTS
-  if (hasDash) {
-    voiceSynthesisProvider = "qwen-tts";
-  } else if (hasFish) {
-    voiceSynthesisProvider = "fish-audio";
-  } else if (geminiVoiceReady) {
-    voiceSynthesisProvider = "gemini-tts";
-  } else {
-    voiceSynthesisProvider = "qwen-tts"; // will surface missing key error
-  }
-} else if (geminiVoiceReady) {
-  voiceSynthesisProvider = "gemini-tts";
-} else if (hasFish) {
-  voiceSynthesisProvider = "fish-audio";
-} else if (hasDash) {
-  voiceSynthesisProvider = "qwen-tts";
-} else {
-  voiceSynthesisProvider = "qwen-tts"; // fallback to trigger missing key errors
-}
+const voiceSynthesisProvider: "qwen-tts" | "gemini-tts" = hasDash
+  ? "qwen-tts"
+  : "gemini-tts";
 
-const voiceSynthesisEnabled = hasFish || hasDash || geminiVoiceReady;
+const voiceSynthesisEnabled = hasDash || geminiVoiceReady;
 
 export function getVoiceTranscriptionConfigIssue(): string | null {
   const dashscopeIssue = getDashscopeKeyIssue();
@@ -92,22 +68,10 @@ export function getVoiceTranscriptionConfigIssue(): string | null {
 }
 
 export function getVoiceSynthesisConfigIssue(): string | null {
-  if (voiceStackPrefersDashScope) {
-    // These providers require DashScope for TTS
-    const dashscopeIssue = getDashscopeKeyIssue();
-    if (dashscopeIssue) return dashscopeIssue;
-    if (hasDash) return null;
-    if (hasFish) return null; // fish-audio fallback
-    if (aiProvider === "byteplus") {
-      return "BytePlus ModelArk powers the text reply only. Voice audio requires FISH_AUDIO_API_KEY or a real DASHSCOPE_API_KEY.";
-    }
-    return "Voice audio requires DASHSCOPE_API_KEY for Qwen TTS.";
-  }
-  if (geminiVoiceReady || hasFish) return null;
   const dashscopeIssue = getDashscopeKeyIssue();
   if (dashscopeIssue) return dashscopeIssue;
-  if (hasDash) return null;
-  return "Voice audio is not configured.";
+  if (hasDash || geminiVoiceReady) return null;
+  return "Voice audio requires DASHSCOPE_API_KEY (Qwen TTS) or GEMINI_API_KEY (Gemini TTS).";
 }
 
 export const integrations = {
@@ -137,10 +101,7 @@ let _meetingRecording: MeetingRecordingProvider | null = null;
 export async function getVoiceSynthesis(): Promise<VoiceSynthesisProvider | null> {
   if (!integrations.voiceSynthesis.enabled) return null;
   if (!_voiceSynthesis) {
-    if (integrations.voiceSynthesis.provider === "fish-audio") {
-      const { FishAudioProvider } = await import("./fish-audio");
-      _voiceSynthesis = new FishAudioProvider();
-    } else if (integrations.voiceSynthesis.provider === "gemini-tts") {
+    if (integrations.voiceSynthesis.provider === "gemini-tts") {
       const { GeminiTtsProvider } = await import("./gemini-tts");
       _voiceSynthesis = new GeminiTtsProvider();
     } else {

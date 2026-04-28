@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     try {
       const providers = await getProfileIntroVoiceSynthesisProviders();
       if (providers.length === 0) {
-        diagnostics.audio = "no voice synthesis providers configured (set GEMINI_API_KEY or FISH_AUDIO_API_KEY)";
+        diagnostics.audio = "no voice synthesis providers configured (set DASHSCOPE_API_KEY for Qwen TTS or GEMINI_API_KEY for Gemini TTS)";
       } else if (!profile.videoScript) {
         diagnostics.audio = "no script available — text generation must succeed first";
       } else {

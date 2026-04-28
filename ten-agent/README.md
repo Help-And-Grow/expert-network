@@ -38,7 +38,7 @@ Join a channel and start the AI agent.
   "channel": "vc-abc-12345678",
   "uid": 100001,
   "expertId": "expert-uuid",
-  "voiceModelId": "fish-audio-model-id",
+  "voiceModelId": "qwen-tts-voice-id",
   "systemPrompt": "You are an AI clone of Dr. Smith..."
 }
 ```
