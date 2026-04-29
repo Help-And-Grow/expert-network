@@ -5,6 +5,7 @@ export const ALL_AI_PROVIDERS = [
   "zai",
   "qwen",
   "gemini",
+  "hunyuan",
   "dedalus",
   "byteplus",
   "volcengine",
@@ -41,6 +42,7 @@ type ModelEnvKey =
   | "QWEN_IMAGE_MODEL"
   | "GEMINI_TEXT_MODEL"
   | "GEMINI_IMAGE_MODEL"
+  | "HUNYUAN_TEXT_MODEL"
   | "DEDALUS_MODEL"
   | "DEDALUS_IMAGE_MODEL"
   | "BYTEPLUS_MODEL_ID"
@@ -70,6 +72,7 @@ export const QWEN_DEFAULT_TEXT_MODEL = "qwen3.6-plus";
 export const QWEN_DEFAULT_IMAGE_MODEL = "wan2.7-image-pro";
 export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.1-flash";
 export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
+export const HUNYUAN_DEFAULT_TEXT_MODEL = "hunyuan-turbo";
 export const DEDALUS_DEFAULT_TEXT_MODEL = "google/gemini-2.5-flash";
 export const DEDALUS_DEFAULT_IMAGE_MODEL = "openai/dall-e-3";
 export const BYTEPLUS_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
@@ -120,6 +123,16 @@ export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> =
     defaultImageModel: GEMINI_DEFAULT_IMAGE_MODEL,
     supportsImage: true,
   },
+  hunyuan: {
+    label: "Tencent Hunyuan",
+    description:
+      "Tencent Cloud Hunyuan LLM. Default for the WeChat-CN and WeChat-Intl stacks (data residency on Tencent infrastructure).",
+    requiredAny: [["HUNYUAN_API_KEY"]],
+    optional: [],
+    textModelEnvKey: "HUNYUAN_TEXT_MODEL",
+    defaultTextModel: HUNYUAN_DEFAULT_TEXT_MODEL,
+    supportsImage: false,
+  },
   dedalus: {
     label: "Dedalus",
     description: "Brokered provider. Defaults stay conservative unless explicitly overridden.",
@@ -169,6 +182,8 @@ function getModelEnvValue(key?: ModelEnvKey): string | undefined {
       return env.GEMINI_TEXT_MODEL?.trim();
     case "GEMINI_IMAGE_MODEL":
       return env.GEMINI_IMAGE_MODEL?.trim();
+    case "HUNYUAN_TEXT_MODEL":
+      return env.HUNYUAN_TEXT_MODEL?.trim();
     case "DEDALUS_MODEL":
       return env.DEDALUS_MODEL?.trim();
     case "DEDALUS_IMAGE_MODEL":
@@ -214,9 +229,9 @@ export async function getActiveAIProviderNameForRequest(
   const { getSystemConfig } = await import("@/lib/system-config");
   const dbProvider = await getSystemConfig("WECHAT_AI_PROVIDER");
   const resolved = normalizeAIProviderName(
-    dbProvider || env.WECHAT_AI_PROVIDER || "qwen",
+    dbProvider || env.WECHAT_AI_PROVIDER || "hunyuan",
   );
-  return resolved ?? "qwen";
+  return resolved ?? "hunyuan";
 }
 
 /**
@@ -361,6 +376,10 @@ export function getQwenTextModel(): string {
 
 export function getQwenImageModel(): string {
   return env.QWEN_IMAGE_MODEL?.trim() || QWEN_DEFAULT_IMAGE_MODEL;
+}
+
+export function getHunyuanTextModel(): string {
+  return env.HUNYUAN_TEXT_MODEL?.trim() || HUNYUAN_DEFAULT_TEXT_MODEL;
 }
 
 

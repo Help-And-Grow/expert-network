@@ -25,6 +25,11 @@ const PROVIDERS: Record<string, () => AIProvider> = {
     const { GeminiProvider } = require("./gemini") as typeof import("./gemini");
     return new GeminiProvider();
   },
+  hunyuan: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { HunyuanProvider } = require("./hunyuan") as typeof import("./hunyuan");
+    return new HunyuanProvider();
+  },
   qwen: () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { QwenProvider } = require("./qwen") as typeof import("./qwen");

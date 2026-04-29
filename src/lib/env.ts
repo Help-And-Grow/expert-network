@@ -108,17 +108,21 @@ const envSchema = z
     RESEND_API_KEY: z.string().optional(),
 
     AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
+      .enum(["dedalus", "gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
       .default("gemini"),
     /**
      * Provider used when the request originates from the WeChat Mini Program
      * (detected via TCB-stamped headers in `lib/request-origin.ts`). Defaults
-     * to `qwen` since DashScope/Hunyuan/Volcengine endpoints all reach
-     * mainland-CN clients without leaving the GFW boundary.
+     * to `hunyuan` so both WeChat-CN and WeChat-Intl stacks run entirely on
+     * Tencent Cloud (data residency + on-platform LLM).
      */
     WECHAT_AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "openai", "zai", "byteplus", "volcengine"])
+      .enum(["dedalus", "gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
       .optional(),
+    /** Tencent Cloud Hunyuan API key — sub-account key from CAM with Hunyuan permissions. */
+    HUNYUAN_API_KEY: z.string().optional(),
+    /** Hunyuan model id (default: hunyuan-turbo). hunyuan-pro / hunyuan-standard / hunyuan-lite also valid. */
+    HUNYUAN_TEXT_MODEL: z.string().optional(),
 
     STORAGE_PROVIDER: z
       .enum(["vercel", "gcs", "tencent-cos", "db"])

@@ -28,6 +28,7 @@ type ProviderName =
   | "zai"
   | "qwen"
   | "gemini"
+  | "hunyuan"
   | "dedalus"
   | "byteplus"
   | "volcengine";
@@ -98,6 +99,7 @@ export default function AdminAIProviderPage() {
     zai: { textModel: "", imageModel: "" },
     qwen: { textModel: "", imageModel: "" },
     gemini: { textModel: "", imageModel: "" },
+    hunyuan: { textModel: "", imageModel: "" },
     dedalus: { textModel: "", imageModel: "" },
     byteplus: { textModel: "", imageModel: "" },
     volcengine: { textModel: "", imageModel: "" },
@@ -110,11 +112,12 @@ export default function AdminAIProviderPage() {
       const res = await fetch("/api/admin/ai-provider", { credentials: "include" });
       const body = (await res.json()) as StatusResponse;
       setData(body);
-      setSelectedProvider(body.currentProvider);
+      setSelectedProvider(body.currentProvider ?? "qwen");
       setImageChainDraft((body.imageProviderChain ?? []).join(","));
       setVoiceChainDraft((body.voiceProviderChain ?? []).join(","));
+      const providers = body.providers ?? [];
       setProviderModels(
-        body.providers.reduce(
+        providers.reduce(
           (acc, provider) => {
             acc[provider.name] = {
               textModel: provider.textModel ?? provider.defaultTextModel ?? "",
@@ -127,6 +130,7 @@ export default function AdminAIProviderPage() {
             zai: { textModel: "", imageModel: "" },
             qwen: { textModel: "", imageModel: "" },
             gemini: { textModel: "", imageModel: "" },
+            hunyuan: { textModel: "", imageModel: "" },
             dedalus: { textModel: "", imageModel: "" },
             byteplus: { textModel: "", imageModel: "" },
             volcengine: { textModel: "", imageModel: "" },
@@ -242,8 +246,9 @@ export default function AdminAIProviderPage() {
           </CardTitle>
           <CardDescription>
             Switch the active provider and pin per-provider model IDs without
-            editing Vercel environment scripts. Image fallback order is{" "}
-            <span className="font-medium">openai → zai → qwen → gemini → dedalus</span>.
+            editing Vercel environment scripts. Image and voice provider chains
+            are configurable below — defaults match the current Tencent/Gemini
+            architecture.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
