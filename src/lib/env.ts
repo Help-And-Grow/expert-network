@@ -108,7 +108,7 @@ const envSchema = z
     RESEND_API_KEY: z.string().optional(),
 
     AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
+      .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
       .default("gemini"),
     /**
      * Provider used when the request originates from the WeChat Mini Program
@@ -117,7 +117,7 @@ const envSchema = z
      * Tencent Cloud (data residency + on-platform LLM).
      */
     WECHAT_AI_PROVIDER: z
-      .enum(["dedalus", "gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
+      .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
       .optional(),
     /** Tencent Cloud Hunyuan API key — sub-account key from CAM with Hunyuan permissions. */
     HUNYUAN_API_KEY: z.string().optional(),
@@ -159,11 +159,6 @@ const envSchema = z
     ZAI_TEXT_MODEL: z.string().optional(),
     ZAI_IMAGE_MODEL: z.string().optional(),
     ZAI_VERTEX_LOCATION: z.string().optional(),
-
-    DEDALUS_API_KEY: z.string().optional(),
-    DEDALUS_MODEL: z.string().optional(),
-    DEDALUS_IMAGE_MODEL: z.string().optional(),
-    DEDALUS_MATCH_MODEL: z.string().optional(),
 
     TELEGRAM_BOT_TOKEN: z.string().optional(),
 

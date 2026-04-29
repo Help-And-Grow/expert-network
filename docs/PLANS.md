@@ -32,7 +32,7 @@
 - [x] Email notifications via Resend (confirmation + 1hr reminder)
 - [x] Stripe live mode integration with Connected Accounts
 - [x] WeChat Mini Program MVP with full feature parity
-- [x] Multi-provider AI system (Qwen, Gemini, OpenAI, Dedalus)
+- [x] Multi-provider AI system (Qwen, Gemini, Hunyuan, OpenAI, Z.AI, BytePlus, Volcengine)
 - [x] Two-way appreciation flow (player rates expert, coach follow-up)
 - [x] Free meetup flow for experts with zero pricing
 - [x] Stripe webhook fix (secret mismatch on Vercel)

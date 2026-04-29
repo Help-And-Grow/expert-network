@@ -33,8 +33,6 @@ function isImageProviderConfigured(name: AIProviderName): boolean {
       return Boolean(env.OPENAI_API_KEY?.trim());
     case "zai":
       return Boolean(env.ZAI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
-    case "dedalus":
-      return Boolean(env.DEDALUS_API_KEY?.trim());
     default:
       return false;
   }

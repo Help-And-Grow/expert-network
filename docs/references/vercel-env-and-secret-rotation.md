@@ -51,7 +51,7 @@ You cannot “delete” secrets from Vercel without replacing them — the app n
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, publishable key | Stripe Dashboard → API keys / Webhooks |
 | `RESEND_API_KEY` | Resend → API Keys → revoke old, create new |
 | `EMAIL_SERVER_PASSWORD` | Google Account → App passwords → revoke and create new |
-| `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, `DEDALUS_API_KEY` | Respective provider consoles |
+| `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, `HUNYUAN_API_KEY` | Respective provider consoles |
 | `TELEGRAM_BOT_TOKEN` | @BotFather → revoke / new token if supported |
 | `WECHAT_*` secrets | WeChat MP / Pay dashboards |
 | voice / AI vendor keys (`OPENAI_API_KEY`, `ZAI_API_KEY`, etc.) | Vendor dashboards |

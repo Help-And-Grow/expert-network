@@ -15,11 +15,6 @@ export type {
 // ---------------------------------------------------------------------------
 
 const PROVIDERS: Record<string, () => AIProvider> = {
-  dedalus: () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DedalusProvider } = require("./dedalus") as typeof import("./dedalus");
-    return new DedalusProvider();
-  },
   gemini: () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { GeminiProvider } = require("./gemini") as typeof import("./gemini");

@@ -29,7 +29,6 @@ type ProviderName =
   | "qwen"
   | "gemini"
   | "hunyuan"
-  | "dedalus"
   | "byteplus"
   | "volcengine";
 
@@ -183,7 +182,6 @@ export default function AdminAIProviderPage() {
     qwen: { textModel: "", imageModel: "" },
     gemini: { textModel: "", imageModel: "" },
     hunyuan: { textModel: "", imageModel: "" },
-    dedalus: { textModel: "", imageModel: "" },
     byteplus: { textModel: "", imageModel: "" },
     volcengine: { textModel: "", imageModel: "" },
   });
@@ -214,8 +212,7 @@ export default function AdminAIProviderPage() {
             qwen: { textModel: "", imageModel: "" },
             gemini: { textModel: "", imageModel: "" },
             hunyuan: { textModel: "", imageModel: "" },
-            dedalus: { textModel: "", imageModel: "" },
-            byteplus: { textModel: "", imageModel: "" },
+                    byteplus: { textModel: "", imageModel: "" },
             volcengine: { textModel: "", imageModel: "" },
           } satisfies Record<ProviderName, ModelDraft>,
         ),

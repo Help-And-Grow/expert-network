@@ -6,7 +6,6 @@ export const ALL_AI_PROVIDERS = [
   "qwen",
   "gemini",
   "hunyuan",
-  "dedalus",
   "byteplus",
   "volcengine",
 ] as const;
@@ -43,8 +42,6 @@ type ModelEnvKey =
   | "GEMINI_TEXT_MODEL"
   | "GEMINI_IMAGE_MODEL"
   | "HUNYUAN_TEXT_MODEL"
-  | "DEDALUS_MODEL"
-  | "DEDALUS_IMAGE_MODEL"
   | "BYTEPLUS_MODEL_ID"
   | "VOLCENGINE_MODEL_ID";
 
@@ -73,8 +70,6 @@ export const QWEN_DEFAULT_IMAGE_MODEL = "wan2.7-image-pro";
 export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.1-flash";
 export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
 export const HUNYUAN_DEFAULT_TEXT_MODEL = "hunyuan-turbo";
-export const DEDALUS_DEFAULT_TEXT_MODEL = "google/gemini-2.5-flash";
-export const DEDALUS_DEFAULT_IMAGE_MODEL = "openai/dall-e-3";
 export const BYTEPLUS_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
 export const VOLCENGINE_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
 
@@ -133,17 +128,6 @@ export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> =
     defaultTextModel: HUNYUAN_DEFAULT_TEXT_MODEL,
     supportsImage: false,
   },
-  dedalus: {
-    label: "Dedalus",
-    description: "Brokered provider. Defaults stay conservative unless explicitly overridden.",
-    requiredAny: [["DEDALUS_API_KEY"]],
-    optional: ["DEDALUS_MATCH_MODEL"],
-    textModelEnvKey: "DEDALUS_MODEL",
-    imageModelEnvKey: "DEDALUS_IMAGE_MODEL",
-    defaultTextModel: DEDALUS_DEFAULT_TEXT_MODEL,
-    defaultImageModel: DEDALUS_DEFAULT_IMAGE_MODEL,
-    supportsImage: true,
-  },
   byteplus: {
     label: "BytePlus / ModelArk",
     description: "Text-only OpenAI-compatible provider for BytePlus deployments.",
@@ -184,10 +168,6 @@ function getModelEnvValue(key?: ModelEnvKey): string | undefined {
       return env.GEMINI_IMAGE_MODEL?.trim();
     case "HUNYUAN_TEXT_MODEL":
       return env.HUNYUAN_TEXT_MODEL?.trim();
-    case "DEDALUS_MODEL":
-      return env.DEDALUS_MODEL?.trim();
-    case "DEDALUS_IMAGE_MODEL":
-      return env.DEDALUS_IMAGE_MODEL?.trim();
     case "BYTEPLUS_MODEL_ID":
       return env.BYTEPLUS_MODEL_ID?.trim();
     case "VOLCENGINE_MODEL_ID":
@@ -349,6 +329,22 @@ export function computeProviderHealth(keys: Set<string>) {
   >;
 }
 
+/**
+ * Same as `computeProviderHealth` but reads keys from the server's runtime
+ * `process.env`. Used by the admin page when `VERCEL_MANAGEMENT_TOKEN` is
+ * absent — Vercel injects the project env into runtime process.env, so this
+ * is the source of truth for "what's actually wired up" without needing API
+ * access.
+ */
+export function computeProviderHealthFromRuntime() {
+  const present = new Set<string>();
+  for (const value of Object.entries(process.env)) {
+    const [key, val] = value;
+    if (val && String(val).trim().length > 0) present.add(key);
+  }
+  return computeProviderHealth(present);
+}
+
 
 export function getOpenAITextModel(): string {
   return env.OPENAI_TEXT_MODEL?.trim() || OPENAI_DEFAULT_TEXT_MODEL;
@@ -393,12 +389,3 @@ export async function getGeminiImageModel(): Promise<string> {
   return state.imageModel || GEMINI_DEFAULT_IMAGE_MODEL;
 }
 
-export async function getDedalusTextModel(): Promise<string> {
-  const state = await getProviderModelState("dedalus");
-  return state.textModel || DEDALUS_DEFAULT_TEXT_MODEL;
-}
-
-export async function getDedalusImageModel(): Promise<string> {
-  const state = await getProviderModelState("dedalus");
-  return state.imageModel || DEDALUS_DEFAULT_IMAGE_MODEL;
-}

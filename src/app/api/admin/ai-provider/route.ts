@@ -7,6 +7,7 @@ import {
   ALL_AI_PROVIDERS,
   ALL_VOICE_PROVIDERS,
   computeProviderHealth,
+  computeProviderHealthFromRuntime,
   getActiveAIProviderName,
   getActiveImageProviderChain,
   getActiveVoiceProviderChain,
@@ -110,6 +111,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ...baseResponse,
       canManage: false,
+      // Runtime env reflects what Vercel injected at deploy — accurate without
+      // needing VERCEL_MANAGEMENT_TOKEN.
+      providerHealth: computeProviderHealthFromRuntime(),
       notice:
         "Database-only mode. Set VERCEL_MANAGEMENT_TOKEN to also sync with Vercel environment variables.",
     });

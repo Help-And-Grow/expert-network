@@ -74,7 +74,7 @@ The `request` is threaded through the upload sites (`src/app/api/onboarding/gene
 
 ### 3.1 Provider Abstraction (factory)
 
-All providers implement the `AIProvider` interface (`src/lib/ai/types.ts`). The factory in `src/lib/ai/index.ts` reads `AI_PROVIDER` from `SystemConfig` (or env). Supported drivers: `gemini`, `qwen`, **`hunyuan`**, `openai`, `zai`, `dedalus`, `byteplus`, `volcengine`. Model defaults and readiness checks centralize in `src/lib/ai/provider-catalog.ts`.
+All providers implement the `AIProvider` interface (`src/lib/ai/types.ts`). The factory in `src/lib/ai/index.ts` reads `AI_PROVIDER` from `SystemConfig` (or env). Supported drivers: `gemini`, `qwen`, **`hunyuan`**, `openai`, `zai`, `byteplus`, `volcengine`. Model defaults and readiness checks centralize in `src/lib/ai/provider-catalog.ts`.
 
 ```ts
 interface AIProvider {

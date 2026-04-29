@@ -58,14 +58,14 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 
 | Var | Purpose |
 |---|---|
-| `AI_PROVIDER` | `qwen` (default) `|` `gemini` `|` `openai` `|` `zai` `|` `dedalus` `|` `byteplus` `|` `volcengine` `|` `ollama` |
+| `AI_PROVIDER` | `gemini` (default) `|` `qwen` `|` `hunyuan` `|` `openai` `|` `zai` `|` `byteplus` `|` `volcengine` |
 | `VENDOR_ALIBABACLOUD_DEMO` | Local mimic of the AlibabaCloud showcase deployment |
 | **Qwen / DashScope** | `DASHSCOPE_API_KEY`, `QWEN_TEXT_MODEL`, `QWEN_IMAGE_MODEL` |
 | **Gemini (AI Studio)** | `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_TTS_MODEL`, `GEMINI_EMBEDDING_MODEL`, `GEMINI_IMAGE_VERTEX_LOCATION` |
 | **Gemini (Vertex)** | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_SERVICE_ACCOUNT_KEY` (base64) |
 | **OpenAI** | `OPENAI_API_KEY`, `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL` |
 | **Z.ai** | `ZAI_TEXT_MODEL`, `ZAI_VERTEX_LOCATION`, `ZAI_IMAGE_MODEL`, optional `ZAI_API_KEY` + `ZAI_BASE_URL` |
-| **Dedalus** | `DEDALUS_API_KEY`, `DEDALUS_MODEL`, `DEDALUS_IMAGE_MODEL` |
+| **Tencent Hunyuan** | `HUNYUAN_API_KEY`, `HUNYUAN_TEXT_MODEL` |
 | **BytePlus ModelArk** | `BYTEPLUS_API_KEY`, `BYTEPLUS_MODEL_ID` |
 | **Volcengine ModelArk** | `VOLCENGINE_API_KEY`, `VOLCENGINE_MODEL_ID` |
 
