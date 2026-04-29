@@ -19,6 +19,8 @@ const freeBookingBodySchema = z.object({
   timezone: z.string().trim().min(1).optional(),
   meetingLink: z.string().optional().nullable(),
   offlineAddress: z.string().optional().nullable(),
+  /** Opt-in for the in-app TRTC live consultation room. */
+  isPremiumLive: z.coerce.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -42,7 +44,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
     const body = parsed.data;
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress } = body;
+    const {
+      expertId,
+      sessionType,
+      startTime,
+      endTime,
+      timezone,
+      meetingLink,
+      offlineAddress,
+      isPremiumLive,
+    } = body;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -106,6 +117,7 @@ export async function POST(request: NextRequest) {
         currency: expert.currency,
         paymentMethod: "free",
         paymentStatus: "fully_paid",
+        isPremiumLive: !!isPremiumLive,
       },
       include: {
         expert: { include: { user: true } },

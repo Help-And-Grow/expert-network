@@ -120,6 +120,12 @@ export default function BookSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineAddress, setOfflineAddress] = useState("");
+  /**
+   * Premium live consultation opt-in. When true, the booking is flagged
+   * `isPremiumLive` and the dashboard surfaces a "Join live" entry inside
+   * the TRTC window (15 min before startTime → 15 min after endTime).
+   */
+  const [isPremiumLive, setIsPremiumLive] = useState(false);
   const [expertPricing, setExpertPricing] = useState<{
     priceOnlineCents: number | null;
     priceOfflineCents: number | null;
@@ -273,6 +279,7 @@ export default function BookSessionPage() {
     endTime: mergedEnd!,
     timezone,
     ...(sessionType === "OFFLINE" && offlineAddress.trim() && { offlineAddress: offlineAddress.trim() }),
+    ...(isPremiumLive ? { isPremiumLive: true } : {}),
   });
 
   const handleStripeCheckout = async () => {
@@ -514,12 +521,50 @@ export default function BookSessionPage() {
         </section>
 
         {sessionType === "ONLINE" && (
-          <section>
-            <div className="surface-tint rounded-lg px-4 py-3 text-sm">
-              <Monitor className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-              A video meeting link will be generated automatically when your meetup is confirmed.
-            </div>
-          </section>
+          <>
+            <section>
+              <div className="surface-tint rounded-lg px-4 py-3 text-sm">
+                <Monitor className="inline h-4 w-4 mr-1.5 -mt-0.5" />
+                A video meeting link will be generated automatically when your meetup is confirmed.
+              </div>
+            </section>
+
+            <section>
+              <button
+                type="button"
+                onClick={() => setIsPremiumLive((v) => !v)}
+                aria-pressed={isPremiumLive}
+                className={cn(
+                  "flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors",
+                  isPremiumLive
+                    ? "border-indigo-400 bg-indigo-500/10"
+                    : "border-input bg-muted/30 hover:bg-muted/50",
+                )}
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
+                    isPremiumLive
+                      ? "border-indigo-400 bg-indigo-600 text-white"
+                      : "border-input bg-background",
+                  )}
+                  aria-hidden="true"
+                >
+                  {isPremiumLive ? "✓" : ""}
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-medium text-foreground">
+                    Premium live consultation
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Open an in-app HD video room hosted by Tencent TRTC. Available
+                    from 15 minutes before the meetup until 15 minutes after it
+                    ends. Optional — your meetup also works without it.
+                  </span>
+                </span>
+              </button>
+            </section>
+          </>
         )}
 
         {sessionType === "OFFLINE" && (

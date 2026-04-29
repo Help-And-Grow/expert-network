@@ -170,6 +170,7 @@ export async function POST(request: NextRequest) {
             stripePaymentMethodId: paymentMethodId || null,
             tokenDiscount: parseInt(meta.tokenDiscount || "0", 10) || 0,
             tokensRedeemed: parseInt(meta.tokensRedeemed || "0", 10) || 0,
+            isPremiumLive: meta.isPremiumLive === "1",
           },
           include: {
             expert: { include: { user: true } },

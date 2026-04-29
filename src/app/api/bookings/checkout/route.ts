@@ -18,6 +18,8 @@ const checkoutBodySchema = z.object({
   meetingLink: z.string().optional().nullable(),
   offlineAddress: z.string().optional().nullable(),
   redeemTokenCount: z.coerce.number().int().min(0).optional(),
+  /** Opt-in for the in-app TRTC live consultation room. */
+  isPremiumLive: z.coerce.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -41,8 +43,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
     const body = parsed.data;
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress, redeemTokenCount } =
-      body;
+    const {
+      expertId,
+      sessionType,
+      startTime,
+      endTime,
+      timezone,
+      meetingLink,
+      offlineAddress,
+      redeemTokenCount,
+      isPremiumLive,
+    } = body;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -130,6 +141,7 @@ export async function POST(request: NextRequest) {
         currency: expert.currency,
         tokenDiscount: String(tokenDiscountCents),
         tokensRedeemed: String(tokensDebited),
+        isPremiumLive: isPremiumLive ? "1" : "0",
       },
     };
 

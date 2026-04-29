@@ -28,8 +28,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress } =
-      body;
+    const {
+      expertId,
+      sessionType,
+      startTime,
+      endTime,
+      timezone,
+      meetingLink,
+      offlineAddress,
+      isPremiumLive,
+    } = body;
 
     if (!expertId || !sessionType || !startTime || !endTime) {
       return NextResponse.json(
@@ -124,6 +132,7 @@ export async function POST(request: NextRequest) {
         currency: expert.currency,
         paymentMethod: "ton",
         paymentStatus: "pending",
+        isPremiumLive: Boolean(isPremiumLive),
       },
     });
 
