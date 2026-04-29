@@ -262,8 +262,8 @@ export default function AdminAIProviderPage() {
             <div>
               <p className="text-xs uppercase text-muted-foreground">Current deployment</p>
               <p className="mt-1 font-medium">
-                {data?.providers.find((provider) => provider.name === data.currentProvider)
-                  ?.label ?? data?.currentProvider}
+                {data?.providers?.find((provider) => provider.name === data.currentProvider)
+                  ?.label ?? data?.currentProvider ?? "Unknown"}
               </p>
             </div>
             <div>
@@ -293,7 +293,7 @@ export default function AdminAIProviderPage() {
                   <SelectValue placeholder="Choose provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  {data?.providers.map((provider) => (
+                  {(data?.providers ?? []).map((provider) => (
                     <SelectItem key={provider.name} value={provider.name}>
                       {provider.label}
                     </SelectItem>
@@ -380,8 +380,8 @@ export default function AdminAIProviderPage() {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        {data?.providers.map((provider) => {
-          const health = data.providerHealth?.[provider.name];
+        {(data?.providers ?? []).map((provider) => {
+          const health = data?.providerHealth?.[provider.name];
           const active = provider.name === selectedProvider;
           return (
             <Card
