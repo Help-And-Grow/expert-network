@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Bot, Loader2, RefreshCw, Rocket } from "lucide-react";
+import { ArrowLeft, Bot, Loader2, Plus, RefreshCw, Rocket, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,89 @@ type ProviderName =
   | "dedalus"
   | "byteplus"
   | "volcengine";
+
+type Option<T extends string> = { value: T; label: string };
+
+/**
+ * Ordered multi-select. Available chips get added to the end of the chain
+ * when clicked; selected chips show their position number and a × to remove.
+ * Used for IMAGE_PROVIDER_CHAIN and VOICE_PROVIDER_CHAIN editing.
+ */
+function ChainPicker<T extends string>({
+  label,
+  helpText,
+  defaultLabel,
+  available,
+  value,
+  onChange,
+}: {
+  label: string;
+  helpText: string;
+  defaultLabel: string;
+  available: Option<T>[];
+  value: T[];
+  onChange: (next: T[]) => void;
+}) {
+  const selected = value.filter((v) => available.some((o) => o.value === v));
+  const unselected = available.filter((o) => !selected.includes(o.value));
+
+  return (
+    <div className="rounded-md border bg-slate-50 p-3 text-sm">
+      <div className="font-medium text-slate-800">{label}</div>
+      <p className="mt-0.5 text-xs text-slate-600">
+        {helpText} <span className="text-slate-500">Default: {defaultLabel}</span>
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 min-h-[28px]">
+        {selected.length === 0 ? (
+          <span className="text-xs italic text-slate-500">
+            (using default)
+          </span>
+        ) : (
+          selected.map((v, i) => {
+            const opt = available.find((o) => o.value === v);
+            return (
+              <span
+                key={v}
+                className="inline-flex items-center gap-1 rounded-full border border-slate-900 bg-slate-900 px-2 py-0.5 text-xs font-medium text-white"
+              >
+                <span className="rounded-full bg-white/20 px-1 leading-none">
+                  {i + 1}
+                </span>
+                {opt?.label ?? v}
+                <button
+                  type="button"
+                  onClick={() => onChange(selected.filter((x) => x !== v))}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-white/15"
+                  aria-label={`Remove ${opt?.label ?? v}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })
+        )}
+      </div>
+
+      {unselected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5 border-t border-slate-200 pt-2">
+          <span className="text-xs text-slate-500">Add:</span>
+          {unselected.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onChange([...selected, o.value])}
+              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-700 transition-colors hover:border-slate-500 hover:bg-slate-100"
+            >
+              <Plus className="h-3 w-3" />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type ProviderHealth = Record<
   ProviderName,
@@ -90,8 +173,8 @@ export default function AdminAIProviderPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<ProviderName>("qwen");
-  const [imageChainDraft, setImageChainDraft] = useState<string>("");
-  const [voiceChainDraft, setVoiceChainDraft] = useState<string>("");
+  const [imageChainDraft, setImageChainDraft] = useState<ProviderName[]>([]);
+  const [voiceChainDraft, setVoiceChainDraft] = useState<VoiceProviderName[]>([]);
   const [providerModels, setProviderModels] = useState<
     Record<ProviderName, ModelDraft>
   >({
@@ -113,8 +196,8 @@ export default function AdminAIProviderPage() {
       const body = (await res.json()) as StatusResponse;
       setData(body);
       setSelectedProvider(body.currentProvider ?? "qwen");
-      setImageChainDraft((body.imageProviderChain ?? []).join(","));
-      setVoiceChainDraft((body.voiceProviderChain ?? []).join(","));
+      setImageChainDraft(body.imageProviderChain ?? []);
+      setVoiceChainDraft(body.voiceProviderChain ?? []);
       const providers = body.providers ?? [];
       setProviderModels(
         providers.reduce(
@@ -186,8 +269,8 @@ export default function AdminAIProviderPage() {
           providerModels: {
             [selectedProvider]: providerModels[selectedProvider],
           },
-          imageProviderChain: imageChainDraft,
-          voiceProviderChain: voiceChainDraft,
+          imageProviderChain: imageChainDraft.join(","),
+          voiceProviderChain: voiceChainDraft.join(","),
           triggerDeploy: true,
         }),
       });
@@ -323,52 +406,38 @@ export default function AdminAIProviderPage() {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-md border bg-slate-50 p-3 text-sm">
-              <label
-                htmlFor="image-chain"
-                className="block font-medium text-slate-800"
-              >
-                Image provider chain
-              </label>
-              <p className="mt-0.5 text-xs text-slate-600">
-                Comma-separated, in order. Default:{" "}
-                {(data?.imageProviderChainDefault ?? []).join(",") || "qwen,gemini"}
-              </p>
-              <input
-                id="image-chain"
-                type="text"
-                value={imageChainDraft}
-                onChange={(e) => setImageChainDraft(e.target.value)}
-                placeholder="qwen,gemini"
-                className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Active: {(data?.imageProviderChain ?? []).join(" → ") || "(default)"}
-              </p>
-            </div>
-            <div className="rounded-md border bg-slate-50 p-3 text-sm">
-              <label
-                htmlFor="voice-chain"
-                className="block font-medium text-slate-800"
-              >
-                Voice (TTS) provider chain
-              </label>
-              <p className="mt-0.5 text-xs text-slate-600">
-                Allowed: {(data?.voiceProviderOptions ?? []).join(", ") || "qwen-tts, gemini-tts"}.
-                Default: {(data?.voiceProviderChainDefault ?? []).join(",") || "qwen-tts,gemini-tts"}
-              </p>
-              <input
-                id="voice-chain"
-                type="text"
-                value={voiceChainDraft}
-                onChange={(e) => setVoiceChainDraft(e.target.value)}
-                placeholder="qwen-tts,gemini-tts"
-                className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Active: {(data?.voiceProviderChain ?? []).join(" → ") || "(default)"}
-              </p>
-            </div>
+            <ChainPicker
+              label="Image provider chain"
+              helpText="Click to add — order is the fallback order. Click × to remove."
+              defaultLabel={
+                (data?.imageProviderChainDefault ?? []).join(", ") || "qwen, gemini"
+              }
+              available={
+                (data?.providers ?? [])
+                  .filter((p) => p.supportsImage)
+                  .map((p) => ({ value: p.name, label: p.label })) as Option<
+                  ProviderName
+                >[]
+              }
+              value={imageChainDraft}
+              onChange={(next) => setImageChainDraft(next as ProviderName[])}
+            />
+            <ChainPicker
+              label="Voice (TTS) provider chain"
+              helpText="Click to add — order is the fallback order. Click × to remove."
+              defaultLabel={
+                (data?.voiceProviderChainDefault ?? []).join(", ") ||
+                "qwen-tts, gemini-tts"
+              }
+              available={
+                (data?.voiceProviderOptions ?? []).map((value) => ({
+                  value,
+                  label: value,
+                })) as Option<VoiceProviderName>[]
+              }
+              value={voiceChainDraft}
+              onChange={(next) => setVoiceChainDraft(next as VoiceProviderName[])}
+            />
           </div>
 
           {message && (
