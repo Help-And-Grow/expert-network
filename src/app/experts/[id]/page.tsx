@@ -61,6 +61,8 @@ interface Expert {
   priceOnlineCents: number | null;
   priceOfflineCents: number | null;
   currency: string;
+  /** "male" | "female" | "other" — drives gender-matched TTS / device-voice fallback. */
+  gender?: string | null;
   user: ExpertUser;
   learnedFromCount: number;
   offeredHelpCount: number;
@@ -605,6 +607,7 @@ export default function ExpertProfilePage() {
           expertName={name}
           expertImage={expert.user.image}
           expertServices={null}
+          expertGender={expert.gender}
           open={showVoiceChat}
           onClose={closeVoiceChatOverlay}
         />
@@ -614,6 +617,7 @@ export default function ExpertProfilePage() {
         <VoiceChatModal
           expertId={expert.id}
           expertName={name}
+          expertGender={expert.gender}
           onClose={closeRealtimeVoiceOverlay}
         />
       )}

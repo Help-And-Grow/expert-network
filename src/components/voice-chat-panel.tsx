@@ -27,6 +27,7 @@ import {
   normalizeRecordedAudioForGemini,
 } from "@/lib/browser-audio";
 import { prepareAudioSourceForElement } from "@/lib/client-audio-source";
+import { pickDeviceVoice } from "@/lib/device-voice";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -41,6 +42,8 @@ interface VoiceChatPanelProps {
   expertName: string;
   expertImage?: string | null;
   expertServices?: { title: string }[] | null;
+  /** Expert gender ("male" / "female" / etc.) — used to pick a matching device-voice when server TTS isn't available. */
+  expertGender?: string | null;
   open: boolean;
   onClose: () => void;
 }
@@ -83,6 +86,7 @@ export function VoiceChatPanel({
   expertName,
   expertImage,
   expertServices,
+  expertGender,
   open,
   onClose,
 }: VoiceChatPanelProps) {
@@ -217,6 +221,12 @@ export function VoiceChatPanel({
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+      // Match the device voice to the expert's gender so server-TTS fallback
+      // doesn't surprise the user with a female default voice for a male
+      // expert. Returns null when getVoices() hasn't populated yet (Safari
+      // first-call quirk) \u2014 utterance falls back to browser default.
+      const matched = pickDeviceVoice(utterance.lang, expertGender);
+      if (matched) utterance.voice = matched;
       utterance.onend = () => {
         if (playbackModeRef.current === "device") {
           playbackModeRef.current = null;
@@ -238,7 +248,7 @@ export function VoiceChatPanel({
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     },
-    [stopPlayback],
+    [stopPlayback, expertGender],
   );
 
   const autoPlayAssistantReply = useCallback(

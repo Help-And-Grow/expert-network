@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
 import { prepareAudioSourceForElement } from "@/lib/client-audio-source";
+import { pickDeviceVoice } from "@/lib/device-voice";
 import { cn } from "@/lib/utils";
 
 interface VoiceChatModalProps {
   expertId: string;
   expertName: string;
+  /** Expert gender — used to pick a matching device-voice fallback. */
+  expertGender?: string | null;
   onClose: () => void;
 }
 
@@ -48,6 +51,7 @@ function assignAudioSource(audio: HTMLAudioElement, src: string): boolean {
 export function VoiceChatModal({
   expertId,
   expertName,
+  expertGender,
   onClose,
 }: VoiceChatModalProps) {
   const [sessionState, setSessionState] = useState<SessionState>("connecting");
@@ -169,12 +173,14 @@ export function VoiceChatModal({
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+      const matched = pickDeviceVoice(utterance.lang, expertGender);
+      if (matched) utterance.voice = matched;
       speechRef.current = utterance;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
       return true;
     },
-    [stopGreetingPlayback],
+    [stopGreetingPlayback, expertGender],
   );
 
   useEffect(() => () => {

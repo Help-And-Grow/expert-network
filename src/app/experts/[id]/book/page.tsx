@@ -803,6 +803,16 @@ export default function BookSessionPage() {
                   : "Free"}
               </span>
             </div>
+            {isPremiumLive && typeof premiumLiveCost === "number" && premiumLiveCost > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Premium live consultation
+                </span>
+                <span className="font-medium text-indigo-200">
+                  +{premiumLiveCost} H&G token{premiumLiveCost > 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
             {totalCents > 0 && (
               <>
                 <hr className="border-indigo-300/20" />
