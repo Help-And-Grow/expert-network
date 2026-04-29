@@ -57,6 +57,8 @@ type ProviderDescriptor = {
   imageModel: string | null;
 };
 
+type VoiceProviderName = "qwen-tts" | "gemini-tts";
+
 type StatusResponse = {
   canManage: boolean;
   currentProvider: ProviderName;
@@ -65,6 +67,12 @@ type StatusResponse = {
   deployHookConfigured?: boolean;
   providerHealth?: ProviderHealth;
   providers: ProviderDescriptor[];
+  imageProviderChain: ProviderName[];
+  voiceProviderChain: VoiceProviderName[];
+  imageProviderChainDefault: ProviderName[];
+  voiceProviderChainDefault: VoiceProviderName[];
+  voiceProviderOptions: VoiceProviderName[];
+  /** @deprecated mirrored from imageProviderChain for older clients */
   imageFallbackOrder: ProviderName[];
   error?: string;
 };
@@ -81,6 +89,8 @@ export default function AdminAIProviderPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<ProviderName>("qwen");
+  const [imageChainDraft, setImageChainDraft] = useState<string>("");
+  const [voiceChainDraft, setVoiceChainDraft] = useState<string>("");
   const [providerModels, setProviderModels] = useState<
     Record<ProviderName, ModelDraft>
   >({
@@ -101,6 +111,8 @@ export default function AdminAIProviderPage() {
       const body = (await res.json()) as StatusResponse;
       setData(body);
       setSelectedProvider(body.currentProvider);
+      setImageChainDraft((body.imageProviderChain ?? []).join(","));
+      setVoiceChainDraft((body.voiceProviderChain ?? []).join(","));
       setProviderModels(
         body.providers.reduce(
           (acc, provider) => {
@@ -126,7 +138,12 @@ export default function AdminAIProviderPage() {
         canManage: false,
         currentProvider: "qwen",
         providers: [],
-        imageFallbackOrder: ["openai", "zai", "qwen", "gemini", "dedalus"],
+        imageProviderChain: ["qwen", "gemini"],
+        voiceProviderChain: ["qwen-tts", "gemini-tts"],
+        imageProviderChainDefault: ["qwen", "gemini"],
+        voiceProviderChainDefault: ["qwen-tts", "gemini-tts"],
+        voiceProviderOptions: ["qwen-tts", "gemini-tts"],
+        imageFallbackOrder: ["qwen", "gemini"],
         error: error instanceof Error ? error.message : "Failed to load provider status",
       });
     } finally {
@@ -165,6 +182,8 @@ export default function AdminAIProviderPage() {
           providerModels: {
             [selectedProvider]: providerModels[selectedProvider],
           },
+          imageProviderChain: imageChainDraft,
+          voiceProviderChain: voiceChainDraft,
           triggerDeploy: true,
         }),
       });
@@ -298,14 +317,53 @@ export default function AdminAIProviderPage() {
             </div>
           </div>
 
-          <div className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            Profile image fallback chain:{" "}
-            {data?.imageFallbackOrder
-              .map((providerName) =>
-                data.providers.find((provider) => provider.name === providerName)?.label ??
-                providerName,
-              )
-              .join(" → ")}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-md border bg-slate-50 p-3 text-sm">
+              <label
+                htmlFor="image-chain"
+                className="block font-medium text-slate-800"
+              >
+                Image provider chain
+              </label>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Comma-separated, in order. Default:{" "}
+                {(data?.imageProviderChainDefault ?? []).join(",") || "qwen,gemini"}
+              </p>
+              <input
+                id="image-chain"
+                type="text"
+                value={imageChainDraft}
+                onChange={(e) => setImageChainDraft(e.target.value)}
+                placeholder="qwen,gemini"
+                className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Active: {(data?.imageProviderChain ?? []).join(" → ") || "(default)"}
+              </p>
+            </div>
+            <div className="rounded-md border bg-slate-50 p-3 text-sm">
+              <label
+                htmlFor="voice-chain"
+                className="block font-medium text-slate-800"
+              >
+                Voice (TTS) provider chain
+              </label>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Allowed: {(data?.voiceProviderOptions ?? []).join(", ") || "qwen-tts, gemini-tts"}.
+                Default: {(data?.voiceProviderChainDefault ?? []).join(",") || "qwen-tts,gemini-tts"}
+              </p>
+              <input
+                id="voice-chain"
+                type="text"
+                value={voiceChainDraft}
+                onChange={(e) => setVoiceChainDraft(e.target.value)}
+                placeholder="qwen-tts,gemini-tts"
+                className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Active: {(data?.voiceProviderChain ?? []).join(" → ") || "(default)"}
+              </p>
+            </div>
           </div>
 
           {message && (

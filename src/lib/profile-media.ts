@@ -1,4 +1,9 @@
 import { createAIProviderForName, type ImageInput } from "@/lib/ai";
+import {
+  type AIProviderName,
+  getActiveImageProviderChain,
+  getActiveVoiceProviderChain,
+} from "@/lib/ai/provider-catalog";
 import { normalizeAudioForBrowserPlayback } from "@/lib/audio-format";
 import { env } from "@/lib/env";
 
@@ -8,22 +13,31 @@ import type {
 } from "@/lib/integrations/types";
 
 /**
- * Profile media (avatar image + voice intro) uses an explicit Qwen → Gemini
- * chain regardless of `AI_PROVIDER`. Qwen first because DashScope's image and
- * TTS endpoints sit in `ap-southeast-1` (and inside the GFW for CN traffic);
- * Gemini is the fallback for capacity/availability.
+ * Profile media (avatar image + voice intro) is driven by SystemConfig so
+ * operators can flip the chain from `/admin/ai-provider` without a redeploy.
+ * Defaults are Qwen → Gemini (see `IMAGE_FALLBACK_ORDER` /
+ * `VOICE_FALLBACK_ORDER` in provider-catalog.ts).
  */
-const PROFILE_IMAGE_ORDER = ["qwen", "gemini"] as const;
-type ProfileImageProvider = (typeof PROFILE_IMAGE_ORDER)[number];
 
 function isGeminiConfigured(): boolean {
   return Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
 }
 
-function isProfileImageProviderConfigured(name: ProfileImageProvider): boolean {
-  if (name === "gemini") return isGeminiConfigured();
-  if (name === "qwen") return Boolean(env.DASHSCOPE_API_KEY?.trim());
-  return false;
+function isImageProviderConfigured(name: AIProviderName): boolean {
+  switch (name) {
+    case "gemini":
+      return isGeminiConfigured();
+    case "qwen":
+      return Boolean(env.DASHSCOPE_API_KEY?.trim());
+    case "openai":
+      return Boolean(env.OPENAI_API_KEY?.trim());
+    case "zai":
+      return Boolean(env.ZAI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
+    case "dedalus":
+      return Boolean(env.DEDALUS_API_KEY?.trim());
+    default:
+      return false;
+  }
 }
 
 async function generateProfileImageWithGemini(
@@ -63,7 +77,7 @@ async function normalizeProfileImage(image: string): Promise<string | null> {
 }
 
 async function generateProfileImageWithProvider(
-  providerName: ProfileImageProvider,
+  providerName: AIProviderName,
   data: ImageInput,
 ): Promise<string | null> {
   const image = providerName === "gemini"
@@ -76,10 +90,11 @@ async function generateProfileImageWithProvider(
 export async function generateProfileImageResilient(
   data: ImageInput,
 ): Promise<string | null> {
-  const order = PROFILE_IMAGE_ORDER.filter(isProfileImageProviderConfigured);
+  const configured = await getActiveImageProviderChain();
+  const order = configured.filter(isImageProviderConfigured);
   if (order.length === 0) {
     throw new Error(
-      "No profile image provider configured. Set DASHSCOPE_API_KEY (Qwen) or GEMINI_API_KEY.",
+      `No image provider in the configured chain (${configured.join(", ") || "empty"}) has credentials. Set DASHSCOPE_API_KEY (Qwen) or GEMINI_API_KEY, or update IMAGE_PROVIDER_CHAIN in /admin/ai-provider.`,
     );
   }
 
@@ -102,21 +117,24 @@ export async function generateProfileImageResilient(
 }
 
 /**
- * Profile-intro voice synthesis chain: Qwen TTS → Gemini TTS.
- * Each provider is included only when its credentials are present, so the
- * order returned is also the order to attempt.
+ * Profile-intro voice synthesis chain — read at request time from
+ * SystemConfig `VOICE_PROVIDER_CHAIN`. Defaults to qwen-tts → gemini-tts.
+ * Providers without credentials are filtered out automatically.
  */
 export async function getProfileIntroVoiceSynthesisProviders(): Promise<VoiceSynthesisProvider[]> {
+  const chain = await getActiveVoiceProviderChain();
   const providers: VoiceSynthesisProvider[] = [];
 
-  if (env.DASHSCOPE_API_KEY?.trim()) {
-    const { QwenTTSProvider } = await import("@/lib/integrations/qwen-tts");
-    providers.push(new QwenTTSProvider());
-  }
-
-  if (isGeminiConfigured()) {
-    const { GeminiTtsProvider } = await import("@/lib/integrations/gemini-tts");
-    providers.push(new GeminiTtsProvider());
+  for (const name of chain) {
+    if (name === "qwen-tts") {
+      if (!env.DASHSCOPE_API_KEY?.trim()) continue;
+      const { QwenTTSProvider } = await import("@/lib/integrations/qwen-tts");
+      providers.push(new QwenTTSProvider());
+    } else if (name === "gemini-tts") {
+      if (!isGeminiConfigured()) continue;
+      const { GeminiTtsProvider } = await import("@/lib/integrations/gemini-tts");
+      providers.push(new GeminiTtsProvider());
+    }
   }
 
   return providers;

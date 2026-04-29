@@ -5,12 +5,17 @@ import { isErrorResponse, requireAdmin } from "@/lib/admin-auth";
 import {
   AI_PROVIDER_CATALOG,
   ALL_AI_PROVIDERS,
+  ALL_VOICE_PROVIDERS,
   computeProviderHealth,
   getActiveAIProviderName,
+  getActiveImageProviderChain,
+  getActiveVoiceProviderChain,
   getProviderModelState,
   IMAGE_FALLBACK_ORDER,
   normalizeAIProviderName,
+  VOICE_FALLBACK_ORDER,
   type AIProviderName,
+  type VoiceProviderName,
 } from "@/lib/ai/provider-catalog";
 import {
   getManagedVercelProjectConfig,
@@ -33,7 +38,27 @@ const bodySchema = z.object({
   provider: z.string().trim().optional(),
   triggerDeploy: z.boolean().optional(),
   providerModels: z.record(z.string(), modelInputSchema).optional(),
+  /** Comma-separated or array — image provider chain. Empty string clears it (revert to default). */
+  imageProviderChain: z.union([z.string(), z.array(z.string())]).optional(),
+  /** Comma-separated or array — voice (TTS) provider chain. Empty string clears it. */
+  voiceProviderChain: z.union([z.string(), z.array(z.string())]).optional(),
 });
+
+function normalizeChainInput<T extends string>(
+  raw: string | string[] | undefined,
+  allowed: readonly T[],
+): T[] | null {
+  if (raw === undefined) return null;
+  const tokens = Array.isArray(raw) ? raw : raw.split(",");
+  const seen = new Set<T>();
+  for (const token of tokens) {
+    const value = token.trim().toLowerCase();
+    if (!value) continue;
+    const match = allowed.find((v) => v === value);
+    if (match) seen.add(match);
+  }
+  return Array.from(seen);
+}
 
 async function providerDescriptor(provider: AIProviderName) {
   const meta = AI_PROVIDER_CATALOG[provider];
@@ -66,13 +91,25 @@ export async function GET(request: NextRequest) {
   const cfg = getManagedVercelProjectConfig();
   const currentProvider = await getActiveAIProviderName();
   const providers = await Promise.all(ALL_AI_PROVIDERS.map(providerDescriptor));
+  const imageChain = await getActiveImageProviderChain();
+  const voiceChain = await getActiveVoiceProviderChain();
+
+  const baseResponse = {
+    currentProvider,
+    providers,
+    imageProviderChain: imageChain,
+    voiceProviderChain: voiceChain,
+    imageProviderChainDefault: [...IMAGE_FALLBACK_ORDER],
+    voiceProviderChainDefault: [...VOICE_FALLBACK_ORDER],
+    voiceProviderOptions: [...ALL_VOICE_PROVIDERS],
+    /** @deprecated kept for older clients — same as imageProviderChain */
+    imageFallbackOrder: imageChain,
+  };
 
   if (!cfg) {
     return NextResponse.json({
-      currentProvider,
+      ...baseResponse,
       canManage: false,
-      providers,
-      imageFallbackOrder: [...IMAGE_FALLBACK_ORDER],
       notice:
         "Database-only mode. Set VERCEL_MANAGEMENT_TOKEN to also sync with Vercel environment variables.",
     });
@@ -86,14 +123,12 @@ export async function GET(request: NextRequest) {
   );
 
   return NextResponse.json({
+    ...baseResponse,
     canManage: true,
-    currentProvider,
     managedProject: cfg.project,
     managedTeamId: cfg.teamId,
     deployHookConfigured: Boolean(cfg.deployHookUrl),
     providerHealth: computeProviderHealth(productionKeys),
-    providers,
-    imageFallbackOrder: [...IMAGE_FALLBACK_ORDER],
   });
 }
 
@@ -121,6 +156,27 @@ export async function POST(request: NextRequest) {
   const cfg = getManagedVercelProjectConfig();
   if (cfg) {
     await upsertManagedProjectEnv(cfg, "AI_PROVIDER", provider);
+  }
+
+  // 3. Image + voice chains — comma-separated lists driving the per-modality
+  // fallback order. Empty input clears the override (reverts to defaults).
+  const imageChain = normalizeChainInput(parsed.data.imageProviderChain, ALL_AI_PROVIDERS);
+  if (imageChain !== null) {
+    const value = imageChain.join(",");
+    await setSystemConfig("IMAGE_PROVIDER_CHAIN", value);
+    if (cfg) await upsertManagedProjectEnv(cfg, "IMAGE_PROVIDER_CHAIN", value);
+    updatedKeys.add("IMAGE_PROVIDER_CHAIN");
+  }
+
+  const voiceChain = normalizeChainInput<VoiceProviderName>(
+    parsed.data.voiceProviderChain,
+    ALL_VOICE_PROVIDERS,
+  );
+  if (voiceChain !== null) {
+    const value = voiceChain.join(",");
+    await setSystemConfig("VOICE_PROVIDER_CHAIN", value);
+    if (cfg) await upsertManagedProjectEnv(cfg, "VOICE_PROVIDER_CHAIN", value);
+    updatedKeys.add("VOICE_PROVIDER_CHAIN");
   }
 
   for (const key of Object.keys(providerModels)) {

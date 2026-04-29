@@ -13,11 +13,24 @@ export const ALL_AI_PROVIDERS = [
 export type AIProviderName = (typeof ALL_AI_PROVIDERS)[number];
 
 /**
- * Profile image generation chain. Tried in order; first to return an image wins.
- * Hard-coded since the requirement is data-residency-aware (Qwen first for
- * CN-friendly endpoint, Gemini second for global capacity).
+ * Default profile-image chain. Tried in order; first to return an image wins.
+ * Operators can override at runtime via SystemConfig key
+ * `IMAGE_PROVIDER_CHAIN` (comma-separated, e.g. "qwen,gemini") without a
+ * redeploy — see `getActiveImageProviderChain()`.
  */
 export const IMAGE_FALLBACK_ORDER = ["qwen", "gemini"] as const;
+
+/**
+ * Default voice-synthesis chain. Tokens map to TTS providers, not text
+ * providers (e.g. `qwen-tts` uses DashScope CosyVoice). Override at runtime
+ * via SystemConfig key `VOICE_PROVIDER_CHAIN`.
+ */
+export const ALL_VOICE_PROVIDERS = ["qwen-tts", "gemini-tts"] as const;
+export type VoiceProviderName = (typeof ALL_VOICE_PROVIDERS)[number];
+export const VOICE_FALLBACK_ORDER: readonly VoiceProviderName[] = [
+  "qwen-tts",
+  "gemini-tts",
+];
 
 type ModelEnvKey =
   | "OPENAI_TEXT_MODEL"
@@ -204,6 +217,60 @@ export async function getActiveAIProviderNameForRequest(
     dbProvider || env.WECHAT_AI_PROVIDER || "qwen",
   );
   return resolved ?? "qwen";
+}
+
+/**
+ * Parse a comma-separated provider chain ("qwen, gemini, openai") into a
+ * deduped, validated list. Unknown tokens are silently dropped.
+ */
+function parseChain<T extends string>(
+  raw: string | null | undefined,
+  allowed: readonly T[],
+): T[] {
+  if (!raw) return [];
+  const seen = new Set<T>();
+  for (const token of raw.split(",")) {
+    const value = token.trim().toLowerCase();
+    if (!value) continue;
+    const match = allowed.find((v) => v === value);
+    if (match) seen.add(match);
+  }
+  return Array.from(seen);
+}
+
+/**
+ * Image provider chain, resolved at request time:
+ * SystemConfig `IMAGE_PROVIDER_CHAIN` → env `IMAGE_PROVIDER_CHAIN` →
+ * `IMAGE_FALLBACK_ORDER` constant. Operators flip this from
+ * `/admin/ai-provider` without a redeploy.
+ */
+export async function getActiveImageProviderChain(): Promise<AIProviderName[]> {
+  const { getSystemConfig } = await import("@/lib/system-config");
+  const dbValue = await getSystemConfig("IMAGE_PROVIDER_CHAIN");
+  const envValue = process.env.IMAGE_PROVIDER_CHAIN ?? null;
+  const fromConfig = parseChain<AIProviderName>(
+    dbValue ?? envValue,
+    ALL_AI_PROVIDERS,
+  );
+  if (fromConfig.length > 0) return fromConfig;
+  return [...IMAGE_FALLBACK_ORDER] as AIProviderName[];
+}
+
+/**
+ * Voice provider chain, resolved at request time. Uses TTS-specific tokens
+ * (`qwen-tts`, `gemini-tts`) so admins don't accidentally swap a text-only
+ * provider in.
+ */
+export async function getActiveVoiceProviderChain(): Promise<VoiceProviderName[]> {
+  const { getSystemConfig } = await import("@/lib/system-config");
+  const dbValue = await getSystemConfig("VOICE_PROVIDER_CHAIN");
+  const envValue = process.env.VOICE_PROVIDER_CHAIN ?? null;
+  const fromConfig = parseChain<VoiceProviderName>(
+    dbValue ?? envValue,
+    ALL_VOICE_PROVIDERS,
+  );
+  if (fromConfig.length > 0) return fromConfig;
+  return [...VOICE_FALLBACK_ORDER];
 }
 
 export function getProviderModelDefaults(provider: AIProviderName): {
