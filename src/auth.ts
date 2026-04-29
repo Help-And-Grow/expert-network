@@ -16,6 +16,13 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      // Auth.js refuses to link a new OAuth account to an existing user
+      // (matched by email) by default, surfacing as
+      // `?error=OAuthAccountNotLinked` on the sign-in page. This is only
+      // unsafe when the OAuth provider doesn't verify emails — Google
+      // always does, so allowing the link is the standard fix and lets
+      // users who first signed up via magic-link continue with Google.
+      allowDangerousEmailAccountLinking: true,
     }),
   );
 }
