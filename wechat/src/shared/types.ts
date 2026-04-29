@@ -131,6 +131,7 @@ export interface Booking {
   currency: string;
   paymentMethod: string | null;
   paymentStatus: string;
+  isPremiumLive?: boolean;
   expert: {
     id: string;
     user: ExpertUser;

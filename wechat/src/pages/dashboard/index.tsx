@@ -7,6 +7,21 @@ import type { Booking } from "../../shared/types";
 import { buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
 
+/**
+ * Mirror server TRTC window: opens 15 min before startTime, closes 15 min
+ * after endTime. Status must be CONFIRMED or COMPLETED.
+ */
+const TRTC_PREJOIN_MS = 15 * 60 * 1000;
+const TRTC_POST_END_GRACE_MS = 15 * 60 * 1000;
+function isLiveRoomOpen(booking: Booking): boolean {
+  if (booking.status !== "CONFIRMED" && booking.status !== "COMPLETED") return false;
+  const start = new Date(booking.startTime).getTime();
+  const end = new Date(booking.endTime).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return false;
+  const now = Date.now();
+  return now >= start - TRTC_PREJOIN_MS && now <= end + TRTC_POST_END_GRACE_MS;
+}
+
 export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,6 +252,23 @@ export default function DashboardPage() {
                   >
                     <Text className="dashboard__card-link-label">会议链接</Text>
                     <Text className="dashboard__card-link-action">复制</Text>
+                  </View>
+                )}
+
+                {booking.isPremiumLive && isLiveRoomOpen(booking) && (
+                  <View
+                    className="dashboard__card-link"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      Taro.navigateTo({
+                        url: `/pages/consultation/index?bookingId=${booking.id}`,
+                      });
+                    }}
+                  >
+                    <Text className="dashboard__card-link-label">
+                      <Icon name="monitor" size={14} color="#6366f1" /> 实时咨询已开放
+                    </Text>
+                    <Text className="dashboard__card-link-action">进入</Text>
                   </View>
                 )}
 

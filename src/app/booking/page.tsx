@@ -26,6 +26,7 @@ import {
   MessageSquareHeart,
   CheckCircle2,
   AlertCircle,
+  Video,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +72,26 @@ interface BookingReview {
 
 /** Optimistic rows use this id until the server response replaces them. */
 const PENDING_REVIEW_ID_PREFIX = "pending:";
+
+/**
+ * Mirror server-side TRTC window: opens 15 min before startTime, closes 15
+ * min after endTime. Hides the "Join live" link outside that window.
+ * Status must be CONFIRMED or COMPLETED (the server enforces this too).
+ */
+const TRTC_PREJOIN_MS = 15 * 60 * 1000;
+const TRTC_POST_END_GRACE_MS = 15 * 60 * 1000;
+function isLiveRoomOpen(booking: {
+  status: string;
+  startTime: string;
+  endTime: string;
+}): boolean {
+  if (booking.status !== "CONFIRMED" && booking.status !== "COMPLETED") return false;
+  const start = new Date(booking.startTime).getTime();
+  const end = new Date(booking.endTime).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return false;
+  const now = Date.now();
+  return now >= start - TRTC_PREJOIN_MS && now <= end + TRTC_POST_END_GRACE_MS;
+}
 
 /** Normalize a Review JSON body from POST/PATCH so we can update the dashboard without a full refetch. */
 function parseBookingReviewFromApi(raw: unknown): BookingReview | null {
@@ -152,6 +173,7 @@ interface Booking {
   depositAmountCents?: number | null;
   totalAmountCents?: number | null;
   currency?: string | null;
+  isPremiumLive?: boolean;
   expert?: {
     id: string;
     userId?: string;
@@ -832,6 +854,16 @@ const BookingCard = memo(function BookingCard({
                 <span className="truncate">Join Meeting</span>
                 <ExternalLink className="h-3 w-3 shrink-0" />
               </a>
+            )}
+            {booking.isPremiumLive && isLiveRoomOpen(booking) && (
+              <Link
+                href={`/consultation/${booking.id}`}
+                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-300 hover:text-indigo-200"
+              >
+                <Video className="h-3 w-3 shrink-0" />
+                <span className="truncate">Join live consultation</span>
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </Link>
             )}
             {booking.cancelReason && <p className="mt-1.5 text-xs text-red-500">Reason: {booking.cancelReason}</p>}
           </div>

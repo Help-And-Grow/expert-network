@@ -52,7 +52,7 @@ Paid 1:1 live consultations on **Tencent Cloud TRTC**. Phased rollout intentiona
 2. **Credit-gated access** — `POST /api/trtc/token` refuses to mint a `UserSig` unless the booking is flagged premium-live AND a booking-scoped `TokenLedger` debit succeeded.
 3. **Server-side signing only** — `UserSig` minted in `src/lib/trtc.ts`; no Tencent secret on any client.
 4. **Reuse existing ledger** — debits go to `TokenLedger`, tied to `bookingId`. We did not add a `Transaction` model.
-5. **One contract, two clients** — Web uses `trtc-sdk-v5`, WeChat uses `trtc-wx`. Same backend.
+5. **One contract, two clients** — Web uses `trtc-sdk-v5`, WeChat uses native `<live-pusher>` / `<live-player>` with the TRTC `room://` URL scheme. Same backend.
 
 ### Phase status
 
@@ -60,8 +60,31 @@ Paid 1:1 live consultations on **Tencent Cloud TRTC**. Phased rollout intentiona
 |-------|-------|--------|
 | 1 | Backend foundation: schema, env, signing, `POST /api/trtc/token`, ownership/window/credit checks | **Done** |
 | 2 | Booking-flow toggle, `Booking.isPremiumLive`, premium-cost preview at checkout | **Done** |
-| 3 | Web client `/consultation/[bookingId]` with `trtc-sdk-v5` | **In progress** |
-| 4 | WeChat client | **Not started** |
+| 3 | Web client `/consultation/[bookingId]` with `trtc-sdk-v5`; entry chip on `/booking` cards (visible only when `isPremiumLive` and inside the prejoin/grace window) | **Done** |
+| 4 | WeChat client `pages/consultation/index` using native `<live-pusher mode="RTC">` + `<live-player mode="RTC">`; entry chip on the dashboard card | **Done** |
+
+### Web client
+
+`src/app/consultation/[bookingId]/page.tsx`
+
+- Pre-join screen shows participant role, room close time, and any token cost.
+- On join: lazy-imports `trtc-sdk-v5`, calls `enterRoom()` with the credentials from `/api/trtc/token`, attaches the local audio/video to a self-tile and subscribes to remote-user events (`REMOTE_USER_ENTER`, `REMOTE_VIDEO_AVAILABLE`, etc.).
+- Controls: mic toggle, camera toggle, leave. Leaving routes back to `/booking`.
+- Cleanup runs on unmount so navigating away always exits the room.
+
+### WeChat client
+
+`wechat/src/pages/consultation/index.tsx`
+
+- Same backend call via the shared API helper. URL scheme:
+  `room://cloud.tencent.com/rtc?sdkappid=...&roomid=...&userid=...&usersig=...&appscene=videocall`.
+- `<live-pusher mode="RTC">` for self, one `<live-player mode="RTC">` per remote participant. Remote participants are tracked through the pusher's `onStateChange` event (codes 1020 / 1021 = remote join / leave).
+- Mic toggle uses `LivePusherContext.pause/resume`; camera toggle re-renders with the `enableCamera` prop flipped.
+
+### Entry points
+
+- Web: chip on each booking card in `/booking` — only when `booking.isPremiumLive` AND the live window is open (15-min prejoin / 15-min grace, mirroring the server).
+- WeChat: chip on the dashboard card with the same gating.
 
 ---
 

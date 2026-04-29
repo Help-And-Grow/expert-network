@@ -7,6 +7,7 @@ export default defineAppConfig({
     "pages/dashboard/index",
     "pages/onboarding/index",
     "pages/profile/index",
+    "pages/consultation/index",
   ],
   tabBar: {
     color: "#8a8f98",
