@@ -194,6 +194,23 @@ export default function ProfilePage() {
         <View
           className="profile__menu-item"
           hoverClass="profile__menu-item--hover"
+          onClick={() =>
+            Taro.navigateTo({ url: "/pages/membership/index" })
+          }
+        >
+          <View className="profile__menu-icon-wrap profile__menu-icon-wrap--purple">
+            <Icon name="star" size={28} color="#7c3aed" />
+          </View>
+          <View className="profile__menu-content">
+            <Text className="profile__menu-label">我的会员</Text>
+            <Text className="profile__menu-hint">高清直播咨询，按月或按年订阅</Text>
+          </View>
+          <Text className="profile__menu-arrow">›</Text>
+        </View>
+
+        <View
+          className="profile__menu-item"
+          hoverClass="profile__menu-item--hover"
           onClick={() => {
             Taro.showShareMenu({ withShareTicket: true });
             Taro.showToast({ title: "请使用右上角分享", icon: "none" });

@@ -3,6 +3,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { triggerBookingEmails } from "@/lib/booking-emails";
 import { creditTokens } from "@/lib/hg-token";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { extendMembership } from "@/lib/membership";
+import {
+  isMembershipOutTradeNo,
+  parseMembershipOutTradeNo,
+} from "@/lib/membership-tiers";
 import { prisma } from "@/lib/prisma";
 import {
   notifyExpertBooking,
@@ -71,7 +76,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ code: "SUCCESS", message: "OK" });
     }
 
-    const bookingId = decrypted.out_trade_no;
+    const outTradeNo = decrypted.out_trade_no;
+
+    // Membership orders carry an `m_` prefix and resolve via the plan
+    // catalog, not the booking table. Keep this branch first so a stray
+    // booking row with a colliding id never short-circuits a membership
+    // renewal.
+    if (isMembershipOutTradeNo(outTradeNo)) {
+      const parsed = parseMembershipOutTradeNo(outTradeNo);
+      if (!parsed) {
+        console.error("[wechat-pay-webhook] unknown membership plan:", outTradeNo);
+        return NextResponse.json({ code: "SUCCESS", message: "OK" });
+      }
+
+      const payerOpenId = decrypted.payer?.openid;
+      if (!payerOpenId) {
+        console.error("[wechat-pay-webhook] membership order missing openid:", outTradeNo);
+        return NextResponse.json({ code: "SUCCESS", message: "OK" });
+      }
+
+      const payer = await prisma.user.findUnique({
+        where: { wechatOpenId: payerOpenId },
+        select: { id: true },
+      });
+      if (!payer) {
+        console.error(
+          "[wechat-pay-webhook] no user matched openid for membership order:",
+          outTradeNo,
+        );
+        return NextResponse.json({ code: "SUCCESS", message: "OK" });
+      }
+
+      try {
+        const result = await extendMembership({
+          userId: payer.id,
+          tier: parsed.plan.tier,
+          durationDays: parsed.plan.durationDays,
+          amountMinor: decrypted.amount?.total ?? parsed.plan.priceMinor,
+          currency: parsed.plan.currency,
+          source: "wechat-pay-cn",
+          externalRef: decrypted.transaction_id,
+          description: `${parsed.plan.label} (${outTradeNo})`,
+        });
+        console.log(
+          "[wechat-pay-webhook] membership extended:",
+          outTradeNo,
+          "until",
+          result.membershipUntil.toISOString(),
+          result.alreadyApplied ? "(idempotent replay)" : "",
+        );
+      } catch (err) {
+        console.error("[wechat-pay-webhook] extendMembership error:", err);
+        // Non-zero return code asks WeChat to retry — appropriate for a
+        // transient DB error during a successful payment.
+        return NextResponse.json(
+          { code: "FAIL", message: "membership update failed" },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({ code: "SUCCESS", message: "OK" });
+    }
+
+    const bookingId = outTradeNo;
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
