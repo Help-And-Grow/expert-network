@@ -745,7 +745,8 @@ export default function OnboardingPage() {
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         console.error("Generate API error:", errBody);
-        throw new Error(errBody.detail || "Generate failed");
+        const stageLabel = errBody.stage ? `[${errBody.stage}] ` : "";
+        throw new Error(`${stageLabel}${errBody.detail || "Generate failed"}`);
       }
       const data = await res.json();
       const script = (data.videoScript ?? "") as string;

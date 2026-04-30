@@ -27,7 +27,13 @@ function fallbackProfile(nickName: string, services: string[]) {
 }
 
 export async function POST(request: NextRequest) {
+  // Stage label gets attached to every uncaught error so the outer catch
+  // returns a precise message — "Profile generation failed at <stage>:
+  // <detail>" — instead of the generic "Internal server error" which
+  // hides whether DB, storage, AI, or persistence was the actual culprit.
+  let stage = "init";
   try {
+    stage = "auth";
     const userId = await resolveUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,6 +44,7 @@ export async function POST(request: NextRequest) {
     // membership fields) is in the Prisma schema but not yet in the DB,
     // Prisma errors out the entire route with a generic 500. Selecting
     // explicit columns keeps onboarding working through migration lag.
+    stage = "load-expert";
     const expert = await prisma.expert.findUnique({
       where: { userId },
       include: {
@@ -71,6 +78,7 @@ export async function POST(request: NextRequest) {
     const errorMessage = (error: unknown): string =>
       error instanceof Error ? error.message : String(error);
 
+    stage = "ai-generate";
     // Run text + image generation in parallel. Both have graceful fallbacks
     // so a single provider failure doesn't strand the user on a 500 page.
     const [generated, profileImage] = await Promise.all([
@@ -102,10 +110,25 @@ export async function POST(request: NextRequest) {
           : [],
       );
 
-    const storage = await getStorageProvider({ request });
+    stage = "storage-init";
+    let storage: Awaited<ReturnType<typeof getStorageProvider>>;
+    try {
+      storage = await getStorageProvider({ request });
+    } catch (storageError) {
+      // Storage is required for image and audio uploads. Without it we can
+      // still return the bio so the user has something to edit, but image
+      // and audio are lost. Don't 500 the whole route over a missing env.
+      const detail = errorMessage(storageError);
+      console.error("[onboarding/generate POST] storage init failed", detail, storageError);
+      diagnostics.image = `storage init failed: ${detail}`;
+      diagnostics.audio = `storage init failed: ${detail}`;
+      // @ts-expect-error — never used when storage init failed; gated below.
+      storage = null;
+    }
 
     let finalImageUrl: string | null = profileImage;
-    if (profileImage && profileImage.startsWith("data:")) {
+    if (profileImage && profileImage.startsWith("data:") && storage) {
+      stage = "image-upload";
       try {
         const [meta, data] = profileImage.split(",");
         const mime = meta.match(/:(.*?);/)?.[1] || "image/png";
@@ -123,6 +146,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    stage = "audio-intro";
     // Voice intro — best-effort. Audio generation runs after text so we can
     // synthesize from the freshly-generated avatarScript without a second
     // round-trip.
@@ -133,6 +157,8 @@ export async function POST(request: NextRequest) {
         diagnostics.audio = "no voice synthesis providers configured (set DASHSCOPE_API_KEY for Qwen TTS or GEMINI_API_KEY for Gemini TTS)";
       } else if (!profile.videoScript) {
         diagnostics.audio = "no script available — text generation must succeed first";
+      } else if (!storage) {
+        diagnostics.audio = "audio buffer generated but storage is unavailable";
       } else {
         const synthErrors: string[] = [];
         for (const synth of providers) {
@@ -173,6 +199,7 @@ export async function POST(request: NextRequest) {
       diagnostics.audio = errorMessage(error);
     }
 
+    stage = "persist";
     // Persist what we generated. A DB-level failure here shouldn't strand the
     // user with a generic 500 — return the generated assets so the UI can
     // show the bio/image/audio for editing while the user retries the save.
@@ -211,9 +238,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[onboarding/generate POST]", message, error);
+    console.error(`[onboarding/generate POST] uncaught at stage=${stage}`, message, error);
     return NextResponse.json(
-      { error: "Profile generation failed", detail: message },
+      {
+        error: "Profile generation failed",
+        stage,
+        detail: message,
+      },
       { status: 500 }
     );
   }
