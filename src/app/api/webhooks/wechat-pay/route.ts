@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
           "[wechat-pay-webhook] membership extended:",
           outTradeNo,
           "until",
-          result.membershipUntil.toISOString(),
+          result.currentUntil.toISOString(),
           result.alreadyApplied ? "(idempotent replay)" : "",
         );
       } catch (err) {

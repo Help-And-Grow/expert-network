@@ -204,11 +204,11 @@ export async function POST(request: NextRequest) {
   const fromWeChat = isWeChatOriginatedRequest(request);
 
   if (fromWeChat && participantRole === "founder") {
-    const founder = await prisma.user.findUnique({
-      where: { id: booking.founderId },
-      select: { membershipTier: true, membershipUntil: true },
+    const membership = await prisma.membership.findUnique({
+      where: { userId: booking.founderId },
+      select: { currentUntil: true },
     });
-    if (!founder || !hasActiveMembership(founder)) {
+    if (!hasActiveMembership(membership)) {
       return NextResponse.json(
         {
           error:

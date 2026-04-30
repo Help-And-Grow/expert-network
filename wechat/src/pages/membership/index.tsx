@@ -19,7 +19,7 @@ type Plan = {
 type StatusResponse = {
   active: boolean;
   tier: "NONE" | "BASIC" | "PRO";
-  membershipUntil: string | null;
+  currentUntil: string | null;
   plans: Plan[];
 };
 
@@ -115,7 +115,7 @@ export default function MembershipPage() {
         });
 
         Taro.showToast({ title: "支付成功", icon: "success", duration: 1500 });
-        // The webhook extends membershipUntil — re-fetch after a short delay
+        // The webhook extends currentUntil — re-fetch after a short delay
         // so the UI catches up with the server.
         setTimeout(() => {
           fetchStatus();
@@ -154,7 +154,7 @@ export default function MembershipPage() {
         </Text>
         <Text className="status-until">
           {status?.active
-            ? `到期日 ${formatUntil(status.membershipUntil ?? null)}`
+            ? `到期日 ${formatUntil(status.currentUntil ?? null)}`
             : "开通后可使用高清直播咨询"}
         </Text>
       </View>

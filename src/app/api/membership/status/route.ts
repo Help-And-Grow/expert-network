@@ -13,10 +13,10 @@ export const dynamic = "force-dynamic";
  *
  * Response:
  *   {
- *     active: boolean,           // hasActiveMembership(user)
- *     tier: "NONE" | "BASIC" | "PRO",
- *     membershipUntil: ISO | null,
- *     plans: MembershipPlan[]    // catalog for renewal buttons
+ *     active: boolean,
+ *     tier: "NONE" | "BASIC" | "PRO",   // "NONE" when there's no Membership row
+ *     currentUntil: ISO | null,
+ *     plans: MembershipPlan[]
  *   }
  */
 export async function GET(request: NextRequest) {
@@ -25,22 +25,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      membershipTier: true,
-      membershipUntil: true,
-    },
+  const membership = await prisma.membership.findUnique({
+    where: { userId },
+    select: { tier: true, currentUntil: true },
   });
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
   return NextResponse.json({
-    active: hasActiveMembership(user),
-    tier: user.membershipTier,
-    membershipUntil: user.membershipUntil?.toISOString() ?? null,
+    active: hasActiveMembership(membership),
+    tier: membership?.tier ?? "NONE",
+    currentUntil: membership?.currentUntil.toISOString() ?? null,
     plans: MEMBERSHIP_PLANS_CN,
   });
 }

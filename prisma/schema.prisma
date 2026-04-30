@@ -60,17 +60,14 @@ model User {
   wechatUnionId     String?
   inviteCode        String?
   tokenBalance      Int                @default(0)
-  membershipTier    MembershipTier     @default(NONE)
-  membershipUntil   DateTime?
   accounts          Account[]
   bookingsAsFounder Booking[]          @relation("FounderBookings")
   expert            Expert?
+  membership        Membership?
+  membershipLedger  MembershipLedger[]
   reviews           Review[]
   sessions          Session[]
   tokenLedger       TokenLedger[]
-  membershipLedger  MembershipLedger[]
-
-  @@index([membershipUntil])
 }
 
 model Expert {
@@ -243,29 +240,50 @@ model TokenLedger {
   @@index([bookingId])
 }
 
+/// Current membership entitlement for a user. One row per user, only created
+/// when the user first subscribes — absence of a row is the canonical "no
+/// membership" signal. Kept as a separate table (rather than columns on
+/// User) so the User model stays unaffected by a feature that's gated to
+/// the WeChat MP path; this prevents schema-drift fallout in unrelated
+/// queries that select User columns.
+model Membership {
+  id           String         @id @default(cuid())
+  userId       String         @unique
+  tier         MembershipTier
+  /// When the current paid window ends. extendMembership() bumps this
+  /// forward; hasActiveMembership() checks it (with a 5-min grace).
+  currentUntil DateTime
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([currentUntil])
+}
+
 /// Subscription / membership transaction log. Each row is one purchase or
-/// adjustment that extends `User.membershipUntil`. Source-of-truth for
-/// reconciliation against WeChat Pay (CN/Intl appIds) and any future Stripe
-/// subscription rails. Membership gates premium-live access on the WeChat
-/// Mini Program path (no H&G token charge there).
+/// adjustment that extends a user's `Membership.currentUntil`. Source-of-truth
+/// for reconciliation against WeChat Pay (CN/Intl appIds) and any future
+/// Stripe subscription rails. Membership gates premium-live access on the
+/// WeChat Mini Program path (no H&G token charge there).
 model MembershipLedger {
-  id              String         @id @default(cuid())
-  userId          String
-  tier            MembershipTier
-  /// Days the purchase added to membershipUntil. Negative for adjustments.
-  durationDays    Int
+  id           String         @id @default(cuid())
+  userId       String
+  tier         MembershipTier
+  /// Days the purchase added to currentUntil. Negative for adjustments.
+  durationDays Int
   /// Amount paid in the smallest unit of `currency` (e.g. CNY fen, USD cents).
-  amountMinor     Int            @default(0)
-  currency        String         @default("CNY")
+  amountMinor  Int            @default(0)
+  currency     String         @default("CNY")
   /// "wechat-pay-cn", "wechat-pay-intl", "stripe", "manual", "refund".
-  source          String
+  source       String
   /// External transaction id (WeChat transaction_id, Stripe invoice id, ...).
-  externalRef     String?        @unique
-  /// What `membershipUntil` became after this entry was applied (audit trail).
-  membershipUntil DateTime?
-  description     String?
-  createdAt       DateTime       @default(now())
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalRef  String?        @unique
+  /// What `Membership.currentUntil` became after this entry was applied
+  /// (audit trail). Null only on adjustments that don't change the date.
+  currentUntil DateTime?
+  description  String?
+  createdAt    DateTime       @default(now())
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([source])
