@@ -33,9 +33,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Scope the user select to the only fields we need. `include: { user: true }`
+    // would pull every User column — if a recently-added column (e.g. the
+    // membership fields) is in the Prisma schema but not yet in the DB,
+    // Prisma errors out the entire route with a generic 500. Selecting
+    // explicit columns keeps onboarding working through migration lag.
     const expert = await prisma.expert.findUnique({
       where: { userId },
-      include: { user: true },
+      include: {
+        user: { select: { nickName: true, name: true } },
+      },
     });
 
     if (!expert) {
@@ -166,17 +173,30 @@ export async function POST(request: NextRequest) {
       diagnostics.audio = errorMessage(error);
     }
 
-    await prisma.expert.update({
-      where: { id: expert.id },
-      data: {
-        bio: profile.bio,
-        servicesOffered: profile.services as object,
-        avatarScript: profile.videoScript,
-        avatarVideoUrl: finalImageUrl,
-        ...(audioIntroUrl ? { audioIntroUrl } : {}),
-        onboardingStep: "AI_GENERATION",
-      },
-    });
+    // Persist what we generated. A DB-level failure here shouldn't strand the
+    // user with a generic 500 — return the generated assets so the UI can
+    // show the bio/image/audio for editing while the user retries the save.
+    let persisted = true;
+    try {
+      await prisma.expert.update({
+        where: { id: expert.id },
+        data: {
+          bio: profile.bio,
+          servicesOffered: profile.services as object,
+          avatarScript: profile.videoScript,
+          avatarVideoUrl: finalImageUrl,
+          ...(audioIntroUrl ? { audioIntroUrl } : {}),
+          onboardingStep: "AI_GENERATION",
+        },
+      });
+    } catch (dbError) {
+      persisted = false;
+      const detail = errorMessage(dbError);
+      console.error("[onboarding/generate POST] expert.update failed", detail, dbError);
+      diagnostics.text = diagnostics.text
+        ? `${diagnostics.text}; persistence failed: ${detail}`
+        : `persistence failed: ${detail}`;
+    }
 
     return NextResponse.json({
       expertId: expert.id,
@@ -186,13 +206,14 @@ export async function POST(request: NextRequest) {
       profileImage: finalImageUrl,
       audioIntroUrl,
       usedFallback,
+      persisted,
       diagnostics,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[onboarding/generate POST]", message, error);
     return NextResponse.json(
-      { error: "Internal server error", detail: message },
+      { error: "Profile generation failed", detail: message },
       { status: 500 }
     );
   }

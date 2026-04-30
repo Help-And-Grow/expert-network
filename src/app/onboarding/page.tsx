@@ -782,13 +782,21 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error("AI generation error:", err);
       setGenerationFailed(true);
+      const detail = err instanceof Error ? err.message : "";
+      // Truncate to keep the bubble readable while still surfacing the
+      // root cause to the user/dev (otherwise they have to dig in
+      // server logs to know which provider failed).
+      const trimmed = detail.length > 240 ? `${detail.slice(0, 240)}…` : detail;
+      const baseMessage =
+        "Profile generation hit a snag. Tap Retry to try again, or skip and edit manually on the next screen.";
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-error-${Date.now()}`,
           role: "ai",
-          content:
-            "Profile generation hit a snag — the AI provider may be rate-limited. Tap Retry to try again, or skip and edit manually on the next screen.",
+          content: trimmed
+            ? `${baseMessage}\n\nDetails: ${trimmed}`
+            : baseMessage,
           type: "text",
         },
       ]);
