@@ -6,14 +6,33 @@
   &--loading {
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: $spacing-6;
     background: linear-gradient(180deg, $color-bg-elevated 0%, $color-bg-page 100%);
   }
 
   &__loading-text {
     font-size: $font-size-md;
     color: $color-text-tertiary;
+  }
+
+  &__invite-btn {
+    padding: $spacing-3 $spacing-8;
+    border-radius: $radius-full;
+    background: $color-primary-gradient;
+    box-shadow: $shadow-brand;
+
+    &--hover {
+      opacity: 0.88;
+    }
+  }
+
+  &__invite-btn-text {
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: $color-text-inverse;
   }
 
   &--chat {

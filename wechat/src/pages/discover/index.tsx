@@ -92,26 +92,6 @@ function normalizeRecommendationSummary(
 function useInviteGuard() {
   const [hasInvite, setHasInvite] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    const cached = Taro.getStorageSync("hasInvite");
-    if (cached === "true") {
-      setHasInvite(true);
-      return;
-    }
-
-    get<{ hasInvite: boolean }>("/api/invite/status")
-      .then((res) => {
-        if (res.data?.hasInvite) {
-          Taro.setStorageSync("hasInvite", "true");
-          setHasInvite(true);
-          return;
-        }
-        setHasInvite(false);
-        promptInviteCode();
-      })
-      .catch(() => setHasInvite(true));
-  }, []);
-
   function promptInviteCode() {
     Taro.showModal({
       title: "需要邀请码",
@@ -143,16 +123,36 @@ function useInviteGuard() {
             });
           return;
         }
-        Taro.switchTab({ url: "/pages/index/index" });
+        // cancelled — stay on page so the button remains accessible
       },
     });
   }
 
-  return hasInvite;
+  useEffect(() => {
+    const cached = Taro.getStorageSync("hasInvite");
+    if (cached === "true") {
+      setHasInvite(true);
+      return;
+    }
+
+    get<{ hasInvite: boolean }>("/api/invite/status")
+      .then((res) => {
+        if (res.data?.hasInvite) {
+          Taro.setStorageSync("hasInvite", "true");
+          setHasInvite(true);
+          return;
+        }
+        setHasInvite(false);
+        promptInviteCode();
+      })
+      .catch(() => setHasInvite(true));
+  }, []);
+
+  return { hasInvite, promptInviteCode };
 }
 
 export default function DiscoverPage() {
-  const hasInvite = useInviteGuard();
+  const { hasInvite, promptInviteCode } = useInviteGuard();
   const [matching, setMatching] = useState(false);
   const [draft, setDraft] = useState("");
   const [scrollIntoView, setScrollIntoView] = useState("");
@@ -266,12 +266,25 @@ export default function DiscoverPage() {
     return (QUICK_TAGS as readonly { label: string; prompt: string }[]).some((t) => t.prompt === c) ? c : "";
   }, [chatMessages]);
 
-  if (hasInvite === false || hasInvite === null) {
+  if (hasInvite === null) {
     return (
       <View className="discover discover--loading">
-        <Text className="discover__loading-text">
-          {hasInvite === null ? "加载中..." : "需要邀请码"}
-        </Text>
+        <Text className="discover__loading-text">加载中...</Text>
+      </View>
+    );
+  }
+
+  if (hasInvite === false) {
+    return (
+      <View className="discover discover--loading">
+        <Text className="discover__loading-text">需要邀请码</Text>
+        <View
+          className="discover__invite-btn"
+          hoverClass="discover__invite-btn--hover"
+          onClick={promptInviteCode}
+        >
+          <Text className="discover__invite-btn-text">输入邀请码</Text>
+        </View>
       </View>
     );
   }
