@@ -100,14 +100,59 @@ export async function PATCH(
         );
       }
 
-      const updated = await prisma.booking.update({
-        where: { id },
-        data: {
-          status: "CANCELLED",
-          cancelledBy: userId,
-          cancelReason: typeof body.reason === "string" ? body.reason.slice(0, 500) : null,
-        },
-        include: { expert: { include: { user: true } }, founder: true },
+      const cancelReason =
+        typeof body.reason === "string" ? body.reason.slice(0, 500) : null;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const cancelled = await tx.booking.update({
+          where: { id },
+          data: {
+            status: "CANCELLED",
+            cancelledBy: userId,
+            cancelReason,
+          },
+          include: { expert: { include: { user: true } }, founder: true },
+        });
+
+        // Refund any premium-live H&G token debit. The /api/trtc/token route
+        // sets `liveAccessChargedAt` only when a debit succeeded, and writes a
+        // PREMIUM_LIVE_DEBIT ledger row tied to this booking. If a matching
+        // refund row already exists (re-cancel attempt) we skip — the unique
+        // booking+type pair makes this idempotent in practice because a
+        // cancelled booking can't be re-cancelled (guarded above).
+        if (cancelled.isPremiumLive && cancelled.liveAccessChargedAt) {
+          const debit = await tx.tokenLedger.findFirst({
+            where: {
+              bookingId: id,
+              userId: cancelled.founderId,
+              type: "PREMIUM_LIVE_DEBIT",
+            },
+            orderBy: { createdAt: "desc" },
+          });
+
+          if (debit && debit.amount < 0) {
+            const refundAmount = -debit.amount;
+            await tx.user.update({
+              where: { id: cancelled.founderId },
+              data: { tokenBalance: { increment: refundAmount } },
+            });
+            await tx.tokenLedger.create({
+              data: {
+                userId: cancelled.founderId,
+                bookingId: id,
+                type: "PREMIUM_LIVE_REFUND",
+                amount: refundAmount,
+                description: `Premium live consultation refund for cancelled booking ${id}`,
+              },
+            });
+            await tx.booking.update({
+              where: { id },
+              data: { liveAccessChargedAt: null },
+            });
+          }
+        }
+
+        return cancelled;
       });
 
       const cancellerName = isFounder

@@ -205,6 +205,8 @@ const envSchema = z
     TRTC_PREJOIN_SECONDS: z.coerce.number().int().min(0).optional(),
     /** How long after the booking end room entry remains valid for reconnects/grace. */
     TRTC_POST_END_GRACE_SECONDS: z.coerce.number().int().min(0).optional(),
+    /** TRTC server callback shared secret (回调密钥). Letters + digits, ≤32 chars. */
+    TRTC_CALLBACK_KEY: z.string().min(1).max(32).optional(),
 
     VOICE_CHAT_MODE: z.enum(["async", "realtime", "both"]).default("async"),
     /** Override default Qwen built-in voice (e.g. Cherry) when expert has no voice clone. */
