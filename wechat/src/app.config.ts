@@ -8,7 +8,7 @@ export default defineAppConfig({
     "pages/onboarding/index",
     "pages/profile/index",
     "pages/consultation/index",
-    "pages/membership/index",
+    // "pages/membership/index", // hidden until WeChat Pay is provisioned
   ],
   tabBar: {
     color: "#8a8f98",

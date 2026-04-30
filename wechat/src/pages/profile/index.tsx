@@ -191,22 +191,12 @@ export default function ProfilePage() {
           </View>
         )}
 
-        <View
-          className="profile__menu-item"
-          hoverClass="profile__menu-item--hover"
-          onClick={() =>
-            Taro.navigateTo({ url: "/pages/membership/index" })
-          }
-        >
-          <View className="profile__menu-icon-wrap profile__menu-icon-wrap--purple">
-            <Icon name="star" size={28} color="#7c3aed" />
-          </View>
-          <View className="profile__menu-content">
-            <Text className="profile__menu-label">我的会员</Text>
-            <Text className="profile__menu-hint">高清直播咨询，按月或按年订阅</Text>
-          </View>
-          <Text className="profile__menu-arrow">›</Text>
-        </View>
+        {/*
+          我的会员 entry hidden until WeChat Pay merchant credentials are
+          available — pending Chinese company registration. The page,
+          subscribe/status endpoints, and webhook routing remain in the
+          codebase; restore this menu item to re-enable.
+        */}
 
         <View
           className="profile__menu-item"
