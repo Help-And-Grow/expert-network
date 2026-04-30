@@ -3,8 +3,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
+import { hasActiveMembership } from "@/lib/membership";
 import { prismaFull as prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import {
   buildTrtcParticipantId,
   buildTrtcRoomIdCandidate,
@@ -196,9 +198,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Entitlement: WeChat-originated requests gate on an active membership.
+  // Web/Telegram requests gate on H&G token balance via ensurePremiumLiveDebit.
+  // The expert (host) is always allowed in — only the founder pays.
+  const fromWeChat = isWeChatOriginatedRequest(request);
+
+  if (fromWeChat && participantRole === "founder") {
+    const founder = await prisma.user.findUnique({
+      where: { id: booking.founderId },
+      select: { membershipTier: true, membershipUntil: true },
+    });
+    if (!founder || !hasActiveMembership(founder)) {
+      return NextResponse.json(
+        {
+          error:
+            "Premium live consultation requires an active membership. Please subscribe to continue.",
+          reason: "MEMBERSHIP_REQUIRED",
+        },
+        { status: 402 },
+      );
+    }
+  }
+
   try {
     const roomId = await ensureLiveRoomId(booking.id, booking.liveRoomId);
-    await ensurePremiumLiveDebit(booking.id, booking.founderId);
+    if (!fromWeChat) {
+      // Token-debit path stays for web/Telegram. Expert role joining a
+      // WeChat booking shouldn't trigger a token charge against the founder
+      // either — fromWeChat covers that case.
+      await ensurePremiumLiveDebit(booking.id, booking.founderId);
+    }
 
     const config = getTrtcConfig();
     const trtcUserId = buildTrtcParticipantId({
