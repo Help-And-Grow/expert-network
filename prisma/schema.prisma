@@ -45,27 +45,32 @@ model VerificationToken {
 }
 
 model User {
-  id                String        @id @default(cuid())
+  id                String             @id @default(cuid())
   name              String?
   nickName          String?
-  email             String?       @unique
+  email             String?            @unique
   emailVerified     DateTime?
   image             String?
-  role              UserRole      @default(USER)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  telegramId        String?       @unique
+  role              UserRole           @default(USER)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  telegramId        String?            @unique
   telegramUsername  String?
-  wechatOpenId      String?       @unique
+  wechatOpenId      String?            @unique
   wechatUnionId     String?
   inviteCode        String?
-  tokenBalance      Int           @default(0)
+  tokenBalance      Int                @default(0)
+  membershipTier    MembershipTier     @default(NONE)
+  membershipUntil   DateTime?
   accounts          Account[]
-  bookingsAsFounder Booking[]     @relation("FounderBookings")
+  bookingsAsFounder Booking[]          @relation("FounderBookings")
   expert            Expert?
   reviews           Review[]
   sessions          Session[]
   tokenLedger       TokenLedger[]
+  membershipLedger  MembershipLedger[]
+
+  @@index([membershipUntil])
 }
 
 model Expert {
@@ -238,9 +243,46 @@ model TokenLedger {
   @@index([bookingId])
 }
 
+/// Subscription / membership transaction log. Each row is one purchase or
+/// adjustment that extends `User.membershipUntil`. Source-of-truth for
+/// reconciliation against WeChat Pay (CN/Intl appIds) and any future Stripe
+/// subscription rails. Membership gates premium-live access on the WeChat
+/// Mini Program path (no H&G token charge there).
+model MembershipLedger {
+  id              String         @id @default(cuid())
+  userId          String
+  tier            MembershipTier
+  /// Days the purchase added to membershipUntil. Negative for adjustments.
+  durationDays    Int
+  /// Amount paid in the smallest unit of `currency` (e.g. CNY fen, USD cents).
+  amountMinor     Int            @default(0)
+  currency        String         @default("CNY")
+  /// "wechat-pay-cn", "wechat-pay-intl", "stripe", "manual", "refund".
+  source          String
+  /// External transaction id (WeChat transaction_id, Stripe invoice id, ...).
+  externalRef     String?        @unique
+  /// What `membershipUntil` became after this entry was applied (audit trail).
+  membershipUntil DateTime?
+  description     String?
+  createdAt       DateTime       @default(now())
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([source])
+}
+
 enum UserRole {
   USER
   ADMIN
+}
+
+/// Membership tier for premium-live access on WeChat MP. NONE = no active
+/// membership. BASIC / PRO leave room for future tiered pricing without
+/// another migration.
+enum MembershipTier {
+  NONE
+  BASIC
+  PRO
 }
 
 enum SessionType {
