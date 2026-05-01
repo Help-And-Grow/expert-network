@@ -4,7 +4,7 @@
   "_comment3": "TARO_APP_API_BASE: 腾讯云上海节点后端地址",
   "_comment4": "Secrets stay in Vercel/SCF runtime env, not here.",
   "TARO_APP_REGION": "cn",
-  "TARO_APP_APPID": "wx09d0eb079596060d",
+  "TARO_APP_APPID": "PENDING_CN_WECHAT_APPID",
   "TARO_APP_API_BASE": "https://production-wechat-i8ddngeb5eafed-DEFAULT-DOMAIN.tcloudbaseapp.com",
   "TARO_APP_DEFAULT_LANG": "zh-CN",
   "TARO_APP_BRAND_NAME": "Help & Grow",
