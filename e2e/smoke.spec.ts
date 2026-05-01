@@ -116,8 +116,20 @@ test.describe("local smoke", () => {
     await expect(page.getByRole("heading", { name: "Upcoming" })).toBeVisible();
 
     await page.goto("/admin/ai-provider");
-    await expect(page.getByText("AI Provider Control")).toBeVisible();
-    await expect(page.getByLabel("Provider")).toBeVisible();
+    // CardTitle renders "AI Provider Control" inside an <h>; use a longer
+    // timeout because the page does an authenticated tRPC fetch on mount
+    // before the title appears in some prerender configurations.
+    await expect(page.getByText("AI Provider Control")).toBeVisible({
+      timeout: 15_000,
+    });
+    // The "Active provider" label is a bare <label> without htmlFor, so
+    // `getByLabel` doesn't match — assert on the visible text instead.
+    // Use { exact: true } because the page's CardDescription also contains
+    // "Switch the active provider …" which Playwright would match in
+    // non-exact mode (strict-mode violation).
+    await expect(
+      page.getByText("Active provider", { exact: true }),
+    ).toBeVisible();
   });
 
   test("admin-only debug reads work after dev admin login", async ({ page }) => {
