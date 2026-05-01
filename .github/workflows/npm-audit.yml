@@ -13,8 +13,8 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -27,7 +27,7 @@ jobs:
       - name: Upload production audit JSON
         if: always()
         run: npm audit --omit=dev --json > audit-production.json || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: npm-audit-production-json
