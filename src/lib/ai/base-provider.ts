@@ -5,7 +5,7 @@ import {
   buildMatchExpertsPrompt,
   buildNormalizeQueryPrompt,
 } from "./prompts";
-import { searchSocialProfiles, extractPdfWithGemini } from "./search";
+import { searchSocialProfilesWithGemini, extractPdfWithGemini } from "./search";
 import {
   parseProfileResponse,
   parseMatchResponse,
@@ -31,6 +31,11 @@ import type {
  *   1. Google Search grounding via Gemini (shared helper in search.ts)
  *   2. Text generation via the provider's own LLM
  *
+ * Providers that should NOT route search through Gemini (e.g. Hunyuan, where
+ * the WeChat compliance boundary requires staying inside Tencent Cloud)
+ * override `generateExpertProfile` to use their own search-grounded path —
+ * see `HunyuanProvider`.
+ *
  * Providers with native search grounding (Gemini) can override
  * `generateExpertProfile` to collapse both steps into one call.
  */
@@ -48,7 +53,7 @@ export abstract class BaseAIProvider implements AIProvider {
   // ---------------------------------------------------------------------------
 
   async generateExpertProfile(data: ProfileInput): Promise<ProfileOutput> {
-    const searchResults = await searchSocialProfiles(data);
+    const searchResults = await searchSocialProfilesWithGemini(data);
     const resumeSection = data.resumeText
       ? `\n\nUploaded document (resume/CV) — TRUSTED source:\n${data.resumeText.slice(0, 3000)}`
       : "";

@@ -21,6 +21,17 @@ export type AIProviderName = (typeof ALL_AI_PROVIDERS)[number];
 export const IMAGE_FALLBACK_ORDER = ["qwen", "gemini"] as const;
 
 /**
+ * Default text-provider chain for non-WeChat surfaces (Web, Telegram, REST API).
+ * Qwen primary, Gemini fallback. See architecture.md §3.2 for the rationale —
+ * tl;dr: Qwen is co-located in `ap-southeast-1` for low latency from our
+ * Vercel `sin1` functions, Gemini is the cross-cloud safety net.
+ *
+ * Operators can override at runtime via SystemConfig key
+ * `AI_TEXT_PROVIDER_CHAIN` (comma-separated, e.g. "qwen,gemini,openai").
+ */
+export const DEFAULT_WEB_TEXT_CHAIN = ["qwen", "gemini"] as const;
+
+/**
  * Default voice-synthesis chain. Tokens map to TTS providers, not text
  * providers (e.g. `qwen-tts` uses DashScope CosyVoice). Override at runtime
  * via SystemConfig key `VOICE_PROVIDER_CHAIN`.
@@ -195,9 +206,12 @@ export async function getActiveAIProviderName(): Promise<AIProviderName> {
  * Region-aware provider resolution.
  *
  * - WeChat-originated requests (stamped by the TCB proxy) use the
- *   `WECHAT_AI_PROVIDER` SystemConfig / env, falling back to `qwen` so CN
- *   clients hit a CN-region inference endpoint instead of crossing the GFW.
+ *   `WECHAT_AI_PROVIDER` SystemConfig / env, defaulting to `hunyuan` so the
+ *   inference call stays inside the Tencent compliance boundary.
  * - All other traffic uses the default `getActiveAIProviderName()`.
+ *
+ * NOTE: This returns a SINGLE provider name. For fallback-aware resolution,
+ * use `getActiveAIProviderChainForRequest()` below.
  */
 export async function getActiveAIProviderNameForRequest(
   request: { headers: { get(name: string): string | null } } | null | undefined,
@@ -212,6 +226,47 @@ export async function getActiveAIProviderNameForRequest(
     dbProvider || env.WECHAT_AI_PROVIDER || "hunyuan",
   );
   return resolved ?? "hunyuan";
+}
+
+/**
+ * Per-surface provider chain (the production routing).
+ *
+ * - WeChat-originated requests → `[hunyuan]` (no cross-cloud fallback by
+ *   design — see architecture.md §3.2 "Why no cross-cloud fallback for
+ *   WeChat").
+ * - All other traffic → SystemConfig `AI_TEXT_PROVIDER_CHAIN` →
+ *   env `AI_TEXT_PROVIDER_CHAIN` → `DEFAULT_WEB_TEXT_CHAIN` (`qwen,gemini`).
+ *   The legacy `AI_PROVIDER` env / SystemConfig is honoured by being placed
+ *   at the head of the chain when set, so existing deployments don't change
+ *   behaviour silently when this commit lands.
+ *
+ * Returns at least one provider name. If a configured chain ends up empty
+ * after normalisation, falls back to `DEFAULT_WEB_TEXT_CHAIN`.
+ */
+export async function getActiveAIProviderChainForRequest(
+  request: { headers: { get(name: string): string | null } } | null | undefined,
+): Promise<AIProviderName[]> {
+  const { isWeChatOriginatedRequest } = await import("@/lib/request-origin");
+  const { getSystemConfig } = await import("@/lib/system-config");
+
+  if (isWeChatOriginatedRequest(request ?? null)) {
+    const head = await getActiveAIProviderNameForRequest(request);
+    return [head];
+  }
+
+  // Web / Telegram path. Honour explicit chain configs first, then fall back
+  // to the legacy AI_PROVIDER (head-of-chain), then the default Qwen→Gemini.
+  const dbChain = await getSystemConfig("AI_TEXT_PROVIDER_CHAIN");
+  const envChain = process.env.AI_TEXT_PROVIDER_CHAIN ?? null;
+  const explicit = parseChain<AIProviderName>(dbChain ?? envChain, ALL_AI_PROVIDERS);
+  if (explicit.length > 0) return explicit;
+
+  const legacyHead = await getActiveAIProviderName();
+  const merged: AIProviderName[] = [legacyHead];
+  for (const name of DEFAULT_WEB_TEXT_CHAIN) {
+    if (!merged.includes(name)) merged.push(name);
+  }
+  return merged;
 }
 
 /**

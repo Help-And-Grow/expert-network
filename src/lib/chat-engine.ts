@@ -40,9 +40,14 @@ type ChatContext = {
  *
  * Designed to be called from any integration: Telegram, WeChat, WhatsApp, API.
  *
- * Pass `{ request }` from the route handler to enable WeChat-origin AI
- * routing (`resolveAIProvider`) so CN traffic stays on a CN-friendly
- * provider.
+ * Pass `{ request }` from the route handler to drive `resolveAIProvider`'s
+ * per-surface routing:
+ *   - WeChat-originated requests → Hunyuan
+ *   - Everything else (Web, Telegram, REST) → Qwen primary → Gemini fallback
+ *
+ * The `platform` parameter is kept for telemetry / future per-platform tuning
+ * but no longer changes the provider chain — both Web and Telegram now share
+ * the same Qwen→Gemini chain (see architecture.md §3.2).
  */
 export async function chat(
   message: string,
@@ -92,17 +97,13 @@ export async function chat(
     })
     .join("\n\n---\n\n");
 
-  let aiResult;
   const historyMapped = history.map((m) => ({ role: m.role, content: m.content }));
-
-  if (platform === "telegram") {
-    const { QwenProvider } = await import("@/lib/ai/qwen");
-    const qwen = new QwenProvider();
-    aiResult = await qwen.matchExperts(message, expertSummaries, historyMapped);
-  } else {
-    const ai = await resolveAIProvider({ request: ctx.request });
-    aiResult = await ai.matchExperts(message, expertSummaries, historyMapped);
-  }
+  const ai = await resolveAIProvider({ request: ctx.request });
+  // `ai` is a chain wrapper; matchExperts will fall back from Qwen → Gemini
+  // on Web/Telegram, or run Hunyuan-only on WeChat surfaces.
+  void platform; // reserved for future per-platform telemetry; routing is
+                  // already determined by the resolved chain.
+  const aiResult = await ai.matchExperts(message, expertSummaries, historyMapped);
 
   const experts: ExpertRecommendation[] = aiResult.recommendations.map(
     (rec) => {

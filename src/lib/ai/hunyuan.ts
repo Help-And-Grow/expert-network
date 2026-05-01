@@ -3,7 +3,10 @@ import OpenAI from "openai";
 import { env } from "@/lib/env";
 
 import { BaseAIProvider } from "./base-provider";
+import { buildProfilePromptFromResearch } from "./prompts";
 import { getHunyuanTextModel } from "./provider-catalog";
+import { searchSocialProfilesWithHunyuan } from "./search";
+import { parseProfileResponse, type ProfileInput, type ProfileOutput } from "./types";
 
 /**
  * Tencent Hunyuan via the OpenAI-compatible endpoint:
@@ -43,6 +46,32 @@ export class HunyuanProvider extends BaseAIProvider {
       messages: [{ role: "user", content: prompt }],
     });
     return response.choices[0]?.message?.content ?? "";
+  }
+
+  /**
+   * Override the default profile generation to use Hunyuan's native web
+   * search (`enable_enhancement: true`) instead of routing the search
+   * grounding step through Gemini. This is the WeChat compliance constraint:
+   * the entire request pipeline — LLM call AND web grounding — must stay
+   * inside the Tencent Cloud boundary. See architecture.md §3.2 for context.
+   *
+   * Same two-step shape as the base implementation; only the search engine
+   * differs.
+   */
+  override async generateExpertProfile(
+    data: ProfileInput,
+  ): Promise<ProfileOutput> {
+    const searchResults = await searchSocialProfilesWithHunyuan(data);
+    const resumeSection = data.resumeText
+      ? `\n\nUploaded document (resume/CV) — TRUSTED source:\n${data.resumeText.slice(0, 3000)}`
+      : "";
+    const prompt = buildProfilePromptFromResearch(
+      data,
+      searchResults,
+      resumeSection,
+    );
+    const text = await this.chat(prompt);
+    return parseProfileResponse(text);
   }
 
   /**

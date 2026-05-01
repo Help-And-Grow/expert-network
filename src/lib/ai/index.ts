@@ -83,17 +83,89 @@ type RequestContext = {
 };
 
 /**
- * Region-aware provider resolution. WeChat-originated requests are routed to
- * the configured `WECHAT_AI_PROVIDER` (defaults to Qwen via DashScope) so the
- * inference endpoint stays inside the GFW boundary. Everything else falls
- * back to the global default.
+ * Wrap a list of providers so each `AIProvider` method tries them in order
+ * and returns the first one that succeeds. If every provider throws, the
+ * final error from the last attempt is re-thrown so the caller can surface
+ * the actual upstream cause (rate-limit message, auth error, etc.).
+ *
+ * Logs each fallback so operators can spot when the chain is degrading.
+ */
+function chainProviders(chain: AIProvider[], chainNames: string[]): AIProvider {
+  if (chain.length === 0) {
+    throw new Error(
+      "Cannot build empty AI provider chain — at least one provider must be configured.",
+    );
+  }
+  if (chain.length === 1) return chain[0];
+
+  async function tryEach<T>(
+    label: string,
+    fn: (p: AIProvider) => Promise<T>,
+  ): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < chain.length; i++) {
+      try {
+        return await fn(chain[i]);
+      } catch (error) {
+        lastError = error;
+        const next = chainNames[i + 1];
+        const msg = error instanceof Error ? error.message : String(error);
+        if (next) {
+          console.warn(
+            `[ai] ${label} failed on "${chainNames[i]}" — falling back to "${next}". Cause: ${msg}`,
+          );
+        } else {
+          console.error(
+            `[ai] ${label} failed on "${chainNames[i]}" (final provider in chain). Cause: ${msg}`,
+          );
+        }
+      }
+    }
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(
+          `[ai] ${label}: all providers in chain [${chainNames.join(", ")}] failed`,
+        );
+  }
+
+  return {
+    generateExpertProfile: (data) =>
+      tryEach("generateExpertProfile", (p) => p.generateExpertProfile(data)),
+    generateProfileImage: (data) =>
+      tryEach("generateProfileImage", (p) => p.generateProfileImage(data)),
+    improveWriting: (type, content) =>
+      tryEach("improveWriting", (p) => p.improveWriting(type, content)),
+    normalizeQuery: (query) =>
+      tryEach("normalizeQuery", (p) => p.normalizeQuery(query)),
+    matchExperts: (query, experts, history, normalised) =>
+      tryEach("matchExperts", (p) =>
+        p.matchExperts(query, experts, history, normalised),
+      ),
+    extractTextFromPdf: (buffer) =>
+      tryEach("extractTextFromPdf", (p) => p.extractTextFromPdf(buffer)),
+  };
+}
+
+/**
+ * Region-aware provider resolution with built-in cross-cloud fallback.
+ *
+ * - WeChat-originated requests → Hunyuan (single-provider chain by design;
+ *   no cross-cloud fallback to keep inference inside the Tencent compliance
+ *   boundary — see architecture.md §3.2).
+ * - Web / Telegram / REST → Qwen primary → Gemini fallback (configurable
+ *   via SystemConfig `AI_TEXT_PROVIDER_CHAIN`).
+ *
+ * Every public AIProvider method on the returned façade tries each provider
+ * in order until one succeeds, so individual route handlers don't need their
+ * own try/catch fallback logic.
  */
 export async function resolveAIProvider(
   ctx: RequestContext = {},
 ): Promise<AIProvider> {
-  const { getActiveAIProviderNameForRequest } = await import("./provider-catalog");
-  const name = await getActiveAIProviderNameForRequest(ctx.request ?? null);
-  return resolveByName(name);
+  const { getActiveAIProviderChainForRequest } = await import("./provider-catalog");
+  const names = await getActiveAIProviderChainForRequest(ctx.request ?? null);
+  const chain = names.map(resolveByName);
+  return chainProviders(chain, names);
 }
 
 /** One-off provider instance (e.g. vendor demo overrides) — does not use the env singleton. */

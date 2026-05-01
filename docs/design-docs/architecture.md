@@ -88,39 +88,54 @@ interface AIProvider {
 
 Switching providers requires only an admin-panel change at `/admin/ai-provider` — no code change, no redeploy.
 
-### 3.2 Per-Stack Defaults
+### 3.2 Per-Surface Provider Routing
 
-**Decision (2026-04):** No single global provider — each stack uses its **native cloud's** AI services to keep latency low and traffic inside the relevant compliance boundary. The earlier "Gemini-default everywhere" proposal is superseded for the WeChat surfaces.
+**Decision (2026-05):** Each stack uses its **native cloud's** AI services as the primary provider, with a single cross-cloud fallback for the global stack. The exception is web search grounding, which is **always Gemini** because it is the only free, production-grade source of Google Search results we have access to.
 
-| Capability | Web (global) | WeChat-Intl | WeChat-CN |
-|------------|--------------|-------------|-----------|
-| Text generation, matching, reasoning | **Gemini** | **Hunyuan** | **Hunyuan** |
-| Profile image generation | Gemini → Qwen (chain) | Tencent Hunyuan Image (planned) → Qwen → Gemini | Tencent Hunyuan Image (planned) → Qwen → Gemini |
-| Text-to-speech (intro voice + async reply) | Gemini-TTS → Qwen-TTS | Tencent TXTTS (planned) → Qwen-TTS → Gemini-TTS | Tencent TXTTS (planned) → Qwen-TTS → Gemini-TTS |
-| Speech recognition (voice chat input) | DashScope Qwen3-ASR-Flash | Tencent TXASR (planned) → DashScope ASR | Tencent TXASR (planned) → DashScope ASR |
-| Embeddings | Gemini `gemini-embedding-001` | Hunyuan embeddings (when wired) | Hunyuan embeddings (when wired) |
+| Capability | Web / Telegram | WeChat-CN / WeChat-Intl |
+|---|---|---|
+| Text (generation, matching, reasoning, query normalisation, PDF extraction) | **Qwen → Gemini** | **Hunyuan** (no cross-cloud fallback by design — keeps inference inside the Tencent compliance boundary) |
+| Image generation | Qwen → Gemini (chain) | Tencent Hunyuan Image (planned) → Qwen → Gemini |
+| Text-to-speech (intro voice + async reply) | Qwen-TTS → Gemini-TTS | Tencent TXTTS (planned) → Qwen-TTS → Gemini-TTS |
+| Speech recognition (voice chat input) | DashScope Qwen3-ASR-Flash | Tencent TXASR (planned) → DashScope ASR |
+| **Web search grounding** *(profile auto-fill, expert discovery)* | **Gemini** (Google Search grounding via Vertex / AI Studio) | **Hunyuan with `enable_enhancement: true`** (Tencent's native Sogou-powered web search, stays inside the GFW) |
+| Embeddings | Qwen `text-embedding-v3` → Gemini `embedding-001` | Hunyuan embeddings (when wired) |
+
+**Per-cloud search choice.** Each surface uses the search engine native to its cloud so the entire request pipeline (LLM call + grounding lookups) stays inside one compliance boundary:
+
+- **Web / Telegram → Gemini.** Google Search grounding (`tools: [{ googleSearch: {} }]`) gives us the best recall on the profiles our users care about (LinkedIn, Substack, Twitter, personal blogs).
+- **WeChat → Hunyuan with `enable_enhancement: true`.** Tencent's chat completions API takes a single boolean parameter (`enable_enhancement: true` on the OpenAI-compatible endpoint, `EnableEnhancement: true` on the native API) which causes Hunyuan to do internal Sogou-powered web searches and ground the response. Recall on Chinese-language sources (Xiaohongshu, Zhihu, WeChat public accounts) is materially better than what Google Search returns; recall on English-language profiles is lower but acceptable for the WeChat audience.
+
+Both implementations live in `src/lib/ai/search.ts` (`searchSocialProfilesWithGemini`, `searchSocialProfilesWithHunyuan`). The active surface picks one at the provider layer: `BaseAIProvider.generateExpertProfile` uses the Gemini path by default; `HunyuanProvider` overrides to use the Hunyuan path so WeChat traffic never crosses to Google.
+
+**Why Qwen-primary on Web/Telegram instead of Gemini-primary.** Vertex AI's Gemini quotas tighten under sustained load, and most of our text traffic (matching, query normalisation, profile generation) is well within Qwen-Plus's capability. Qwen is also resident in `ap-southeast-1`, which is a single hop from our Vercel `sin1` functions and the Singapore-resident user base. Gemini stays as the fallback so a Qwen outage doesn't surface as a user-visible 500.
+
+**Why no cross-cloud fallback for WeChat.** Adding a Gemini fallback path on the WeChat surfaces would re-introduce the cross-border traffic we explicitly designed out (compliance + latency). If Hunyuan is unavailable, the route handler returns a graceful "Try again in a moment" instead of routing the request through the GFW.
 
 Tencent-native providers for image / TTS / ASR are **listed but not yet wired** — until they are, both WeChat stacks fall through the configurable `IMAGE_PROVIDER_CHAIN` / `VOICE_PROVIDER_CHAIN` to Qwen / Gemini. Wiring is tracked in [`tencent-cloud-rollout.md`](../exec-plans/active/tencent-cloud-rollout.md).
 
 ### 3.3 Configurable Chains (no redeploy)
 
-Two SystemConfig keys drive runtime fallback order:
+Three SystemConfig keys drive runtime fallback order:
 
-- **`IMAGE_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Editable from `/admin/ai-provider`.
+- **`AI_TEXT_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to non-WeChat surfaces (Web, Telegram, REST API). Editable from `/admin/ai-provider`.
+- **`IMAGE_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to all surfaces.
 - **`VOICE_PROVIDER_CHAIN`** — comma-separated, default `qwen-tts,gemini-tts`. Allowed tokens: `qwen-tts`, `gemini-tts` (more added as Tencent-native voice lands).
 
-`generateProfileImageResilient` and `getProfileIntroVoiceSynthesisProviders` (in `src/lib/profile-media.ts`) read these chains via `getActiveImageProviderChain()` / `getActiveVoiceProviderChain()`. Providers without credentials are filtered out automatically.
+WeChat-originated requests (detected via `isWeChatOriginatedRequest`, which reads `IS_WECHAT=true` on the SCF deployments) bypass `AI_TEXT_PROVIDER_CHAIN` and use `WECHAT_AI_PROVIDER` (default `hunyuan`) as a single-provider chain — no cross-cloud fallback for the reason given in §3.2.
 
-### 3.4 Region-Aware Routing
+Provider availability is filtered by credential at chain-build time (`computeProviderHealth`); a provider without its required env vars is silently dropped from the chain so the deploy fails gracefully when, e.g., `GEMINI_API_KEY` is unset.
 
-WeChat-originated traffic (stamped by the TCB proxy, detected via `isWeChatOriginatedRequest`) routes to the configured `WECHAT_AI_PROVIDER` so inference stays on Tencent infrastructure. Default: **`hunyuan`**. Operators can flip via `SystemConfig` key `WECHAT_AI_PROVIDER` (no redeploy) — e.g. to `qwen` if Hunyuan is rate-limited.
+### 3.4 Implementation Map
 
-Implementation:
-- `resolveAIProvider({ request })` in `src/lib/ai/index.ts` — request-aware factory with per-name caching.
-- `getActiveAIProviderNameForRequest(request)` in `src/lib/ai/provider-catalog.ts` — resolves the right provider name.
-- Wired into `src/app/api/experts/match/route.ts` (Discover) and `src/lib/chat-engine.ts` (the `POST /api/chat` and Telegram bot path).
-
-Non-WeChat traffic continues to use the global default (Gemini).
+| Concern | Where |
+|---|---|
+| Resolve the chain for a request | `getAIProviderChainForRequest(request)` in `src/lib/ai/provider-catalog.ts` |
+| Build a chain-wrapped provider | `resolveAIProvider({ request })` in `src/lib/ai/index.ts` (returns a façade that tries each provider in order before throwing) |
+| Search grounding (always Gemini) | `searchSocialProfiles()` in `src/lib/ai/search.ts` |
+| Image fallback chain | `generateProfileImageResilient()` in `src/lib/profile-media.ts` |
+| Voice fallback chain | `getProfileIntroVoiceSynthesisProviders()` in `src/lib/profile-media.ts` |
+| Wired into | `src/app/api/experts/match/route.ts` (Discover), `src/lib/chat-engine.ts` (POST `/api/chat` + Telegram), `src/app/api/onboarding/generate/route.ts` (profile auto-fill) |
 
 ---
 

@@ -107,14 +107,21 @@ const envSchema = z
     RESEND_EMAIL_FROM: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
 
+    /**
+     * Head of the text-provider chain for non-WeChat surfaces (Web, Telegram,
+     * REST). Default `qwen`. The full chain is Qwen → Gemini; this var only
+     * controls the head, so existing Vercel deploys with `AI_PROVIDER=gemini`
+     * continue to work (Gemini becomes the head, Qwen is appended as fallback).
+     * For full chain control set the SystemConfig key `AI_TEXT_PROVIDER_CHAIN`.
+     */
     AI_PROVIDER: z
       .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
-      .default("gemini"),
+      .default("qwen"),
     /**
      * Provider used when the request originates from the WeChat Mini Program
      * (detected via TCB-stamped headers in `lib/request-origin.ts`). Defaults
      * to `hunyuan` so both WeChat-CN and WeChat-Intl stacks run entirely on
-     * Tencent Cloud (data residency + on-platform LLM).
+     * Tencent Cloud — no cross-cloud fallback for WeChat by design.
      */
     WECHAT_AI_PROVIDER: z
       .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
