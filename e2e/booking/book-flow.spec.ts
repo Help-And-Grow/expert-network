@@ -16,7 +16,7 @@ test.describe("Book a session (UI smoke)", () => {
     test.skip(!expertId, "No published experts in this environment");
 
     await page.goto(`/experts/${expertId}/book`);
-    await expect(page.getByRole("heading", { name: "Book a Session" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Schedule a meetup" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Online" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Offline" })).toBeVisible();
   });
@@ -26,6 +26,6 @@ test.describe("Book a session (UI smoke)", () => {
     test.skip(!expertId, "Set PLAYWRIGHT_EXPERT_ID to run this targeted test");
 
     await page.goto(`/experts/${expertId}/book`);
-    await expect(page.getByRole("heading", { name: "Book a Session" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Schedule a meetup" })).toBeVisible();
   });
 });
