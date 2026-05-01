@@ -1,6 +1,12 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  // SCF Nodejs18.15 runs on Tencent Linux (RHEL-derived, OpenSSL 3.x). The
+  // `native` target builds for the dev machine; the linux targets are
+  // required so the standalone bundle that ships to SCF contains a runnable
+  // query engine. Migrations are run separately from a Tencent Cloud machine
+  // (see infra/tencent-cn/scripts/migrate.sh).
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {

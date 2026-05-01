@@ -41,6 +41,8 @@
     "vercel:env:migrate-auth-secret": "node scripts/vercel-migrate-auth-secret.mjs",
     "vercel:env:alibabacloud": "node scripts/vercel-merge-env.mjs alibabacloud /tmp/vercel-origin-production.env /tmp/vercel-alibabacloud-production.env /tmp/vercel-alibabacloud-merged.env",
     "postinstall": "node scripts/switch-db.mjs && prisma generate && node scripts/prisma-migrate-if-vercel.mjs",
+    "cn:deploy": "bash infra/tencent-cn/scripts/deploy.sh",
+    "cn:migrate": "bash infra/tencent-cn/scripts/migrate.sh",
     "wechat:build": "npm run build:weapp --prefix wechat",
     "wechat:upload": "npm run wechat:build && node scripts/run-wechat-upload.cjs",
     "wechat:upload:local": "bash scripts/wechat-upload-local.sh"

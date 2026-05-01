@@ -1,0 +1,4 @@
+.env.cn
+node_modules/
+build/
+*.zip

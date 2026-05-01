@@ -1,0 +1,9 @@
+{
+  "name": "tencent-cn-deploy-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local CLI dependencies for the WeChat CN SCF deploy. Installed automatically by infra/tencent-cn/scripts/deploy.sh on first run.",
+  "devDependencies": {
+    "@cloudbase/cli": "^3.2.2"
+  }
+}

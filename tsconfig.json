@@ -38,6 +38,7 @@
     "node_modules",
     "wechat",
     "scripts",
-    "contracts"
+    "contracts",
+    "infra"
   ]
 }
