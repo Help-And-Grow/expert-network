@@ -8,7 +8,6 @@ on:
 
 jobs:
   smoke:
-    if: false # Disabled until May 1 due to Action minute quota limits
     # Only run on successful deploys. Vercel often labels previews as "Production" in GitHub too,
     # so we additionally require the production hostname below (not *.vercel.app preview URLs).
     if: github.event.deployment_status.state == 'success'

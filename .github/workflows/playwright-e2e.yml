@@ -15,7 +15,6 @@ on:
 
 jobs:
   e2e:
-    if: false # Disabled until May 1 due to Action minute quota limits
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

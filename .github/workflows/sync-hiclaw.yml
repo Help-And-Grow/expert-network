@@ -1,11 +1,13 @@
 name: Sync HiClaw Upstream
 
 on:
-  workflow_dispatch: # Manual trigger only — schedule re-enabled after May 1 2026
+  workflow_dispatch:
+  schedule:
+    # Weekly Monday 00:00 UTC — sync upstream alibaba/hiclaw and open a PR if it diverged.
+    - cron: "0 0 * * 1"
 
 jobs:
   sync-hiclaw:
-    # Re-enable schedule trigger (cron: '0 0 * * 1') after May 1 2026 quota resets
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
