@@ -182,7 +182,17 @@ mkdir -p "$BUNDLE_DIR"
 cp -R .next/standalone/. "$BUNDLE_DIR/"
 mkdir -p "$BUNDLE_DIR/.next"
 cp -R .next/static "$BUNDLE_DIR/.next/static"
-# Next.js 15 standalone needs .next/build for runtime (output/log.js, etc.)
+# Next.js 15 standalone runtime imports next/dist/build/output/log.js from
+# production server modules. Most builds trace this into .next/standalone, but
+# keep an explicit fallback so the SCF bundle is deterministic across machines.
+NEXT_DIST="$BUNDLE_DIR/node_modules/next/dist"
+if [ ! -f "$NEXT_DIST/build/output/log.js" ] && [ -d node_modules/next/dist/build ]; then
+  echo "  Restoring next/dist/build runtime files into standalone bundle …"
+  mkdir -p "$NEXT_DIST"
+  cp -R node_modules/next/dist/build "$NEXT_DIST/build"
+fi
+# Older experiments copied .next/build when present; harmless no-op on current
+# Next.js 15 builds, where the required files live under node_modules/next/dist.
 [ -d .next/build ] && cp -R .next/build "$BUNDLE_DIR/.next/build" || true
 [ -d public ] && cp -R public "$BUNDLE_DIR/public" || true
 
@@ -228,7 +238,6 @@ find "$BUNDLE_DIR/.next" -name "*.js.map" -type f -delete 2>/dev/null || true
 
 # 6. Next.js build-only tooling traced into standalone but never executed
 #    by `node server.js`. ~10 MB savings; runtime is unaffected.
-NEXT_DIST="$BUNDLE_DIR/node_modules/next/dist"
 if [ -d "$NEXT_DIST" ]; then
   # NOTE: Do NOT remove $NEXT_DIST/build — Next.js 15 standalone runtime requires
   # node_modules/next/dist/build/output/log.js at startup. Removing it causes:
@@ -241,6 +250,18 @@ if [ -d "$NEXT_DIST" ]; then
   rm -rf "$NEXT_DIST/compiled/@vercel"            2>/dev/null || true
   rm -f  "$NEXT_DIST/server/capsize-font-metrics.json" 2>/dev/null || true
 fi
+
+if [ ! -f "$NEXT_DIST/build/output/log.js" ]; then
+  echo "✖ SCF bundle is missing node_modules/next/dist/build/output/log.js" >&2
+  echo "  This would fail at runtime with: Cannot find module '../build/output/log'" >&2
+  exit 1
+fi
+
+(
+  cd "$BUNDLE_DIR"
+  node -e "require('./node_modules/next/dist/server/next.js'); require('./node_modules/next/dist/server/lib/router-server.js')"
+)
+echo "  Next.js runtime module smoke: ok"
 
 echo "  Bundle size after prune: $(du -sh "$BUNDLE_DIR" | cut -f1)"
 

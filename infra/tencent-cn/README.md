@@ -141,6 +141,7 @@ curl https://<env>-<id>.ap-shanghai.app.tcloudbase.com/api/health/origin
 |---|---|---|
 | `Connection failed` in `cn:migrate` | TencentDB IP whitelist, or DB still 创建中 | Add laptop IP to whitelist; wait for 运行中 |
 | `Cannot find module @cloudbase/...` | tcb CLI missing | Script auto-installs locally on first run |
+| `Cannot find module '../build/output/log'` | SCF bundle is missing Next.js runtime files under `node_modules/next/dist/build` | Re-run `npm run cn:deploy` from the latest script; it restores `next/dist/build` and smoke-tests the bundle before upload |
 | `不支持的触发器类型 [web]` | tcb v3 doesn't accept HTTP triggers in fn config | Already handled — script uses `tcb routes add` |
 | `路径只含字母/数字/...` | Path validation | Already handled — script uses `path: /*` with `enablePathTransmission` |
 | WeChat MP "请求被拒绝" after deploy | Domain not in WeChat allowlist | See § 6 step 1 |
