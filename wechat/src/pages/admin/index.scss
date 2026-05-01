@@ -1,0 +1,118 @@
+@import "../../styles/tokens";
+@import "../../styles/mixins";
+
+.admin {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: $spacing-4;
+  padding-bottom: calc(#{$spacing-8} + env(safe-area-inset-bottom));
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    color: $color-text-muted;
+    font-size: $font-size-lg;
+  }
+
+  &__header {
+    margin-bottom: $spacing-6;
+  }
+
+  &__title {
+    display: block;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-heading;
+  }
+
+  &__subtitle {
+    display: block;
+    font-size: $font-size-sm;
+    color: $color-text-muted;
+    margin-top: $spacing-1;
+  }
+
+  // ---- live preview ----
+  &__preview {
+    margin-bottom: $spacing-6;
+  }
+
+  &__preview-card {
+    background: $color-bg-card;
+    border-radius: $radius-xl;
+    padding: $spacing-6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-3;
+    @include card-shadow;
+  }
+
+  &__preview-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: $radius-lg;
+  }
+
+  &__preview-name {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-heading;
+  }
+
+  &__preview-slogan {
+    font-size: $font-size-sm;
+    color: $color-text-muted;
+  }
+
+  // ---- form ----
+  &__form {
+    background: $color-bg-card;
+    border-radius: $radius-xl;
+    padding: $spacing-6;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-5;
+    @include card-shadow;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+  }
+
+  &__label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-text-secondary;
+  }
+
+  &__input {
+    height: 88px;
+    background: $color-bg-input;
+    border-radius: $radius-lg;
+    padding: 0 $spacing-4;
+    font-size: $font-size-base;
+    color: $color-text-primary;
+    border: 1.5px solid $color-border;
+  }
+
+  &__save-btn {
+    margin-top: $spacing-2;
+    height: 96px;
+    border-radius: $radius-lg;
+    background: $color-primary;
+    color: #fff;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    border: none;
+    @include btn-primary;
+
+    &[disabled] {
+      opacity: 0.5;
+    }
+  }
+}

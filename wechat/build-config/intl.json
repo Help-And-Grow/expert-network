@@ -1,6 +1,13 @@
 {
-  "_comment": "Overseas WeChat Mini Program build config. Replace TARO_APP_API_BASE with the Intl TCB function URL once intl env is provisioned (cloudbaserc.intl.json envId).",
+  "_comment": "Overseas WeChat Mini Program build config (WeChat Intl, Tencent Cloud Singapore).",
+  "_comment2": "TARO_APP_APPID: 海外版微信小程序 AppID（待替换）",
+  "_comment3": "TARO_APP_API_BASE: 腾讯云新加坡节点后端地址（待替换）",
   "TARO_APP_REGION": "intl",
+  "TARO_APP_APPID": "REPLACE_WITH_INTL_WECHAT_APPID",
   "TARO_APP_API_BASE": "https://REPLACE_WITH_INTL_TCB_URL.tcloudbaseapp.com",
-  "TARO_APP_DEFAULT_LANG": "en-US"
+  "TARO_APP_DEFAULT_LANG": "en-US",
+  "TARO_APP_BRAND_NAME": "Help & Grow Intl",
+  "TARO_APP_BRAND_LOGO": "/images/logo-intl.png",
+  "TARO_APP_BRAND_SLOGAN": "AI Native Expert Network",
+  "TARO_APP_ENABLE_WECHAT_PAY": "false"
 }

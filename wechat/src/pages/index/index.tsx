@@ -1,9 +1,10 @@
-import { View, Text } from "@tarojs/components";
+import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect } from "react";
 import Icon from "../../components/Icon";
 import { get } from "../../shared/api";
 import { isLoggedIn } from "../../shared/auth";
+import { BRAND_NAME, BRAND_LOGO, BRAND_SLOGAN } from "../../shared/brand";
 import "./index.scss";
 
 export default function IndexPage() {
@@ -46,10 +47,14 @@ export default function IndexPage() {
       <View style={{ height: `${statusBarHeight}px` }} />
       <View className="landing__hero">
         <View className="landing__logo-wrap">
-          <View className="landing__logo">H&G</View>
+          {BRAND_LOGO ? (
+            <Image src={BRAND_LOGO} className="landing__logo-img" />
+          ) : (
+            <View className="landing__logo">H&G</View>
+          )}
         </View>
-        <Text className="landing__title">帮助与成长</Text>
-        <Text className="landing__subtitle">AI Native Expert Network</Text>
+        <Text className="landing__title">{BRAND_NAME}</Text>
+        <Text className="landing__subtitle">{BRAND_SLOGAN}</Text>
         <Text className="landing__tagline">每个人既是教练，也是选手</Text>
         <Text className="landing__desc">
           在这里，专业经验以更高效的方式被看见、被连接、被兑现。
