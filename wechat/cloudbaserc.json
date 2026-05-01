@@ -1,0 +1,19 @@
+{
+  "envId": "intl-expert-network-d4b0f027d012",
+  "region": "ap-shanghai",
+  "functionRoot": "./cloudfunctions",
+  "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+  "version": "2.0",
+  "functionConfig": {
+    "timeout": 20,
+    "memorySize": 512,
+    "runtime": "Nodejs18",
+    "envVariables": {
+      "TARO_APP_REGION": "intl"
+    }
+  },
+  "hosting": {
+    "CNAME": "",
+    "domain": ""
+  }
+}

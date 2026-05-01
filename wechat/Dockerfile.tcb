@@ -1,0 +1,27 @@
+# Multi-stage build for TCB Cloud Run (Next.js API backend)
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --production=false && npm cache clean --force
+
+# Copy source and build for WeChat (intl)
+COPY . .
+RUN npm run build:weapp:intl 2>/dev/null || npx taro build --type weapp
+
+# Production stage — serve static files + API proxy
+FROM node:18-alpine AS runner
+RUN apk add --no-cache curl
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV TARO_APP_REGION=intl
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+EXPOSE 8080
+
+CMD ["npx", "serve", "-s", "dist", "-l", "8080"]
