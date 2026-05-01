@@ -4,12 +4,14 @@
   "description": "Help & Grow — AI Native Expert Network (WeChat)",
   "appid": "wx09d0eb079596060d",
   "setting": {
-    "urlCheck": true,
-    "es6": false,
-    "enhance": false,
-    "compileHotReLoad": false,
-    "postcss": false,
-    "minified": false
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "compileHotReLoad": true,
+    "postcss": true,
+    "minified": true,
+    "packNpmManually": true,
+    "packNpmRelationList": []
   },
   "compileType": "miniprogram"
 }

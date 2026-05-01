@@ -56,8 +56,8 @@ export default function IndexPage() {
         <Text className="landing__title">{BRAND_NAME}</Text>
         <Text className="landing__subtitle">{BRAND_SLOGAN}</Text>
         <Text className="landing__tagline">每个人既是教练，也是选手</Text>
-        <Text className="landing__desc">
-          在这里，专业经验以更高效的方式被看见、被连接、被兑现。
+          <Text className="landing__desc">
+          在这里，专业经验以高效的方式被看见 & 被链接！
         </Text>
       </View>
 

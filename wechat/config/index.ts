@@ -16,14 +16,21 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    // Support region-based build output (cn/intl) via TARO_BUILD_PROJECT_OUTPUT_ROOT
+    outputRoot: process.env.TARO_BUILD_PROJECT_OUTPUT_ROOT || 'dist',
     plugins: [
       "@tarojs/plugin-generator"
     ],
-    defineConstants: {
-    },
+    // Inject TARO_APP_* env vars as compile-time constants
+    // so process.env references are replaced with literal values (WeChat has no Node.js 'process')
+    defineConstants: Object.fromEntries(
+      Object.entries(process.env)
+        .filter(([k]) => k.startsWith('TARO_APP_'))
+        .map(([k, v]) => [`process.env.${k}`, JSON.stringify(v)])
+    ),
     copy: {
       patterns: [
+        { from: 'src/assets/images/**', to: 'assets/' }
       ],
       options: {
       }

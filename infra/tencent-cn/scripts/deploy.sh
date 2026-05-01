@@ -182,6 +182,8 @@ mkdir -p "$BUNDLE_DIR"
 cp -R .next/standalone/. "$BUNDLE_DIR/"
 mkdir -p "$BUNDLE_DIR/.next"
 cp -R .next/static "$BUNDLE_DIR/.next/static"
+# Next.js 15 standalone needs .next/build for runtime (output/log.js, etc.)
+[ -d .next/build ] && cp -R .next/build "$BUNDLE_DIR/.next/build" || true
 [ -d public ] && cp -R public "$BUNDLE_DIR/public" || true
 
 # NOTE: Prisma CLI + migrations are NOT bundled into the SCF.
@@ -228,7 +230,10 @@ find "$BUNDLE_DIR/.next" -name "*.js.map" -type f -delete 2>/dev/null || true
 #    by `node server.js`. ~10 MB savings; runtime is unaffected.
 NEXT_DIST="$BUNDLE_DIR/node_modules/next/dist"
 if [ -d "$NEXT_DIST" ]; then
-  rm -rf "$NEXT_DIST/build"                       2>/dev/null || true
+  # NOTE: Do NOT remove $NEXT_DIST/build — Next.js 15 standalone runtime requires
+  # node_modules/next/dist/build/output/log.js at startup. Removing it causes:
+  #   Error: Cannot find module '../build/output/log'
+  # See: https://github.com/vercel/next.js/issues/64218
   rm -rf "$NEXT_DIST/next-devtools"               2>/dev/null || true
   rm -rf "$NEXT_DIST/compiled/babel"              2>/dev/null || true
   rm -rf "$NEXT_DIST/compiled/babel-packages"     2>/dev/null || true

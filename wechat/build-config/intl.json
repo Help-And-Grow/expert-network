@@ -4,10 +4,10 @@
   "_comment3": "TARO_APP_API_BASE: 腾讯云上海节点后端地址",
   "TARO_APP_REGION": "intl",
   "TARO_APP_APPID": "wx09d0eb079596060d",
-  "TARO_APP_API_BASE": "https://intl-expert-network-d4b0f027d012-1426868533.ap-shanghai.app.tcloudbase.com",
+  "TARO_APP_API_BASE": "https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com",
   "TARO_APP_DEFAULT_LANG": "en-US",
-  "TARO_APP_BRAND_NAME": "Help & Grow Intl",
-  "TARO_APP_BRAND_LOGO": "src/assets/images/logo-intl.png",
+  "TARO_APP_BRAND_NAME": "Help & Grow",
+  "TARO_APP_BRAND_LOGO": "/assets/logo-intl.jpg",
   "TARO_APP_BRAND_SLOGAN": "AI Native Expert Network",
   "TARO_APP_ENABLE_WECHAT_PAY": "false"
 }
