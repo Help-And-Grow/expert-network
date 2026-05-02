@@ -309,16 +309,17 @@ fi
 echo "▶ Waiting for $TENCENT_CN_FN_NAME to become Active …"
 ACTIVE=0
 for i in $(seq 1 30); do
-  STATUS=$("$TCB_BIN" fn list -e "$TENCENT_CN_ENV_ID" 2>&1 \
+  STATUS_RAW=$("$TCB_BIN" fn list -e "$TENCENT_CN_ENV_ID" 2>&1 \
     | grep -F "$TENCENT_CN_FN_NAME" \
     | awk -F'│' '{print $7}' \
-    | tr -d ' ')
+    | head -n 1)
+  STATUS=$(printf "%s" "$STATUS_RAW" | tr -cd '[:alnum:]')
   case "$STATUS" in
-    Deploymentcompleted|Active|Running)
+    *Deploymentcompleted*|*Active*|*Running*)
       echo "  ✓ Function is $STATUS (after $((i*10)) s)"
       ACTIVE=1
       break ;;
-    Creationfailed|UpdateFailed|Failed*)
+    *Creationfailed*|*UpdateFailed*|*Failed*)
       echo "✖ Function is in $STATUS state — check the SCF console for the real cause" >&2
       echo "  console.cloud.tencent.com → 云开发 → 云函数 → $TENCENT_CN_FN_NAME → 函数日志" >&2
       exit 1 ;;
