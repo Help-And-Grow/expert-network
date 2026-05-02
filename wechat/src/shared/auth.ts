@@ -6,6 +6,19 @@ const USER_KEY = "wechat_user";
 const DEFAULT_API_BASE =
   "https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com";
 
+function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 export function getToken(): string | null {
   return Taro.getStorageSync(TOKEN_KEY) || null;
 }
@@ -38,17 +51,24 @@ export function isLoggedIn(): boolean {
 }
 
 export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
-  const { code } = await Taro.login();
+  const { code } = await withTimeout(Taro.login(), "wx.login", 12_000);
+  if (!code) {
+    throw new Error("wx.login did not return a code");
+  }
 
   let nickName: string | undefined;
   let avatarUrl: string | undefined;
 
   try {
-    const setting = await Taro.getSetting();
+    const setting = await withTimeout(Taro.getSetting(), "wx.getSetting", 6_000);
     if (setting.authSetting["scope.userInfo"]) {
-      const profile = await Taro.getUserProfile({
-        desc: "用于完善你的个人主页信息",
-      });
+      const profile = await withTimeout(
+        Taro.getUserProfile({
+          desc: "用于完善你的个人主页信息",
+        }),
+        "wx.getUserProfile",
+        10_000,
+      );
       nickName = profile.userInfo.nickName;
       avatarUrl = profile.userInfo.avatarUrl;
     }
@@ -57,12 +77,17 @@ export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
   }
 
   const API_BASE = getApiBase();
-  const res = await Taro.request({
-    url: `${API_BASE}/api/auth/wechat`,
-    method: "POST",
-    header: { "Content-Type": "application/json" },
-    data: { code, nickName, avatarUrl },
-  });
+  const res = await withTimeout(
+    Taro.request({
+      url: `${API_BASE}/api/auth/wechat`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: { code, nickName, avatarUrl },
+      timeout: 15_000,
+    }),
+    "POST /api/auth/wechat",
+    20_000,
+  );
 
   if (res.statusCode !== 200 || !(res.data as Record<string, unknown>)["token"]) {
     throw new Error((res.data as Record<string, string>)["error"] || "登录失败");

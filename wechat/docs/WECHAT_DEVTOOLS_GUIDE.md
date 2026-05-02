@@ -49,7 +49,7 @@ The mini program initializes CloudBase on launch:
 ```ts
 Taro.cloud.init({
   env: "cn-wechat-d1gzncs8i34827c98",
-  traceUser: true
+  traceUser: false
 });
 ```
 
@@ -87,6 +87,15 @@ In WeChat MP Admin for AppID `wx09d0eb079596060d`:
 ## 6. Smoke Test Checklist
 
 Use DevTools Network plus a real WeChat device:
+
+If DevTools logs a bare `Error: timeout` from `WAServiceMainContext`, first
+check the detailed app log for `wx.login`, `wx.getSetting`, or
+`POST /api/auth/wechat`. The app no longer forces login on launch; login is
+lazy when an authenticated API is needed. The current intl build also disables
+CloudBase `traceUser` to avoid launch-time native user tracing in DevTools.
+In DevTools, confirm the IDE is logged in with a WeChat account that is a
+developer/tester for AppID `wx09d0eb079596060d`, then clear simulator cache
+and compile again.
 
 - Launch app and confirm no CloudBase init error.
 - Confirm `/api/auth/wechat` returns 200 after login.

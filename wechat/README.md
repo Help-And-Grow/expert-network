@@ -26,7 +26,7 @@ npm run build:weapp:intl
 
 Import `/Users/qiumiao/Downloads/expert-network/wechat` in WeChat DevTools. The root `project.config.json` points `miniprogramRoot` at `./dist-intl`, so DevTools loads the international build output.
 
-The app calls `Taro.cloud.init({ env: "cn-wechat-d1gzncs8i34827c98" })` on launch so DevTools and future native CloudBase capabilities bind to the same CloudBase env. Product API calls still use HTTPS through `TARO_APP_API_BASE`.
+The app calls `Taro.cloud.init({ env: "cn-wechat-d1gzncs8i34827c98", traceUser: false })` on launch so DevTools and future native CloudBase capabilities bind to the same CloudBase env without startup user tracing. Product API calls still use HTTPS through `TARO_APP_API_BASE`.
 
 ## Domain Allowlist
 
