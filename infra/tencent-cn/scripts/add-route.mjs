@@ -78,40 +78,61 @@ const routeData = {
   ],
 };
 
-const edit = spawnSync(
-  tcb,
-  ["routes", "edit", "-e", envId, "--data", JSON.stringify(routeData)],
-  { encoding: "utf8" },
-);
-const editOut = (edit.stdout || "") + (edit.stderr || "");
-process.stdout.write(editOut);
+const deleteResult = spawnSync(tcb, ["routes", "delete", domain, "-e", envId, "-p", "/api"], {
+  encoding: "utf8",
+  input: "Y\n",
+});
+const deleteOut = (deleteResult.stdout || "") + (deleteResult.stderr || "");
+process.stdout.write(deleteOut);
 
-if (edit.status === 0) {
-  console.log(`\n✓ Deploy complete.`);
-  console.log(`  WeChat CN endpoint: https://${domain}/`);
-  console.log(`  Health check:       curl https://${domain}/api/health/origin`);
-  process.exit(0);
-}
-if (!/不存在|not exist|not found|no route|missing/i.test(editOut)) {
-  process.exit(edit.status || 1);
+if (deleteResult.status !== 0 && !/不存在|not exist|not found|no route|missing/i.test(deleteOut)) {
+  process.exit(deleteResult.status || 1);
 }
 
 const result = spawnSync(
   tcb,
   ["routes", "add", "-e", envId, "--data", JSON.stringify(routeData)],
-  { encoding: "utf8" },
+  { encoding: "utf8", input: "Y\n" },
 );
 const out = (result.stdout || "") + (result.stderr || "");
 process.stdout.write(out);
 
-if (result.status === 0) {
-  console.log(`\n✓ Deploy complete.`);
-  console.log(`  WeChat CN endpoint: https://${domain}/`);
-  console.log(`  Health check:       curl https://${domain}/api/health/origin`);
-  process.exit(0);
+function routeIsHealthy() {
+  const listResult = spawnSync(
+    tcb,
+    ["routes", "list", "-e", envId, "--filter", `Domain=${domain}`, "--json"],
+    { encoding: "utf8" },
+  );
+  const listOut = (listResult.stdout || "") + (listResult.stderr || "");
+  if (listResult.status !== 0) return { ok: false, out: listOut };
+
+  const i = listOut.search(/[\[{]/);
+  if (i === -1) return { ok: false, out: listOut };
+  const parsed = JSON.parse(listOut.slice(i));
+  const routes = Array.isArray(parsed.data) ? parsed.data : [];
+  const route = routes.find((r) => r.path === "/api");
+  return {
+    ok:
+      route?.upstreamResourceType === "WEB_SCF" &&
+      route?.upstreamResourceName === fnName &&
+      route?.enable === true &&
+      route?.enableAuth === false &&
+      route?.enablePathTransmission === true,
+    out: listOut,
+  };
 }
-if (/已存在|already exists|exists/i.test(out)) {
-  console.log("  route already exists — OK");
+
+if (result.status === 0 || /已存在|already exists|exists/i.test(out)) {
+  let verification = routeIsHealthy();
+  for (let attempt = 1; attempt <= 10 && !verification.ok; attempt += 1) {
+    spawnSync("sleep", ["3"]);
+    verification = routeIsHealthy();
+  }
+  if (!verification.ok) {
+    console.error("✖ /api route was not created with path passthrough enabled.");
+    console.error(verification.out);
+    process.exit(1);
+  }
   console.log(`\n✓ Deploy complete.`);
   console.log(`  WeChat CN endpoint: https://${domain}/`);
   console.log(`  Health check:       curl https://${domain}/api/health/origin`);
