@@ -240,8 +240,9 @@ find "$BUNDLE_DIR/.next" -name "*.js.map" -type f -delete 2>/dev/null || true
 #    by `node server.js`. Keep any modules required by Next's server startup
 #    path; the runtime smoke below catches accidental over-pruning.
 if [ -d "$NEXT_DIST" ]; then
-  # NOTE: Do NOT remove $NEXT_DIST/build — Next.js 15 standalone runtime requires
-  # node_modules/next/dist/build/output/log.js at startup. Removing it causes:
+  # NOTE: Keep $NEXT_DIST/build in the local bundle when available, but do not
+  # depend on it surviving CloudBase's COS/SCF packaging. Live SCF has stripped
+  # it before, causing:
   #   Error: Cannot find module '../build/output/log'
   # See: https://github.com/vercel/next.js/issues/64218
   # NOTE: Do NOT remove $NEXT_DIST/next-devtools — Next.js 15.5 server startup
@@ -254,17 +255,131 @@ if [ -d "$NEXT_DIST" ]; then
   rm -f  "$NEXT_DIST/server/capsize-font-metrics.json" 2>/dev/null || true
 fi
 
-if [ ! -f "$NEXT_DIST/build/output/log.js" ]; then
-  echo "✖ SCF bundle is missing node_modules/next/dist/build/output/log.js" >&2
-  echo "  This would fail at runtime with: Cannot find module '../build/output/log'" >&2
-  exit 1
+if [ -d "$NEXT_DIST" ]; then
+  node - "$NEXT_DIST" <<'NODE'
+const { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } = require("fs");
+const { join } = require("path");
+
+const nextDist = process.argv[2];
+const shimDir = join(nextDist, "server");
+mkdirSync(shimDir, { recursive: true });
+writeFileSync(join(shimDir, "scf-output-log-shim.js"), `"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const prefixes = {
+  wait: "...",
+  error: "x",
+  warn: "!",
+  ready: ">",
+  info: " ",
+  event: "ok",
+  trace: ">"
+};
+const seen = new Set();
+function debug(...message) {
+  if (process.env.SCF_NEXT_LOG_SHIM_DEBUG === "1" && message.length) {
+    console.log(...message);
+  }
+}
+function warn(...message) {
+  if (message.length) console.warn(...message);
+}
+function error(...message) {
+  if (message.length) console.error(...message);
+}
+function warnOnce(...message) {
+  const key = message.join(" ");
+  if (!seen.has(key)) {
+    seen.add(key);
+    warn(...message);
+  }
+}
+exports.prefixes = prefixes;
+exports.bootstrap = debug;
+exports.wait = debug;
+exports.error = error;
+exports.warn = warn;
+exports.ready = debug;
+exports.info = debug;
+exports.event = debug;
+exports.trace = debug;
+exports.warnOnce = warnOnce;
+`);
+writeFileSync(join(shimDir, "scf-transpile-config-shim.js"), `"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.transpileConfig = async function transpileConfig() {
+  throw new Error("next.config.ts is not supported in the Tencent SCF bundle when next/dist/build is stripped. Use next.config.mjs for this deployment target.");
+};
+`);
+
+const logReplacement = 'require("next/dist/server/scf-output-log-shim")';
+const transpileConfigReplacement = 'require("next/dist/server/scf-transpile-config-shim")';
+const relativeLogImport = /require\((['"])(?:\.\.\/)+build\/output\/log\1\)/g;
+const absoluteLogImport = /require\((['"])next\/dist\/build\/output\/log\1\)/g;
+const transpileConfigImport = /require\((['"])(?:\.\.\/)+build\/next-config-ts\/transpile-config\1\)/g;
+let patchedFiles = 0;
+let patchedRuntimeImports = 0;
+
+function walk(dir) {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      walk(full);
+      continue;
+    }
+    if (!entry.endsWith(".js")) continue;
+    const before = readFileSync(full, "utf8");
+    let importsInFile = 0;
+    const after = before
+      .replace(relativeLogImport, () => {
+        importsInFile += 1;
+        return logReplacement;
+      })
+      .replace(absoluteLogImport, () => {
+        importsInFile += 1;
+        return logReplacement;
+      })
+      .replace(transpileConfigImport, () => {
+        importsInFile += 1;
+        return transpileConfigReplacement;
+      });
+    if (after !== before) {
+      writeFileSync(full, after);
+      patchedFiles += 1;
+      patchedRuntimeImports += importsInFile;
+    }
+  }
+}
+
+walk(nextDist);
+console.log(`  Patched ${patchedRuntimeImports} Next.js runtime import${patchedRuntimeImports === 1 ? "" : "s"} in ${patchedFiles} file${patchedFiles === 1 ? "" : "s"}`);
+NODE
 fi
 
-(
-  cd "$BUNDLE_DIR"
-  node -e "require('./node_modules/next/dist/server/next.js'); require('./node_modules/next/dist/server/lib/router-server.js')"
-)
-echo "  Next.js runtime module smoke: ok"
+run_next_runtime_smoke() {
+  (
+    cd "$BUNDLE_DIR"
+    node -e "require('./node_modules/next/dist/server/next.js'); require('./node_modules/next/dist/server/lib/router-server.js')"
+  )
+}
+
+if [ -d "$NEXT_DIST/build" ]; then
+  NEXT_BUILD_SMOKE_BACKUP="$NEXT_DIST/build.__scf_smoke_backup"
+  rm -rf "$NEXT_BUILD_SMOKE_BACKUP"
+  mv "$NEXT_DIST/build" "$NEXT_BUILD_SMOKE_BACKUP"
+  restore_next_build() {
+    if [ -d "$NEXT_BUILD_SMOKE_BACKUP" ]; then
+      mv "$NEXT_BUILD_SMOKE_BACKUP" "$NEXT_DIST/build"
+    fi
+  }
+  trap restore_next_build EXIT
+  run_next_runtime_smoke
+  restore_next_build
+  trap - EXIT
+else
+  run_next_runtime_smoke
+fi
+echo "  Next.js runtime module smoke: ok (without next/dist/build)"
 
 echo "  Bundle size after prune: $(du -sh "$BUNDLE_DIR" | cut -f1)"
 

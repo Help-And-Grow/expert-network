@@ -72,7 +72,9 @@ const cfg = {
     {
       name: env.TENCENT_CN_FN_NAME,
       handler: "scf_bootstrap",
-      runtime: "Nodejs18.15",
+      // Next.js 15.5 requires Node >=18.18; CloudBase's Node 18 runtime is
+      // 18.15, so use the supported Node 20 runtime instead.
+      runtime: "Nodejs20.19",
       // First cold start runs `prisma migrate deploy` before the server
       // starts, which can take 10–20s on a fresh DB. 120s leaves headroom;
       // subsequent cold starts hit a no-op migrate so the budget is unused.
