@@ -22,6 +22,46 @@ function arg(name) {
   return process.argv[i + 1];
 }
 
+function parseFirstJsonValue(output) {
+  const start = output.search(/[\[{]/);
+  if (start === -1) {
+    throw new Error(`No JSON object found in CLI output:\n${output}`);
+  }
+
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < output.length; i += 1) {
+    const ch = output[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === "\"") {
+      inString = true;
+    } else if (ch === "{" || ch === "[") {
+      stack.push(ch);
+    } else if (ch === "}" || ch === "]") {
+      const open = stack.pop();
+      if ((ch === "}" && open !== "{") || (ch === "]" && open !== "[")) {
+        throw new Error(`Malformed JSON in CLI output:\n${output}`);
+      }
+      if (stack.length === 0) {
+        return JSON.parse(output.slice(start, i + 1));
+      }
+    }
+  }
+
+  throw new Error(`Incomplete JSON object in CLI output:\n${output}`);
+}
+
 const tcb = resolve(arg("tcb"));
 const envFile = resolve(arg("env"));
 
@@ -44,9 +84,8 @@ console.log(`▶ Looking up default cloudbase domain for env ${envId} …`);
 const raw = execSync(`${tcb} domains ls -e ${envId} --json`, {
   encoding: "utf8",
 });
-// Strip any leading spinner/progress lines before the JSON object
-const i = raw.search(/[\[{]/);
-const json = JSON.parse(raw.slice(i));
+// tcb may print spinner/progress lines before or after JSON.
+const json = parseFirstJsonValue(raw);
 // tcb v3 returns { data: [...], meta: {...} }
 // older versions returned { Domains: [...] } or a bare array
 const list =
@@ -106,9 +145,12 @@ function routeIsHealthy() {
   const listOut = (listResult.stdout || "") + (listResult.stderr || "");
   if (listResult.status !== 0) return { ok: false, out: listOut };
 
-  const i = listOut.search(/[\[{]/);
-  if (i === -1) return { ok: false, out: listOut };
-  const parsed = JSON.parse(listOut.slice(i));
+  let parsed;
+  try {
+    parsed = parseFirstJsonValue(listOut);
+  } catch {
+    return { ok: false, out: listOut };
+  }
   const routes = Array.isArray(parsed.data) ? parsed.data : [];
   const route = routes.find((r) => r.path === "/api");
   return {
