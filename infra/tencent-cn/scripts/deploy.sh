@@ -237,14 +237,17 @@ rm -rf "$BUNDLE_DIR/src/generated" 2>/dev/null || true
 find "$BUNDLE_DIR/.next" -name "*.js.map" -type f -delete 2>/dev/null || true
 
 # 6. Next.js build-only tooling traced into standalone but never executed
-#    by `node server.js`. ~10 MB savings; runtime is unaffected.
+#    by `node server.js`. Keep any modules required by Next's server startup
+#    path; the runtime smoke below catches accidental over-pruning.
 if [ -d "$NEXT_DIST" ]; then
   # NOTE: Do NOT remove $NEXT_DIST/build — Next.js 15 standalone runtime requires
   # node_modules/next/dist/build/output/log.js at startup. Removing it causes:
   #   Error: Cannot find module '../build/output/log'
   # See: https://github.com/vercel/next.js/issues/64218
-  rm -rf "$NEXT_DIST/next-devtools"               2>/dev/null || true
-  rm -rf "$NEXT_DIST/compiled/babel"              2>/dev/null || true
+  # NOTE: Do NOT remove $NEXT_DIST/next-devtools — Next.js 15.5 server startup
+  # imports next-devtools/server/shared from server/patch-error-inspect.js.
+  # NOTE: Do NOT remove $NEXT_DIST/compiled/babel — next-devtools/server/shared
+  # imports compiled/babel/code-frame during server startup.
   rm -rf "$NEXT_DIST/compiled/babel-packages"     2>/dev/null || true
   rm -rf "$NEXT_DIST/compiled/amphtml-validator"  2>/dev/null || true
   rm -rf "$NEXT_DIST/compiled/@vercel"            2>/dev/null || true
