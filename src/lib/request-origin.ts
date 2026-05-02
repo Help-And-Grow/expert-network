@@ -7,6 +7,9 @@ export type HeaderBearingRequest = {
   headers: { get(name: string): string | null };
 };
 
+const buildTargetIsWeChat = process.env.WECHAT_BUILD_TARGET === "wechat";
+const buildWeChatRegion = process.env.WECHAT_STACK_REGION?.toLowerCase();
+
 function readRuntimeEnv(name: string): string | undefined {
   return (
     globalThis as typeof globalThis & {
@@ -26,6 +29,7 @@ function readRuntimeEnv(name: string): string | undefined {
 export function isWeChatOriginatedRequest(
   request: HeaderBearingRequest | undefined | null,
 ): boolean {
+  if (buildTargetIsWeChat) return true;
   if (readRuntimeEnv("IS_WECHAT") === "true") return true;
   if (!request) return false;
   const via = request.headers.get("x-forwarded-via");
@@ -50,7 +54,8 @@ export function getWeChatRegion(
   if (!isWeChatOriginatedRequest(request)) return null;
   const value =
     request?.headers.get("x-forwarded-region")?.toLowerCase() ||
-    readRuntimeEnv("PROXY_REGION")?.toLowerCase();
+    readRuntimeEnv("PROXY_REGION")?.toLowerCase() ||
+    buildWeChatRegion;
   if (value === "cn" || value === "intl") return value;
   return null;
 }

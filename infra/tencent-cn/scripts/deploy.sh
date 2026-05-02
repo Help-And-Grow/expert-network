@@ -60,6 +60,8 @@ HUNYUAN_API_KEY="$(read_env_var HUNYUAN_API_KEY)"
 NEXTAUTH_SECRET="$(read_env_var NEXTAUTH_SECRET)"
 WECHAT_APP_ID="$(read_env_var WECHAT_APP_ID)"
 WECHAT_APP_SECRET="$(read_env_var WECHAT_APP_SECRET)"
+WECHAT_STACK_REGION="$(read_env_var WECHAT_STACK_REGION)"
+WECHAT_STACK_REGION="${WECHAT_STACK_REGION:-intl}"
 
 require() {
   if [ -z "${!1:-}" ]; then
@@ -174,7 +176,11 @@ echo "▶ Generating Prisma client (incl. Linux engines) …"
 npx prisma generate --schema prisma/schema.prisma
 
 echo "▶ Building Next.js (standalone) …"
-npm run build
+WECHAT_BUILD_TARGET=wechat \
+IS_WECHAT=true \
+PROXY_REGION="$WECHAT_STACK_REGION" \
+WECHAT_STACK_REGION="$WECHAT_STACK_REGION" \
+  npm run build
 
 # ─── 2. Assemble bundle ──────────────────────────────────────────────────
 echo "▶ Assembling SCF bundle at $BUNDLE_DIR …"
@@ -393,6 +399,10 @@ cat > "$BUNDLE_DIR/scf_bootstrap" <<'BOOT'
 # (run `npm run cn:migrate` from your laptop with 外网 temporarily open).
 export PORT=${PORT:-9000}
 export HOSTNAME=0.0.0.0
+export IS_WECHAT=${IS_WECHAT:-true}
+export PROXY_REGION=${PROXY_REGION:-intl}
+export WECHAT_BUILD_TARGET=${WECHAT_BUILD_TARGET:-wechat}
+export WECHAT_STACK_REGION=${WECHAT_STACK_REGION:-$PROXY_REGION}
 echo "[bootstrap] Starting Next.js …"
 exec node server.js
 BOOT
