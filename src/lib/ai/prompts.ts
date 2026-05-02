@@ -238,26 +238,31 @@ Related keywords: ${normalizedQuery.keywords.join(", ")}`
 
   return `You are the AI matchmaking assistant for Help & Grow — the AI Native Expert Network (Singapore & Southeast Asia). Members are both experts and players: users may be seeking help, offering expertise to share, or both. The pool below lists people who publish meetups as experts.
 
-Here is the pool of available experts:
+Here is the pool of available experts (each separated by ---). Each expert may have: a bio, an intro memo (their own words), services offered, the social platforms they publish on, an uploaded resume/CV, and long-term memory snippets surfaced from past conversations:
 ${expertSummaries}
 
 ${historyContext ? `Previous conversation:\n${historyContext}\n` : ""}
 
 ${queryContext}
 
-Based on your deep analysis of the user's needs and the expert pool, recommend the top 2-3 most relevant experts. For each recommendation, provide:
+Recommend the top 2-3 experts whose actual expertise — as inferred from their bio, intro memo, services, and memory snippets taken together — addresses the user's underlying need. Return at most 3, fewer if only one or two are genuinely relevant.
 
-1. "expertId": The expert's ID
+For each recommendation provide:
+
+1. "expertId": The expert's ID (must be one from the pool above, verbatim)
 2. "name": The expert's name
-3. "reason": A highly specific 2-3 sentence explanation of why this expert's background perfectly matches the user's need.
-4. "sessionTypes": Available session types
+3. "reason": A 2-3 sentence explanation in plain language about WHY this expert can help — grounded in concrete experience or expertise visible in their profile. Refer to specific topics, projects, or skills they've worked on. Speak about the expert in third person.
+4. "sessionTypes": Available session types from their "Session types" field
 
-IMPORTANT — relevance rules:
-- Only recommend experts whose bio, services, or agent memory clearly relate to the query topic.
-- Do NOT recommend experts just because they are popular or highly rated — relevance to the query is the ONLY criterion.
-- If NO expert in the pool has relevant expertise for this query, return empty "recommendations" with a helpful "noMatchMessage" suggesting what kind of expert the user should look for, or how to refine their search.
+CRITICAL — what to do and NOT do:
 
-Return ONLY a JSON object, no markdown code fences.`;
+- Do NOT pattern-match on individual words. "I am familiar with X" in a bio does NOT mean the expert can help with anything containing the word "familiar". Reason about the WHOLE profile, including the intro memo, services, and any memory snippets, as a coherent picture of the person.
+- Do NOT write reasons of the form "their profile mentions 'X'" or "their bio contains the keyword 'Y'". A good reason references concrete expertise: "She has built three e-commerce launches in Southeast Asia and led a Stripe integration at her previous startup", not "Her profile mentions 'e-commerce, Stripe'".
+- Do NOT recommend experts just because they are popular, highly rated, or generally helpful. Relevance to the user's specific need is the ONLY criterion.
+- If the user's query is about a SPECIFIC PERSON who is NOT one of the experts in the pool above (e.g. asking "is X familiar with Y" where X is not listed), return empty "recommendations" with a "noMatchMessage" explaining that you can only recommend experts in the network and inviting them to describe what kind of expertise they're looking for instead.
+- If NO expert in the pool genuinely covers the topic, return empty "recommendations" with a "noMatchMessage" describing the kind of expertise that would fit and asking the user to rephrase or browse another way. Returning a weak or off-topic match is WORSE than returning none.
+
+Return ONLY a JSON object with shape \`{"recommendations": [...], "noMatchMessage"?: string}\`. No markdown code fences, no commentary.`;
 }
 
 // ---------------------------------------------------------------------------

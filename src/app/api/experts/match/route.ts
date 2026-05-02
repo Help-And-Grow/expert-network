@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
+import { buildLLMExpertContext } from "@/lib/expert-match-context";
 import {
   buildExpertFocusLabel,
   buildExpertSearchText,
@@ -14,9 +15,24 @@ import { resolveUserId } from "@/lib/request-auth";
 type MatchExpertRow = {
   id: string;
   bio: string | null;
+  /**
+   * Expert's intro / "about me" memo recorded during onboarding (the script
+   * the avatar narrates). Often richer than the bio because it's spoken-form
+   * — included in matchExperts context so the LLM can ground reasoning in
+   * the expert's own narrative.
+   */
+  avatarScript: string | null;
   sessionType: string;
   servicesOffered: unknown;
   userId: string;
+  /** Social profile URLs help the LLM signal which platforms the expert publishes on. */
+  linkedIn: string | null;
+  twitter: string | null;
+  substack: string | null;
+  instagram: string | null;
+  xiaohongshu: string | null;
+  /** Filename of an uploaded resume / CV PDF. We don't include the binary contents in the LLM context (too large, base64-encoded), but knowing it exists is a relevance signal. */
+  documentName: string | null;
   user: { nickName: string | null; name: string | null };
   reviewCount: number;
   avgRating: number;
@@ -57,13 +73,73 @@ function buildKeywordReason(
   return `${name} is a published expert whose profile aligns with "${query}".`;
 }
 
+/**
+ * English stop words + filler verbs that show up in question phrasing but
+ * carry no expertise signal. The keyword fallback used to count "is", "with",
+ * "familiar", "looking" as matches, so any bio that contained "I am familiar
+ * with X" trivially scored — producing reasons like "profile mentions
+ * 'familiar, with'" with zero relevance to what the user asked. Filter them
+ * out before scoring so only meaningful tokens survive.
+ *
+ * Not exhaustive — the goal is high-precision matches in the fallback path,
+ * not sophisticated NLP. The LLM matcher does the actual semantic work.
+ */
+const STOP_WORDS = new Set([
+  // articles, prepositions, pronouns
+  "a", "an", "the", "of", "to", "in", "on", "at", "by", "for", "with", "from",
+  "as", "is", "am", "are", "was", "were", "be", "been", "being", "do", "does",
+  "did", "have", "has", "had", "this", "that", "these", "those", "it", "its",
+  "i", "we", "you", "he", "she", "they", "them", "his", "her", "their", "my",
+  "our", "your", "if", "or", "and", "but", "not", "no",
+  // question fillers + generic intent verbs
+  "what", "who", "when", "where", "why", "how", "which", "whom",
+  "looking", "want", "need", "needing", "wanting", "find", "finding", "help",
+  "helping", "get", "getting", "can", "could", "should", "would", "will",
+  "may", "might", "must", "let", "lets", "show", "tell", "give", "make", "use",
+  "do", "does", "doing",
+  // generic role nouns
+  "someone", "anyone", "anybody", "everyone", "everybody", "person", "people",
+  "expert", "experts", "coach", "mentor", "advisor", "consultant", "specialist",
+  // hedging / common adjectives
+  "good", "great", "best", "really", "very", "just", "also", "more", "most",
+  "any", "some", "all", "much", "many", "few",
+  // Help & Grow vocabulary that every published expert mentions
+  "help", "grow", "growth", "session", "meetup", "online", "offline",
+  "familiar", "professional", "professionals",
+]);
+
+const MIN_KEYWORD_LENGTH = 3;
+
+function isMeaningfulKeyword(word: string): boolean {
+  return word.length >= MIN_KEYWORD_LENGTH && !STOP_WORDS.has(word);
+}
+
 function keywordMatch(nq: NormalizedQuery, experts: MatchExpertRow[]) {
   const allTerms = [
     nq.english.toLowerCase(),
     ...nq.keywords.map((k) => k.toLowerCase()),
     nq.original.toLowerCase(),
   ];
-  const words = [...new Set(allTerms.flatMap((t) => t.split(/\s+/)).filter((w) => w.length >= 2))];
+  const words = [
+    ...new Set(
+      allTerms.flatMap((t) => t.split(/\s+/)).filter(isMeaningfulKeyword),
+    ),
+  ];
+
+  // No meaningful tokens left after stop-word filtering → can't fall back.
+  // (Returning empty here lets the route show the LLM's noMatchMessage
+  // instead of fabricating matches on stop words.)
+  if (words.length === 0) {
+    return {
+      recommendations: [] as {
+        expertId: string;
+        name: string;
+        summary?: string;
+        reason: string;
+        sessionTypes: string[];
+      }[],
+    };
+  }
 
   const scored = experts
     .map((e) => {
@@ -99,7 +175,9 @@ function keywordMatch(nq: NormalizedQuery, experts: MatchExpertRow[]) {
 
       return { expert: e, score, matched };
     })
-    .filter((r) => r.score > 0)
+    // Require score >= 3 (one services hit, or two bio hits) — single weak
+    // bio match isn't enough signal for a confident recommendation.
+    .filter((r) => r.score >= 3)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
@@ -225,14 +303,7 @@ export async function POST(request: NextRequest) {
     );
 
     const expertSummaries = experts
-      .map((e, i) => {
-        const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nFocus: ${buildExpertFocusLabel(e) ?? "General professional support"}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${stringifyServicesOffered(e.servicesOffered) || "(none)"}`;
-        const memories = memoryResults[i];
-        if (memories.length > 0) {
-          return `${base}\nAgent Memory: ${memories.join("; ")}`;
-        }
-        return base;
-      })
+      .map((e, i) => buildLLMExpertContext(e, memoryResults[i]))
       .join("\n\n---\n\n");
 
     // Step 4: LLM match (with normalized context)
@@ -257,17 +328,22 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Step 5: Keyword fallback using LLM-generated keywords
-      const keyword = keywordMatch(nq, experts);
-      if (keyword.recommendations.length > 0) {
-        return NextResponse.json({
-          recommendations: keyword.recommendations,
-          noMatchMessage: result.noMatchMessage,
-        });
-      }
-
-      // Step 6: Only show exploratory fallback for greetings/broad queries, not specific unmatched topics
+      // LLM correctly determined no expert is relevant. For SPECIFIC topic
+      // queries we honour that — falling back to keyword matching here was
+      // the source of "profile mentions 'familiar, with'"-style nonsense
+      // (stop-word substring hits dressed up as recommendations). Better to
+      // surface the LLM's noMatchMessage and let the user refine the query.
+      //
+      // Keyword + exploratory fallbacks only kick in for ambiguous queries
+      // (greetings, broad exploration) where SOMETHING is better than nothing.
       if (nq.intent === "greeting" || nq.intent === "broad_exploration") {
+        const keyword = keywordMatch(nq, experts);
+        if (keyword.recommendations.length > 0) {
+          return NextResponse.json({
+            recommendations: keyword.recommendations,
+            noMatchMessage: result.noMatchMessage,
+          });
+        }
         return NextResponse.json(exploratoryFallback(experts));
       }
 
@@ -275,10 +351,13 @@ export async function POST(request: NextRequest) {
         recommendations: [],
         noMatchMessage:
           result.noMatchMessage ??
-          `No published expert currently matches "${nq.english}". Try a different topic or browse from the home page.`,
+          `No published expert currently matches "${nq.english}". Try a different topic or add more detail about what you need.`,
       });
     } catch (aiError) {
-      console.error("[experts/match] AI matching failed, keyword fallback:", aiError);
+      console.error("[experts/match] AI matching failed, fallback:", aiError);
+      // True LLM-error path: keyword fallback is fine because we have NO
+      // signal at all. Stop-word filter inside keywordMatch keeps quality
+      // reasonable; if it still finds nothing, return a clean no-match.
       const fallback = keywordMatch(nq, experts);
       if (fallback.recommendations.length > 0) {
         return NextResponse.json(fallback);
@@ -288,7 +367,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({
         recommendations: [],
-        noMatchMessage: `No published expert currently matches "${nq.english}". Try a different topic or browse from the home page.`,
+        noMatchMessage: `No published expert currently matches "${nq.english}". Try a different topic or add more detail about what you need.`,
       });
     }
   } catch (error) {

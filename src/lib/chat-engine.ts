@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import { resolveAIProvider } from "@/lib/ai";
-import { buildExpertFocusLabel, stringifyServicesOffered } from "@/lib/expert-topics";
+import { buildLLMExpertContext } from "@/lib/expert-match-context";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 
@@ -76,24 +76,24 @@ export async function chat(
     )
   );
 
+  // Shared builder with /api/experts/match — keeps the two surfaces identical
+  // in what the LLM sees per expert (bio, intro memo, services, social signals,
+  // long-term memory snippets). See src/lib/expert-match-context.ts.
   const expertSummaries = allExperts
     .map((e, i) => {
+      const ctx = buildLLMExpertContext(e, memoryResults[i]);
       const minPrice = Math.min(
         e.priceOnlineCents || Infinity,
-        e.priceOfflineCents || Infinity
+        e.priceOfflineCents || Infinity,
       );
       const priceStr =
         minPrice < Infinity
           ? `From ${e.currency} ${(minPrice / 100).toFixed(0)}/hr`
           : "Price not set";
-      const focus = buildExpertFocusLabel(e) ?? "General professional support";
-      const services = stringifyServicesOffered(e.servicesOffered) || "(none)";
-      const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nFocus: ${focus}\nSession types: ${e.sessionType}\nPrice: ${priceStr}\nBio: ${e.bio ?? "(none)"}\nServices: ${services}`;
-      const memories = memoryResults[i];
-      if (memories.length > 0) {
-        return `${base}\nAgent Memory: ${memories.join("; ")}`;
-      }
-      return base;
+      // Append price as a side-channel; not part of the shared context
+      // because price isn't relevant to expertise matching but IS relevant
+      // for the recommendation reply.
+      return `${ctx}\nPrice: ${priceStr}`;
     })
     .join("\n\n---\n\n");
 
