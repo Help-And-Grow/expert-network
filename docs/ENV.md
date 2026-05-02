@@ -48,6 +48,9 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 |---|---|
 | `WECHAT_APP_ID`, `WECHAT_APP_SECRET` | Mini Program `code2session` |
 | `WECHAT_CLIENT_LOG` | `1` to accept `/api/debug/wechat-client-log` in prod |
+| `IS_WECHAT` | Set to `true` on Tencent SCF deployments so backend traffic is routed through WeChat-specific AI/storage decisions even without proxy headers |
+| `PROXY_REGION` | WeChat stack marker: `intl` for the current international MP, `cn` for the future mainland app |
+| `WECHAT_STACK_REGION` | Deploy-script input written to SCF as `PROXY_REGION`; current value is `intl` |
 | `WECHAT_PAY_MCH_ID`, `WECHAT_PAY_API_V3_KEY` (32 chars), `WECHAT_PAY_CERT_SERIAL_NO`, `WECHAT_PAY_PRIVATE_KEY`, `WECHAT_PAY_NOTIFY_URL` | WeChat Pay JSAPI |
 | `WECHAT_PAY_PARTNER_MODE`, `WECHAT_PAY_PLATFORM_*` | Service-provider + profit-sharing marketplace mode |
 | `WECHAT_TPL_BOOKING_*`, `WECHAT_TPL_LOCATION_UPDATED`, `WECHAT_TPL_SESSION_REMINDER` | Subscribe-message template IDs |
@@ -59,7 +62,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 | Surface | Text chain | Search grounding |
 |---|---|---|
 | Web / Telegram | `qwen → gemini` | Gemini (always) |
-| WeChat MP (CN + Intl) | `hunyuan` (no fallback by design) | Gemini (always) |
+| WeChat MP (current Intl + future CN) | `hunyuan` (no fallback by design) | Hunyuan enhanced search where provider supports it |
 
 | Var | Purpose |
 |---|---|
@@ -78,7 +81,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 
 **Required for production deploys:**
 - Web (Vercel): `DASHSCOPE_API_KEY` + Vertex creds (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`).
-- WeChat SCF (CN + Intl): `HUNYUAN_API_KEY` only — Qwen/Gemini are not on the WeChat path.
+- WeChat SCF (current Intl + future CN): `HUNYUAN_API_KEY` only — Qwen/Gemini are not on the WeChat path.
 - Search grounding works on every surface as long as Gemini credentials (Vertex *or* AI Studio) are present somewhere on that deploy.
 
 ## Memory backend

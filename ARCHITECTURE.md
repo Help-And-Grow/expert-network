@@ -198,4 +198,5 @@ AI chat          → searchExpertMemories() → context-aware responses
 - **Auth**: `wx.login()` → backend `code2session` → JWT stored in Taro storage
 - **API calls**: Same backend via `TARO_APP_API_BASE` with `x-wechat-token` header
 - **Current product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
-- **Build / upload**: `npm run build:weapp` in `wechat/`; from repo root `npm run wechat:upload` builds and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` (build on PR; upload on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`).
+- **Current deployment target**: international WeChat Mini Program (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`) backed by Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98` and Hunyuan. The mainland-CN app is a future separate AppID/company path.
+- **Build / upload**: `npm run build:weapp:intl` in `wechat/`; from repo root `npm run wechat:upload:intl` builds `wechat/dist/intl` and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` builds/uploads the intl app on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`.

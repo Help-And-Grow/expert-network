@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Deploy Help & Grow Intl to Tencent Cloud Base (Shanghai)
+# Legacy helper: build Help & Grow Intl and upload the generated static files
+# to Tencent CloudBase hosting. This is not the normal mini-program release
+# path; for user testing prefer:
+#   npm run wechat:upload:intl -- <version> "<description>"
 #
 # Prerequisites:
 #   1. npm install -g @cloudbase/cli
 #   2. tcb login (OAuth login)
-#   3. Docker installed (for containerized hosting)
+#   3. A CloudBase hosting target, if you intentionally need static hosting
 #
 # Usage:
 #   bash scripts/deploy-tcb-intl.sh [envId]
@@ -13,7 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WECHAT_DIR="$(dirname "$SCRIPT_DIR")"
-TCB_ENV_ID="${1:-intl-expert-network-d4b0f027d012}"
+TCB_ENV_ID="${1:-cn-wechat-d1gzncs8i34827c98}"
 
 echo "============================================"
 echo "  Deploying to TCB: ${TCB_ENV_ID}"
@@ -37,14 +40,14 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "[OK] Build complete: dist/"
+echo "[OK] Build complete: dist/intl/"
 
 # Step 3: Deploy to TCB Cloud Hosting
 echo ""
 echo "[Step 2/3] Deploying to TCB Cloud Hosting..."
 
 # Option A: Static Hosting (simple, for mini program assets)
-tcb hosting deploy ./dist -e "${TCB_ENV_ID}"
+tcb hosting deploy ./dist/intl -e "${TCB_ENV_ID}"
 
 # Option B: Containerized Hosting (for full API server)
 # Uncomment below if you need Node.js API server on TCB:
@@ -72,7 +75,7 @@ echo "  Deployment Summary"
 echo "============================================"
 echo "  Environment ID : ${TCB_ENV_ID}"
 echo "  Region         : ap-shanghai (Shanghai)"
-echo "  Domain         : https://${TCB_ENV_ID}.tcloudbaseapp.com"
+echo "  API Domain     : https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com"
 echo ""
 echo "  Next steps:"
 echo "  1. Open WeChat DevTools → Import project from wechat/"

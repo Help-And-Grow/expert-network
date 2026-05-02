@@ -1,41 +1,85 @@
 # WeChat Mini Program (Help & Grow)
 
-## Why you don’t see errors in Vercel logs
+## Current User-Test Target
 
-Mini Program code runs **on the user’s phone** (or the WeChat DevTools simulator). Only **HTTP requests to your server** show up in Vercel. `console.log` in the Mini Program appears in:
+The active user-test app is the **international WeChat Mini Program** registered through the Singapore company.
 
-- **WeChat DevTools** → **Console** / **Network** (not Vercel).
+| Item | Current value |
+|---|---|
+| Build region | `intl` |
+| AppID | `wx09d0eb079596060d` |
+| CloudBase env | `cn-wechat-d1gzncs8i34827c98` |
+| API base | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
+| Backend | Tencent CloudBase / SCF Web Function |
+| AI | Tencent Hunyuan for WeChat-originated backend traffic |
+| Database posture | Tencent-side database is synchronized from Supabase today; future source may move to Google Cloud DB |
 
-### Debug checklist
+The mainland China mini program is future work. `build-config/cn.json` intentionally contains `PENDING_*` values until the China company, mainland AppID, and review path are ready.
 
-1. **DevTools**  
-   Open the project → Preview with DevTools → **Network** tab: confirm `request` / `uploadFile` / `downloadFile` to `expert-network.vercel.app` return **200**.
+## Build for WeChat DevTools
 
-2. **Request 合法域名**  
-   [微信公众平台](https://mp.weixin.qq.com/) → 开发 → 开发管理 → 服务器域名 → **request 合法域名** must include your API host (e.g. `https://expert-network.vercel.app`).
+```bash
+cd wechat
+npm ci
+npm run build:weapp:intl
+```
 
-3. **downloadFile 合法域名** (voice intro, TTS fallback)  
-   Same page → **downloadFile 合法域名** — add the **same** host. Without this, `AudioPlayer` and `downloadFile` for audio will fail.
+Import `/Users/qiumiao/Downloads/expert-network/wechat` in WeChat DevTools. The root `project.config.json` points `miniprogramRoot` at `./dist/intl`, so DevTools loads the international build output.
 
-4. **uploadFile 合法域名**  
-   Required for voice messages to `/api/voice-chat/message`.
+The app calls `Taro.cloud.init({ env: "cn-wechat-d1gzncs8i34827c98" })` on launch so DevTools and future native CloudBase capabilities bind to the same CloudBase env. Product API calls still use HTTPS through `TARO_APP_API_BASE`.
 
-5. **Forward logs to Vercel (optional)**  
-   - Vercel: set `WECHAT_CLIENT_LOG=1` on the project.  
-   - Local `wechat/.env.production`: add `TARO_APP_CLIENT_LOG=1`.  
-   - Call `logToVercel()` from `wechat/src/shared/debug-log.ts` where needed (already wired from voice/chat errors).  
-   - Then check **Vercel → Deployment → Functions → Logs**.
+## Domain Allowlist
 
-## Audio (voice intro & voice chat)
+In `mp.weixin.qq.com` for AppID `wx09d0eb079596060d`, configure:
 
-- WeChat **does not reliably play `data:audio/...;base64,...`** in `InnerAudioContext`.  
-- TTS replies are written to a **temp file** under `USER_DATA_PATH` before play (`wechat/src/shared/wechat-audio.ts`).  
-- Async voice chat uses **Gemini** for transcription / reply / preferred TTS; if audio is unavailable, the expert reply still shows as text instead of hard-failing.  
-- Voice intro uses `downloadFile` + local file; if download fails, check **downloadFile** domain whitelist.
+| WeChat setting | Required domain |
+|---|---|
+| request合法域名 | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
+| uploadFile合法域名 | same CloudBase domain; add Tencent COS domain too if direct COS URLs are returned |
+| downloadFile合法域名 | same CloudBase domain; add Tencent COS domain too for audio/docs/avatar downloads |
 
-## Env
+For local simulator debugging only, DevTools can disable domain verification. Real-device preview and experience versions should use the allowlist above.
 
-| Variable | Purpose |
-|----------|---------|
-| `TARO_APP_API_BASE` | API origin, e.g. `https://expert-network.vercel.app` |
-| `TARO_APP_CLIENT_LOG` | `1` to POST debug lines to `/api/debug/wechat-client-log` |
+## Upload an Experience Version
+
+From repo root:
+
+```bash
+npm run wechat:upload:intl -- 1.0.3 "intl user test"
+```
+
+or use the local helper:
+
+```bash
+npm run wechat:upload:local -- --region intl 1.0.3 "intl user test"
+```
+
+The upload key should be the WeChat code-upload PEM for AppID `wx09d0eb079596060d`, either:
+
+- `wechat/private.wx09d0eb079596060d.key`
+- or `WECHAT_CI_KEY_PATH=/absolute/path/to/key`
+
+Upload does not publish to all users. Assign testers to the experience version or submit for review in the WeChat MP console.
+
+## Debugging
+
+Mini Program code runs in WeChat DevTools or on the user's phone. Client `console.log` output does not appear in Vercel logs.
+
+Use:
+
+- WeChat DevTools Console / Network for frontend errors.
+- Tencent CloudBase function logs for `/api/*` backend errors.
+- `curl https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/health/origin` for backend reachability.
+
+Optional client log forwarding:
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `TARO_APP_CLIENT_LOG=1` | WeChat build env | Sends selected client errors to `/api/debug/wechat-client-log` |
+| `WECHAT_CLIENT_LOG=1` | SCF runtime env | Allows that debug endpoint in production |
+
+## Important Product Gaps for User Test
+
+- Booking from the mini program currently uses the shared web booking flow rather than fully native WeChat Pay.
+- The membership page is hidden until WeChat Pay is provisioned.
+- The international user test depends on database sync from Supabase so experts onboarded through Web/Telegram appear in WeChat.

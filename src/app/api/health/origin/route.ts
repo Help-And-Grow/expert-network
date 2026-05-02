@@ -3,16 +3,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getWeChatRegion, isWeChatOriginatedRequest } from "@/lib/request-origin";
 
 /**
- * Echoes the origin signals so operators can verify the TCB proxy is stamping
- * traffic correctly end-to-end.
+ * Echoes the origin signals so operators can verify the CloudBase/SCF WeChat
+ * backend is classified correctly end-to-end.
  *
- * Expected after `tcb framework deploy -c cloudbaserc.cn.json`:
- *   $ curl https://<cn-tcb-url>/api/health/origin
- *   { "ok":true, "wechat":true, "region":"cn",   "via":"tcb-proxy", "from":"wechat" }
- *
- * Expected after `tcb framework deploy -c cloudbaserc.intl.json`:
- *   $ curl https://<intl-tcb-url>/api/health/origin
- *   { "ok":true, "wechat":true, "region":"intl", "via":"tcb-proxy", "from":"wechat" }
+ * Expected on the current international WeChat SCF deployment:
+ *   $ curl https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/health/origin
+ *   { "ok":true, "wechat":true, "region":"intl", "via":null, "from":null }
  *
  * From a regular browser hit on Vercel:
  *   $ curl https://expert-network.vercel.app/api/health/origin

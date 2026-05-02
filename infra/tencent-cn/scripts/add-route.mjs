@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Idempotent HTTP route setup for the CN SCF.
+ * Idempotent HTTP route setup for the WeChat SCF.
  *
  * Looks up the env's default *.tcloudbase.com domain via `tcb domains ls`
  * and ensures the /api route forwards to the SCF function with path passthrough.
@@ -176,7 +176,7 @@ if (result.status === 0 || /已存在|already exists|exists/i.test(out)) {
     process.exit(1);
   }
   console.log(`\n✓ Deploy complete.`);
-  console.log(`  WeChat CN endpoint: https://${domain}/`);
+  console.log(`  WeChat endpoint:    https://${domain}/`);
   console.log(`  Health check:       curl https://${domain}/api/health/origin`);
   process.exit(0);
 }

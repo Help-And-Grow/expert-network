@@ -41,6 +41,17 @@ try {
   process.exit(2);
 }
 
+const requiredKeys = ["TARO_APP_APPID", "TARO_APP_API_BASE"];
+for (const key of requiredKeys) {
+  const value = String(config[key] || "");
+  if (!value || value.startsWith("PENDING_") || value.includes("DEFAULT-DOMAIN")) {
+    console.error(
+      `[build-region] ${configPath} is not ready: ${key}=${JSON.stringify(value)}`,
+    );
+    process.exit(2);
+  }
+}
+
 // --- Patch project.config.json with region-specific AppID ---
 let originalAppId = null;
 if (config.TARO_APP_APPID) {
@@ -77,6 +88,7 @@ for (const [key, value] of Object.entries(config)) {
   if (key.startsWith("_")) continue;
   env[key] = String(value);
 }
+env.TARO_APP_ID = String(config.TARO_APP_APPID || "");
 
 // Per-region output directory keeps both builds side-by-side for review.
 env.TARO_BUILD_PROJECT_OUTPUT_ROOT = resolve(repoRoot, "dist", region);

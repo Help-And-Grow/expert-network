@@ -3,6 +3,8 @@ import type { AuthUser } from "./types";
 
 const TOKEN_KEY = "wechat_token";
 const USER_KEY = "wechat_user";
+const DEFAULT_API_BASE =
+  "https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com";
 
 export function getToken(): string | null {
   return Taro.getStorageSync(TOKEN_KEY) || null;
@@ -74,15 +76,15 @@ export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
 }
 
 export function getApiBase(): string {
-  return process.env.TARO_APP_API_BASE || "https://expert-network.vercel.app";
+  return process.env.TARO_APP_API_BASE || DEFAULT_API_BASE;
 }
 
 /**
  * Returns the regional stack this WeChat MP build is bound to. Set at build
  * time by `scripts/build-region.mjs` (`npm run build:weapp:cn|intl`).
  *
- * - `cn`   → mainland China stack (TencentDB CN, COS CN, Qwen)
- * - `intl` → overseas stack (TencentDB Intl, COS Intl, Gemini)
+ * - `cn`   → future mainland China stack
+ * - `intl` → current international stack on Tencent CloudBase + Hunyuan
  *
  * Surfaced to support so issues can be routed to the right database without
  * guessing which stack a user is on.

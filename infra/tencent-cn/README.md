@@ -1,6 +1,17 @@
-# WeChat CN Stack — Deploy Playbook
+# Tencent CloudBase WeChat Backend — Deploy Playbook
 
-End-to-end automation for the mainland CN WeChat backend: build, SCF deploy, HTTP route binding, and TencentDB migrations.
+End-to-end automation for the Tencent CloudBase backend used by the **current international WeChat Mini Program** user test.
+
+The directory/script names still say `tencent-cn` / `cn:*` because this was the first Tencent CloudBase environment created. Current product reality:
+
+- Current MP: **international** WeChat Mini Program registered through the Singapore company.
+- Current AppID: `wx09d0eb079596060d`.
+- Current CloudBase env: `cn-wechat-d1gzncs8i34827c98`.
+- Current backend URL: `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com`.
+- AI provider on this backend: Tencent Hunyuan.
+- Database posture: Tencent-side DB synchronized from Supabase today; future source may be Google Cloud DB.
+
+The mainland China mini program is a later phase after the Chinese company and mainland AppID exist.
 
 > **Where to run from.** Both `cn:deploy` and `cn:migrate` are designed to run **on a Tencent Cloud Lighthouse instance in `ap-shanghai`** — not your laptop. Inside Tencent's network the COS upload finishes in seconds (vs. 10–30 min from outside China) and the Lighthouse box has 内网 access to TencentDB, so the database's 外网 access can stay disabled.
 >
@@ -10,8 +21,8 @@ End-to-end automation for the mainland CN WeChat backend: build, SCF deploy, HTT
 
 | Step | Command | What it does |
 |---|---|---|
-| Deploy backend | `npm run cn:deploy` | Builds Next.js standalone, prunes macOS/build-only artifacts, deploys ~45 MB bundle to SCF via COS, binds `/*` route. |
-| Migrate DB (only when schema changes) | `npm run cn:migrate` | Applies `prisma migrate deploy` to TencentDB CN over the 内网. Runs on Lighthouse. |
+| Deploy backend | `npm run cn:deploy` | Builds Next.js standalone, prunes macOS/build-only artifacts, deploys the SCF bundle via COS, binds `/api` as `WEB_SCF` with path passthrough. |
+| Migrate DB (only when schema changes) | `npm run cn:migrate` | Applies `prisma migrate deploy` to the Tencent-side Postgres DB over the 内网. Runs on Lighthouse. |
 
 **Why migrations aren't bundled into the SCF**: the Prisma CLI + schema engine WASM adds ~22 MB. Pulling the CLI out keeps the deploy bundle small enough to upload reliably; schema changes are infrequent and `cn:migrate` from Lighthouse handles them out-of-band.
 
@@ -19,8 +30,8 @@ What's **not** automated (one-time, console-only):
 
 | Step | Where |
 |---|---|
-| Provision TencentDB CN instance | Tencent CN console — see § 1 below |
-| Create COS CN bucket + CAM keys | Tencent CN console |
+| Provision Tencent-side Postgres instance | Tencent console — see § 1 below |
+| Create COS bucket + CAM keys | Tencent console |
 | Get Hunyuan API key | Tencent CN console |
 | Add cloudbase domain to WeChat MP allowlist | `mp.weixin.qq.com` |
 
@@ -38,7 +49,7 @@ cp infra/tencent-cn/.env.cn.example infra/tencent-cn/.env.cn
 
 ---
 
-## 1. Provision TencentDB CN  *(one-time, manual)*
+## 1. Provision Tencent-side Postgres  *(one-time, manual)*
 
 1. Open https://console.cloud.tencent.com/postgres (Tencent **CN** site, log in with the CN account).
 2. **新建 (Create Instance)**:
@@ -56,6 +67,7 @@ cp infra/tencent-cn/.env.cn.example infra/tencent-cn/.env.cn
 6. Copy the **内网/外网地址 + 端口 + 密码** into `infra/tencent-cn/.env.cn`:
    ```
    DATABASE_URL_CN=postgresql://postgres:<password>@<host>:<port>/helpgrow?schema=public
+   WECHAT_STACK_REGION=intl
    ```
 
 Once that's in place:
@@ -73,7 +85,7 @@ Idempotent — re-running after the schema is up-to-date is a no-op.
 
 ---
 
-## 2. Create COS CN bucket + CAM keys  *(one-time, manual)*
+## 2. Create COS bucket + CAM keys  *(one-time, manual)*
 
 1. https://console.cloud.tencent.com/cos → **创建存储桶** in `ap-shanghai`. Name it `hg-cn-<random>`. Access: **私有读写**.
 2. https://console.cloud.tencent.com/cam/capi → create a **子用户** with `QcloudCOSReadWriteOnly` policy bound to that bucket. Save `SecretId` / `SecretKey`.
@@ -117,10 +129,10 @@ The script:
 5. Looks up the env's default `*.tcloudbase.com` domain.
 6. `tcb routes add` — binds `/*` to the SCF (idempotent).
 
-On success it prints the WeChat CN endpoint URL. Verify with:
+On success it prints the WeChat endpoint URL. Verify with:
 ```bash
-curl https://<env>-<id>.ap-shanghai.app.tcloudbase.com/api/health/origin
-# expected: {"ok":true,"wechat":true,"region":"cn",...}
+curl https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/health/origin
+# expected after redeploy: {"ok":true,"wechat":true,"region":"intl","via":null,"from":null}
 ```
 
 ---
@@ -128,10 +140,11 @@ curl https://<env>-<id>.ap-shanghai.app.tcloudbase.com/api/health/origin
 ## 6. Post-deploy *(one-time, manual)*
 
 1. **mp.weixin.qq.com** → 开发管理 → 开发设置 → 服务器域名:
-   - `request合法域名`: add `https://<env>-<id>.ap-shanghai.app.tcloudbase.com`
-   - `uploadFile合法域名`: add `https://hg-cn-<random>.cos.ap-shanghai.myqcloud.com`
-2. From `wechat/`: `npm run upload:prod:cn` to push the new build to the WeChat MP console.
-3. **Submit for review** at mp.weixin.qq.com.
+   - `request合法域名`: add `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com`
+   - `uploadFile合法域名`: add the same CloudBase domain; add the COS domain too if files are exposed directly from COS
+   - `downloadFile合法域名`: add the same CloudBase domain; add the COS domain too for direct audio/doc/avatar URLs
+2. From repo root: `npm run wechat:upload:intl -- 1.0.3 "intl user test"` to upload an experience version.
+3. Assign testers to the experience version, or submit for review at mp.weixin.qq.com.
 
 ---
 
@@ -147,6 +160,7 @@ curl https://<env>-<id>.ap-shanghai.app.tcloudbase.com/api/health/origin
 | `不支持的触发器类型 [web]` | tcb v3 doesn't accept HTTP triggers in fn config | Already handled — script uses `tcb routes add` |
 | `路径只含字母/数字/...` | Path validation | Already handled — script uses `path: /*` with `enablePathTransmission` |
 | WeChat MP "请求被拒绝" after deploy | Domain not in WeChat allowlist | See § 6 step 1 |
+| Health returns `wechat:false` | SCF was deployed before `IS_WECHAT` / `PROXY_REGION` fallback support | Pull latest main and rerun `npm run cn:deploy` |
 
 ---
 

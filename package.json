@@ -43,8 +43,12 @@
     "postinstall": "node scripts/switch-db.mjs && prisma generate && node scripts/prisma-migrate-if-vercel.mjs",
     "cn:deploy": "bash infra/tencent-cn/scripts/deploy.sh",
     "cn:migrate": "bash infra/tencent-cn/scripts/migrate.sh",
-    "wechat:build": "npm run build:weapp --prefix wechat",
-    "wechat:upload": "npm run wechat:build && node scripts/run-wechat-upload.cjs",
+    "wechat:build": "npm run wechat:build:intl",
+    "wechat:build:intl": "npm run build:weapp:intl --prefix wechat",
+    "wechat:build:cn": "npm run build:weapp:cn --prefix wechat",
+    "wechat:upload": "npm run wechat:upload:intl",
+    "wechat:upload:intl": "npm run wechat:build:intl && WECHAT_REGION=intl node scripts/run-wechat-upload.cjs",
+    "wechat:upload:cn": "npm run wechat:build:cn && WECHAT_REGION=cn node scripts/run-wechat-upload.cjs",
     "wechat:upload:local": "bash scripts/wechat-upload-local.sh"
   },
   "dependencies": {

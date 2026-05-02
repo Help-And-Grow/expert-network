@@ -2,7 +2,7 @@ import Taro from "@tarojs/taro";
 
 import { getApiBase } from "./auth";
 
-/** Set TARO_APP_CLIENT_LOG=1 in wechat/.env.* and WECHAT_CLIENT_LOG=1 on Vercel to see logs in Function logs. */
+/** Set TARO_APP_CLIENT_LOG=1 at build time and WECHAT_CLIENT_LOG=1 on the backend to forward selected client logs. */
 export function logToVercel(
   level: "info" | "warn" | "error",
   message: string,

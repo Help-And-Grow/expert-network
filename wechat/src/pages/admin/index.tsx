@@ -2,7 +2,7 @@ import { View, Text, Input, Button, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect } from "react";
 import { BRAND_NAME, BRAND_LOGO, BRAND_SLOGAN } from "../../shared/brand";
-import { getToken } from "../../shared/auth";
+import { getApiBase, getToken } from "../../shared/auth";
 import "./index.scss";
 
 interface BrandConfig {
@@ -28,8 +28,7 @@ export default function AdminPage() {
     setFetching(true);
     try {
       const token = getToken();
-      const API_BASE =
-        process.env.TARO_APP_API_BASE || "https://expert-network.vercel.app";
+      const API_BASE = getApiBase();
       const res = await Taro.request({
         url: `${API_BASE}/api/admin/brand`,
         method: "GET",
@@ -58,8 +57,7 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const token = getToken();
-      const API_BASE =
-        process.env.TARO_APP_API_BASE || "https://expert-network.vercel.app";
+      const API_BASE = getApiBase();
       const res = await Taro.request({
         url: `${API_BASE}/api/admin/brand`,
         method: "PUT",

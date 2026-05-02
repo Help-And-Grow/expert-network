@@ -9,16 +9,16 @@ export type HeaderBearingRequest = {
 
 /**
  * Detects whether a request originated from the WeChat Mini Program by
- * inspecting headers stamped by the TCB proxy (`infra/tcb-proxy/index.js`).
+ * inspecting either the SCF deployment marker (`IS_WECHAT=true`) or headers
+ * stamped by the older TCB proxy path (`infra/tcb-proxy/index.js`).
  *
  * Used by the storage factory to auto-route uploads to Tencent COS and by
- * the AI factory to route inference to a CN-friendly provider for
- * China-mainland users — bypassing the cross-firewall round-trip that
- * `gcs` / `vercel` / Gemini would otherwise impose.
+ * the AI factory to route WeChat inference to Tencent Hunyuan.
  */
 export function isWeChatOriginatedRequest(
   request: HeaderBearingRequest | undefined | null,
 ): boolean {
+  if (process.env.IS_WECHAT === "true") return true;
   if (!request) return false;
   const via = request.headers.get("x-forwarded-via");
   const from = request.headers.get("x-forwarded-from");
@@ -28,19 +28,21 @@ export function isWeChatOriginatedRequest(
 export type WeChatRegion = "cn" | "intl";
 
 /**
- * Returns the regional stack the WeChat client is bound to, as stamped by
- * the TCB proxy via `x-forwarded-region`. Null when the request is not
- * WeChat-originated or the proxy doesn't yet stamp the region header.
+ * Returns the regional stack the WeChat client is bound to. The current SCF
+ * deployment sets `PROXY_REGION`; the older TCB proxy path can also stamp
+ * `x-forwarded-region`. Null when the request is not WeChat-originated or no
+ * region is configured.
  *
- * - `cn`   → mainland China stack: TencentDB CN, COS CN, Qwen
- * - `intl` → overseas stack: TencentDB Intl, COS Intl, Gemini
+ * - `cn`   → future mainland China stack
+ * - `intl` → current international WeChat stack on Tencent CloudBase + Hunyuan
  */
 export function getWeChatRegion(
   request: HeaderBearingRequest | undefined | null,
 ): WeChatRegion | null {
-  if (!request) return null;
   if (!isWeChatOriginatedRequest(request)) return null;
-  const value = request.headers.get("x-forwarded-region")?.toLowerCase();
+  const value =
+    request?.headers.get("x-forwarded-region")?.toLowerCase() ||
+    process.env.PROXY_REGION?.toLowerCase();
   if (value === "cn" || value === "intl") return value;
   return null;
 }

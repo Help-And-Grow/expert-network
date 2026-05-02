@@ -66,7 +66,7 @@ See `docs/` for full details:
 3. **Expert memory backend**: `MEMORY_BACKEND=mem9|pgvector|hybrid`. Local/on-prem defaults should be **`pgvector`** with `EMBEDDING_PROVIDER=ollama`; mem9 remains optional for cloud/hybrid runs. See `src/lib/integrations/mem9-lifecycle.ts` and `src/lib/integrations/pgvector-memory.ts`.
 4. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
 5. **Database switching**: Run `node scripts/switch-db.mjs` — Prisma is PostgreSQL-only and the script enforces `provider = "postgresql"` in `prisma/schema.prisma`.
-6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Uses the same backend API with `x-wechat-token` auth header.
+6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Current user-test target is the international app (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`) on Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98`; the mainland-CN app is a future separate company/AppID path. Uses the same backend API with `x-wechat-token` auth header.
 7. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
 8. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
 9. **POMP (Proof of Meet Protocol)**: Every completed meetup (`Booking` row) creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.

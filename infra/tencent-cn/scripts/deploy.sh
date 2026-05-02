@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and deploy the Next.js standalone app to SCF CN, then expose it via
+# Build and deploy the Next.js standalone app to Tencent SCF, then expose it via
 # the TCB env's default cloudbase domain.
 #
 # Run from repo root: `npm run cn:deploy`
@@ -9,7 +9,7 @@
 #   2. Assemble infra/tencent-cn/build/scf-cn/ — standalone server + static
 #      + public + scf_bootstrap that just starts Next.js
 #   3. tcb fn deploy hg-app-cn --httpFn --force (with cloudbaserc.json)
-#   4. tcb routes add — bind /* on the cloudbase domain to the SCF (idempotent)
+#   4. tcb routes add — bind /api on the cloudbase domain to the SCF (idempotent)
 #
 # DB migrations are applied separately via `npm run cn:migrate` from the
 # user's laptop with TencentDB 外网 access temporarily opened. Bundling the

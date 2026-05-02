@@ -1,5 +1,5 @@
 {
-  "miniprogramRoot": "./dist",
+  "miniprogramRoot": "./dist/intl",
   "projectname": "wechat",
   "description": "Help & Grow — AI Native Expert Network (WeChat)",
   "appid": "wx09d0eb079596060d",

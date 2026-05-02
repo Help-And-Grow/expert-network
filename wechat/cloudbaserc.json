@@ -7,9 +7,11 @@
   "functionConfig": {
     "timeout": 20,
     "memorySize": 512,
-    "runtime": "Nodejs18",
+    "runtime": "Nodejs20.19",
     "envVariables": {
-      "TARO_APP_REGION": "intl"
+      "TARO_APP_REGION": "intl",
+      "TARO_APP_CLOUDBASE_ENV_ID": "cn-wechat-d1gzncs8i34827c98",
+      "TARO_APP_API_BASE": "https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com"
     }
   },
   "hosting": {

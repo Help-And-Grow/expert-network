@@ -1,185 +1,147 @@
-# Tencent Cloud Rollout — Phased Plan
+# Tencent Cloud Rollout — Current WeChat Intl First
 
-**Goal:** Two regionally isolated WeChat stacks on Tencent Cloud — mainland CN data stays in CN, overseas data stays in `ap-singapore`. Web users keep the existing Vercel + Supabase path.
-**Owner:** PM (solo).
+**Goal:** ship the current international WeChat Mini Program for user testing on Tencent CloudBase + Hunyuan, while keeping the mainland-CN mini program as a later, separate app after the China company and AppID are ready.
+
 **Companion design:** [`docs/design-docs/architecture.md`](../../design-docs/architecture.md).
 
-The architecture is three stacks, not one with three roles. This file is the **operational checklist** — in order, with what unblocks what.
+## Current Decision
 
-```
-                       ┌──────────────────────────────────────────────────┐
-WeChat-Mainland MP  ──→ │ CN TCB proxy ──→ CN SCF ──→ TencentDB CN (ap-shanghai) │
-                       │                  └──→ Tencent COS CN                   │
-                       │                  └──→ DashScope (Qwen)                 │
-                       └──────────────────────────────────────────────────┘
-                       ┌──────────────────────────────────────────────────┐
-WeChat-Overseas MP  ──→ │ Intl TCB proxy ─→ Intl SCF ─→ TencentDB Intl (ap-singapore) │
-                       │                   └─→ Tencent COS Intl                       │
-                       │                   └─→ Gemini                                  │
-                       └──────────────────────────────────────────────────┘
-Browser / Telegram  ──→ Vercel (sin1) ──→ Supabase (AWS ap-southeast-1) ──→ Gemini
-```
+| Topic | Decision |
+|---|---|
+| Current WeChat app | International Mini Program registered through the Singapore company |
+| Current AppID | `wx09d0eb079596060d` |
+| Current build region | `intl` |
+| Current CloudBase env | `cn-wechat-d1gzncs8i34827c98` |
+| Current backend URL | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
+| Current AI provider | Tencent Hunyuan |
+| Current database posture | Tencent-side DB synced from Supabase today; future source may be Google Cloud DB |
+| Mainland CN app | Future phase, separate AppID/company/review/payment path |
 
----
+The `cn-wechat` env name is historical. It is the active Tencent CloudBase backend for the current international user test.
 
-## Status board
+## Status Board
 
-| # | Move | Code | Provisioning | Verified |
-|---|---|---|---|---|
-| 1a | CN TCB proxy deploy | ✅ done | ⬜ pending | ⬜ pending |
-| 1b | Intl TCB proxy deploy | ✅ done | ⬜ pending | ⬜ pending |
-| 2a | Tencent COS — Intl bucket | ✅ done | ⬜ pending | ⬜ pending |
-| 2b | Tencent COS — CN bucket | ✅ done | ⬜ pending | ⬜ pending |
-| 3 | WeChat region-aware AI routing | ✅ done | n/a | ⬜ pending |
-| 4a | TencentDB Postgres — Intl (`ap-singapore`) | n/a | ⬜ pending | ⬜ pending |
-| 4b | TencentDB Postgres — CN (`ap-shanghai`) | n/a | ⬜ pending | ⬜ pending |
-| 5a | SCF Web Function — Intl deploy | ⬜ not started | ⬜ pending | ⬜ pending |
-| 5b | SCF Web Function — CN deploy | ⬜ not started | ⬜ pending | ⬜ pending |
-| 6a | WeChat MP appId — Overseas | n/a | ⬜ pending | ⬜ pending |
-| 6b | WeChat MP appId — Mainland | n/a | ⬜ pending | ⬜ pending |
-| 7 | ICP filing for CN custom domain | n/a | ⬜ pending | ⬜ pending |
-| 8 | WeChat consultation page (TRTC) | ⬜ not started | n/a | ⬜ pending |
-
-Update this table as each row lands.
-
----
-
-## Solo-PM blockers to know about
-
-- **ICP 备案** is needed only for binding a custom CN domain. `production-wechat-i8ddngeb5eafed-<region>.tcloudbaseapp.com` works without ICP; this unblocks rows 1–5.
-- **Two WeChat Mini Program appIds** must be registered separately at `mp.weixin.qq.com`:
-  - **Mainland appId** — registered to a mainland-CN business entity, supports WeChat Pay 直连 / 服务商 mode.
-  - **Overseas appId** — registered as 海外小程序 (Hong Kong / global business entity), supports WeChat Pay HK or alternative payment rails.
-- **TencentDB region must match SCF region** — co-locate to keep query latency under 5ms.
-
----
-
-## Phase 1 — TCB proxies (CN + Intl)
-
-Both TCB proxies forward to the Vercel origin as a transitional baseline. Once SCFs are deployed (Phase 5), `ORIGIN_BASE_URL` flips to the SCF URL.
-
-### 1.1 Deploy CN TCB proxy
-
-```bash
-cd infra/tcb-proxy
-# cloudbaserc.cn.json already targets envId=production-wechat-i8ddngeb5eafed (CN)
-# adjust ORIGIN_BASE_URL only if the Vercel URL changes
-tcb framework deploy -c cloudbaserc.cn.json
-```
-
-### 1.2 Deploy Intl TCB proxy
-
-```bash
-# Edit cloudbaserc.intl.json with the Intl envId:
-#   "envId": "<your intl envId>"
-tcb framework deploy -c cloudbaserc.intl.json
-```
-
-### 1.3 Verify both proxies stamp headers
-
-```bash
-curl https://<cn-envId>-<region>.tcloudbaseapp.com/api/health/origin
-# expected: {"ok":true,"wechat":true,"via":"tcb-proxy","from":"wechat","region":"cn"}
-
-curl https://<intl-envId>-<region>.tcloudbaseapp.com/api/health/origin
-# expected: {"ok":true,"wechat":true,"via":"tcb-proxy","from":"wechat","region":"intl"}
-```
-
-If `region` is missing, the proxy isn't yet stamping `x-forwarded-region`. Verify the corresponding `cloudbaserc.*.json` includes the env var.
-
----
-
-## Phase 2 — Tencent COS buckets (CN + Intl)
-
-Provision two buckets — one per region — both configured as **私有读写 (private)** with signed-URL access from the SCF Web Function.
-
-| Item | CN | Intl |
+| # | Move | Status |
 |---|---|---|
-| Region | `ap-shanghai` | `ap-singapore` |
-| Bucket name | `hg-cn-<random>` | `hg-intl-<random>` |
-| Used by | CN SCF | Intl SCF |
-| Vercel env var (transition) | `TENCENT_COS_*` | n/a (kept on Vercel only for non-WeChat) |
+| 1 | SCF backend deployed to CloudBase env `cn-wechat-d1gzncs8i34827c98` | Done |
+| 2 | SCF runtime forced to Node 20.19 | Done |
+| 3 | Next.js 15 startup imports patched for SCF bundle pruning | Done |
+| 4 | CloudBase `/api` HTTP access route set as `WEB_SCF` with path passthrough | Done |
+| 5 | `/api/health/origin` returns 200 from CloudBase domain | Done |
+| 6 | WeChat intl client config points at current CloudBase backend | Done |
+| 7 | Mini program initializes CloudBase env on launch | Done |
+| 8 | MP legal domains configured in WeChat admin | Manual |
+| 9 | Real-device smoke test | Pending |
+| 10 | Experience version upload and tester assignment | Pending |
+| 11 | Exposed secret rotation | Required before broader testing |
 
-CAM keys at https://console.cloud.tencent.com/cam/capi. The same `SecretId/SecretKey` can read both buckets if the policy allows it; for blast-radius reasons, prefer **two separate sub-account keys**, one per bucket.
+## Current Architecture
 
----
-
-## Phase 3 — WeChat region-aware AI routing (already shipped)
-
-Code is in `src/lib/ai/index.ts → resolveAIProvider({ request })`. Activation is one env var per stack:
-
-```bash
-# Vercel (no change — Gemini default)
-# Intl SCF env: keep WECHAT_AI_PROVIDER unset → falls through to AI_PROVIDER (Gemini)
-# CN SCF env: WECHAT_AI_PROVIDER=qwen (or hunyuan when supported)
+```text
+Web / Telegram onboarding
+        |
+        v
+Global primary DB (Supabase today; future Google Cloud DB candidate)
+        |
+        | sync
+        v
+Tencent-side WeChat DB
+        |
+        v
+CloudBase / SCF backend (Hunyuan + Tencent COS)
+        |
+        v
+International WeChat Mini Program (intl build)
 ```
 
----
+This gives the current mini program visibility into experts onboarded from Web and Telegram while keeping WeChat runtime dependencies on Tencent infrastructure.
 
-## Phase 4 — TencentDB Postgres (CN + Intl)
+## Backend Deploy
 
-For each region:
+Run from the Tencent Cloud Lighthouse instance:
 
-1. Tencent Cloud console → **TencentDB for PostgreSQL** → **Create Instance**.
-2. Region matches the SCF region (`ap-shanghai` / `ap-singapore`).
-3. Network: same VPC + subnet as the SCF will deploy to.
-4. Apply the Prisma schema: `prisma migrate deploy` against the new DATABASE_URL.
-5. Seed admin / system_config rows as needed.
-
-**Schema parity rule**: every PR that adds a Prisma migration must apply to all three DBs (Supabase, TencentDB CN, TencentDB Intl) before the SCF deploy runs. CI step recommended.
-
----
-
-## Phase 5 — SCF Web Function (CN + Intl)
-
-Build:
 ```bash
-# next.config.js: output: "standalone"
-npm run build
-# tar the .next/standalone + .next/static + public into a deployable zip
+cd /root/expert-network
+git fetch --no-tags origin main
+git merge --ff-only FETCH_HEAD
+npm run cn:deploy
 ```
 
-Deploy (per region):
-```bash
-cd <build dir>
-tcb fn deploy --envId <cn or intl envId> --runtime Nodejs18.15 \
-  --memory 512 --timeout 60 \
-  --env DATABASE_URL=<TencentDB url for that region> \
-        STORAGE_PROVIDER=tencent-cos \
-        TENCENT_COS_BUCKET=<region bucket> \
-        TENCENT_COS_REGION=<region> \
-        AI_PROVIDER=<gemini for intl, qwen for cn> \
-        NEXTAUTH_URL=<scf custom domain or tcloudbaseapp url>
+Despite the `cn:*` script name, this currently deploys the backend used by the international mini program. The generated SCF runtime env sets:
+
+```text
+IS_WECHAT=true
+PROXY_REGION=intl
+AI_PROVIDER=hunyuan
+STORAGE_PROVIDER=tencent-cos
 ```
 
-After both SCFs are live, edit each `cloudbaserc.*.json` to point `ORIGIN_BASE_URL` at the SCF URL instead of Vercel, then `tcb framework deploy` again.
+Verify:
 
----
+```bash
+curl -i https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/health/origin
+```
 
-## Phase 6 — WeChat client builds (CN + Intl)
+After redeploy from this plan, expected body:
 
-Two WeChat Mini Program builds, two appIds, two `mp.weixin.qq.com` consoles.
+```json
+{"ok":true,"wechat":true,"region":"intl","via":null,"from":null}
+```
+
+## Mini Program Build
+
+From repo root or local workstation:
 
 ```bash
 cd wechat
-npm run build:weapp:cn      # writes dist/cn/, sets TARO_APP_API_BASE to CN TCB URL
-npm run build:weapp:intl    # writes dist/intl/, sets TARO_APP_API_BASE to Intl TCB URL
+npm ci
+npm run build:weapp:intl
 ```
 
-Each build is uploaded via `miniprogram-ci` (or the WeChat DevTool) using the appId for that region.
+Then import `/Users/qiumiao/Downloads/expert-network/wechat` into WeChat DevTools. `project.config.json` points DevTools at `./dist/intl`.
 
-WeChat allowlist (per appId):
-- **Mainland appId**: `request合法域名` = CN TCB URL; `uploadFile合法域名` = `hg-cn-<random>.cos.ap-shanghai.myqcloud.com`
-- **Overseas appId**: `request合法域名` = Intl TCB URL; `uploadFile合法域名` = `hg-intl-<random>.cos.ap-singapore.myqcloud.com`
+## Upload Experience Version
 
----
+From repo root:
 
-## Phase 7 — ICP filing (CN only, can run in parallel)
+```bash
+npm run wechat:upload:intl -- 1.0.3 "intl user test"
+```
 
-Required only to bind a non-`*.tcloudbaseapp.com` domain on the CN side. Process at https://console.cloud.tencent.com/beian. 2–4 weeks. Until it clears, the CN stack uses the `tcloudbaseapp.com` URL.
+or:
 
----
+```bash
+npm run wechat:upload:local -- --region intl 1.0.3 "intl user test"
+```
 
-## Phase 8 — WeChat consultation page (TRTC)
+The upload key must belong to AppID `wx09d0eb079596060d`.
 
-Lower priority. Mirrors the upcoming web `/consultation/[bookingId]` using `trtc-wx`. Backend (`/api/trtc/token/`) is ready. Tracked here for completeness; doesn't affect the regional data-isolation rollout.
+## WeChat Admin Manual Tasks
+
+For AppID `wx09d0eb079596060d`:
+
+| Setting | Value |
+|---|---|
+| request合法域名 | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
+| uploadFile合法域名 | same CloudBase domain; plus COS domain if direct COS upload/download is exposed |
+| downloadFile合法域名 | same CloudBase domain; plus COS domain for direct audio/doc/avatar URLs |
+| Experience members | Add the user-test accounts |
+
+## Real-Device Smoke Test
+
+- Launch app: no CloudBase init error.
+- Login: `/api/auth/wechat` returns 200.
+- Discover: experts synced from Web/Telegram appear.
+- Expert detail: profile, avatar, audio/document links work.
+- Onboarding: upload and publish path works.
+- Voice: greeting and question flow work.
+- Booking: shared web booking handoff works.
+
+## Future Mainland CN Phase
+
+Do not use `build-config/cn.json` for the current user test. It is intentionally blocked with `PENDING_*` placeholders until:
+
+- Chinese company is ready.
+- Mainland AppID exists.
+- Mainland WeChat Pay/merchant path is chosen.
+- Separate mainland legal domains and review materials are ready.
