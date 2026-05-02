@@ -411,12 +411,23 @@ if [ ! -f "$BUNDLE_DIR/node_modules/next/dist/server/scf-output-log-shim.js" ]; 
   echo "✖ SCF bundle is missing node_modules/next/dist/server/scf-output-log-shim.js" >&2
   exit 1
 fi
+HEALTH_ROUTE_JS="$BUNDLE_DIR/.next/server/app/api/health/origin/route.js"
+if [ ! -f "$HEALTH_ROUTE_JS" ]; then
+  echo "✖ SCF bundle is missing /api/health/origin route output" >&2
+  exit 1
+fi
+if ! grep -q "IS_WECHAT" "$HEALTH_ROUTE_JS" || ! grep -q "PROXY_REGION" "$HEALTH_ROUTE_JS"; then
+  echo "✖ /api/health/origin was compiled without runtime WeChat env checks" >&2
+  echo "  Expected bundled route to retain IS_WECHAT and PROXY_REGION lookups." >&2
+  exit 1
+fi
 BUNDLE_RUNTIME=$(
   node -e 'const cfg = require(process.argv[1]); process.stdout.write(cfg.functions?.[0]?.runtime || "")' \
     "$BUNDLE_DIR/cloudbaserc.json"
 )
 echo "  SCF runtime: ${BUNDLE_RUNTIME:-unknown}"
 echo "  Next.js startup import patch: ok"
+echo "  WeChat runtime env origin check: ok"
 
 # ─── 4. Deploy function ─────────────────────────────────────────────────
 echo "▶ Deploying SCF $TENCENT_CN_FN_NAME to env $TENCENT_CN_ENV_ID …"

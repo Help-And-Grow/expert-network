@@ -7,6 +7,14 @@ export type HeaderBearingRequest = {
   headers: { get(name: string): string | null };
 };
 
+function readRuntimeEnv(name: string): string | undefined {
+  return (
+    globalThis as typeof globalThis & {
+      process?: { env?: Record<string, string | undefined> };
+    }
+  ).process?.env?.[name];
+}
+
 /**
  * Detects whether a request originated from the WeChat Mini Program by
  * inspecting either the SCF deployment marker (`IS_WECHAT=true`) or headers
@@ -18,7 +26,7 @@ export type HeaderBearingRequest = {
 export function isWeChatOriginatedRequest(
   request: HeaderBearingRequest | undefined | null,
 ): boolean {
-  if (process.env.IS_WECHAT === "true") return true;
+  if (readRuntimeEnv("IS_WECHAT") === "true") return true;
   if (!request) return false;
   const via = request.headers.get("x-forwarded-via");
   const from = request.headers.get("x-forwarded-from");
@@ -42,7 +50,7 @@ export function getWeChatRegion(
   if (!isWeChatOriginatedRequest(request)) return null;
   const value =
     request?.headers.get("x-forwarded-region")?.toLowerCase() ||
-    process.env.PROXY_REGION?.toLowerCase();
+    readRuntimeEnv("PROXY_REGION")?.toLowerCase();
   if (value === "cn" || value === "intl") return value;
   return null;
 }
