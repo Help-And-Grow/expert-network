@@ -402,12 +402,33 @@ chmod +x "$BUNDLE_DIR/scf_bootstrap"
 node "$REPO_ROOT/infra/tencent-cn/scripts/write-cloudbaserc.mjs" \
   --bundle "$BUNDLE_DIR" --env "$ENV_FILE"
 
+if grep -q "../build/output/log" "$BUNDLE_DIR/node_modules/next/dist/server/next.js"; then
+  echo "✖ SCF bundle still has an unpatched Next.js startup import:" >&2
+  echo "  node_modules/next/dist/server/next.js -> ../build/output/log" >&2
+  exit 1
+fi
+if [ ! -f "$BUNDLE_DIR/node_modules/next/dist/server/scf-output-log-shim.js" ]; then
+  echo "✖ SCF bundle is missing node_modules/next/dist/server/scf-output-log-shim.js" >&2
+  exit 1
+fi
+BUNDLE_RUNTIME=$(
+  node -e 'const cfg = require(process.argv[1]); process.stdout.write(cfg.functions?.[0]?.runtime || "")' \
+    "$BUNDLE_DIR/cloudbaserc.json"
+)
+echo "  SCF runtime: ${BUNDLE_RUNTIME:-unknown}"
+echo "  Next.js startup import patch: ok"
+
 # ─── 4. Deploy function ─────────────────────────────────────────────────
 echo "▶ Deploying SCF $TENCENT_CN_FN_NAME to env $TENCENT_CN_ENV_ID …"
 DEPLOY_RC=0
 DEPLOY_OUT=$(
   cd "$BUNDLE_DIR"
-  "$TCB_BIN" fn deploy "$TENCENT_CN_FN_NAME" --httpFn --force --dir . 2>&1
+  "$TCB_BIN" fn deploy "$TENCENT_CN_FN_NAME" \
+    -e "$TENCENT_CN_ENV_ID" \
+    --runtime "$BUNDLE_RUNTIME" \
+    --httpFn \
+    --force \
+    --dir . 2>&1
 ) || DEPLOY_RC=$?
 echo "$DEPLOY_OUT"
 if [ "$DEPLOY_RC" -ne 0 ]; then
