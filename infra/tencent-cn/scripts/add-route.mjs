@@ -68,12 +68,32 @@ const routeData = {
   routes: [
     {
       path: "/*",
-      upstreamResourceType: "SCF",
+      upstreamResourceType: "WEB_SCF",
       upstreamResourceName: fnName,
+      enable: true,
+      enableAuth: false,
       enablePathTransmission: true,
     },
   ],
 };
+
+const edit = spawnSync(
+  tcb,
+  ["routes", "edit", "-e", envId, "--data", JSON.stringify(routeData)],
+  { encoding: "utf8" },
+);
+const editOut = (edit.stdout || "") + (edit.stderr || "");
+process.stdout.write(editOut);
+
+if (edit.status === 0) {
+  console.log(`\n✓ Deploy complete.`);
+  console.log(`  WeChat CN endpoint: https://${domain}/`);
+  console.log(`  Health check:       curl https://${domain}/api/health/origin`);
+  process.exit(0);
+}
+if (!/不存在|not exist|not found|no route|missing/i.test(editOut)) {
+  process.exit(edit.status || 1);
+}
 
 const result = spawnSync(
   tcb,
