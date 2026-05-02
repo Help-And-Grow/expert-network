@@ -35,7 +35,7 @@ The CloudBase env name contains `cn-wechat` for historical reasons. It is the ac
 
 ```json
 {
-  "miniprogramRoot": "./dist/intl",
+  "miniprogramRoot": "./dist-intl",
   "appid": "wx09d0eb079596060d"
 }
 ```

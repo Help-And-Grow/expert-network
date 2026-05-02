@@ -40,14 +40,14 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "[OK] Build complete: dist/intl/"
+echo "[OK] Build complete: dist-intl/"
 
 # Step 3: Deploy to TCB Cloud Hosting
 echo ""
 echo "[Step 2/3] Deploying to TCB Cloud Hosting..."
 
 # Option A: Static Hosting (simple, for mini program assets)
-tcb hosting deploy ./dist/intl -e "${TCB_ENV_ID}"
+tcb hosting deploy ./dist-intl -e "${TCB_ENV_ID}"
 
 # Option B: Containerized Hosting (for full API server)
 # Uncomment below if you need Node.js API server on TCB:

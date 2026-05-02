@@ -98,7 +98,7 @@ npm ci
 npm run build:weapp:intl
 ```
 
-Then import `/Users/qiumiao/Downloads/expert-network/wechat` into WeChat DevTools. `project.config.json` points DevTools at `./dist/intl`.
+Then import `/Users/qiumiao/Downloads/expert-network/wechat` into WeChat DevTools. `project.config.json` points DevTools at `./dist-intl`.
 
 ## Upload Experience Version
 

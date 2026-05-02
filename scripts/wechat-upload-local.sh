@@ -138,8 +138,8 @@ else
   (cd "$ROOT/wechat" && npm ci && npm run "build:weapp:${REGION}")
 fi
 
-if [[ ! -d "$ROOT/wechat/dist/$REGION" ]]; then
-  echo "Build output missing: wechat/dist/$REGION"
+if [[ ! -d "$ROOT/wechat/dist-$REGION" ]]; then
+  echo "Build output missing: wechat/dist-$REGION"
   exit 1
 fi
 

@@ -65,7 +65,7 @@ const APPID =
 const PROJECT_PATH =
   flags["project-path"] ||
   process.env.WECHAT_PROJECT_PATH ||
-  path.resolve(__dirname, "../wechat/dist", REGION);
+  path.resolve(__dirname, "../wechat", `dist-${REGION}`);
 const KEY_NAME = `private.${APPID}.key`;
 const PRIVATE_KEY_PATH =
   process.env.WECHAT_CI_KEY_PATH ||

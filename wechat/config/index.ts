@@ -5,6 +5,7 @@ import prodConfig from './prod'
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
+  const outputRoot = process.env.TARO_BUILD_PROJECT_OUTPUT_ROOT || 'dist'
   const baseConfig: UserConfigExport<'webpack5'> = {
     projectName: 'wechat',
     date: '2026-3-14',
@@ -17,7 +18,7 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
     },
     sourceRoot: 'src',
     // Support region-based build output (cn/intl) via TARO_BUILD_PROJECT_OUTPUT_ROOT
-    outputRoot: process.env.TARO_BUILD_PROJECT_OUTPUT_ROOT || 'dist',
+    outputRoot,
     plugins: [
       "@tarojs/plugin-generator"
     ],
@@ -30,7 +31,8 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
     ),
     copy: {
       patterns: [
-        { from: 'src/assets/images/**', to: 'assets/', globOptions: { dot: false } }
+        { from: 'src/assets/images/logo-intl.jpg', to: `${outputRoot}/assets/logo-intl.jpg` },
+        { from: 'src/assets/images/Logo_ENandCN.jpg', to: `${outputRoot}/assets/Logo_ENandCN.jpg` }
       ],
       options: {
       }

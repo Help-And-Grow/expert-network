@@ -4,7 +4,7 @@
  *
  * Reads `build-config/<region>.json`, exports every entry as a TARO_APP_*
  * env var, patches `project.config.json` with the region AppID, then runs
- * `taro build --type weapp`. Output is written under `dist/<region>/`.
+ * `taro build --type weapp`. Output is written under `dist-<region>/`.
  *
  * Usage:
  *   node scripts/build-region.mjs cn
@@ -90,8 +90,9 @@ for (const [key, value] of Object.entries(config)) {
 }
 env.TARO_APP_ID = String(config.TARO_APP_APPID || "");
 
-// Per-region output directory keeps both builds side-by-side for review.
-env.TARO_BUILD_PROJECT_OUTPUT_ROOT = resolve(repoRoot, "dist", region);
+// Per-region output directory keeps both builds side-by-side for review and
+// matches project.config.json's miniprogramRoot convention.
+env.TARO_BUILD_PROJECT_OUTPUT_ROOT = resolve(repoRoot, `dist-${region}`);
 
 console.log(`[build-region] region=${region}`);
 console.log(`[build-region] TARO_APP_API_BASE=${env.TARO_APP_API_BASE}`);
