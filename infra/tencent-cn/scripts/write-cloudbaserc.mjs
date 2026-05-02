@@ -21,12 +21,20 @@ const bundle = resolve(arg("bundle"));
 const envFile = resolve(arg("env"));
 
 const env = {};
+function cleanEnvValue(value) {
+  let v = String(value || "").trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+
 for (const line of readFileSync(envFile, "utf8").split("\n")) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith("#")) continue;
   const i = trimmed.indexOf("=");
   if (i === -1) continue;
-  env[trimmed.slice(0, i)] = trimmed.slice(i + 1);
+  env[trimmed.slice(0, i)] = cleanEnvValue(trimmed.slice(i + 1));
 }
 
 const required = [
@@ -37,7 +45,6 @@ const required = [
   "TENCENT_COS_SECRET_KEY",
   "TENCENT_CN_COS_BUCKET",
   "HUNYUAN_API_KEY",
-  "NEXTAUTH_SECRET",
   "WECHAT_APP_ID",
   "WECHAT_APP_SECRET",
 ];
@@ -48,8 +55,23 @@ for (const k of required) {
   }
 }
 
+const nextAuthUrl = env.NEXTAUTH_URL_CN || env.NEXTAUTH_URL;
+if (!nextAuthUrl) {
+  console.error(`✖ NEXTAUTH_URL_CN or NEXTAUTH_URL is empty in ${envFile}`);
+  process.exit(1);
+}
+
+const authSecret = env.AUTH_SECRET || env.NEXTAUTH_SECRET;
+if (!authSecret) {
+  console.error(`✖ AUTH_SECRET or NEXTAUTH_SECRET is empty in ${envFile}`);
+  process.exit(1);
+}
+
 const runtimeEnv = {
   DATABASE_URL: env.DATABASE_URL_CN,
+  NEXTAUTH_URL: nextAuthUrl,
+  AUTH_SECRET: authSecret,
+  NEXTAUTH_SECRET: authSecret,
   STORAGE_PROVIDER: "tencent-cos",
   TENCENT_COS_SECRET_ID: env.TENCENT_COS_SECRET_ID,
   TENCENT_COS_SECRET_KEY: env.TENCENT_COS_SECRET_KEY,
@@ -61,7 +83,6 @@ const runtimeEnv = {
   PROXY_REGION: env.WECHAT_STACK_REGION || "intl",
   WECHAT_APP_ID: env.WECHAT_APP_ID,
   WECHAT_APP_SECRET: env.WECHAT_APP_SECRET,
-  NEXTAUTH_SECRET: env.NEXTAUTH_SECRET,
 };
 
 const cfg = {

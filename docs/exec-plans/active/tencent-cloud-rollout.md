@@ -88,6 +88,14 @@ After redeploy from this plan, expected body:
 {"ok":true,"wechat":true,"region":"intl","via":null,"from":null}
 ```
 
+The SCF runtime must also set:
+
+```bash
+NEXTAUTH_URL_CN=https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com
+```
+
+`deploy.sh` maps this to `NEXTAUTH_URL` in `cloudbaserc.json`; without it, production env validation can fail while loading DB-backed routes such as `/api/auth/wechat`.
+
 ## Mini Program Build
 
 From repo root or local workstation:

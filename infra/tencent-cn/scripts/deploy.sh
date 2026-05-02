@@ -58,10 +58,15 @@ TENCENT_CN_COS_BUCKET="$(read_env_var TENCENT_CN_COS_BUCKET)"
 TENCENT_CN_COS_REGION="$(read_env_var TENCENT_CN_COS_REGION)"
 HUNYUAN_API_KEY="$(read_env_var HUNYUAN_API_KEY)"
 NEXTAUTH_SECRET="$(read_env_var NEXTAUTH_SECRET)"
+AUTH_SECRET="$(read_env_var AUTH_SECRET)"
+NEXTAUTH_URL="$(read_env_var NEXTAUTH_URL)"
+NEXTAUTH_URL_CN="$(read_env_var NEXTAUTH_URL_CN)"
 WECHAT_APP_ID="$(read_env_var WECHAT_APP_ID)"
 WECHAT_APP_SECRET="$(read_env_var WECHAT_APP_SECRET)"
 WECHAT_STACK_REGION="$(read_env_var WECHAT_STACK_REGION)"
 WECHAT_STACK_REGION="${WECHAT_STACK_REGION:-intl}"
+NEXTAUTH_RUNTIME_URL="${NEXTAUTH_URL_CN:-$NEXTAUTH_URL}"
+AUTH_RUNTIME_SECRET="${AUTH_SECRET:-$NEXTAUTH_SECRET}"
 
 require() {
   if [ -z "${!1:-}" ]; then
@@ -71,9 +76,18 @@ require() {
 }
 for v in DATABASE_URL_CN TENCENT_CN_ENV_ID TENCENT_CN_FN_NAME \
          TENCENT_COS_SECRET_ID TENCENT_COS_SECRET_KEY TENCENT_CN_COS_BUCKET \
-         HUNYUAN_API_KEY NEXTAUTH_SECRET WECHAT_APP_ID WECHAT_APP_SECRET; do
+         HUNYUAN_API_KEY WECHAT_APP_ID WECHAT_APP_SECRET; do
   require "$v"
 done
+if [ -z "$NEXTAUTH_RUNTIME_URL" ]; then
+  echo "✖ NEXTAUTH_URL_CN or NEXTAUTH_URL is empty in infra/tencent-cn/.env.cn" >&2
+  echo "  Set it to the CloudBase origin, e.g. https://<env>-<appid>.ap-shanghai.app.tcloudbase.com" >&2
+  exit 1
+fi
+if [ -z "$AUTH_RUNTIME_SECRET" ]; then
+  echo "✖ AUTH_SECRET or NEXTAUTH_SECRET is empty in infra/tencent-cn/.env.cn" >&2
+  exit 1
+fi
 
 # Resolve the local tcb CLI — install once if missing. infra/tencent-cn/package.json
 # pins @cloudbase/cli, so `npm install` in that dir lands the binary at
@@ -435,9 +449,18 @@ BUNDLE_RUNTIME=$(
   node -e 'const cfg = require(process.argv[1]); process.stdout.write(cfg.functions?.[0]?.runtime || "")' \
     "$BUNDLE_DIR/cloudbaserc.json"
 )
+NEXTAUTH_RUNTIME_URL_IN_BUNDLE=$(
+  node -e 'const cfg = require(process.argv[1]); process.stdout.write(cfg.functions?.[0]?.envVariables?.NEXTAUTH_URL || "")' \
+    "$BUNDLE_DIR/cloudbaserc.json"
+)
+if [ -z "$NEXTAUTH_RUNTIME_URL_IN_BUNDLE" ]; then
+  echo "✖ cloudbaserc.json is missing NEXTAUTH_URL; /api/auth/wechat will fail during route load" >&2
+  exit 1
+fi
 echo "  SCF runtime: ${BUNDLE_RUNTIME:-unknown}"
 echo "  Next.js startup import patch: ok"
 echo "  WeChat runtime env origin check: ok"
+echo "  NextAuth runtime URL: ok"
 
 # ─── 4. Deploy function ─────────────────────────────────────────────────
 echo "▶ Deploying SCF $TENCENT_CN_FN_NAME to env $TENCENT_CN_ENV_ID …"

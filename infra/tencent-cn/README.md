@@ -207,6 +207,14 @@ nano infra/tencent-cn/.env.cn
 
 Fill in every value — the script refuses to run with empties. **Use the 内网 endpoint for `DATABASE_URL_CN`** (the `172.x` host shown on the TencentDB instance detail page), not the 外网.
 
+Set `NEXTAUTH_URL_CN` to the CloudBase origin without a trailing slash:
+
+```bash
+NEXTAUTH_URL_CN=https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com
+```
+
+This value is required even though the WeChat Mini Program does not use browser OAuth callbacks directly; the Next.js/Prisma runtime validates the production env before API routes such as `/api/auth/wechat` can load.
+
 ### 7.4 Authenticate the tcb CLI once
 
 ```bash
