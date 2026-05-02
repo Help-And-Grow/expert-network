@@ -3,7 +3,8 @@
  * Idempotent HTTP route setup for the CN SCF.
  *
  * Looks up the env's default *.tcloudbase.com domain via `tcb domains ls`
- * and ensures a /* route forwards to the SCF function. Safe to re-run after
+ * and ensures the /api route forwards to the SCF function with path passthrough.
+ * Safe to re-run after
  * every deploy — "route already exists" is treated as success.
  *
  * Usage: add-route.mjs --tcb <tcb-binary> --env <env-file>
@@ -67,7 +68,7 @@ const routeData = {
   domain,
   routes: [
     {
-      path: "/*",
+      path: "/api",
       upstreamResourceType: "WEB_SCF",
       upstreamResourceName: fnName,
       enable: true,

@@ -143,7 +143,7 @@ curl https://<env>-<id>.ap-shanghai.app.tcloudbase.com/api/health/origin
 | `Cannot find module @cloudbase/...` | tcb CLI missing | Script auto-installs locally on first run |
 | `Cannot find module '../build/output/log'` | CloudBase/SCF stripped Next.js build-time files from `node_modules/next/dist/build` after the local bundle passed | Re-run `npm run cn:deploy` from the latest script; it patches Next.js log imports to a bundled SCF shim and smoke-tests startup without `next/dist/build` |
 | Function log still shows `Node.js v18.15.0` | The old SCF runtime/config is still serving traffic | Re-run `npm run cn:deploy` from a commit whose deploy log prints `SCF runtime: Nodejs20.19`; if CloudBase keeps the old runtime, delete/recreate the function in CloudBase and deploy again |
-| CloudBase returns a Next.js `404` for `/api/health/origin` | HTTP service route is bound as generic `SCF` or path passthrough is off | Re-run `npm run cn:deploy` from the latest script; it edits the route to `WEB_SCF` with `enablePathTransmission=true` |
+| CloudBase returns a Next.js `404` for `/api/health/origin` | HTTP service `/api` route is bound as generic `SCF` or path passthrough is off | Re-run `npm run cn:deploy` from the latest script; it edits `/api` to `WEB_SCF` with `enablePathTransmission=true` |
 | `不支持的触发器类型 [web]` | tcb v3 doesn't accept HTTP triggers in fn config | Already handled — script uses `tcb routes add` |
 | `路径只含字母/数字/...` | Path validation | Already handled — script uses `path: /*` with `enablePathTransmission` |
 | WeChat MP "请求被拒绝" after deploy | Domain not in WeChat allowlist | See § 6 step 1 |
