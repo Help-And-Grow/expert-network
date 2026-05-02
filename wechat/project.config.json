@@ -1,5 +1,5 @@
 {
-  "miniprogramRoot": "./dist/intl",
+  "miniprogramRoot": "dist/intl/",
   "projectname": "wechat",
   "description": "Help & Grow — AI Native Expert Network (WeChat)",
   "appid": "wx09d0eb079596060d",
@@ -11,7 +11,29 @@
     "postcss": true,
     "minified": true,
     "packNpmManually": true,
-    "packNpmRelationList": []
+    "packNpmRelationList": [],
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
-  "compileType": "miniprogram"
+  "compileType": "miniprogram",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }
