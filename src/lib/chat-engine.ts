@@ -1,6 +1,7 @@
 import { env } from "@/lib/env";
 import { resolveAIProvider } from "@/lib/ai";
 import {
+  buildDeterministicExpertMatchReason,
   buildLLMExpertContext,
   neutralizeExpertReasonPronouns,
 } from "@/lib/expert-match-context";
@@ -110,6 +111,51 @@ export async function chat(
       reply:
         "We don't have any published profiles yet. Please check back later!",
       experts: [],
+    };
+  }
+
+  if (semanticRank.source === "vector" && history.length === 0) {
+    const experts: ExpertRecommendation[] = allExperts.slice(0, 3).map((expert) => {
+      const minPrice = Math.min(
+        expert.priceOnlineCents || Infinity,
+        expert.priceOfflineCents || Infinity,
+      );
+      const bio = expert.bio?.trim();
+      const summary = bio
+        ? bio.length <= 180
+          ? bio
+          : `${bio.slice(0, 179).trimEnd()}…`
+        : undefined;
+      return {
+        expertId: expert.id,
+        name: expert.user.nickName ?? expert.user.name ?? "Unknown",
+        summary,
+        reason: buildDeterministicExpertMatchReason(expert),
+        sessionTypes: [expert.sessionType],
+        profileUrl: `${APP_BASE_URL}/experts/${expert.id}`,
+        bookUrl: `${APP_BASE_URL}/experts/${expert.id}/book`,
+        priceLabel:
+          minPrice < Infinity
+            ? `From ${expert.currency || "SGD"} ${(minPrice / 100).toFixed(0)}/hr`
+            : null,
+      };
+    });
+    console.log(
+      "[chat-engine] vector fast response:",
+      JSON.stringify({
+        region,
+        candidates: allExperts.length,
+        elapsedMs: Date.now() - startedAt,
+      }),
+    );
+    return {
+      reply: `Here are the experts I'd recommend:\n\n${experts
+        .map(
+          (e, i) =>
+            `${i + 1}. **${e.name}**${e.priceLabel ? ` (${e.priceLabel})` : ""}\n   ${e.reason}`,
+        )
+        .join("\n\n")}`,
+      experts,
     };
   }
 

@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
 import {
+  buildDeterministicExpertMatchReason,
   buildLLMExpertContext,
   neutralizeExpertReasonPronouns,
 } from "@/lib/expert-match-context";
@@ -507,6 +508,22 @@ export async function POST(request: NextRequest) {
         recommendations: [],
         noMatchMessage:
           "No experts are available at the moment. Please check back later.",
+      });
+    }
+
+    if (semanticRank.source === "vector" && history.length === 0) {
+      console.log(
+        "[experts/match] vector fast response:",
+        JSON.stringify({ elapsedMs: Date.now() - startedAt }),
+      );
+      return NextResponse.json({
+        recommendations: experts.slice(0, 3).map((expert) => ({
+          expertId: expert.id,
+          name: expert.user.nickName ?? expert.user.name ?? "Unknown",
+          summary: buildExpertSummary(expert),
+          reason: buildDeterministicExpertMatchReason(expert),
+          sessionTypes: [expert.sessionType],
+        })),
       });
     }
 

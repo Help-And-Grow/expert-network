@@ -1,6 +1,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 
 import { assertProductionEnv, resolvePrimaryDatabaseUrl } from "@/lib/env";
+import { createPostgresPool } from "@/lib/postgres-pool";
 
 assertProductionEnv();
 
@@ -18,11 +19,9 @@ function createPrismaAdapter() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pool } = require("pg");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { PrismaPg } = require("@prisma/adapter-pg");
 
-  const pool = new Pool({ connectionString: url });
+  const pool = createPostgresPool(url);
   return new PrismaPg(pool);
 }
 

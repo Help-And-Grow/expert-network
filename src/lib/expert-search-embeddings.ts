@@ -10,6 +10,7 @@ import { fetchGeminiEmbedding, toVectorLiteral } from "@/lib/gemini-embeddings";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolvePrimaryDatabaseUrl } from "@/lib/env";
+import { createPostgresPool } from "@/lib/postgres-pool";
 import {
   resolveExpertSearchRegion,
   type ExpertSearchRegion,
@@ -29,7 +30,7 @@ export function getExpertSearchPool(): Pool | null {
     pool = null;
     return null;
   }
-  pool = new Pool({ connectionString: url, max: 3 });
+  pool = createPostgresPool(url, { max: 3 });
   return pool;
 }
 

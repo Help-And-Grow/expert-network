@@ -7,6 +7,7 @@
 import { randomUUID } from "crypto";
 
 import { resolvePrimaryDatabaseUrl } from "@/lib/env";
+import { createPostgresPool } from "@/lib/postgres-pool";
 
 import { Pool } from "pg";
 import { fetchGeminiEmbedding, toVectorLiteral } from "@/lib/gemini-embeddings";
@@ -29,7 +30,7 @@ function getPool(): Pool | null {
     pool = null;
     return null;
   }
-  pool = new Pool({ connectionString: url, max: 3 });
+  pool = createPostgresPool(url, { max: 3 });
   return pool;
 }
 

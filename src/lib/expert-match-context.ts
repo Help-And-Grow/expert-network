@@ -174,3 +174,32 @@ export function neutralizeExpertReasonPronouns(
       (_match, prefix: string) => `${prefix}${name}'s`,
     );
 }
+
+function firstSentence(text: string): string {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^.{40,220}?[.!?](?:\s|$)/);
+  return (match?.[0] ?? trimmed.slice(0, 180)).trim();
+}
+
+export function buildDeterministicExpertMatchReason(
+  expert: ExpertMatchContext,
+): string {
+  const name = getExpertDisplayName(expert);
+  const focus = buildExpertFocusLabel(expert);
+  const bio = expert.bio?.trim();
+  const services = stringifyServicesOffered(expert.servicesOffered);
+  const detail = bio
+    ? neutralizeExpertReasonPronouns(firstSentence(bio), expert)
+    : services
+      ? `${name}'s listed services include ${services}.`
+      : "";
+
+  if (focus && detail) {
+    return `${name}'s profile is a strong semantic match for ${focus}. ${detail}`;
+  }
+  if (focus) {
+    return `${name}'s profile is a strong semantic match for ${focus}.`;
+  }
+  if (detail) return detail;
+  return `${name}'s published profile is one of the closest semantic matches for this request.`;
+}
