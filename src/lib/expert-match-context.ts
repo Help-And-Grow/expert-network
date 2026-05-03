@@ -31,6 +31,7 @@ export interface ExpertMatchContext {
   id: string;
   bio: string | null;
   avatarScript: string | null;
+  gender?: string | null;
   sessionType: string;
   servicesOffered: unknown;
   linkedIn: string | null;
@@ -73,6 +74,9 @@ export function buildLLMExpertContext(
   const lines: string[] = [];
   lines.push(`ID: ${expert.id}`);
   lines.push(`Name: ${expert.user.nickName ?? expert.user.name ?? "Unknown"}`);
+  if (expert.gender?.trim()) {
+    lines.push(`Gender: ${expert.gender.trim()}`);
+  }
   lines.push(
     `Focus: ${buildExpertFocusLabel(expert) ?? "General professional support"}`,
   );
@@ -149,4 +153,24 @@ export function buildExpertEmbeddingText(
   }
 
   return clamp(lines.join("\n\n"), 8000);
+}
+
+export function getExpertDisplayName(expert: ExpertMatchContext): string {
+  return expert.user.nickName ?? expert.user.name ?? "This expert";
+}
+
+export function neutralizeExpertReasonPronouns(
+  reason: string,
+  expert: ExpertMatchContext,
+): string {
+  const name = getExpertDisplayName(expert);
+  return reason
+    .replace(
+      /(^|[.!?]\s+)(he|she|they)\b/gi,
+      (_match, prefix: string) => `${prefix}${name}`,
+    )
+    .replace(
+      /(^|[.!?]\s+)(his|her|their)\b/gi,
+      (_match, prefix: string) => `${prefix}${name}'s`,
+    );
 }

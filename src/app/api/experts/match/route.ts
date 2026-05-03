@@ -2,8 +2,14 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
-import { buildLLMExpertContext } from "@/lib/expert-match-context";
-import { rankExpertsBySemanticRelevance } from "@/lib/expert-match-search";
+import {
+  buildLLMExpertContext,
+  neutralizeExpertReasonPronouns,
+} from "@/lib/expert-match-context";
+import {
+  isExpertSearchVectorPrerankEnabled,
+  rankExpertsBySemanticRelevance,
+} from "@/lib/expert-match-search";
 import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import {
   buildExpertFocusLabel,
@@ -24,6 +30,7 @@ type MatchExpertRow = {
    * the expert's own narrative.
    */
   avatarScript: string | null;
+  gender: string | null;
   sessionType: string;
   servicesOffered: unknown;
   userId: string;
@@ -73,6 +80,28 @@ function buildKeywordReason(
     return `${name}'s profile mentions "${terms}", relevant to "${query}".`;
   }
   return `${name} is a published expert whose profile aligns with "${query}".`;
+}
+
+function buildFastNormalizedQuery(query: string): NormalizedQuery {
+  const english = query
+    .replace(/\bBD\b/gi, "business development")
+    .replace(/\bexert\b/gi, "expert")
+    .trim();
+  const keywords = Array.from(
+    new Set(
+      english
+        .toLowerCase()
+        .match(/[a-z0-9][a-z0-9+.-]{2,}/g)
+        ?.filter((term) => !STOP_WORDS.has(term)) ?? [],
+    ),
+  ).slice(0, 12);
+
+  return {
+    english,
+    keywords,
+    intent: keywords.length > 0 ? "specific_topic" : "broad_exploration",
+    original: query,
+  };
 }
 
 /**
@@ -351,6 +380,7 @@ function exploratoryFallback(experts: MatchExpertRow[]) {
 
 export async function POST(request: NextRequest) {
   try {
+    const startedAt = Date.now();
     const viewerUserId = await resolveUserId(request).catch(() => null);
     const body = await request.json().catch(() => ({}));
     if (typeof body !== "object" || body === null) {
@@ -380,19 +410,30 @@ export async function POST(request: NextRequest) {
     // global default (Gemini).
     const ai = await resolveAIProvider({ request });
 
-    // Step 1: Normalize query (translate, expand, classify intent) via LLM
+    const semanticEnabled = await isExpertSearchVectorPrerankEnabled().catch(
+      () => false,
+    );
+
+    // Step 1: Normalize query. When vector pre-rank is enabled, avoid a full
+    // LLM call here; Gemini retrieval embeddings handle semantic expansion,
+    // and the final matcher still receives the user's original query.
     let nq: NormalizedQuery;
-    try {
-      nq = await ai.normalizeQuery(query);
-      console.log("[experts/match] normalized:", JSON.stringify(nq));
-    } catch (err) {
-      console.warn("[experts/match] normalizeQuery failed, using raw:", err);
-      nq = {
-        english: query,
-        keywords: [],
-        intent: "specific_topic",
-        original: query,
-      };
+    if (semanticEnabled) {
+      nq = buildFastNormalizedQuery(query);
+      console.log("[experts/match] fast-normalized:", JSON.stringify(nq));
+    } else {
+      try {
+        nq = await ai.normalizeQuery(query);
+        console.log("[experts/match] normalized:", JSON.stringify(nq));
+      } catch (err) {
+        console.warn("[experts/match] normalizeQuery failed, using raw:", err);
+        nq = {
+          english: query,
+          keywords: [],
+          intent: "specific_topic",
+          original: query,
+        };
+      }
     }
 
     // Step 2: Fetch expert pool. Semantic vector pre-rank is opt-in via
@@ -402,7 +443,7 @@ export async function POST(request: NextRequest) {
       nq.english || query,
       {
         region,
-        limit: 10,
+        limit: semanticEnabled ? 4 : 10,
         excludeUserId: viewerUserId ?? undefined,
       },
     ).catch((err) => {
@@ -457,6 +498,7 @@ export async function POST(request: NextRequest) {
         reason: semanticRank.reason,
         region,
         candidates: experts.length,
+        elapsedMs: Date.now() - startedAt,
       }),
     );
 
@@ -469,13 +511,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Enrich summaries with mem9
-    const memoryResults = await Promise.all(
-      experts.map((e) =>
-        searchExpertMemories(e.id, nq.english || query, 3).catch(
-          () => [] as string[],
-        ),
-      ),
-    );
+    const memoryResults =
+      semanticRank.source === "vector"
+        ? experts.map(() => [] as string[])
+        : await Promise.all(
+            experts.map((e) =>
+              searchExpertMemories(e.id, nq.english || query, 3).catch(
+                () => [] as string[],
+              ),
+            ),
+          );
 
     const expertSummaries = experts
       .map((e, i) => buildLLMExpertContext(e, memoryResults[i]))
@@ -484,18 +529,27 @@ export async function POST(request: NextRequest) {
     // Step 4: LLM match (with normalized context)
     const expertById = new Map(experts.map((e) => [e.id, e]));
     const enrichWithSummary = <
-      R extends { expertId: string; summary?: string },
+      R extends { expertId: string; reason: string; summary?: string },
     >(
       recs: R[] | undefined,
     ): R[] | undefined =>
       recs?.map((rec) => {
-        if (rec.summary) return rec;
         const expert = expertById.get(rec.expertId);
-        return expert ? { ...rec, summary: buildExpertSummary(expert) } : rec;
+        return expert
+          ? {
+              ...rec,
+              reason: neutralizeExpertReasonPronouns(rec.reason, expert),
+              summary: rec.summary ?? buildExpertSummary(expert),
+            }
+          : rec;
       });
 
     try {
       const result = await ai.matchExperts(query, expertSummaries, history, nq);
+      console.log(
+        "[experts/match] llm match complete:",
+        JSON.stringify({ elapsedMs: Date.now() - startedAt }),
+      );
       if ((result.recommendations?.length ?? 0) > 0) {
         return NextResponse.json({
           ...result,

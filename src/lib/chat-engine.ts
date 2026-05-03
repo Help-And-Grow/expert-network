@@ -1,6 +1,9 @@
 import { env } from "@/lib/env";
 import { resolveAIProvider } from "@/lib/ai";
-import { buildLLMExpertContext } from "@/lib/expert-match-context";
+import {
+  buildLLMExpertContext,
+  neutralizeExpertReasonPronouns,
+} from "@/lib/expert-match-context";
 import { rankExpertsBySemanticRelevance } from "@/lib/expert-match-search";
 import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
@@ -57,9 +60,10 @@ export async function chat(
   ctx: ChatContext = {},
 ): Promise<ChatResponse> {
   const region = resolveExpertSearchRegion(ctx.request ?? null);
+  const startedAt = Date.now();
   const semanticRank = await rankExpertsBySemanticRelevance(message, {
     region,
-    limit: 10,
+    limit: 4,
   }).catch((err) => {
     console.warn("[chat-engine] semantic pre-rank failed:", err);
     return {
@@ -109,11 +113,16 @@ export async function chat(
     };
   }
 
-  const memoryResults = await Promise.all(
-    allExperts.map((e) =>
-      searchExpertMemories(e.id, message, 3).catch(() => [] as string[]),
-    ),
-  );
+  const memoryResults =
+    semanticRank.source === "vector"
+      ? allExperts.map(() => [] as string[])
+      : await Promise.all(
+          allExperts.map((e) =>
+            searchExpertMemories(e.id, message, 3).catch(
+              () => [] as string[],
+            ),
+          ),
+        );
 
   // Shared builder with /api/experts/match — keeps the two surfaces identical
   // in what the LLM sees per expert (bio, intro memo, services, social signals,
@@ -150,6 +159,15 @@ export async function chat(
     expertSummaries,
     historyMapped,
   );
+  console.log(
+    "[chat-engine] expert match complete:",
+    JSON.stringify({
+      source: semanticRank.source,
+      region,
+      candidates: allExperts.length,
+      elapsedMs: Date.now() - startedAt,
+    }),
+  );
 
   const experts: ExpertRecommendation[] = aiResult.recommendations.map(
     (rec) => {
@@ -166,11 +184,14 @@ export async function chat(
           ? bio
           : `${bio.slice(0, 179).trimEnd()}…`
         : undefined;
+      const reason = expert
+        ? neutralizeExpertReasonPronouns(rec.reason, expert)
+        : rec.reason;
       return {
         expertId: rec.expertId,
         name: rec.name,
         summary,
-        reason: rec.reason,
+        reason,
         sessionTypes: rec.sessionTypes,
         profileUrl: `${APP_BASE_URL}/experts/${rec.expertId}`,
         bookUrl: `${APP_BASE_URL}/experts/${rec.expertId}/book`,
