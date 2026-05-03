@@ -92,6 +92,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 | `EMBEDDING_PROVIDER` | Embedding model provider (local default `ollama`) |
 | `USE_PGVECTOR_MEMORY` | Mirror expert memories to Postgres pgvector — requires `GEMINI_API_KEY` (or Vertex `GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`) for `gemini-embedding-001`. Pinned to 1536 dims to match `vector(1536)`. |
 | `PGVECTOR_DATABASE_URL` | Override DB for pgvector (defaults to `DATABASE_URL`) |
+| `EXPERT_SEARCH_VECTOR_PRERANK` | Optional env fallback for semantic expert matching. Prefer the `EXPERT_SEARCH_VECTOR_PRERANK` SystemConfig toggle in `/admin/system-config`; default is `false` until `/api/admin/embeddings/backfill` reaches high coverage. |
 
 ## Voice chat
 

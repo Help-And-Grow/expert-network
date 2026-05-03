@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { embedExpertProfile } from "@/lib/expert-search-embeddings";
+import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import { legacyExpertDomains } from "@/lib/expert-topics";
+import { emitExpertProfileChanged } from "@/lib/inngest/emit";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
@@ -15,12 +18,24 @@ export async function GET(request: NextRequest) {
     const expert = await prisma.expert.findUnique({
       where: { userId },
       include: {
-        user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            nickName: true,
+            email: true,
+            image: true,
+            telegramUsername: true,
+          },
+        },
       },
     });
 
     if (!expert) {
-      return NextResponse.json({ error: "Expert profile not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Expert profile not found" },
+        { status: 404 },
+      );
     }
 
     const vendorSite = isVendorAiStackSiteRequest(request);
@@ -44,7 +59,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[expert/profile GET]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -60,7 +78,10 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (!expert) {
-      return NextResponse.json({ error: "Expert profile not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Expert profile not found" },
+        { status: 404 },
+      );
     }
 
     const body = await request.json();
@@ -76,18 +97,34 @@ export async function PATCH(request: NextRequest) {
     if (Array.isArray(body.servicesOffered)) {
       updateData.servicesOffered = body.servicesOffered;
     }
-    if (body.priceOnlineCents === null || (typeof body.priceOnlineCents === "number" && body.priceOnlineCents >= 0)) {
-      updateData.priceOnlineCents = body.priceOnlineCents === null ? null : Math.round(body.priceOnlineCents);
+    if (
+      body.priceOnlineCents === null ||
+      (typeof body.priceOnlineCents === "number" && body.priceOnlineCents >= 0)
+    ) {
+      updateData.priceOnlineCents =
+        body.priceOnlineCents === null
+          ? null
+          : Math.round(body.priceOnlineCents);
     }
-    if (body.priceOfflineCents === null || (typeof body.priceOfflineCents === "number" && body.priceOfflineCents >= 0)) {
-      updateData.priceOfflineCents = body.priceOfflineCents === null ? null : Math.round(body.priceOfflineCents);
+    if (
+      body.priceOfflineCents === null ||
+      (typeof body.priceOfflineCents === "number" &&
+        body.priceOfflineCents >= 0)
+    ) {
+      updateData.priceOfflineCents =
+        body.priceOfflineCents === null
+          ? null
+          : Math.round(body.priceOfflineCents);
     }
     if (body.weeklySchedule !== undefined) {
       updateData.weeklySchedule = body.weeklySchedule;
     }
 
     if (Object.keys(updateData).length === 0 && !hasLegacyDomainsInput) {
-      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 },
+      );
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -100,9 +137,31 @@ export async function PATCH(request: NextRequest) {
     const updated = await prisma.expert.findUnique({
       where: { id: expert.id },
       include: {
-        user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            nickName: true,
+            email: true,
+            image: true,
+            telegramUsername: true,
+          },
+        },
       },
     });
+
+    if (updated?.isPublished) {
+      const region = resolveExpertSearchRegion(request);
+      emitExpertProfileChanged(updated.id, { region, reason: "profile" })
+        .then(async (sent) => {
+          if (!sent) {
+            await embedExpertProfile(updated.id, { region });
+          }
+        })
+        .catch((err) => {
+          console.warn("[expert/profile PATCH] embedding refresh failed:", err);
+        });
+    }
 
     const vendorSite = isVendorAiStackSiteRequest(request);
     const { servicesOffered, ...rest } = updated!;
@@ -113,6 +172,9 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error("[expert/profile PATCH]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

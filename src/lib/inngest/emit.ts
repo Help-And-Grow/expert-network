@@ -2,7 +2,9 @@
  * Fire-and-forget events to Inngest Cloud when INNGEST_EVENT_KEY is set.
  * Falls back to the caller doing synchronous work when not configured.
  */
-export async function emitBookingCompletedPomp(bookingId: string): Promise<boolean> {
+export async function emitBookingCompletedPomp(
+  bookingId: string,
+): Promise<boolean> {
   if (!process.env.INNGEST_EVENT_KEY?.trim()) {
     return false;
   }
@@ -16,6 +18,32 @@ export async function emitBookingCompletedPomp(bookingId: string): Promise<boole
   } catch (err) {
     console.warn(
       "[inngest] emit app/booking.completed failed:",
+      err instanceof Error ? err.message : err,
+    );
+    return false;
+  }
+}
+
+export async function emitExpertProfileChanged(
+  expertId: string,
+  data: {
+    region?: "global" | "wechat-cn" | "wechat-intl";
+    reason?: string;
+  } = {},
+): Promise<boolean> {
+  if (!process.env.INNGEST_EVENT_KEY?.trim()) {
+    return false;
+  }
+  try {
+    const { inngest } = await import("@/inngest/client");
+    await inngest.send({
+      name: "app/expert.profile.changed",
+      data: { expertId, ...data },
+    });
+    return true;
+  } catch (err) {
+    console.warn(
+      "[inngest] emit app/expert.profile.changed failed:",
       err instanceof Error ? err.message : err,
     );
     return false;

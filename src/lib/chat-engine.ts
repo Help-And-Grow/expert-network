@@ -1,6 +1,8 @@
 import { env } from "@/lib/env";
 import { resolveAIProvider } from "@/lib/ai";
 import { buildLLMExpertContext } from "@/lib/expert-match-context";
+import { rankExpertsBySemanticRelevance } from "@/lib/expert-match-search";
+import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 
@@ -25,8 +27,7 @@ export interface ChatResponse {
   experts: ExpertRecommendation[];
 }
 
-const APP_BASE_URL =
-  env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+const APP_BASE_URL = env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 
 type ChatContext = {
   /** Optional incoming request — enables region-aware AI provider routing. */
@@ -55,12 +56,50 @@ export async function chat(
   platform?: string,
   ctx: ChatContext = {},
 ): Promise<ChatResponse> {
-  const allExperts = await prisma.expert.findMany({
-    where: { isPublished: true },
+  const region = resolveExpertSearchRegion(ctx.request ?? null);
+  const semanticRank = await rankExpertsBySemanticRelevance(message, {
+    region,
+    limit: 10,
+  }).catch((err) => {
+    console.warn("[chat-engine] semantic pre-rank failed:", err);
+    return {
+      expertIds: [],
+      source: "fallback" as const,
+      reason: "semantic pre-rank threw",
+    };
+  });
+
+  let allExperts = await prisma.expert.findMany({
+    where: {
+      isPublished: true,
+      ...(semanticRank.source === "vector"
+        ? { id: { in: semanticRank.expertIds } }
+        : {}),
+    },
     include: {
       user: { select: { nickName: true, name: true } },
     },
   });
+
+  if (semanticRank.source === "vector") {
+    const order = new Map(
+      semanticRank.expertIds.map((id, index) => [id, index]),
+    );
+    allExperts = allExperts.sort(
+      (a, b) =>
+        (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+
+    if (allExperts.length === 0) {
+      allExperts = await prisma.expert.findMany({
+        where: { isPublished: true },
+        include: {
+          user: { select: { nickName: true, name: true } },
+        },
+      });
+    }
+  }
 
   if (allExperts.length === 0) {
     return {
@@ -72,8 +111,8 @@ export async function chat(
 
   const memoryResults = await Promise.all(
     allExperts.map((e) =>
-      searchExpertMemories(e.id, message, 3).catch(() => [] as string[])
-    )
+      searchExpertMemories(e.id, message, 3).catch(() => [] as string[]),
+    ),
   );
 
   // Shared builder with /api/experts/match — keeps the two surfaces identical
@@ -97,13 +136,20 @@ export async function chat(
     })
     .join("\n\n---\n\n");
 
-  const historyMapped = history.map((m) => ({ role: m.role, content: m.content }));
+  const historyMapped = history.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
   const ai = await resolveAIProvider({ request: ctx.request });
   // `ai` is a chain wrapper; matchExperts will fall back from Qwen → Gemini
   // on Web/Telegram, or run Hunyuan-only on WeChat surfaces.
   void platform; // reserved for future per-platform telemetry; routing is
-                  // already determined by the resolved chain.
-  const aiResult = await ai.matchExperts(message, expertSummaries, historyMapped);
+  // already determined by the resolved chain.
+  const aiResult = await ai.matchExperts(
+    message,
+    expertSummaries,
+    historyMapped,
+  );
 
   const experts: ExpertRecommendation[] = aiResult.recommendations.map(
     (rec) => {
@@ -111,7 +157,7 @@ export async function chat(
       const minPrice = expert
         ? Math.min(
             expert.priceOnlineCents || Infinity,
-            expert.priceOfflineCents || Infinity
+            expert.priceOfflineCents || Infinity,
           )
         : Infinity;
       const bio = expert?.bio?.trim();
@@ -133,14 +179,14 @@ export async function chat(
             ? `From ${expert?.currency || "SGD"} ${(minPrice / 100).toFixed(0)}/hr`
             : null,
       };
-    }
+    },
   );
 
   let reply: string;
   if (experts.length > 0) {
     const lines = experts.map(
       (e, i) =>
-        `${i + 1}. **${e.name}**${e.priceLabel ? ` (${e.priceLabel})` : ""}\n   ${e.reason}`
+        `${i + 1}. **${e.name}**${e.priceLabel ? ` (${e.priceLabel})` : ""}\n   ${e.reason}`,
     );
     reply = `Here are the experts I'd recommend:\n\n${lines.join("\n\n")}`;
   } else {

@@ -22,7 +22,10 @@
  *   substack = long-form thought leadership, etc.).
  */
 
-import { buildExpertFocusLabel, stringifyServicesOffered } from "@/lib/expert-topics";
+import {
+  buildExpertFocusLabel,
+  stringifyServicesOffered,
+} from "@/lib/expert-topics";
 
 export interface ExpertMatchContext {
   id: string;
@@ -69,9 +72,7 @@ export function buildLLMExpertContext(
 ): string {
   const lines: string[] = [];
   lines.push(`ID: ${expert.id}`);
-  lines.push(
-    `Name: ${expert.user.nickName ?? expert.user.name ?? "Unknown"}`,
-  );
+  lines.push(`Name: ${expert.user.nickName ?? expert.user.name ?? "Unknown"}`);
   lines.push(
     `Focus: ${buildExpertFocusLabel(expert) ?? "General professional support"}`,
   );
@@ -108,4 +109,44 @@ export function buildLLMExpertContext(
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Build the compact semantic source text embedded for cross-expert search.
+ *
+ * This intentionally mirrors the same high-signal fields as
+ * buildLLMExpertContext without the field labels that are useful for a prompt
+ * but noisy for embeddings.
+ */
+export function buildExpertEmbeddingText(
+  expert: ExpertMatchContext,
+  memories: string[] = [],
+): string {
+  const name = expert.user.nickName ?? expert.user.name ?? "Unknown expert";
+  const focus = buildExpertFocusLabel(expert) ?? "general professional support";
+  const lines: string[] = [`${name} - ${focus}.`];
+
+  const bio = expert.bio?.trim();
+  if (bio) lines.push(clamp(bio, 600));
+
+  const services = stringifyServicesOffered(expert.servicesOffered);
+  if (services) lines.push(`Services: ${services}.`);
+
+  const script = expert.avatarScript?.trim();
+  if (script) lines.push(`Intro memo: ${clamp(script, 800)}`);
+
+  const platforms = activeSocialPlatforms(expert);
+  if (platforms.length > 0) {
+    lines.push(`Active on: ${platforms.join(", ")}.`);
+  }
+
+  const snippets = memories
+    .map((m) => m.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  if (snippets.length > 0) {
+    lines.push(`Recent memory snippets: ${clamp(snippets.join("; "), 600)}`);
+  }
+
+  return clamp(lines.join("\n\n"), 8000);
 }

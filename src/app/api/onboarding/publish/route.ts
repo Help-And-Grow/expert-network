@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { embedExpertProfile } from "@/lib/expert-search-embeddings";
+import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import { seedExpertProfile } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -19,17 +21,18 @@ export async function POST(request: NextRequest) {
     if (!expert) {
       return NextResponse.json(
         { error: "Expert profile not found. Complete onboarding first." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!expert.documentData || !expert.documentName) {
       return NextResponse.json(
         {
-          error: "Please upload your service introduction PDF before publishing.",
+          error:
+            "Please upload your service introduction PDF before publishing.",
           code: "SERVICE_PDF_REQUIRED",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -57,12 +60,21 @@ export async function POST(request: NextRequest) {
       },
     }).catch(() => {});
 
+    await embedExpertProfile(updated.id, {
+      region: resolveExpertSearchRegion(request),
+    }).catch((err) => {
+      console.warn(
+        "[onboarding/publish] expert embedding refresh failed:",
+        err,
+      );
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[onboarding/publish POST]", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

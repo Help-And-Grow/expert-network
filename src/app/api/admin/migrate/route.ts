@@ -74,6 +74,25 @@ const MIGRATIONS = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS idx_expert_memory_expert ON expert_memory_embeddings (expert_id)`,
+  `CREATE TABLE IF NOT EXISTS expert_profile_embeddings (
+    expert_id TEXT NOT NULL PRIMARY KEY REFERENCES "Expert"("id") ON DELETE CASCADE,
+    content_hash TEXT NOT NULL,
+    source TEXT NOT NULL,
+    embedding vector(1536),
+    embedded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_published BOOLEAN NOT NULL DEFAULT TRUE,
+    region TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_expert_profile_embedding_cosine
+    ON expert_profile_embeddings
+    USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100)`,
+  `CREATE INDEX IF NOT EXISTS idx_expert_profile_published
+    ON expert_profile_embeddings(is_published)
+    WHERE is_published = TRUE`,
+  `INSERT INTO "SystemConfig" ("key", "value", "updatedAt")
+    VALUES ('EXPERT_SEARCH_VECTOR_PRERANK', 'false', CURRENT_TIMESTAMP)
+    ON CONFLICT ("key") DO NOTHING`,
 ];
 
 /**

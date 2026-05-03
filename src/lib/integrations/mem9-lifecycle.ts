@@ -6,12 +6,19 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { emitExpertProfileChanged } from "@/lib/inngest/emit";
 
 import { getMemory } from "./config";
 import {
   searchExpertMemoryChunks,
   storeExpertMemoryChunk,
 } from "./pgvector-memory";
+
+function queueExpertEmbeddingRefresh(expertId: string, reason: string): void {
+  emitExpertProfileChanged(expertId, { reason })
+    .then(() => {})
+    .catch(() => {});
+}
 
 // -----------------------------------------------------------------------
 // Space provisioning
@@ -118,6 +125,7 @@ export async function seedExpertProfile(seed: ExpertProfileSeed): Promise<void> 
     );
 
     console.log(`[mem9] Seeded ${entries.length} profile memories for expert ${seed.expertId}`);
+    queueExpertEmbeddingRefresh(seed.expertId, "profile-memory");
   } catch (err) {
     console.error("[mem9] seedExpertProfile failed:", err);
   }
@@ -162,6 +170,7 @@ export async function storeBookingEvent(event: BookingEvent): Promise<void> {
     });
 
     console.log(`[mem9] Stored booking event for expert ${event.expertId}`);
+    queueExpertEmbeddingRefresh(event.expertId, "booking-memory");
   } catch (err) {
     console.error("[mem9] storeBookingEvent failed:", err);
   }
@@ -206,6 +215,7 @@ export async function storeReviewEvent(event: ReviewEvent): Promise<void> {
     });
 
     console.log(`[mem9] Stored appreciation for expert ${event.expertId}`);
+    queueExpertEmbeddingRefresh(event.expertId, "review-memory");
   } catch (err) {
     console.error("[mem9] storeReviewEvent failed:", err);
   }

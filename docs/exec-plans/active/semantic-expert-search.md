@@ -1,6 +1,6 @@
 # Semantic Expert Search — Design Doc + Implementation Plan
 
-**Status**: Proposed (2026-05-03)
+**Status**: Implemented behind flag (2026-05-03)
 **Owner**: TBD
 **Scope**: Replace today's full-pool LLM matching with embedding-based pre-ranking + LLM rerank.
 **Predecessors**: PR #29 ("kill keyword-fallback junk for specific topics") — immediate UX fix that this plan builds on.
@@ -48,7 +48,7 @@ We are **not building from zero**. Existing scaffolding we leverage:
 | Per-expert profile fields (bio, avatarScript, services, social URLs, mem9 memories) | `Expert` model + `buildLLMExpertContext()` | ✅ Already in the LLM context |
 | Admin backfill pattern | `/api/admin/pgvector-backfill` route | ✅ Pattern to mirror for the new table |
 | Feature-flag gating | `USE_PGVECTOR_MEMORY=1` env | ✅ Add a sibling flag for this feature |
-| `EXPERT_SEARCH_VECTOR_PRERANK` admin SystemConfig key | _doesn't exist yet_ | ⏳ New (Phase 2) |
+| `EXPERT_SEARCH_VECTOR_PRERANK` admin SystemConfig key | `/api/admin/system-config`, `/admin/system-config` | ✅ Default false |
 
 Net new code is small: one new table, one indexer, one ranker. The matcher prompt, the fallback chain, the keyword backstop, and provider routing all stay as-is.
 
@@ -210,7 +210,7 @@ This is the same graceful-degradation pattern as `searchExpertMemoryChunks`. The
 | WeChat-CN SCF (`IS_WECHAT=true && PROXY_REGION=cn`) | `wechat-cn` |
 | WeChat-Intl SCF | `wechat-intl` |
 
-Query-side filter: `WHERE region = 'global' OR region = $request_region`. WeChat clients see Web-published experts AND their region's WeChat-published experts; web clients see only `global`. Mainland CN compliance: WeChat-CN-published experts are never returned to non-CN surfaces.
+Query-side filter includes `global`/null rows, the request region, and `wechat-intl` rows for `global` surfaces. WeChat clients see Web-published experts AND their region's WeChat-published experts; Web/Telegram can see the current international WeChat stack but not future mainland-CN-only rows.
 
 ---
 
@@ -245,7 +245,11 @@ Behaviour:
    FROM expert_profile_embeddings
    WHERE is_published = TRUE
      AND embedding IS NOT NULL
-     AND (region = 'global' OR region = $request_region)
+     AND (
+       region IS NULL
+       OR region = 'global'
+       OR region = $request_region
+       OR ($request_region = 'global' AND region = 'wechat-intl'))
      AND ($exclude_user_id IS NULL OR expert_id NOT IN (
             SELECT id FROM "Expert" WHERE "userId" = $exclude_user_id))
    ORDER BY embedding <=> $query_embedding
@@ -295,30 +299,30 @@ The order of `experts` returned by Prisma when filtering on `id IN [...]` is **n
 
 | # | Task | File | Notes |
 |---|---|---|---|
-| 1.1 | Add table + indexes to `/api/admin/migrate` SQL list | `src/app/api/admin/migrate/route.ts` | Idempotent `IF NOT EXISTS` like the existing entries |
-| 1.2 | New file with `embedExpertProfile()`, `buildExpertEmbeddingText()`, hash-skip logic | `src/lib/expert-search-embeddings.ts` | Mirrors `pgvector-memory.ts` shape |
-| 1.3 | Wire sync embed into `/api/onboarding/publish` | `src/app/api/onboarding/publish/route.ts` | After `expert.update({ isPublished: true })` |
-| 1.4 | Wire async embed into `/api/expert/profile` PATCH and mem9 lifecycle | 2 routes | Inngest event `expert.profile.changed`, debounced 30s |
-| 1.5 | Inngest function consuming `expert.profile.changed` events | `src/lib/inngest/expert-embedding-refresh.ts` | New |
-| 1.6 | Backfill admin endpoint | `src/app/api/admin/embeddings/backfill/route.ts` | Mirrors the existing `pgvector-backfill` pattern |
+| 1.1 | Add table + indexes to `/api/admin/migrate` SQL list | `src/app/api/admin/migrate/route.ts` | ✅ Idempotent `IF NOT EXISTS` like the existing entries |
+| 1.2 | New file with `embedExpertProfile()`, `buildExpertEmbeddingText()`, hash-skip logic | `src/lib/expert-search-embeddings.ts` | ✅ Mirrors `pgvector-memory.ts` shape |
+| 1.3 | Wire sync embed into `/api/onboarding/publish` | `src/app/api/onboarding/publish/route.ts` | ✅ After `expert.update({ isPublished: true })` |
+| 1.4 | Wire async embed into `/api/expert/profile` PATCH and mem9 lifecycle | 2 routes | ✅ Inngest event `app/expert.profile.changed` |
+| 1.5 | Inngest function consuming `app/expert.profile.changed` events | `src/inngest/functions/expert-embedding-refresh.ts` | ✅ New |
+| 1.6 | Backfill admin endpoint | `src/app/api/admin/embeddings/backfill/route.ts` | ✅ Mirrors the existing `pgvector-backfill` pattern |
 | 1.7 | Run backfill against production after Phase 1 deploy | Manual — admin button | Verify all published experts have an embedding row |
 
 ### Phase 2 — Query pipeline + flag (0.5-1 day)
 
 | # | Task | File | Notes |
 |---|---|---|---|
-| 2.1 | New file with `rankExpertsBySemanticRelevance()` | `src/lib/expert-match-search.ts` | + tests |
-| 2.2 | Wire into `/api/experts/match` BEFORE the existing flow | `src/app/api/experts/match/route.ts` | Behind flag |
-| 2.3 | Same wiring in `chat-engine.ts` | `src/lib/chat-engine.ts` | Behind flag |
-| 2.4 | Add `EXPERT_SEARCH_VECTOR_PRERANK` SystemConfig + admin toggle | `/admin/system-config` UI | Default `false` until backfill completes |
+| 2.1 | New file with `rankExpertsBySemanticRelevance()` | `src/lib/expert-match-search.ts` | ✅ |
+| 2.2 | Wire into `/api/experts/match` BEFORE the existing flow | `src/app/api/experts/match/route.ts` | ✅ Behind flag |
+| 2.3 | Same wiring in `chat-engine.ts` | `src/lib/chat-engine.ts` | ✅ Behind flag |
+| 2.4 | Add `EXPERT_SEARCH_VECTOR_PRERANK` SystemConfig + admin toggle | `/admin/system-config` UI | ✅ Default `false` until backfill completes |
 
 ### Phase 3 — Operational hardening (0.5 day)
 
 | # | Task | File | Notes |
 |---|---|---|---|
-| 3.1 | Inngest weekly cron `expert-embeddings-refresh-stale` (rows > 30 days old) | `src/lib/inngest/expert-embedding-cron.ts` | Catches profile mutations the hooks missed |
-| 3.2 | Admin dashboard widget showing embedding coverage | `/admin` page | "412 / 437 published experts have embeddings" |
-| 3.3 | Telemetry: structured log `[match]` with `pre_rank_top10`, `llm_final`, `query`, `rank_source` | Existing `console.log` upgrade | Lays groundwork for NDCG@K once we have click data |
+| 3.1 | Inngest weekly cron `expert-embeddings-refresh-stale` (rows > 30 days old) | `src/inngest/functions/expert-embedding-refresh.ts` | ✅ Catches profile mutations the hooks missed |
+| 3.2 | Admin dashboard widget showing embedding coverage | `/admin/system-config` page | ✅ "412 / 437 published experts have embeddings" |
+| 3.3 | Telemetry: structured log `[match]` with `pre_rank_top10`, `llm_final`, `query`, `rank_source` | Existing `console.log` upgrade | Partial: route logs rank source and candidate count |
 
 ### Phase 4 — Enable for production (~1 hour)
 

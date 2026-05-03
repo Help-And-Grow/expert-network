@@ -3,6 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
 import { buildLLMExpertContext } from "@/lib/expert-match-context";
+import { rankExpertsBySemanticRelevance } from "@/lib/expert-match-search";
+import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import {
   buildExpertFocusLabel,
   buildExpertSearchText,
@@ -86,26 +88,138 @@ function buildKeywordReason(
  */
 const STOP_WORDS = new Set([
   // articles, prepositions, pronouns
-  "a", "an", "the", "of", "to", "in", "on", "at", "by", "for", "with", "from",
-  "as", "is", "am", "are", "was", "were", "be", "been", "being", "do", "does",
-  "did", "have", "has", "had", "this", "that", "these", "those", "it", "its",
-  "i", "we", "you", "he", "she", "they", "them", "his", "her", "their", "my",
-  "our", "your", "if", "or", "and", "but", "not", "no",
+  "a",
+  "an",
+  "the",
+  "of",
+  "to",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "with",
+  "from",
+  "as",
+  "is",
+  "am",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "do",
+  "does",
+  "did",
+  "have",
+  "has",
+  "had",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "its",
+  "i",
+  "we",
+  "you",
+  "he",
+  "she",
+  "they",
+  "them",
+  "his",
+  "her",
+  "their",
+  "my",
+  "our",
+  "your",
+  "if",
+  "or",
+  "and",
+  "but",
+  "not",
+  "no",
   // question fillers + generic intent verbs
-  "what", "who", "when", "where", "why", "how", "which", "whom",
-  "looking", "want", "need", "needing", "wanting", "find", "finding", "help",
-  "helping", "get", "getting", "can", "could", "should", "would", "will",
-  "may", "might", "must", "let", "lets", "show", "tell", "give", "make", "use",
-  "do", "does", "doing",
+  "what",
+  "who",
+  "when",
+  "where",
+  "why",
+  "how",
+  "which",
+  "whom",
+  "looking",
+  "want",
+  "need",
+  "needing",
+  "wanting",
+  "find",
+  "finding",
+  "help",
+  "helping",
+  "get",
+  "getting",
+  "can",
+  "could",
+  "should",
+  "would",
+  "will",
+  "may",
+  "might",
+  "must",
+  "let",
+  "lets",
+  "show",
+  "tell",
+  "give",
+  "make",
+  "use",
+  "do",
+  "does",
+  "doing",
   // generic role nouns
-  "someone", "anyone", "anybody", "everyone", "everybody", "person", "people",
-  "expert", "experts", "coach", "mentor", "advisor", "consultant", "specialist",
+  "someone",
+  "anyone",
+  "anybody",
+  "everyone",
+  "everybody",
+  "person",
+  "people",
+  "expert",
+  "experts",
+  "coach",
+  "mentor",
+  "advisor",
+  "consultant",
+  "specialist",
   // hedging / common adjectives
-  "good", "great", "best", "really", "very", "just", "also", "more", "most",
-  "any", "some", "all", "much", "many", "few",
+  "good",
+  "great",
+  "best",
+  "really",
+  "very",
+  "just",
+  "also",
+  "more",
+  "most",
+  "any",
+  "some",
+  "all",
+  "much",
+  "many",
+  "few",
   // Help & Grow vocabulary that every published expert mentions
-  "help", "grow", "growth", "session", "meetup", "online", "offline",
-  "familiar", "professional", "professionals",
+  "help",
+  "grow",
+  "growth",
+  "session",
+  "meetup",
+  "online",
+  "offline",
+  "familiar",
+  "professional",
+  "professionals",
 ]);
 
 const MIN_KEYWORD_LENGTH = 3;
@@ -147,7 +261,9 @@ function keywordMatch(nq: NormalizedQuery, experts: MatchExpertRow[]) {
       const matched: string[] = [];
       const bio = (e.bio ?? "").toLowerCase();
       const name = (e.user.nickName ?? e.user.name ?? "").toLowerCase();
-      const services = stringifyServicesOffered(e.servicesOffered).toLowerCase();
+      const services = stringifyServicesOffered(
+        e.servicesOffered,
+      ).toLowerCase();
       const haystack = buildExpertSearchText({
         name: e.user.name,
         nickName: e.user.nickName,
@@ -210,7 +326,7 @@ function exploratoryFallback(experts: MatchExpertRow[]) {
     .sort(
       (a, b) =>
         b.reviewCount - a.reviewCount ||
-        (b.avgRating ?? 0) - (a.avgRating ?? 0)
+        (b.avgRating ?? 0) - (a.avgRating ?? 0),
     )
     .slice(0, 3);
 
@@ -240,16 +356,13 @@ export async function POST(request: NextRequest) {
     if (typeof body !== "object" || body === null) {
       return NextResponse.json(
         { error: "Invalid request body" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const query = typeof body.query === "string" ? body.query.trim() : "";
     if (!query) {
-      return NextResponse.json(
-        { error: "query is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "query is required" }, { status: 400 });
     }
 
     const history = Array.isArray(body.history)
@@ -258,7 +371,7 @@ export async function POST(request: NextRequest) {
             typeof m === "object" &&
             m !== null &&
             typeof m.role === "string" &&
-            typeof m.content === "string"
+            typeof m.content === "string",
         )
       : [];
 
@@ -274,32 +387,94 @@ export async function POST(request: NextRequest) {
       console.log("[experts/match] normalized:", JSON.stringify(nq));
     } catch (err) {
       console.warn("[experts/match] normalizeQuery failed, using raw:", err);
-      nq = { english: query, keywords: [], intent: "specific_topic", original: query };
+      nq = {
+        english: query,
+        keywords: [],
+        intent: "specific_topic",
+        original: query,
+      };
     }
 
-    // Step 2: Fetch expert pool
-    const experts = await prisma.expert.findMany({
+    // Step 2: Fetch expert pool. Semantic vector pre-rank is opt-in via
+    // EXPERT_SEARCH_VECTOR_PRERANK; otherwise this stays on the legacy pool.
+    const region = resolveExpertSearchRegion(request);
+    const semanticRank = await rankExpertsBySemanticRelevance(
+      nq.english || query,
+      {
+        region,
+        limit: 10,
+        excludeUserId: viewerUserId ?? undefined,
+      },
+    ).catch((err) => {
+      console.warn("[experts/match] semantic pre-rank failed:", err);
+      return {
+        expertIds: [],
+        source: "fallback" as const,
+        reason: "semantic pre-rank threw",
+      };
+    });
+
+    const baseWhere = {
+      isPublished: true,
+      ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
+    };
+    let experts = await prisma.expert.findMany({
       where: {
-        isPublished: true,
-        ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
+        ...baseWhere,
+        ...(semanticRank.source === "vector"
+          ? { id: { in: semanticRank.expertIds } }
+          : {}),
       },
       include: {
         user: { select: { nickName: true, name: true } },
       },
     });
 
+    if (semanticRank.source === "vector") {
+      const order = new Map(
+        semanticRank.expertIds.map((id, index) => [id, index]),
+      );
+      experts = experts.sort(
+        (a, b) =>
+          (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+          (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      );
+
+      if (experts.length === 0) {
+        experts = await prisma.expert.findMany({
+          where: baseWhere,
+          include: {
+            user: { select: { nickName: true, name: true } },
+          },
+        });
+      }
+    }
+
+    console.log(
+      "[experts/match] candidate pool:",
+      JSON.stringify({
+        source: semanticRank.source,
+        reason: semanticRank.reason,
+        region,
+        candidates: experts.length,
+      }),
+    );
+
     if (experts.length === 0) {
       return NextResponse.json({
         recommendations: [],
-        noMatchMessage: "No experts are available at the moment. Please check back later.",
+        noMatchMessage:
+          "No experts are available at the moment. Please check back later.",
       });
     }
 
     // Step 3: Enrich summaries with mem9
     const memoryResults = await Promise.all(
       experts.map((e) =>
-        searchExpertMemories(e.id, nq.english || query, 3).catch(() => [] as string[])
-      )
+        searchExpertMemories(e.id, nq.english || query, 3).catch(
+          () => [] as string[],
+        ),
+      ),
     );
 
     const expertSummaries = experts
@@ -374,7 +549,7 @@ export async function POST(request: NextRequest) {
     console.error("[experts/match POST]", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

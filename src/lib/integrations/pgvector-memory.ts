@@ -9,8 +9,7 @@ import { randomUUID } from "crypto";
 import { resolvePrimaryDatabaseUrl } from "@/lib/env";
 
 import { Pool } from "pg";
-import { env } from "@/lib/env";
-import { createGeminiClient } from "@/lib/ai/gemini-client";
+import { fetchGeminiEmbedding, toVectorLiteral } from "@/lib/gemini-embeddings";
 
 let pool: Pool | null | undefined;
 
@@ -23,43 +22,15 @@ function getPool(): Pool | null {
   const primary = resolvePrimaryDatabaseUrl();
   const url =
     process.env.PGVECTOR_DATABASE_URL ||
-    (primary?.startsWith("postgresql") || primary?.startsWith("postgres") ? primary : "");
+    (primary?.startsWith("postgresql") || primary?.startsWith("postgres")
+      ? primary
+      : "");
   if (!url) {
     pool = null;
     return null;
   }
   pool = new Pool({ connectionString: url, max: 3 });
   return pool;
-}
-
-const EMBEDDING_DIMENSIONS = 1536;
-
-async function fetchGeminiEmbedding(
-  text: string,
-  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY",
-): Promise<number[] | null> {
-  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) return null;
-  const input = text.slice(0, 8000);
-  try {
-    const client = createGeminiClient();
-    const res = await client.models.embedContent({
-      model: env.GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
-      contents: input,
-      config: {
-        outputDimensionality: EMBEDDING_DIMENSIONS,
-        taskType,
-      },
-    });
-    const emb = res.embeddings?.[0]?.values;
-    return Array.isArray(emb) ? emb : null;
-  } catch (err) {
-    console.warn("[pgvector-memory] Gemini embedding error:", err);
-    return null;
-  }
-}
-
-function toVectorLiteral(values: number[]): string {
-  return `[${values.join(",")}]`;
 }
 
 export async function storeExpertMemoryChunk(params: {
