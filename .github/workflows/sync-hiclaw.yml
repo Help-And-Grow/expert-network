@@ -6,6 +6,10 @@ on:
     # Weekly Monday 00:00 UTC — sync upstream alibaba/hiclaw and open a PR if it diverged.
     - cron: "0 0 * * 1"
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   sync-hiclaw:
     runs-on: ubuntu-latest
