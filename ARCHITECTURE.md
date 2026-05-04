@@ -39,7 +39,7 @@
 | **AI** | Expert matching, profile generation, chat, image gen, TTS/ASR | `src/lib/ai/`, `src/lib/chat-engine.ts` |
 | **Onboarding** | Multi-step expert registration wizard | `src/app/api/onboarding/` |
 | **Notifications** | Telegram bot + WeChat template messages | `src/lib/telegram-bot.ts`, `src/lib/wechat-notify.ts` |
-| **Memory** | Per-expert persistent context via mem9 | `src/lib/integrations/mem9.ts` |
+| **Memory** | Per-expert persistent context via mem9 hosted `v1alpha2`; optional pgvector mirror | `src/lib/integrations/mem9.ts`, `src/lib/integrations/pgvector-memory.ts` |
 
 ## Layer Architecture
 
@@ -165,7 +165,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 Stripe uses Connected Accounts (Express) for marketplace payouts with configurable platform fee.
 
-## Memory Architecture (mem9)
+## Memory Architecture (mem9 + pgvector)
 
 Each expert gets a persistent cloud memory space via [mem9.ai](https://mem9.ai) that enriches AI interactions with accumulated context—foundational for the **service as agent** vision (a digital expert that keeps learning from the human expert and the platform).
 
@@ -181,14 +181,16 @@ AI chat          → searchExpertMemories() → context-aware responses
 ```
 
 **Key files:**
-- `src/lib/integrations/mem9.ts` — Low-level API client (create space, store, search, get, update)
+- `src/lib/integrations/mem9.ts` — Low-level hosted API client. Provisions per-expert keys through `POST /v1alpha1/mem9s`; daily memory operations use `/v1alpha2/mem9s/...` with `X-API-Key` and `X-Mnemo-Agent-Id`.
 - `src/lib/integrations/mem9-lifecycle.ts` — Fire-and-forget helpers for business events
-- `Expert.mem9SpaceId` — Prisma field linking expert to their memory space
+- `src/lib/integrations/pgvector-memory.ts` — Optional local/Postgres mirror for memory search and backfill
+- `Expert.mem9SpaceId` — Prisma field storing the expert's mem9 hosted API key / memory space key
 
 **Design principles:**
 - All mem9 calls are fire-and-forget (`.catch(() => {})`) — never block primary flows
 - Memory accumulates over time: profile seed → meetups → appreciations → richer AI matching
 - Search results are injected as additional context into AI provider prompts
+- Postgres remains source of truth; pgvector handles current semantic pre-rank, with Zilliz as a future vector-index provider boundary
 
 ## WeChat Mini Program
 

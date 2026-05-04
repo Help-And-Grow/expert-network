@@ -183,6 +183,17 @@ const envSchema = z
 
     HICLAW_POSTGRES_URL: z.string().url().optional(),
 
+    /** Enable hosted mem9 expert memory. Set "1" for per-expert key provisioning. */
+    MEM9_ENABLED: z.string().optional(),
+    /** Compatibility toggle for older deployments; runtime calls use per-expert keys in Expert.mem9SpaceId. */
+    MEM9_API_KEY: z.string().optional(),
+    /** Backward-compatible alias used as a compatibility toggle; not a production shared-space default. */
+    MEM9_SPACE_ID: z.string().optional(),
+    /** Hosted mem9 API origin. Defaults to https://api.mem9.ai. */
+    MEM9_API_BASE: z.string().url().optional(),
+    /** Agent attribution sent as X-Mnemo-Agent-Id to hosted mem9. */
+    MEM9_AGENT_ID: z.string().optional(),
+
     WECHAT_PAY_MCH_ID: z.string().optional(),
     WECHAT_PAY_API_V3_KEY: z.string().optional(),
     WECHAT_PAY_CERT_SERIAL_NO: z.string().optional(),

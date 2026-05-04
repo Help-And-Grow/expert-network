@@ -25,6 +25,14 @@ function readConfiguredKey(value?: string | null): string | null {
 const dashscopeKey = readConfiguredKey(env.DASHSCOPE_API_KEY);
 const byteplusKey = readConfiguredKey(env.BYTEPLUS_API_KEY);
 const volcengineKey = readConfiguredKey(env.VOLCENGINE_API_KEY);
+const memoryBackend = (process.env.MEMORY_BACKEND || "").trim().toLowerCase();
+const mem9Enabled = Boolean(
+  readConfiguredKey(env.MEM9_ENABLED) ||
+    readConfiguredKey(env.MEM9_API_KEY) ||
+    readConfiguredKey(env.MEM9_SPACE_ID) ||
+    memoryBackend === "mem9" ||
+    memoryBackend === "hybrid",
+);
 
 function getDashscopeKeyIssue(): string | null {
   if (dashscopeKey && byteplusKey && dashscopeKey === byteplusKey) {
@@ -80,7 +88,7 @@ export const integrations = {
     provider: voiceSynthesisProvider,
   },
   memory: {
-    enabled: !!process.env.MEM9_SPACE_ID || !!process.env.MEM9_ENABLED,
+    enabled: mem9Enabled,
     provider: "mem9" as const,
   },
   meetingRecording: {

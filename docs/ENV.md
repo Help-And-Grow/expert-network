@@ -93,6 +93,12 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 | `USE_PGVECTOR_MEMORY` | Mirror expert memories to Postgres pgvector — requires `GEMINI_API_KEY` (or Vertex `GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`) for `gemini-embedding-001`. Pinned to 1536 dims to match `vector(1536)`. |
 | `PGVECTOR_DATABASE_URL` | Override DB for pgvector (defaults to `DATABASE_URL`) |
 | `EXPERT_SEARCH_VECTOR_PRERANK` | Optional env fallback for semantic expert matching. Prefer the `EXPERT_SEARCH_VECTOR_PRERANK` SystemConfig toggle in `/admin/system-config`; default is `false` until `/api/admin/embeddings/backfill` reaches high coverage. |
+| `MEM9_ENABLED` | Set `1` to enable hosted mem9 lifecycle writes with per-expert key provisioning. |
+| `MEM9_API_BASE` | Hosted mem9 API origin; defaults to `https://api.mem9.ai`. |
+| `MEM9_AGENT_ID` | Agent attribution sent as `X-Mnemo-Agent-Id`; defaults to `help-grow-platform`. |
+| `MEM9_API_KEY`, `MEM9_SPACE_ID` | Compatibility toggles for older environments. Production expert memory uses per-expert keys stored in `Expert.mem9SpaceId`, not a shared global space. |
+
+mem9 runtime calls use hosted `v1alpha2` (`/v1alpha2/mem9s/...`) with the expert key sent as `X-API-Key`. New expert keys are still provisioned through `POST /v1alpha1/mem9s`, then stored on the `Expert` row.
 
 ## Voice chat
 

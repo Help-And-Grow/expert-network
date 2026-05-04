@@ -70,7 +70,14 @@ export interface MemoryEntry {
   content: string;
   tags?: string[];
   source?: string;
+  metadata?: Record<string, unknown>;
+  agentId?: string;
+  sessionId?: string;
+  memoryType?: "insight" | "pinned" | "session" | string;
+  state?: string;
+  version?: number;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ImportMeta {

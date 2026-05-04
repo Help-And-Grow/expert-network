@@ -9,6 +9,7 @@ Design docs capture significant architectural and product decisions. Each doc in
 | [Architecture](architecture.md) | Accepted | 2026-04 | Tri-cloud (GCP + Vercel + Tencent), AI stack with **Gemini-default** routing, storage abstraction, multi-platform auth |
 | [Product Features](product-features.md) | Accepted (mixed phases) | 2026-04 | Payments (Stripe/TON/WeChat Pay), Premium Live Consultation (TRTC), Telegram profile sharing (self + friend-to-friend), pluggable expert avatar control plane |
 | [Agent System (HiClaw)](agent-system.md) | Accepted (phased) | 2026-04 | Generator/evaluator harness, context resets + handoff artifacts, sprint contracts, Postgres-only store |
+| [Agent Memory and Search Stack](agent-memory-search-stack.md) | Accepted (phased) | 2026-05 | Lego-block architecture for Postgres, pgvector, mem9 v1alpha2, future Zilliz vector indexing, and DB9 agent workspaces |
 | [Operations](operations.md) | Accepted (living) | 2026-04 | Engineering principles, mem9/Postgres data layer, background-job choices, Vercel defaults, dependency posture, live tech-debt punch list |
 
 Open task tracker (PM-facing): [`../exec-plans/active/tech-stack-improvements-tasks.md`](../exec-plans/active/tech-stack-improvements-tasks.md).
