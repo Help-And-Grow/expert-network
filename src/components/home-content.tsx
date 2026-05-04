@@ -13,6 +13,9 @@ import {
   MessageSquare,
   CheckCircle,
   Loader2,
+  Linkedin,
+  Link as LinkIcon,
+  Newspaper,
 } from "lucide-react";
 
 import { useTelegram } from "@/components/telegram-provider";
@@ -269,12 +272,46 @@ export function HomeContent() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-white/5 bg-transparent px-6 py-8">
-        <p className="text-center text-sm text-slate-400">
-          <span className="font-semibold text-slate-200">
-            Help &amp; Grow
-          </span>{" "}
-          — Expert Network · Singapore &amp; Southeast Asia
-        </p>
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-center text-sm text-slate-400">
+            <span className="font-semibold text-slate-200">
+              Help &amp; Grow
+            </span>{" "}
+            — Expert Network · Singapore &amp; Southeast Asia
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <a
+              href="https://www.linkedin.com/company/help-and-grow"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-sky-400/40 hover:bg-sky-400/10 hover:text-white"
+              aria-label="Help & Grow on LinkedIn"
+            >
+              <Linkedin className="h-4 w-4" />
+              LinkedIn
+            </a>
+            <a
+              href="https://aiagentos.substack.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-amber-400/40 hover:bg-amber-400/10 hover:text-white"
+              aria-label="Help & Grow on Substack"
+            >
+              <Newspaper className="h-4 w-4" />
+              Substack
+            </a>
+            <a
+              href="https://linktr.ee/HelpAndGrow"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+              aria-label="Help & Grow on Linktree"
+            >
+              <LinkIcon className="h-4 w-4" />
+              Linktree
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );
