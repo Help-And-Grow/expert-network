@@ -50,12 +50,21 @@ test.describe("Recent features — public health surface", () => {
 });
 
 test.describe("Recent features — auth contracts on new routes", () => {
-  test("POST /api/trtc/token requires session (401)", async ({ request }) => {
+  test("POST /api/trtc/token never issues a token to anonymous callers", async ({ request }) => {
     const res = await request.post("/api/trtc/token", {
       data: { bookingId: "00000000-0000-0000-0000-000000000001" },
       headers: { "Content-Type": "application/json" },
     });
-    expect(res.status(), "TRTC token endpoint must reject anonymous calls").toBe(401);
+    // The route checks `isTrtcConfigured()` BEFORE `resolveUserId`. So:
+    //  - Against canonical production (TRTC env vars set) → 401 (auth rejected).
+    //  - Against the ephemeral ui-smoke env (no TRTC env vars) → 503 (config gate).
+    // Both outcomes prove no TRTC user signature leaks to anonymous traffic.
+    expect([401, 503]).toContain(res.status());
+
+    // Whatever the failure mode, the body must NOT contain a TRTC user signature.
+    const body = await res.json().catch(() => ({}));
+    expect(body).not.toHaveProperty("userSig");
+    expect(body).not.toHaveProperty("sdkAppId");
   });
 
   test("POST /api/admin/pgvector-backfill requires admin (401/403)", async ({ request }) => {
