@@ -43,13 +43,16 @@ See `docs/` for full details:
 | Document | Location | What it covers |
 |----------|----------|----------------|
 | Architecture | [ARCHITECTURE.md](ARCHITECTURE.md) | Domains, layers, dependency rules |
+| API reference | [docs/API.md](docs/API.md) | Full endpoint matrix (methods, auth, purpose) |
+| Env vars | [docs/ENV.md](docs/ENV.md) | Grouped reference for every env var |
+| Runbook | [docs/RUNBOOK.md](docs/RUNBOOK.md) | Local dev, build pipeline, Vercel deploy, CI workflows, troubleshooting |
 | Design system | [docs/DESIGN.md](docs/DESIGN.md) | UI conventions, component patterns |
 | Frontend | [docs/FRONTEND.md](docs/FRONTEND.md) | Page structure, routing, state |
 | Plans | [docs/PLANS.md](docs/PLANS.md) | Current roadmap and priorities |
 | Brand | [docs/BRAND.md](docs/BRAND.md) | Name, positioning, vision, voice |
 | Product sense | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) | User personas, product principles |
 | Quality | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md) | Per-domain quality grades |
-| Reliability | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Error handling, SLOs, monitoring |
+| Reliability | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Error handling, SLOs, monitoring, health checks, auto-baseline |
 | Security | [docs/SECURITY.md](docs/SECURITY.md) | Auth, data handling, secrets; [Vercel env / rotation](docs/references/vercel-env-and-secret-rotation.md) |
 | Design docs | [docs/design-docs/](docs/design-docs/) | Indexed design decisions |
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |

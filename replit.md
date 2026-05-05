@@ -4,14 +4,15 @@ An AI-native expert network platform for Singapore & Southeast Asia. Users can b
 
 ## Architecture
 
-- **Framework**: Next.js 15 (App Router)
-- **Database ORM**: Prisma with PostgreSQL only
-- **Auth**: NextAuth v4 with Prisma adapter
-- **AI**: Gemini, Qwen/DashScope, OpenAI, Dedalus, or Z.ai via `AI_PROVIDER`
-- **Blockchain**: Base chain + EAS attestations (POMP reputation)
-- **Payments**: Stripe
-- **Messaging**: Telegram, WeChat mini-program
-- **Email**: Nodemailer / Resend
+- **Framework**: Next.js 15 (App Router) + React 18 + TypeScript 5
+- **Database ORM**: Prisma 7 with `@prisma/adapter-pg` — PostgreSQL only
+- **Auth**: Auth.js v5 (`next-auth ^5.0.0-beta.30`) with Prisma adapter; unified multi-platform resolver in `src/lib/request-auth.ts`
+- **AI**: Pluggable via `AI_PROVIDER` (default `qwen`) — DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex), Dedalus, BytePlus, Volcengine, Ollama
+- **Blockchain**: Base chain + EAS attestations (POMP reputation), `HelpGrowToken` ERC-20
+- **Payments**: Stripe Connect, PayNow (SG), TON, WeChat Pay, free flow
+- **Messaging**: Telegram Mini App, WeChat Mini Program (Taro)
+- **Email**: Nodemailer (magic link) / Resend (notifications)
+- **Voice**: DashScope/Qwen for async + realtime voice chat (`VOICE_CHAT_MODE`)
 
 ## Project Structure
 
