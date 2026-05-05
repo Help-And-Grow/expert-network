@@ -1,7 +1,7 @@
 import { env } from "@/lib/env";
 
 const APP_URL =
-  env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+  env.NEXTAUTH_URL || "https://www.help-and-grow.com";
 
 async function callBotApi(method: string, body: Record<string, unknown>) {
   const botToken = env.TELEGRAM_BOT_TOKEN;

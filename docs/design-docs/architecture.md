@@ -12,7 +12,7 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 **Decision (2026-05-05):** the rollout has two phases, and the current intl WeChat MP rides Web's stack — not a separate Tencent backend.
 
-1. **Current intl user test (now → ~Sep 2026):** the international WeChat Mini Program (Singapore company, AppID `wx09d0eb079596060d`) talks **directly to Vercel** (`https://expert-network.vercel.app`). It uses the **same** AI chain (Qwen → Gemini), the **same** database, and the **same** storage as Web and Telegram. No Tencent infrastructure on the hot path.
+1. **Current intl user test (now → ~Sep 2026):** the international WeChat Mini Program (Singapore company, AppID `wx09d0eb079596060d`) talks **directly to Vercel** at the canonical domain `https://www.help-and-grow.com` (the underlying `expert-network.vercel.app` deployment alias still resolves but is not the brand surface). It uses the **same** AI chain (Qwen → Gemini), the **same** database, and the **same** storage as Web and Telegram. No Tencent infrastructure on the hot path.
 2. **Future mainland-CN launch (post-Sep 2026, after the Chinese company opens):** a separate mainland Mini Program with mainland AppID, WeChat Pay merchant, ICP filing, and review path. **Only this stack** uses Tencent CloudBase + SCF Web Function + Hunyuan + Tencent COS.
 
 | Stack | Status | Audience | Compute | Storage | Database | AI |

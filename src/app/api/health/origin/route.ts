@@ -11,7 +11,7 @@ import { getWeChatRegion, isWeChatOriginatedRequest } from "@/lib/request-origin
  *   { "ok":true, "wechat":true, "region":"intl", "via":null, "from":null }
  *
  * From a regular browser hit on Vercel:
- *   $ curl https://expert-network.vercel.app/api/health/origin
+ *   $ curl https://www.help-and-grow.com/api/health/origin
  *   { "ok":true, "wechat":false, "region":null, "via":null, "from":null }
  */
 export async function GET(request: NextRequest) {

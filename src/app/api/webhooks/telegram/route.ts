@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyExpertBooking } from "@/lib/telegram-bot";
 
 const APP_URL =
-  process.env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+  process.env.NEXTAUTH_URL || "https://www.help-and-grow.com";
 
 async function sendMessage(
   botToken: string,

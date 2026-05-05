@@ -31,7 +31,7 @@ export interface ChatResponse {
   experts: ExpertRecommendation[];
 }
 
-const APP_BASE_URL = env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+const APP_BASE_URL = env.NEXTAUTH_URL || "https://www.help-and-grow.com";
 
 type ChatContext = {
   /** Optional incoming request — enables region-aware AI provider routing. */

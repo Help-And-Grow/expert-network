@@ -8,7 +8,7 @@ This doc matches **Help & Grow** (Next.js on Vercel, AI + payments, small team).
 |-------------|----------|--------------------------------|
 | **Development** | `vercel dev` and local pulls | Often same as Preview or trimmed; safe test DB / `sk_test` if you set them here. |
 | **Preview** | Every **PR / branch** deployment (`*.vercel.app`) | May use preview DB, Stripe test keys, feature flags—**not** live money. |
-| **Production** | **Production** domain (e.g. `expert-network.vercel.app`) | Live `DATABASE_URL`, OAuth callbacks, optional `sk_live` when you go live. |
+| **Production** | **Production** domain (canonical: `www.help-and-grow.com`; Vercel alias: `expert-network.vercel.app`) | Live `DATABASE_URL`, OAuth callbacks, optional `sk_live` when you go live. |
 
 **Important:** Variables are **per key**: in the Vercel UI each key can be enabled for Development only, Preview only, Production only, or any combination. So “Preview vs Production” is both **scope** and **which keys exist** in that scope.
 

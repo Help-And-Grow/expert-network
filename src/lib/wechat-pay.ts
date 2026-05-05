@@ -8,7 +8,7 @@ const PRIVATE_KEY = env.WECHAT_PAY_PRIVATE_KEY || "";
 const APP_ID = env.WECHAT_APP_ID || "";
 const NOTIFY_URL =
   env.WECHAT_PAY_NOTIFY_URL ||
-  "https://expert-network.vercel.app/api/webhooks/wechat-pay";
+  "https://www.help-and-grow.com/api/webhooks/wechat-pay";
 
 const PARTNER_MODE = env.WECHAT_PAY_PARTNER_MODE === "true";
 const PLATFORM_MCH_ID = env.WECHAT_PAY_PLATFORM_MCH_ID || MCH_ID;

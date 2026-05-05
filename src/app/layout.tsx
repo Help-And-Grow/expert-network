@@ -20,7 +20,7 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const APP_URL = env.NEXTAUTH_URL || "https://expert-network.vercel.app";
+const APP_URL = env.NEXTAUTH_URL || "https://www.help-and-grow.com";
 const TITLE = "Help & Grow — Expert Network";
 const DESCRIPTION =
   "A network for real expertise across Singapore and Southeast Asia: be both coach and player, schedule meetups, share what you know, and grow together — learn by doing, grow by helping.";

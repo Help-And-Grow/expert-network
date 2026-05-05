@@ -272,7 +272,7 @@ These tables are created by raw SQL through `/api/admin/migrate` (not via Prisma
 
 ```bash
 # Sign in as admin (or use a session cookie), then:
-curl -X POST https://expert-network.vercel.app/api/admin/migrate \
+curl -X POST https://www.help-and-grow.com/api/admin/migrate \
   -H "Cookie: <your-admin-session-cookie>"
 ```
 

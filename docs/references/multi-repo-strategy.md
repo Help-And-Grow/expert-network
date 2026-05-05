@@ -49,7 +49,7 @@ Vercel teams can differ from GitHub orgs. The **team switcher** in the dashboard
 
 | Project | Production URL | Example dashboard path |
 |---------|----------------|-------------------------|
-| `expert-network` | https://expert-network.vercel.app | `https://vercel.com/<team-slug>/expert-network` |
+| `expert-network` | https://www.help-and-grow.com (canonical) · `https://expert-network.vercel.app` (deployment alias) | `https://vercel.com/<team-slug>/expert-network` |
 
 Copy **deployment** links from the Deployments list; the id must look like **`dpl_…`**. **Branch/deployment** hostnames embed the owning team, e.g. `…-git-main-helpandgrow.vercel.app` or `…-git-main-jlzxwt8s-projects.vercel.app` — use the suffix shown on **your** deployment card.
 

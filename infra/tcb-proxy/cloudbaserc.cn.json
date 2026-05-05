@@ -17,7 +17,7 @@
               "memorySize": 256,
               "timeout": 30,
               "envVariables": {
-                "ORIGIN_BASE_URL": "https://expert-network.vercel.app",
+                "ORIGIN_BASE_URL": "https://www.help-and-grow.com",
                 "PROXY_REGION": "cn",
                 "PROXY_SHARED_SECRET": ""
               },

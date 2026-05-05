@@ -15,7 +15,7 @@ const TELEGRAM_WALLET: WalletInfoRemote = {
   platforms: ["ios", "android", "macos", "windows", "linux"],
 };
 
-const DEFAULT_MANIFEST_URL = "https://expert-network.vercel.app/api/tonconnect-manifest";
+const DEFAULT_MANIFEST_URL = "https://www.help-and-grow.com/api/tonconnect-manifest";
 const TELEGRAM_TWA_RETURN_URL = process.env.NEXT_PUBLIC_TELEGRAM_TWA_RETURN_URL?.trim() as
   | `${string}://${string}`
   | undefined;

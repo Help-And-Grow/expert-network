@@ -22,7 +22,7 @@ export function getAppOrigin(request?: Request): string {
     }
   }
 
-  return normalizeOrigin(env.NEXTAUTH_URL || "https://expert-network.vercel.app");
+  return normalizeOrigin(env.NEXTAUTH_URL || "https://www.help-and-grow.com");
 }
 
 export function absoluteAppUrl(path: string, request?: Request): string {

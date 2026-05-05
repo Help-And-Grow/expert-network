@@ -5,7 +5,7 @@
   "_comment4": "The CloudBase env id below stays in the file as a paused dev sandbox for the future mainland-CN MP — it is NOT in the runtime API path.",
   "TARO_APP_REGION": "intl",
   "TARO_APP_APPID": "wx09d0eb079596060d",
-  "TARO_APP_API_BASE": "https://expert-network.vercel.app",
+  "TARO_APP_API_BASE": "https://www.help-and-grow.com",
   "TARO_APP_CLOUDBASE_ENV_ID_PAUSED": "cn-wechat-d1gzncs8i34827c98",
   "TARO_APP_CLOUDBASE_TRACE_USER": "false",
   "TARO_APP_DEFAULT_LANG": "en-US",

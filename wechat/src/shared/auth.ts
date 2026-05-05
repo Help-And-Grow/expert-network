@@ -11,7 +11,7 @@ const USER_KEY = "wechat_user";
  * The future mainland-CN MP will set `TARO_APP_API_BASE` to its CloudBase
  * URL at build time and never fall through to this default.
  */
-const DEFAULT_API_BASE = "https://expert-network.vercel.app";
+const DEFAULT_API_BASE = "https://www.help-and-grow.com";
 
 function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

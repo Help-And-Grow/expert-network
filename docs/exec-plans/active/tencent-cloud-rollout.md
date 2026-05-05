@@ -12,7 +12,7 @@
 
 | Topic | Decision |
 |---|---|
-| Current intl WeChat backend | **Vercel** (`https://expert-network.vercel.app`), same as Web + Telegram |
+| Current intl WeChat backend | **Vercel** at canonical `https://www.help-and-grow.com` (alias: `expert-network.vercel.app`), same as Web + Telegram |
 | Current intl WeChat AI | **Qwen → Gemini chain**, same as Web + Telegram (no Hunyuan) |
 | Current intl WeChat database | Supabase Postgres now → Cloud SQL planned (same as Web) |
 | Current intl WeChat storage | Vercel Blob (same as Web) |

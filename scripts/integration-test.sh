@@ -2,7 +2,7 @@
 # Comprehensive API integration test
 # Usage: bash scripts/integration-test.sh [base_url]
 
-BASE="${1:-https://expert-network.vercel.app}"
+BASE="${1:-https://www.help-and-grow.com}"
 PASS=0
 FAIL=0
 WARN=0
