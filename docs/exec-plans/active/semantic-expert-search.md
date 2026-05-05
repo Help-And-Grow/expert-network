@@ -1,6 +1,6 @@
 # Semantic Expert Search — Design Doc + Implementation Plan
 
-**Status**: Implemented behind flag (2026-05-03)
+**Status**: Phase 1–3 done. Phase 4 (production rollout) is operational only — backfill + flag flip + 24 h watch + manual eval. (2026-05-05)
 **Owner**: TBD
 **Scope**: Replace today's full-pool LLM matching with embedding-based pre-ranking + LLM rerank.
 **Predecessors**: PR #29 ("kill keyword-fallback junk for specific topics") — immediate UX fix that this plan builds on.
@@ -316,20 +316,27 @@ The order of `experts` returned by Prisma when filtering on `id IN [...]` is **n
 | 2.3 | Same wiring in `chat-engine.ts` | `src/lib/chat-engine.ts` | ✅ Behind flag |
 | 2.4 | Add `EXPERT_SEARCH_VECTOR_PRERANK` SystemConfig + admin toggle | `/admin/system-config` UI | ✅ Default `false` until backfill completes |
 
-### Phase 3 — Operational hardening (0.5 day)
+### Phase 3 — Operational hardening (0.5 day) — ✅ Done (2026-05-05)
 
 | # | Task | File | Notes |
 |---|---|---|---|
-| 3.1 | Inngest weekly cron `expert-embeddings-refresh-stale` (rows > 30 days old) | `src/inngest/functions/expert-embedding-refresh.ts` | ✅ Catches profile mutations the hooks missed |
-| 3.2 | Admin dashboard widget showing embedding coverage | `/admin/system-config` page | ✅ "412 / 437 published experts have embeddings" |
-| 3.3 | Telemetry: structured log `[match]` with `pre_rank_top10`, `llm_final`, `query`, `rank_source` | Existing `console.log` upgrade | Partial: route logs rank source and candidate count |
+| 3.1 | Inngest weekly cron `expert-embeddings-refresh-stale` (rows > 30 days old) | `src/inngest/functions/expert-embedding-refresh.ts` | ✅ `expertEmbeddingRefreshStaleScheduled`, `cron("0 3 * * 0")`, registered in `/api/inngest/route.ts`, calls `refreshStaleExpertProfileEmbeddings({ olderThanDays: 30, limit: 100 })` |
+| 3.2 | Admin dashboard widget showing embedding coverage | `/admin/system-config` page | ✅ Three badges: enabled/disabled, "N/M searchable", and "K stale" — driven by `getExpertProfileEmbeddingCoverage()`. Backfill button next to them. |
+| 3.3 | Telemetry: structured log `[match]` with `pre_rank_top10`, `llm_final`, `query`, `rank_source` | Existing `console.log` upgrade | ✅ Both `/api/experts/match` and `chat-engine.ts` log `{ source, region, candidates, elapsedMs }` after each match |
 
-### Phase 4 — Enable for production (~1 hour)
+### Phase 4 — Enable for production (~1 hour) — ⬜ Pending operator action
 
-1. Run backfill admin endpoint → confirm 100% embedding coverage on published experts
-2. Set `EXPERT_SEARCH_VECTOR_PRERANK = true` in SystemConfig
-3. Watch p95 latency + LLM cost dashboards for 24 h
-4. Compare match quality on a fixed eval set of ~20 queries (manually graded) before vs. after
+All code is in place. This phase is operational only:
+
+1. **Open `/admin/system-config`** → look at the "Vector pre-rank" card. The "N/M searchable" badge tells you current coverage.
+2. **Click "Backfill Embeddings"** if coverage is below ~95% of published experts. The button calls `POST /api/admin/embeddings/backfill`. Watch for the success toast.
+3. **Flip the toggle** "EXPERT_SEARCH_VECTOR_PRERANK" → on. Hit "Save". 60 s SystemConfig cache TTL kicks in.
+4. **Watch for 24 h** on Vercel logs:
+   - `[match]` and `[chat-engine]` lines with `source: "vector"` confirm the new path is live.
+   - p95 on `/api/experts/match` should drop ≥ 30% (target).
+   - LLM token usage per query should drop ≥ 5× (fewer candidates in the prompt).
+5. **Manual eval** (~30 min): run the same 20 reference queries before/after. Recall on niche queries should be ≥ pre-rollout.
+6. **Rollback** if anything looks wrong: flip the toggle off. Reverts within 60 s. No code change, no redeploy.
 
 ---
 

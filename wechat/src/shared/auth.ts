@@ -3,8 +3,15 @@ import type { AuthUser } from "./types";
 
 const TOKEN_KEY = "wechat_token";
 const USER_KEY = "wechat_user";
-const DEFAULT_API_BASE =
-  "https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com";
+/**
+ * Default API origin when `TARO_APP_API_BASE` is not provided at build time.
+ * Points at Vercel — the intl Mini Program shares Web's stack (no Tencent
+ * infra on the production path, see docs/design-docs/architecture.md §1).
+ *
+ * The future mainland-CN MP will set `TARO_APP_API_BASE` to its CloudBase
+ * URL at build time and never fall through to this default.
+ */
+const DEFAULT_API_BASE = "https://expert-network.vercel.app";
 
 function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

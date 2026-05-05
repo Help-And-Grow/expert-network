@@ -2,8 +2,8 @@ import Taro from "@tarojs/taro";
 
 import type { MatchRecommendation } from "./types";
 
-/** Must match `DISCOVER_MATCH_STORAGE_KEY` in `src/lib/discover-match-storage.ts` (Next.js web). */
-export const DISCOVER_MATCH_STORAGE_KEY = "hg-discover-match-chat-v1";
+/** Must match `DISCOVER_MATCH_STORAGE_KEY` in `src/lib/discover-match-storage.ts` (Next.js web). v2 bump clears legacy stale-error rows. */
+export const DISCOVER_MATCH_STORAGE_KEY = "hg-discover-match-chat-v2";
 
 export type DiscoverMatchChatMessage = {
   role: "user" | "assistant";

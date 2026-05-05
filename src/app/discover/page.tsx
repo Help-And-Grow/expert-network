@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -105,46 +105,82 @@ function DiscoverContent() {
     }
   }, [sessionStatus, isTelegram, tgReady, router]);
 
+  const runMatch = useCallback(
+    async (query: string) => {
+      const q = query.trim();
+      if (!q || chatLoading) return;
+
+      const withUser: DiscoverMatchChatMessage[] = [
+        ...chatMessages,
+        { role: "user", content: q },
+      ];
+      setChatMessages(withUser);
+      setChatLoading(true);
+
+      const history = discoverMatchMessagesToApiHistory(withUser);
+
+      try {
+        const res = await fetch("/api/experts/match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q, history }),
+        });
+        if (!res.ok) throw new Error("Match failed");
+        const data: MatchResponse = await res.json();
+
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            recommendations: data.recommendations,
+            noMatchMessage: data.noMatchMessage,
+          },
+        ]);
+      } catch {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            // `transientError: true` keeps this row out of sessionStorage so a
+            // refresh after a network blip doesn't replay an orphan error.
+            transientError: true,
+            noMatchMessage:
+              "Sorry, that didn't go through. Tap Retry or rephrase your question.",
+          },
+        ]);
+      } finally {
+        setChatLoading(false);
+      }
+    },
+    [chatLoading, chatMessages],
+  );
+
   const sendMatchQuery = async () => {
     const q = chatInput.trim();
     if (!q || chatLoading) return;
-
     setChatInput("");
-    const withUser: DiscoverMatchChatMessage[] = [...chatMessages, { role: "user", content: q }];
-    setChatMessages(withUser);
-    setChatLoading(true);
-
-    const history = discoverMatchMessagesToApiHistory(withUser);
-
-    try {
-      const res = await fetch("/api/experts/match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, history }),
-      });
-      if (!res.ok) throw new Error("Match failed");
-      const data: MatchResponse = await res.json();
-
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          recommendations: data.recommendations,
-          noMatchMessage: data.noMatchMessage,
-        },
-      ]);
-    } catch {
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          noMatchMessage: "Sorry, something went wrong. Please try again.",
-        },
-      ]);
-    } finally {
-      setChatLoading(false);
-    }
+    await runMatch(q);
   };
+
+  /**
+   * Re-runs the user's previous prompt after dropping the failed reply (and
+   * the prompt itself, since `runMatch` re-appends it). Wired to the Retry
+   * button on transient-error bubbles.
+   */
+  const retryLastQuery = useCallback(() => {
+    const lastAssistantIdx = (() => {
+      for (let i = chatMessages.length - 1; i >= 0; i--) {
+        if (chatMessages[i].role === "assistant") return i;
+      }
+      return -1;
+    })();
+    if (lastAssistantIdx < 1) return;
+    const userMsg = chatMessages[lastAssistantIdx - 1];
+    if (userMsg.role !== "user" || !userMsg.content) return;
+    const trimmed = chatMessages.slice(0, lastAssistantIdx - 1);
+    setChatMessages(trimmed);
+    void runMatch(userMsg.content);
+  }, [chatMessages, runMatch]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -211,7 +247,19 @@ function DiscoverContent() {
                       ))
                     ) : m.noMatchMessage ? (
                       <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground">
-                        {m.noMatchMessage}
+                        <p>{m.noMatchMessage}</p>
+                        {m.transientError && i === chatMessages.length - 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-3"
+                            onClick={retryLastQuery}
+                            disabled={chatLoading}
+                          >
+                            Retry
+                          </Button>
+                        )}
                       </div>
                     ) : null}
                   </div>
