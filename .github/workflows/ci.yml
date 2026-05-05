@@ -1,5 +1,9 @@
-# Lint + Playwright e2e against production URL. No Vercel secrets in GitHub.
-# Solo-PM friendly: one place to see PR health before merge.
+# Lint + Playwright e2e against the canonical production URL. No Vercel
+# secrets in GitHub. Solo-PM friendly: one place to see PR health before merge.
+#
+# `npm run test:e2e:ci` globs e2e/smoke (incl. recent-features.spec.ts),
+# e2e/booking, and e2e/auth/signin-page.spec.ts. New smoke specs added under
+# e2e/smoke/ are auto-included on next push.
 name: CI
 
 on:
@@ -42,7 +46,9 @@ jobs:
         run: npm run test:e2e:install
       - name: Playwright (smoke paths)
         env:
-          PLAYWRIGHT_BASE_URL: https://expert-network.vercel.app
+          # Canonical production URL. The expert-network.vercel.app alias still
+          # resolves to the same deployment but is no longer authoritative.
+          PLAYWRIGHT_BASE_URL: https://www.help-and-grow.com
         run: npm run test:e2e:ci
       - name: Upload Playwright report
         if: failure()
