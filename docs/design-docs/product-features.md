@@ -49,10 +49,25 @@ Paid 1:1 live consultations on **Tencent Cloud TRTC**. Phased rollout intentiona
 ### Decisions
 
 1. **Booking-scoped rooms** — one TRTC room per `Booking`, never ad hoc.
-2. **Credit-gated access** — `POST /api/trtc/token` refuses to mint a `UserSig` unless the booking is flagged premium-live AND a booking-scoped `TokenLedger` debit succeeded.
+2. **Per-surface entitlement model** (see §2a below) — `POST /api/trtc/token` refuses to mint a `UserSig` unless the booking is flagged premium-live AND the caller's surface-specific entitlement check passes.
 3. **Server-side signing only** — `UserSig` minted in `src/lib/trtc.ts`; no Tencent secret on any client.
 4. **Reuse existing ledger** — debits go to `TokenLedger`, tied to `bookingId`. We did not add a `Transaction` model.
 5. **One contract, two clients** — Web uses `trtc-sdk-v5`, WeChat uses native `<live-pusher>` / `<live-player>` with the TRTC `room://` URL scheme. Same backend.
+
+### 2a. Entitlement model: tokens vs membership
+
+The pricing/access rail is **branched on origin** because the two audiences have different billing surfaces:
+
+| Surface | Entitlement | How access is granted | Where this is enforced |
+|---|---|---|---|
+| **Web / Telegram** | `tokens` | One-time **`TRTC_PREMIUM_LIVE_TOKENS` H&G token** debit per booking via `TokenLedger` (type `PREMIUM_LIVE_DEBIT`). Token balance topped up via in-app purchase / earned via paid meetups. | `ensurePremiumLiveDebit()` in `/api/trtc/token` |
+| **WeChat MP (current Intl + future Mainland CN)** | `membership` | Active row in the `Membership` table. Subscription billed via WeChat Pay (when mainland-CN MP launches) or kept manual for the international user-test. | `hasActiveMembership()` from `src/lib/membership` |
+
+Both gates run **after** the booking has been validated as premium-live, the participant is verified as founder/expert, and the time window is open. So if the user is a participant of a premium-live booking and inside the room window, the only remaining check is "do you have the right entitlement for your surface."
+
+The public read-only endpoint `GET /api/trtc/config` returns `entitlement: "membership" | "tokens"` based on the requesting surface, so the booking page can render the correct CTA copy ("Costs N H&G tokens" vs. "Active membership required") without an authenticated round-trip.
+
+**Why split, not unify.** Mainland-CN users can't easily top up an in-app token balance — WeChat Pay pushes toward subscription products with renewals/cancellations as a first-class concept. Web/Telegram users hit Stripe / TON which already supports one-shot charges and aligns naturally with per-booking token debits. Unifying the rails would force one audience into a billing UX their platform doesn't natively support.
 
 ### Phase status
 
