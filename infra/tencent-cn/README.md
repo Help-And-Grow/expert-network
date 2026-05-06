@@ -9,7 +9,7 @@ The directory/script names still say `tencent-cn` / `cn:*` because this was the 
 - Current CloudBase env: `cn-wechat-d1gzncs8i34827c98`.
 - Current backend URL: `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com`.
 - AI provider on this backend: Tencent Hunyuan.
-- Database posture: Tencent-side DB synchronized from Supabase today; future source may be Google Cloud DB.
+- Database posture: Tencent-side DB will be synchronized from the global primary (Cloud SQL for PostgreSQL in `asia-southeast1`).
 
 The mainland China mini program is a later phase after the Chinese company and mainland AppID exist.
 

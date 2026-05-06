@@ -152,9 +152,6 @@ const envSchema = z
 
     TELEGRAM_BOT_TOKEN: z.string().optional(),
 
-    NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
-
     BASE_RPC_URL: z.string().url().optional(),
     POMP_ISSUER_PRIVATE_KEY: z.string().optional(),
     POMP_EAS_SCHEMA_UID: z.string().optional(),
