@@ -62,7 +62,7 @@ const MIGRATIONS = [
   )`,
   `CREATE INDEX IF NOT EXISTS "TokenLedger_userId_idx" ON "TokenLedger"("userId")`,
   `CREATE INDEX IF NOT EXISTS "TokenLedger_bookingId_idx" ON "TokenLedger"("bookingId")`,
-  // Postgres / Supabase only
+  // PostgreSQL only (pgvector — pre-installed by setup on Cloud SQL)
   `CREATE EXTENSION IF NOT EXISTS vector`,
   `CREATE TABLE IF NOT EXISTS expert_memory_embeddings (
     id TEXT NOT NULL PRIMARY KEY,

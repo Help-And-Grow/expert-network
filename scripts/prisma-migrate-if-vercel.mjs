@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Run `prisma migrate deploy` on Vercel production/preview builds so new Postgres
- * (e.g. Marketplace Supabase) gets tables before `next build` bundles the app.
- * Skips when not on Vercel or when no database URL is present (e.g. misconfigured env).
+ * Run `prisma migrate deploy` on Vercel production/preview builds so a new
+ * Postgres database gets its tables before `next build` bundles the app.
+ * Skips when not on Vercel or when no database URL is present.
  *
- * Vercel Marketplace Supabase can transiently reject pooler connections during
- * install with errors such as "Circuit breaker open: Failed to retrieve database
- * credentials". That should not fail `npm install` after the database has already
- * been migrated; retry briefly, then let the build continue with a loud warning.
+ * Managed Postgres providers can transiently reject connections during
+ * install with errors such as "Circuit breaker open" or short-lived TLS
+ * handshake failures. That should not fail `npm install` after the database
+ * has already been migrated; retry briefly, then let the build continue
+ * with a loud warning.
  */
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -16,13 +17,7 @@ import path from "node:path";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function hasDbUrl() {
-  return Boolean(
-    process.env.DIRECT_URL ||
-      process.env.POSTGRES_URL_NON_POOLING ||
-      process.env.DATABASE_URL ||
-      process.env.POSTGRES_PRISMA_URL ||
-      process.env.POSTGRES_URL,
-  );
+  return Boolean(process.env.DIRECT_URL || process.env.DATABASE_URL);
 }
 
 if (process.env.VERCEL !== "1") {
@@ -31,7 +26,7 @@ if (process.env.VERCEL !== "1") {
 
 if (!hasDbUrl()) {
   console.warn(
-    "[prisma-migrate-if-vercel] VERCEL=1 but no DATABASE_URL / POSTGRES_* — skipping migrate deploy (ensure Supabase integration vars are enabled for Build)",
+    "[prisma-migrate-if-vercel] VERCEL=1 but no DATABASE_URL / DIRECT_URL — skipping migrate deploy (configure DATABASE_URL on Vercel and redeploy).",
   );
   process.exit(0);
 }

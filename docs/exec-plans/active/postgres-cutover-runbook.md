@@ -2,11 +2,13 @@
 
 The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma and for HiClaw session / on-chain sync tables. MySQL `DATABASE_URL` values are rejected at startup.
 
+> **Production runs on Cloud SQL** (`asia-southeast1`) since 2026-05-03. See [supabase-to-cloudsql-migration.md](supabase-to-cloudsql-migration.md) for the migration record and [cloud-sql-data-viewing.md](../../references/cloud-sql-data-viewing.md) for everyday DB-access patterns.
+
 ## Environment variables
 
 ### Core app (Prisma)
 
-- **`DATABASE_URL`** — must be `postgres://` or `postgresql://` (Supabase, Neon, etc.). On **Vercel Marketplace Supabase**, the integration may only sync **`POSTGRES_PRISMA_URL`**; this app treats that as `DATABASE_URL` when `DATABASE_URL` is unset — see [vercel-supabase-marketplace.md](../../references/vercel-supabase-marketplace.md).
+- **`DATABASE_URL`** — must be `postgres://` or `postgresql://`. For Cloud SQL the URL takes the shape `postgresql://user:pass@HOST:5432/db?sslmode=require&sslaccept=accept_invalid_certs`. The `sslaccept=accept_invalid_certs` is required for Prisma's Rust query engine to accept Cloud SQL's managed CA chain.
 
 ### HiClaw session DB (Next.js: `/api/webhook/onchain`, `/api/reputation/:expertId`, admin “HiClaw DB”)
 

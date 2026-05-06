@@ -142,7 +142,7 @@ export function buildHiClawConnectionProbe(
   }
   if (heuristic.looksLikeJwt) {
     checks.push(
-      "Password looks like a signed token. If authentication fails, rotate the DSN in Supabase or your PostgreSQL provider and update Vercel.",
+      "Password looks like a signed token. If authentication fails, rotate the DSN with your PostgreSQL provider (Cloud SQL: `gcloud sql users set-password ...`) and update Vercel.",
     );
   }
   if (heuristic.hasUnencodedEquals && !heuristic.hasPercentEncoding) {
@@ -156,7 +156,7 @@ export function buildHiClawConnectionProbe(
     );
   }
   if (host && !host.includes("localhost")) {
-    checks.push(`Host is ${host}. Confirm this is the intended Supabase/Postgres instance for HiClaw.`);
+    checks.push(`Host is ${host}. Confirm this is the intended PostgreSQL instance for HiClaw.`);
   }
 
   return {

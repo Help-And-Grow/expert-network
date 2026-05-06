@@ -17,8 +17,8 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 | Stack | Status | Audience | Compute | Storage | Database | AI |
 |---|---|---|---|---|---|---|
-| **Web / Telegram** | Live | Browsers + Telegram users | Vercel Functions in `sin1` | Vercel Blob | Supabase Postgres today → Google Cloud SQL planned | Qwen → Gemini chain |
-| **WeChat — International** | **Current focus** | WeChat users outside mainland CN (HK / TW / SEA / diaspora, Singapore-company app) | **Vercel Functions in `sin1`** (same as Web) | **Vercel Blob** (same as Web) | **Same Postgres as Web** (Supabase → Cloud SQL) | **Qwen → Gemini chain** (same as Web) |
+| **Web / Telegram** | Live | Browsers + Telegram users | Vercel Functions in `sin1` | Vercel Blob | **Cloud SQL for PostgreSQL in `asia-southeast1`** *(migrated from Supabase 2026-05-03 — see [supabase-to-cloudsql-migration.md](../exec-plans/active/supabase-to-cloudsql-migration.md))* | Qwen → Gemini chain |
+| **WeChat — International** | **Current focus** | WeChat users outside mainland CN (HK / TW / SEA / diaspora, Singapore-company app) | **Vercel Functions in `sin1`** (same as Web) | **Vercel Blob** (same as Web) | **Same Cloud SQL as Web** | **Qwen → Gemini chain** (same as Web) |
 | **WeChat — Mainland CN** | Future (post-Sep 2026) | Mainland-CN WeChat users | Tencent CloudBase / SCF Web Function | Tencent COS CN bucket | TencentDB CN | Tencent Hunyuan |
 
 **Two separate WeChat Mini Program apps.** The current international app uses AppID `wx09d0eb079596060d`. The mainland-CN app will use a different AppID after the Chinese company is set up and approved. The `wechat/` Taro source supports both builds, but only `TARO_APP_REGION=intl` is deploy-ready today; `build-config/cn.json` is intentionally blocked with `PENDING_*` values.
@@ -184,7 +184,7 @@ Each stack is the same Next.js codebase deployed with different env vars.
 
 | Env var | Web / Telegram | Current WeChat-Intl SCF | Future WeChat-CN SCF |
 |---|---|---|---|
-| `DATABASE_URL` | Supabase pooler today; future Google Cloud DB candidate | Tencent-side synced Postgres | TencentDB CN |
+| `DATABASE_URL` | Cloud SQL for PostgreSQL (`asia-southeast1`) | Tencent-side synced Postgres | TencentDB CN |
 | `STORAGE_PROVIDER` | `vercel` or configured provider | `tencent-cos` | `tencent-cos` |
 | `TENCENT_COS_BUCKET` | unset unless explicitly enabled | current WeChat COS bucket | future CN COS bucket |
 | `TENCENT_COS_REGION` | unset unless explicitly enabled | currently `ap-shanghai` with existing CloudBase env | future CN region |

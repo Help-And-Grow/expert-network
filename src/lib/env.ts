@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { withSupabasePoolerPrismaParams } from "@/lib/postgres-connection-url";
-
 /**
  * Vercel and dashboards often store "unset" optional vars as "".
  * Zod treats "" as present, so e.g. z.string().url().optional() still fails on "".
@@ -23,31 +21,16 @@ function sanitizedProcessEnv(): Record<string, string | undefined> {
 }
 
 /**
- * Vercel Marketplace Supabase sync often sets POSTGRES_PRISMA_URL and
- * NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY instead of DATABASE_URL / ANON_KEY.
- * Map them so Prisma and optional client code see the names this repo documents.
+ * Prisma and DB helpers read `process.env` directly; this returns DATABASE_URL
+ * after the same trimming + outer-quote stripping that the schema validator
+ * applies, so a value that's empty after trim becomes `undefined`.
+ *
+ * The Vercel Marketplace Supabase alias path was removed when production cut
+ * over to Cloud SQL on 2026-05-03. See
+ * docs/exec-plans/active/supabase-to-cloudsql-migration.md.
  */
-function withVercelSupabaseMarketplaceAliases(
-  env: Record<string, string | undefined>,
-): Record<string, string | undefined> {
-  const next = { ...env };
-  if (!next.DATABASE_URL) {
-    if (next.POSTGRES_PRISMA_URL) {
-      next.DATABASE_URL = next.POSTGRES_PRISMA_URL;
-    } else if (next.POSTGRES_URL) {
-      next.DATABASE_URL = next.POSTGRES_URL;
-    }
-  }
-  if (!next.NEXT_PUBLIC_SUPABASE_ANON_KEY && next.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
-    next.NEXT_PUBLIC_SUPABASE_ANON_KEY = next.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  }
-  return next;
-}
-
-/** Prisma and DB helpers read `process.env` directly; use this for Vercel Supabase Marketplace parity. */
 export function resolvePrimaryDatabaseUrl(): string | undefined {
-  const url = withVercelSupabaseMarketplaceAliases(sanitizedProcessEnv()).DATABASE_URL;
-  return url ? withSupabasePoolerPrismaParams(url) : undefined;
+  return sanitizedProcessEnv().DATABASE_URL;
 }
 
 function postgresConnectionUrl(message: string) {
@@ -287,7 +270,7 @@ function shouldSkipEnvValidation(): boolean {
 if (shouldSkipEnvValidation()) {
   _env = sanitizedProcessEnv() as unknown as z.infer<typeof envSchema>;
 } else {
-  const result = envSchema.safeParse(withVercelSupabaseMarketplaceAliases(sanitizedProcessEnv()));
+  const result = envSchema.safeParse(sanitizedProcessEnv());
   if (!result.success) {
     const fieldErrors = result.error.flatten().fieldErrors;
     const detail = JSON.stringify(fieldErrors);

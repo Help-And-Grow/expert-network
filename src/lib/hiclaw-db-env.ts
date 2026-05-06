@@ -93,7 +93,7 @@ export function resolveHiClawDatabaseUrl(): HiClawDbResolution {
       candidates,
       error: "No HiClaw database URL is configured.",
       hint:
-        "Set HICLAW_POSTGRES_URL to a direct PostgreSQL URL, or let HiClaw reuse DATABASE_URL so the marketplace and HiClaw share the same Supabase Postgres instance.",
+        "Set HICLAW_POSTGRES_URL to a direct PostgreSQL URL, or let HiClaw reuse DATABASE_URL so the app and HiClaw share the same Postgres instance.",
     };
   }
 
@@ -107,7 +107,7 @@ export function resolveHiClawDatabaseUrl(): HiClawDbResolution {
       candidates,
       error: "MySQL URLs are no longer supported — use PostgreSQL for HiClaw.",
       hint:
-        `${winner} points at mysql://. Replace it with a Supabase/Postgres connection string.`,
+        `${winner} points at mysql://. Replace it with a PostgreSQL connection string.`,
     };
   }
 

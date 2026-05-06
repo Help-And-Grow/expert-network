@@ -14,7 +14,7 @@ function createPrismaAdapter() {
 
   if (url.startsWith("mysql://")) {
     throw new Error(
-      "[prisma] DATABASE_URL is MySQL — no longer supported. Use PostgreSQL (Supabase recommended). See docs/exec-plans/active/postgres-cutover-runbook.md",
+      "[prisma] DATABASE_URL is MySQL — no longer supported. Use PostgreSQL (Cloud SQL is the production target — see docs/exec-plans/active/supabase-to-cloudsql-migration.md).",
     );
   }
 

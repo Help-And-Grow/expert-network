@@ -199,7 +199,7 @@ export default function AdminTidbPage() {
             <code className="mx-1 rounded bg-slate-100 px-1">HICLAW_POSTGRES_URL</code>
             first and otherwise falls back to
             <code className="mx-1 rounded bg-slate-100 px-1">DATABASE_URL</code>
-            so the marketplace and HiClaw can share the same Supabase Postgres instance.
+            so the app and HiClaw can share the same Postgres instance.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -236,7 +236,7 @@ export default function AdminTidbPage() {
               <p className="mt-1 text-xs leading-relaxed">
                 The winning PostgreSQL URL is missing the
                 <code className="mx-1 rounded bg-red-100 px-1">:password@</code>
-                segment. Save a full DSN from Supabase or your Postgres provider, then redeploy.
+                segment. Save a full DSN from your Postgres provider, then redeploy.
               </p>
             </div>
           )}
