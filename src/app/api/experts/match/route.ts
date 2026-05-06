@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // LLM + mem9 pipeline can take 15-20 s
+
 import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
 import {

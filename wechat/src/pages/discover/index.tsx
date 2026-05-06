@@ -21,6 +21,13 @@ const QUICK_TAGS = [
   { label: "融资策略", prompt: "我需要融资策略与投资人沟通建议" },
 ] as const;
 
+/**
+ * Maximum number of chat messages sent as conversation history.
+ * Capping at 6 (3 turns) keeps the payload small, lets the server
+ * hit the vector fast-path, and prevents Vercel function timeouts.
+ */
+const MAX_HISTORY_MESSAGES = 6;
+
 /** Local match-result cache keyed by query to avoid redundant API calls */
 const MATCH_CACHE_KEY = "hg-discover-match-cache-v1";
 const MATCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -186,7 +193,10 @@ export default function DiscoverPage() {
       return;
     }
 
-    const history = discoverMatchMessagesToApiHistory(withUser);
+    // Limit history to the last MAX_HISTORY_MESSAGES to keep payload small and
+    // allow the server vector fast-path, avoiding Vercel function timeouts.
+    const trimmedMessages = chatMessages.slice(-MAX_HISTORY_MESSAGES);
+    const history = discoverMatchMessagesToApiHistory(trimmedMessages);
 
     try {
       const res = await post<MatchResponse>("/api/experts/match", {
