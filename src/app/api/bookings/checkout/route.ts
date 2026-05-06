@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { apiLog } from "@/lib/api-logger";
+import { guestContactSchema, upsertGuestUser } from "@/lib/booking-guest";
 import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { redeemTokens } from "@/lib/hg-token";
 import { prisma } from "@/lib/prisma";
@@ -20,23 +21,18 @@ const checkoutBodySchema = z.object({
   redeemTokenCount: z.coerce.number().int().min(0).optional(),
   /** Opt-in for the in-app TRTC live consultation room. */
   isPremiumLive: z.coerce.boolean().optional(),
+  // Guest checkout fields — only used when there is no Auth.js session
+  // (Web no-login flow). Stripe Checkout's `customer_email` will be pre-filled
+  // with `guestEmail` so the user types it once.
+  guestEmail: z.string().optional(),
+  guestName: z.string().optional(),
+  saveEmail: z.coerce.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const rateLimited = checkRateLimit(request, {
-      namespace: "bookings:checkout",
-      identifier: session.user.id,
-      limit: 12,
-      windowMs: 5 * 60_000,
-    });
-    if (rateLimited) return rateLimited;
 
     const parsed = checkoutBodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
@@ -54,6 +50,43 @@ export async function POST(request: NextRequest) {
       redeemTokenCount,
       isPremiumLive,
     } = body;
+
+    // Resolve booker. Logged-in: use session. Anonymous: require name + email,
+    // upsert User by email. The Stripe Checkout session below pre-fills
+    // `customer_email` from this so the user types their email once.
+    let founderId: string;
+    let stripePrefillEmail: string | undefined;
+    let isGuest = false;
+    if (session?.user?.id) {
+      founderId = session.user.id;
+    } else {
+      const contactParsed = guestContactSchema.safeParse({
+        guestEmail: body.guestEmail,
+        guestName: body.guestName,
+        saveEmail: body.saveEmail,
+      });
+      if (!contactParsed.success) {
+        return NextResponse.json(
+          {
+            error: "Please sign in or provide your name and email to book.",
+            details: contactParsed.error.flatten().fieldErrors,
+          },
+          { status: 400 }
+        );
+      }
+      const guest = await upsertGuestUser(contactParsed.data);
+      founderId = guest.userId;
+      stripePrefillEmail = contactParsed.data.guestEmail;
+      isGuest = true;
+    }
+
+    const rateLimited = checkRateLimit(request, {
+      namespace: "bookings:checkout",
+      identifier: isGuest ? `guest:${founderId}` : founderId,
+      limit: isGuest ? 6 : 12,
+      windowMs: isGuest ? 24 * 60 * 60_000 : 5 * 60_000,
+    });
+    if (rateLimited) return rateLimited;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -73,14 +106,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Expert not found" }, { status: 404 });
     }
 
-    if (expert.userId === session.user.id) {
+    if (expert.userId === founderId) {
       return NextResponse.json({ error: "You cannot book yourself" }, { status: 400 });
     }
 
     const overlap = await findParticipantBookingConflict({
       expertId,
       expertUserId: expert.userId,
-      founderId: session.user.id,
+      founderId: founderId,
       startTime: start,
       endTime: end,
     });
@@ -114,7 +147,7 @@ export async function POST(request: NextRequest) {
     const parsedRedeemTokens = Math.max(0, Math.floor(Number(redeemTokenCount) || 0));
 
     if (parsedRedeemTokens > 0) {
-      const result = await redeemTokens(session.user.id, "", parsedRedeemTokens);
+      const result = await redeemTokens(founderId, "", parsedRedeemTokens);
       tokenDiscountCents = result.discountCents;
       tokensDebited = result.tokensDebited;
     }
@@ -128,7 +161,7 @@ export async function POST(request: NextRequest) {
     const paymentIntentData: Record<string, unknown> = {
       metadata: {
         expertId,
-        founderId: session.user.id,
+        founderId: founderId,
         sessionType,
         startTime: start.toISOString(),
         endTime: end.toISOString(),
@@ -165,6 +198,10 @@ export async function POST(request: NextRequest) {
 
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
+      // Pre-fill the email field so guests don't have to type it twice.
+      // For signed-in users we leave Stripe to use whatever's on the
+      // customer record (or fall back to the user's profile email if any).
+      ...(stripePrefillEmail ? { customer_email: stripePrefillEmail } : {}),
       line_items: [
         {
           price_data: {
@@ -183,14 +220,14 @@ export async function POST(request: NextRequest) {
       metadata: {
         type: "booking_full_payment",
         expertId,
-        founderId: session.user.id,
+        founderId: founderId,
       },
       success_url: `${origin}/bookings/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/experts/${expertId}/book?cancelled=true`,
     });
 
     apiLog("info", "bookings/checkout", "checkout_created", request, {
-      userId: session.user.id,
+      userId: founderId,
       expertId,
       sessionType,
       amountCents: adjustedDueNowCents,

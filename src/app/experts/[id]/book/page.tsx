@@ -21,9 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { UserMenu } from "@/components/user-menu";
+import { useAuth } from "@/hooks/use-auth";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
 import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type SessionType = "ONLINE" | "OFFLINE";
 
@@ -110,6 +113,7 @@ export default function BookSessionPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isTelegram } = useTelegram();
+  const auth = useAuth();
   const expertId = params.id as string;
 
   const [sessionType, setSessionType] = useState<SessionType>("ONLINE");
@@ -120,6 +124,16 @@ export default function BookSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineAddress, setOfflineAddress] = useState("");
+
+  // Guest-checkout fields — only used when there's no signed-in session.
+  // Telegram/WeChat MPs are always "signed in" via platform identity, so these
+  // stay empty for those surfaces. See docs/exec-plans/active/guest-booking.md.
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [saveEmail, setSaveEmail] = useState(true); // default checked: encourages account creation
+  const isGuest = auth.status === "unauthenticated";
+  const guestEmailValid = !isGuest || EMAIL_RE.test(guestEmail.trim());
+  const guestFieldsReady = !isGuest || (guestName.trim().length > 0 && guestEmailValid);
   /**
    * Premium live consultation opt-in. When true, the booking is flagged
    * `isPremiumLive` and the dashboard surfaces a "Join live" entry inside
@@ -329,6 +343,14 @@ export default function BookSessionPage() {
     timezone,
     ...(sessionType === "OFFLINE" && offlineAddress.trim() && { offlineAddress: offlineAddress.trim() }),
     ...(isPremiumLive ? { isPremiumLive: true } : {}),
+    // Guest checkout fields: server ignores these when a session is present.
+    ...(isGuest
+      ? {
+          guestName: guestName.trim(),
+          guestEmail: guestEmail.trim().toLowerCase(),
+          saveEmail,
+        }
+      : {}),
   });
 
   const handleStripeCheckout = async () => {
@@ -514,7 +536,8 @@ export default function BookSessionPage() {
   const canConfirm =
     !!selectedDate &&
     selectedSlots.length > 0 &&
-    !submitting;
+    !submitting &&
+    guestFieldsReady;
 
   return (
     <div className="app-shell mx-auto min-h-screen max-w-lg bg-background">
@@ -829,6 +852,91 @@ export default function BookSessionPage() {
                 This meetup is free and will be confirmed directly.
               </div>
             )}
+          </section>
+        )}
+
+        {isGuest && selectedSlots.length > 0 && (
+          <section
+            aria-labelledby="guest-contact-heading"
+            className="surface-tint space-y-3 rounded-2xl p-5"
+          >
+            <div className="space-y-1">
+              <h3
+                id="guest-contact-heading"
+                className="text-base font-semibold"
+              >
+                Almost done
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll send your meetup link and reminders to your email — no
+                account needed.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label
+                htmlFor="guest-name"
+                className="block text-xs font-medium text-muted-foreground"
+              >
+                Your name
+              </label>
+              <input
+                id="guest-name"
+                type="text"
+                autoComplete="name"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="How should the expert greet you?"
+                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-2">
+              <label
+                htmlFor="guest-email"
+                className="block text-xs font-medium text-muted-foreground"
+              >
+                Your email
+              </label>
+              <input
+                id="guest-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                placeholder="you@example.com"
+                aria-invalid={
+                  guestEmail.length > 0 && !guestEmailValid ? true : undefined
+                }
+                className={cn(
+                  "h-11 w-full rounded-lg border bg-background px-3 text-sm shadow-sm focus:outline-none focus:ring-1",
+                  guestEmail.length > 0 && !guestEmailValid
+                    ? "border-destructive focus:border-destructive focus:ring-destructive"
+                    : "border-input focus:border-primary focus:ring-primary"
+                )}
+              />
+              {guestEmail.length > 0 && !guestEmailValid && (
+                <p className="text-xs text-destructive">
+                  Enter a valid email so we can send your meetup link.
+                </p>
+              )}
+            </div>
+            <label
+              htmlFor="guest-save-email"
+              className="flex items-start gap-2 cursor-pointer pt-1 text-xs text-muted-foreground"
+            >
+              <input
+                id="guest-save-email"
+                type="checkbox"
+                checked={saveEmail}
+                onChange={(e) => setSaveEmail(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-primary"
+              />
+              <span>
+                Save my email so I can manage and rebook from{" "}
+                <span className="font-medium text-foreground">/dashboard</span>{" "}
+                — we&apos;ll send you a free sign-in link after the booking.
+              </span>
+            </label>
           </section>
         )}
 

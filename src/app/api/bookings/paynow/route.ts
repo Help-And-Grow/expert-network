@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
+import { guestContactSchema, upsertGuestUser } from "@/lib/booking-guest";
 import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { generateMeetingLink } from "@/lib/meeting";
 import {
@@ -24,10 +25,7 @@ function generatePayNowReference(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await resolveUserId(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const sessionUserId = await resolveUserId(request);
 
     const payNowConfig = getPayNowConfig();
     if (!payNowConfig) {
@@ -46,6 +44,30 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    // Guest checkout: Web no-login flow. Telegram/WeChat callers always have a
+    // session via initData / openId. See docs/exec-plans/active/guest-booking.md.
+    let userId: string;
+    if (sessionUserId) {
+      userId = sessionUserId;
+    } else {
+      const contactParsed = guestContactSchema.safeParse({
+        guestEmail: body.guestEmail,
+        guestName: body.guestName,
+        saveEmail: body.saveEmail,
+      });
+      if (!contactParsed.success) {
+        return NextResponse.json(
+          {
+            error: "Please sign in or provide your name and email to book.",
+            details: contactParsed.error.flatten().fieldErrors,
+          },
+          { status: 400 }
+        );
+      }
+      const guest = await upsertGuestUser(contactParsed.data);
+      userId = guest.userId;
     }
 
     const start = new Date(startTime);

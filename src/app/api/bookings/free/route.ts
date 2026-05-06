@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { SessionType } from "@/generated/prisma/client";
 import { apiLog } from "@/lib/api-logger";
 import { triggerBookingEmails } from "@/lib/booking-emails";
+import { guestContactSchema, upsertGuestUser } from "@/lib/booking-guest";
 import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
@@ -21,23 +22,18 @@ const freeBookingBodySchema = z.object({
   offlineAddress: z.string().optional().nullable(),
   /** Opt-in for the in-app TRTC live consultation room. */
   isPremiumLive: z.coerce.boolean().optional(),
+  // Guest checkout fields — only used when there is no resolved session
+  // (Web no-login flow). Telegram/WeChat callers ignore these because they
+  // already have platform identity via initData / openId.
+  guestEmail: z.string().optional(),
+  guestName: z.string().optional(),
+  saveEmail: z.coerce.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   try {
-    const userId = await resolveUserId(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const rateLimited = checkRateLimit(request, {
-      namespace: "bookings:free",
-      identifier: userId,
-      limit: 12,
-      windowMs: 5 * 60_000,
-    });
-    if (rateLimited) return rateLimited;
+    const sessionUserId = await resolveUserId(request);
 
     const parsed = freeBookingBodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
@@ -54,6 +50,45 @@ export async function POST(request: NextRequest) {
       offlineAddress,
       isPremiumLive,
     } = body;
+
+    // Resolve the booker. Logged-in callers (Web/TG/WeChat) use their session
+    // user. Anonymous Web callers must provide name + email — we upsert a
+    // User row keyed by email so every existing FK / notification / token
+    // path keeps working unchanged.
+    let userId: string;
+    let isGuest = false;
+    if (sessionUserId) {
+      userId = sessionUserId;
+    } else {
+      const contactParsed = guestContactSchema.safeParse({
+        guestEmail: body.guestEmail,
+        guestName: body.guestName,
+        saveEmail: body.saveEmail,
+      });
+      if (!contactParsed.success) {
+        return NextResponse.json(
+          {
+            error: "Please sign in or provide your name and email to book.",
+            details: contactParsed.error.flatten().fieldErrors,
+          },
+          { status: 400 }
+        );
+      }
+      const guest = await upsertGuestUser(contactParsed.data);
+      userId = guest.userId;
+      isGuest = true;
+    }
+
+    // Per-IP rate limit applies to everyone. Identifier is the userId for
+    // signed-in callers, or email-keyed for guests so a single bad actor
+    // can't churn through experts.
+    const rateLimited = checkRateLimit(request, {
+      namespace: "bookings:free",
+      identifier: isGuest ? `guest:${userId}` : userId,
+      limit: isGuest ? 5 : 12,
+      windowMs: isGuest ? 24 * 60 * 60_000 : 5 * 60_000,
+    });
+    if (rateLimited) return rateLimited;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
