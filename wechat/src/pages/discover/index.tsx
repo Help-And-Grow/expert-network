@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Input } from "@tarojs/components";
 import Taro, { useDidShow, useLoad } from "@tarojs/taro";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { get, post } from "../../shared/api";
+import { post } from "../../shared/api";
 import Icon from "../../components/Icon";
 import {
   type DiscoverMatchChatMessage,
@@ -96,70 +96,7 @@ function normalizeRecommendationSummary(
   return normalizeRecommendationReason(reason);
 }
 
-function useInviteGuard() {
-  const [hasInvite, setHasInvite] = useState<boolean | null>(null);
-
-  function promptInviteCode() {
-    Taro.showModal({
-      title: "需要邀请码",
-      content: "帮助与成长当前为邀请体验制，请输入邀请码继续浏览。",
-      editable: true,
-      placeholderText: "请输入邀请码",
-      confirmText: "提交",
-      cancelText: "返回",
-      success: (res) => {
-        if (res.confirm && res.content) {
-          const code = res.content.trim().toUpperCase();
-          post<{ success?: boolean; error?: string }>("/api/invite/validate", { code })
-            .then((response) => {
-              if (response.statusCode === 200 && response.data?.success) {
-                Taro.setStorageSync("hasInvite", "true");
-                setHasInvite(true);
-                Taro.showToast({ title: "欢迎加入", icon: "success" });
-                return;
-              }
-              Taro.showToast({
-                title: response.data?.error || "邀请码无效",
-                icon: "none",
-              });
-              setTimeout(() => promptInviteCode(), 1500);
-            })
-            .catch(() => {
-              Taro.showToast({ title: "网络异常，请重试", icon: "none" });
-              setTimeout(() => promptInviteCode(), 1500);
-            });
-          return;
-        }
-        // cancelled — stay on page so the button remains accessible
-      },
-    });
-  }
-
-  useEffect(() => {
-    const cached = Taro.getStorageSync("hasInvite");
-    if (cached === "true") {
-      setHasInvite(true);
-      return;
-    }
-
-    get<{ hasInvite: boolean }>("/api/invite/status")
-      .then((res) => {
-        if (res.data?.hasInvite) {
-          Taro.setStorageSync("hasInvite", "true");
-          setHasInvite(true);
-          return;
-        }
-        setHasInvite(false);
-        promptInviteCode();
-      })
-      .catch(() => setHasInvite(true));
-  }, []);
-
-  return { hasInvite, promptInviteCode };
-}
-
 export default function DiscoverPage() {
-  const { hasInvite, promptInviteCode } = useInviteGuard();
   const [matching, setMatching] = useState(false);
   const [draft, setDraft] = useState("");
   const [scrollIntoView, setScrollIntoView] = useState("");
@@ -275,29 +212,6 @@ export default function DiscoverPage() {
     const c = lastUser?.content ?? "";
     return (QUICK_TAGS as readonly { label: string; prompt: string }[]).some((t) => t.prompt === c) ? c : "";
   }, [chatMessages]);
-
-  if (hasInvite === null) {
-    return (
-      <View className="discover discover--loading">
-        <Text className="discover__loading-text">加载中...</Text>
-      </View>
-    );
-  }
-
-  if (hasInvite === false) {
-    return (
-      <View className="discover discover--loading">
-        <Text className="discover__loading-text">需要邀请码</Text>
-        <View
-          className="discover__invite-btn"
-          hoverClass="discover__invite-btn--hover"
-          onClick={promptInviteCode}
-        >
-          <Text className="discover__invite-btn-text">输入邀请码</Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View className="discover discover--chat">
