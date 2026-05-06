@@ -107,7 +107,7 @@ Open [http://localhost:5000](http://localhost:5000). Local sign-in shortcut on `
 
 Production canonical URL: **`https://www.help-and-grow.com`** (the `expert-network.vercel.app` alias still resolves to the same deployment as a fallback). The live Vercel project is owned by the **Help And Grow** team; default Git iteration follows **`jlzxwt8/expert-network`**. Push to `main` triggers Vercel build (`npm run build`), which auto-baselines the migration history when needed.
 
-GitHub Actions workflows: [`.github/workflows/`](.github/workflows/) — `ci.yml`, `deploy-smoke.yml`, `playwright-e2e.yml`, `sync-hiclaw.yml`, `ui-smoke.yml`, `wechat-ci.yml`, `npm-audit.yml`. (Re-enabled in commit `27f2570` after the Action-minute quota window reset.)
+GitHub Actions workflows: [`.github/workflows/`](.github/workflows/) — `ci.yml` (lint + Playwright against canonical production URL), `deploy-smoke.yml`, `playwright-e2e.yml`, `sync-hiclaw.yml`, `wechat-ci.yml`, `npm-audit.yml`. The `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth for browser smoke. (Workflows were re-enabled in commit `27f2570` after the Action-minute quota window reset.)
 
 Vercel + env handling: [`docs/references/vercel-environments-solo-pm.md`](docs/references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](docs/references/vercel-env-and-secret-rotation.md), [`vercel-supabase-marketplace.md`](docs/references/vercel-supabase-marketplace.md).
 

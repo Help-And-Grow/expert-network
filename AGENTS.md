@@ -15,7 +15,7 @@
 - **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be Postgres-shaped (or use Vercel-synced `POSTGRES_PRISMA_URL` — see [vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md))
 - **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
-- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
+- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`) — for **local** development. On CI we run Playwright against the canonical production URL (`https://www.help-and-grow.com`) via the `e2e` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). The dedicated `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth.
 
 ## Repository Layout
 
@@ -115,7 +115,7 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |
 | Premium live consultation | [docs/design-docs/product-features.md §2](docs/design-docs/product-features.md#2-premium-live-consultation-trtc), `src/app/api/trtc/token/route.ts`, `src/lib/trtc.ts`, `prisma/schema.prisma` |
-| Run browser smoke tests | `playwright.config.ts`, `e2e/`, `npm run test:ui`, `.github/workflows/ui-smoke.yml`; production URL smoke: `npm run test:e2e:ci`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| Run browser smoke tests | `playwright.config.ts`, `e2e/`. Local dev: `npm run test:ui` (local Next.js + dev-login). CI: `npm run test:e2e:ci` against `https://www.help-and-grow.com` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — single workflow, single source of truth |
 | E2E docs | [e2e/README.md](e2e/README.md) |
 | Vercel OpenTelemetry / trace drains | `src/instrumentation.ts`, [docs/references/vercel-open-telemetry.md](docs/references/vercel-open-telemetry.md) |
 | Vercel env (dev / preview / prod) | [docs/references/vercel-environments-solo-pm.md](docs/references/vercel-environments-solo-pm.md) |

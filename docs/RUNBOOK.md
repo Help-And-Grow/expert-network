@@ -102,7 +102,7 @@ Workflows were re-enabled in commit `27f2570` after the Action-minute quota wind
 | [`ci.yml`](../.github/workflows/ci.yml) | push / PR to `main` | ESLint + Playwright smoke against production URL |
 | [`deploy-smoke.yml`](../.github/workflows/deploy-smoke.yml) | `deployment_status` success | `curl /api/health`, `/api/trpc/health`, `/api/trpc/expertsPublished` after Vercel deploy |
 | [`playwright-e2e.yml`](../.github/workflows/playwright-e2e.yml) | manual / schedule | Broader Playwright run |
-| [`ui-smoke.yml`](../.github/workflows/ui-smoke.yml) | push / PR | UI smoke with `DEV_AUTH_EMAIL` against local Next.js + ephemeral Postgres (`E2E_DATABASE_URL` repo secret); succeeds-without-running when secret is unset |
+| _(removed 2026-05-06)_ `ui-smoke.yml` | — | Previously bootstrapped local Next.js + ephemeral Postgres for browser smoke. Replaced by `ci.yml`'s `e2e` job which runs the same Playwright smoke against the canonical production URL — single source of truth, no ephemeral CI database to maintain. |
 | [`wechat-ci.yml`](../.github/workflows/wechat-ci.yml) | PR / push | Builds `wechat/` Mini Program; uploads on `main` (needs `WECHAT_CI_PRIVATE_KEY`) |
 | [`sync-hiclaw.yml`](../.github/workflows/sync-hiclaw.yml) | scheduled | Sync HiClaw service deployment |
 | [`npm-audit.yml`](../.github/workflows/npm-audit.yml) | scheduled | npm audit triage |
