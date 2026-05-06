@@ -44,6 +44,38 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         run: npm run test:e2e:install
+      # Wait for the Vercel deployment of this exact commit to reach "success"
+      # before hitting production with Playwright.  Without this guard the e2e
+      # job races the Vercel build (~3 min) and new-page tests return 404 from
+      # the previous deployment.
+      #
+      # Uses only the built-in GITHUB_TOKEN (read-only deployments scope) — no
+      # extra secrets required.  Times out after 5 min and falls through so a
+      # genuine Vercel outage doesn't permanently block CI; the tests will then
+      # surface any real failures naturally.
+      - name: Wait for Vercel deployment of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ github.sha }}"
+          echo "Waiting up to 5 min for Vercel to deploy $SHA…"
+          for i in $(seq 1 30); do
+            STATES=$(
+              gh api "repos/${{ github.repository }}/deployments?sha=$SHA" \
+                --jq '.[].id' 2>/dev/null \
+              | while read -r id; do
+                  gh api "repos/${{ github.repository }}/deployments/$id/statuses" \
+                    --jq 'first | .state' 2>/dev/null
+                done
+            )
+            if echo "$STATES" | grep -qx "success"; then
+              echo "✓ Vercel deployment succeeded (attempt $i/30)"
+              exit 0
+            fi
+            echo "Attempt $i/30 – states: $(echo "$STATES" | tr '\n' ' '); retrying in 10 s…"
+            sleep 10
+          done
+          echo "⚠ Timed out after 5 min — proceeding anyway; tests may surface deployment lag"
       - name: Playwright (smoke paths)
         env:
           # Canonical production URL. The expert-network.vercel.app alias still
