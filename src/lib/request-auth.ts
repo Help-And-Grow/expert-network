@@ -39,6 +39,15 @@ export async function resolveUserId(request?: NextRequest): Promise<string | nul
     } catch (err) {
       console.warn("[resolveUserId] wechat token verification failed:", err instanceof Error ? err.message : err);
     }
+    // The client identified itself as a WeChat user. Whether the token is
+    // valid-but-stale or simply malformed, falling through to the Telegram
+    // / cookie / Auth.js paths is meaningless — those auth methods cannot
+    // succeed for a WeChat client. Returning null immediately also avoids
+    // a ~30-40 s hang we observed in the Auth.js v5 `auth()` fallback when
+    // called with no session cookie inside a WeChat-originated request,
+    // which was killing /api/experts/match with FUNCTION_INVOCATION_TIMEOUT
+    // (504) on every WeChat preset-prompt tap once the token expired.
+    return null;
   }
 
   // 2. Telegram Mini App initData
