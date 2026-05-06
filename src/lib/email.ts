@@ -30,6 +30,13 @@ interface BookingEmailParams {
   meetingLink: string | null;
   offlineAddress: string | null;
   bookingId: string;
+  /**
+   * Optional magic-link URL the founder can use to view/cancel/reschedule the
+   * booking without signing in. When set, the founder's confirmation email
+   * gets a "Manage your booking" CTA below the meeting details. Phase 2 of
+   * guest-booking; see docs/exec-plans/active/guest-booking.md §5.4.
+   */
+  founderManageUrl?: string;
 }
 
 function formatTime(date: Date, tz: string): string {
@@ -74,6 +81,15 @@ function confirmationHtml(p: BookingEmailParams, recipientRole: "expert" | "foun
       <div style="text-align:center;margin:24px 0">
         <a href="${p.meetingLink}" style="display:inline-block;background:#4F46E5;color:#fff;font-weight:600;padding:12px 32px;border-radius:8px;text-decoration:none;font-size:16px">
           Join Meeting
+        </a>
+      </div>` : ""}
+      ${!isExpert && p.founderManageUrl ? `
+      <div style="margin:20px 0;padding:16px;background:#FAFAFA;border:1px solid #E2E8F0;border-radius:8px">
+        <p style="margin:0 0 8px 0;font-size:13px;color:#475569">
+          Need to make a change? Manage this booking — no sign-in needed:
+        </p>
+        <a href="${p.founderManageUrl}" style="display:inline-block;color:#4F46E5;font-weight:600;text-decoration:underline;font-size:13px">
+          Reschedule or cancel →
         </a>
       </div>` : ""}
       <p style="color:#64748B;font-size:13px">You'll receive a reminder 1 hour before the meetup.</p>

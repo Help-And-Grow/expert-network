@@ -2,22 +2,61 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+import { verifyBookingToken } from "@/lib/booking-token";
 import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { notifyCancellation, notifyReschedule, notifyLocationUpdate } from "@/lib/telegram-bot";
 import { notifyWechatBookingCancelled, notifyWechatBookingRescheduled, notifyWechatLocationUpdated } from "@/lib/wechat-notify";
 
+/**
+ * Authorization for booking management — Phase 2 of guest-booking.
+ *
+ * Three valid identities, in priority order:
+ *   1. Session (Auth.js cookie / Telegram initData / WeChat token) → returns
+ *      the userId and the role they play on the booking (founder / expert).
+ *   2. Magic-link token in `?t=...` for THIS booking — grants founder-equivalent
+ *      access (view / cancel / reschedule). Token is bound to the bookingId
+ *      and signed with AUTH_SECRET; see `lib/booking-token.ts`.
+ *   3. Otherwise: not authorized. The caller can render a hint asking the
+ *      guest to use the link in their confirmation email.
+ *
+ * Returns the role for the booking (used by the cancel / reschedule branches
+ * to decide which party to notify). For magic-link callers the role is always
+ * "founder" because that's whose email the link was emailed to.
+ */
+async function authorizeBookingAccess(
+  request: NextRequest,
+  bookingId: string,
+  booking: { founderId: string; expert: { userId: string } },
+): Promise<{ ok: true; userId: string; role: "founder" | "expert" } | { ok: false; status: 401 | 403 }> {
+  const sessionUserId = await resolveUserId(request);
+  if (sessionUserId) {
+    if (sessionUserId === booking.founderId) {
+      return { ok: true, userId: sessionUserId, role: "founder" };
+    }
+    if (sessionUserId === booking.expert.userId) {
+      return { ok: true, userId: sessionUserId, role: "expert" };
+    }
+    return { ok: false, status: 403 };
+  }
+
+  const token = new URL(request.url).searchParams.get("t");
+  if (token) {
+    const verified = verifyBookingToken(token, bookingId);
+    if (verified.ok) {
+      return { ok: true, userId: booking.founderId, role: "founder" };
+    }
+  }
+
+  return { ok: false, status: 401 };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = await resolveUserId(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -31,10 +70,12 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    const isFounder = booking.founderId === userId;
-    const isExpert = booking.expert.userId === userId;
-    if (!isFounder && !isExpert) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await authorizeBookingAccess(request, id, booking);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { error: auth.status === 401 ? "Unauthorized" : "Forbidden" },
+        { status: auth.status }
+      );
     }
 
     return NextResponse.json(booking);
@@ -49,11 +90,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = await resolveUserId(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: "Booking ID is required" }, { status: 400 });
@@ -73,11 +109,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    const isFounder = booking.founderId === userId;
-    const isExpert = booking.expert.userId === userId;
-    if (!isFounder && !isExpert) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await authorizeBookingAccess(request, id, booking);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { error: auth.status === 401 ? "Unauthorized" : "Forbidden" },
+        { status: auth.status }
+      );
     }
+
+    const userId = auth.userId;
+    const isFounder = auth.role === "founder";
 
     const action = typeof body.action === "string" ? body.action : null;
 
@@ -420,25 +461,29 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = await resolveUserId(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { expert: true },
+      include: { expert: { include: { user: true } } },
     });
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    const isFounder = booking.founderId === userId;
-    const isExpert = booking.expert.userId === userId;
-    if (!isFounder && !isExpert) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // DELETE is intentionally narrower than PATCH: only the founder via session
+    // OR a magic-link token can hard-delete a cancelled booking. We pass a
+    // fabricated `founder` that satisfies the helper's shape requirement.
+    const auth = await authorizeBookingAccess(
+      request,
+      id,
+      { founderId: booking.founderId, expert: { userId: booking.expert.userId } },
+    );
+    if (!auth.ok) {
+      return NextResponse.json(
+        { error: auth.status === 401 ? "Unauthorized" : "Forbidden" },
+        { status: auth.status }
+      );
     }
 
     if (booking.status !== "CANCELLED") {
