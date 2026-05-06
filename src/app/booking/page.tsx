@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
+import { GuestMergeBanner } from "@/components/guest-merge-banner";
 import {
   Dialog,
   DialogContent,
@@ -362,6 +363,11 @@ export default function DashboardPage() {
       </header>
 
       <main className="space-y-6 p-4 pb-12">
+        {/* One-time merge notice — first visit after signing in with the
+            same email a guest booking used. Hidden when bookings.length === 0
+            or after the user dismisses it. See src/components/guest-merge-banner.tsx. */}
+        <GuestMergeBanner userId={userData?.id} bookingCount={bookings.length} />
+
         {/* Upcoming Bookings */}
         <section>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Upcoming</h2>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isDisposableEmail } from "@/lib/disposable-email";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -28,7 +29,15 @@ export const guestContactSchema = z.object({
     .trim()
     .toLowerCase()
     .email("Please enter a valid email address")
-    .max(254, "Email is too long"),
+    .max(254, "Email is too long")
+    // Phase 4 hardening: block known disposable / throwaway mailboxes from
+    // creating guest bookings. The expert needs a reachable email for the
+    // meetup link, reminders, and any ad-hoc cancellation. Real users almost
+    // never land on these domains; abusers do. See src/lib/disposable-email.ts
+    // for the curated blocklist.
+    .refine((email) => !isDisposableEmail(email), {
+      message: "Please use a permanent email — disposable inboxes can't receive your meetup link.",
+    }),
   guestName: z
     .string()
     .trim()

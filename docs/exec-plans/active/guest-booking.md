@@ -1,6 +1,8 @@
 # Guest Booking — No-Login Checkout Across Web / Telegram / WeChat
 
-**Status:** Proposed (2026-05-06). Phased rollout, smallest viable change first.
+**Status:** Phase 1 ✅ shipped 2026-05-06 (commit `f9215e9`). Phase 2 ✅ shipped
+2026-05-06 (commit `ace5ca4`). Phase 3 + Phase 4 ✅ shipped 2026-05-06 (this commit).
+Phased rollout, smallest viable change first.
 **Goal:** A user lands on an expert's profile, picks a slot, pays, and the meetup
 is on their calendar. No "create account" step, no password, no email-verification
 gate before pay. Identity is captured *implicitly* from the payment rail (or the
@@ -205,17 +207,30 @@ Each phase is one PR, one merge, fully shipped before the next starts.
 - Email template includes the magic link
 - New `lib/booking-token.ts` (HMAC sign / verify with `AUTH_SECRET`)
 
-### Phase 3 — Account-linking polish
+### Phase 3 — Account-linking polish ✅ (partial)
 
-- When a guest signs in with Google via the same email, surface a "We linked
-  your past 3 bookings" notice on first dashboard visit
-- Retroactive POMP claim ("connect a wallet to mint past attendance proofs")
+- ✅ When a guest signs in with Google via the same email, surface a "We linked
+  your past N bookings" notice on first dashboard visit — implemented as a
+  one-time, dismissible client-side banner (`GuestMergeBanner`) keyed by user
+  id in localStorage. No schema change.
+- ⏸ Retroactive POMP claim ("connect a wallet to mint past attendance proofs")
+  — deferred. Needs a wallet-sig flow + EAS minting per past booking; warrants
+  its own design pass and is independent of the no-login work.
 
-### Phase 4 — Hardening
+### Phase 4 — Hardening ✅ (partial)
 
-- Disposable-email domain check (`@mailinator.com` etc.) — only if abuse appears
-- Optional CAPTCHA on the free-booking path
-- Orphan-user reaper (delete guest Users with no bookings in 12 months)
+- ✅ Disposable-email domain check — `src/lib/disposable-email.ts` ships a
+  curated blocklist (~40 domains: Mailinator, YOPmail, Guerrilla Mail, …)
+  wired into `guestContactSchema.guestEmail.refine()`. Returns 400 with a
+  user-friendly message ("Please use a permanent email — disposable inboxes
+  can't receive your meetup link.").
+- ✅ Orphan-user reaper — `src/inngest/functions/guest-user-reaper.ts`
+  scheduled Mondays 03:15 UTC. `src/lib/jobs/guest-user-reaper.ts` deletes
+  guest User rows with `createdAt < 12 months ago` AND zero downstream
+  references (no accounts, sessions, bookings, expert, membership, ledgers).
+  Strict predicate by design — anyone with even a shred of activity stays.
+- ⏸ Optional CAPTCHA — deferred. No abuse signal yet; an env-flagged version
+  without ops would be dead code. Reconsider if booking-spam metrics rise.
 
 ---
 

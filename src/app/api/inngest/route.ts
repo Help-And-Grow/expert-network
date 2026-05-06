@@ -6,6 +6,7 @@ import {
   expertEmbeddingRefreshOnProfileChanged,
   expertEmbeddingRefreshStaleScheduled,
 } from "@/inngest/functions/expert-embedding-refresh";
+import { guestUserReaperScheduled } from "@/inngest/functions/guest-user-reaper";
 import { pompIssueOnBookingCompleted } from "@/inngest/functions/pomp-issue";
 
 export const maxDuration = 300;
@@ -16,6 +17,7 @@ export const { GET, POST, PUT } = serve({
     chargeRemainderScheduled,
     expertEmbeddingRefreshOnProfileChanged,
     expertEmbeddingRefreshStaleScheduled,
+    guestUserReaperScheduled,
     pompIssueOnBookingCompleted,
   ],
 });
