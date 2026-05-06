@@ -102,28 +102,24 @@ jobs:
         # let `prisma db push` exit 0 without applying the schema. Without this
         # check, the next step launches Next.js and every API route hits Prisma's
         # P2021 "table does not exist" — the failure mode that hit run 25419668362.
+        # Use `prisma db execute` (raw SQL) so we don't depend on the generated TS client.
         run: |
           set -euo pipefail
-          # Use a one-shot ts-node-free probe via Prisma. If User table doesn't exist,
-          # the Prisma client will throw and the step fails with a clear message.
-          node -e "
-            const { PrismaClient } = require('./src/generated/prisma/client');
-            const p = new PrismaClient();
-            p.user.findFirst({ select: { id: true } })
-              .then(() => { console.log('✓ User table reachable — schema is applied'); process.exit(0); })
-              .catch((err) => {
-                console.error('✗ Schema verification failed:', err.message || err);
-                console.error('');
-                console.error('The previous \`db:push\` step exited 0 but the User table is not reachable.');
-                console.error('Likely causes:');
-                console.error('  • E2E_DATABASE_URL secret points at an ephemeral Postgres that lost its data');
-                console.error('  • db:push connected but lacked CREATE TABLE permissions in the target schema');
-                console.error('  • E2E_DATABASE_URL and E2E_DIRECT_URL point at different databases');
-                console.error('');
-                console.error('Action: rotate E2E_DATABASE_URL/E2E_DIRECT_URL to a working Postgres (Cloud SQL e2e instance, Supabase, Neon free tier) and re-run.');
-                process.exit(1);
-              });
-          "
+          if echo 'SELECT 1 FROM "User" LIMIT 1' | npx prisma db execute --stdin --schema=prisma/schema.prisma; then
+            echo "✓ User table reachable — schema is applied"
+          else
+            echo "::error::Schema verification failed: User table not reachable"
+            echo ""
+            echo "The previous \`db:push\` step exited 0 but the User table is not reachable."
+            echo "Likely causes:"
+            echo "  • E2E_DATABASE_URL secret points at an ephemeral Postgres that lost its data"
+            echo "  • db:push connected but lacked CREATE TABLE permissions in the target schema"
+            echo "  • E2E_DATABASE_URL and E2E_DIRECT_URL point at different databases"
+            echo ""
+            echo "Action: rotate E2E_DATABASE_URL/E2E_DIRECT_URL to a working Postgres"
+            echo "(Cloud SQL e2e instance, Supabase, Neon free tier) and re-run."
+            exit 1
+          fi
 
       - name: Run Playwright smoke tests
         if: steps.e2e.outputs.run == 'true'
