@@ -85,15 +85,18 @@ test.describe("local smoke", () => {
       mode: expect.any(String),
     });
 
+    // Phase 1 of guest-booking dropped the 401 gate on /checkout and /free.
+    // Anonymous callers without guestEmail/guestName get 400 (validation),
+    // not 401 (auth). See docs/exec-plans/active/guest-booking.md.
     const unauthenticatedCheckout = await request.post("/api/bookings/checkout", {
       data: {},
     });
-    expect(unauthenticatedCheckout.status()).toBe(401);
+    expect(unauthenticatedCheckout.status()).toBe(400);
 
     const unauthenticatedFreeBooking = await request.post("/api/bookings/free", {
       data: {},
     });
-    expect(unauthenticatedFreeBooking.status()).toBe(401);
+    expect(unauthenticatedFreeBooking.status()).toBe(400);
 
     const unauthenticatedDebugRead = await request.get("/api/debug/users");
     expect([401, 404]).toContain(unauthenticatedDebugRead.status());

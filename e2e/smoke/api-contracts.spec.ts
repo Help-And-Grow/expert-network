@@ -21,12 +21,16 @@ test.describe("Public + auth-gated API contracts", () => {
     expect(Array.isArray(body.experts)).toBe(true);
   });
 
-  test("POST /api/bookings/checkout requires session (401)", async ({ request }) => {
+  test("POST /api/bookings/checkout — anonymous callers must provide guest fields (400, was 401)", async ({ request }) => {
+    // Phase 1 of guest-booking dropped the 401 gate. Anonymous callers must
+    // now supply guestEmail + guestName; missing them is a validation error.
+    // The wechat-pay and pay-remainder endpoints below still 401 — those
+    // weren't in Phase 1 scope.
     const res = await request.post("/api/bookings/checkout", {
       data: {},
       headers: { "Content-Type": "application/json" },
     });
-    expect(res.status()).toBe(401);
+    expect(res.status()).toBe(400);
   });
 
   test("POST /api/bookings/wechat-pay requires session (401)", async ({ request }) => {

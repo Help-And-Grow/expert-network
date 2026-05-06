@@ -229,7 +229,9 @@ Pinned by [`e2e/smoke/api-contracts.spec.ts`](../e2e/smoke/api-contracts.spec.ts
 |---|---|
 | `GET /api/health` | 200 with body `{ ok: true, service: "expert-network" }` |
 | `GET /api/v1/experts?limit=N` | 200 with body `{ experts: [...] }` |
-| `POST /api/bookings/checkout` (no session) | 401 |
+| `POST /api/bookings/checkout` (no session, no guest fields) | 400 with `error: "Please sign in or provide your name and email to book."` (was 401 pre-Phase-1, see [`guest-booking.md`](exec-plans/active/guest-booking.md)) |
+| `POST /api/bookings/free` (no session, no guest fields) | 400 (same reason) |
+| `POST /api/bookings/paynow` (no session, no guest fields) | 400 (same reason) |
 | `POST /api/bookings/wechat-pay` (no session) | 401 |
 | `POST /api/bookings/[id]/pay-remainder` (no session) | 401 |
 
