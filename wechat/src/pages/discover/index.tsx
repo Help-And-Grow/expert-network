@@ -29,7 +29,11 @@ const QUICK_TAGS = [
 const MAX_HISTORY_MESSAGES = 6;
 
 /** Local match-result cache keyed by query to avoid redundant API calls */
-const MATCH_CACHE_KEY = "hg-discover-match-cache-v1";
+// Bumped to v2 (2026-05-07): the v1 cache could pin a transient empty
+// result from a server outage and never re-fetch. v2 only caches non-empty
+// results — see runMatch(). The key bump also wipes any v1 stale entries
+// from existing user devices on the next mini-program update.
+const MATCH_CACHE_KEY = "hg-discover-match-cache-v2";
 const MATCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface CachedMatch {
@@ -143,9 +147,15 @@ export default function DiscoverPage() {
 
       if (res.statusCode === 200) {
         const result = res.data;
-        // Cache the result
-        cacheRef.current.set(q, { query: q, result, ts: Date.now() });
-        saveMatchCache(cacheRef.current);
+        // Only cache non-empty results. Empty recommendations can be a
+        // transient state (server cold-start, vector index warming up,
+        // upstream LLM blip) and pinning that for 5 minutes makes the
+        // problem look permanent to the user. If we get nothing back,
+        // skip the cache so the next tap goes back to the server.
+        if ((result.recommendations?.length ?? 0) > 0) {
+          cacheRef.current.set(q, { query: q, result, ts: Date.now() });
+          saveMatchCache(cacheRef.current);
+        }
 
         setChatMessages((prev) => [
           ...prev,
