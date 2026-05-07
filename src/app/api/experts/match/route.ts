@@ -564,8 +564,23 @@ export async function POST(request: NextRequest) {
           : rec;
       });
 
+    // Budget: 60 s maxDuration. Qwen→Gemini on Vercel sin1 can hang
+    // indefinitely until Vercel kills the function with a 504 — the client
+    // surfaces that as "Sorry, that didn't go through". Capping the LLM call
+    // at 20 s guarantees the existing keyword-fallback catch fires within
+    // budget and the user always gets a useful response.
+    const LLM_TIMEOUT_MS = 20_000;
+
     try {
-      const result = await ai.matchExperts(query, expertSummaries, history, nq);
+      const result = await Promise.race([
+        ai.matchExperts(query, expertSummaries, history, nq),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("[experts/match] LLM timed out after 20 s")),
+            LLM_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       console.log(
         "[experts/match] llm match complete:",
         JSON.stringify({ elapsedMs: Date.now() - startedAt }),

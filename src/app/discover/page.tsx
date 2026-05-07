@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/user-menu";
 import { VoiceInputButton } from "@/components/voice-input-button";
+import { getTelegramInitData } from "@/lib/telegram";
 import {
   type DiscoverMatchChatMessage,
   type DiscoverMatchRecommendation,
@@ -134,9 +135,21 @@ function DiscoverContent() {
       const history = discoverMatchMessagesToApiHistory(priorMessages);
 
       try {
+        // Forward the Telegram initData header when running inside a Mini App.
+        // resolveUserId on the server picks this up at step 2 (fast DB lookup)
+        // instead of falling through to the Auth.js auth() call which hangs
+        // for 30-40 s when no session cookie is present — that hang was the
+        // primary reason the first Telegram query always hit the 60 s Vercel
+        // timeout (504 → "Sorry, that didn't go through").
+        const matchHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        const tgInitData = getTelegramInitData();
+        if (tgInitData) matchHeaders["x-telegram-init-data"] = tgInitData;
+
         const res = await fetch("/api/experts/match", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: matchHeaders,
           body: JSON.stringify({ query: q, history }),
         });
         if (!res.ok) throw new Error("Match failed");
