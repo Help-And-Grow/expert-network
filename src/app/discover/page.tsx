@@ -105,6 +105,15 @@ function DiscoverContent() {
     }
   }, [sessionStatus, isTelegram, tgReady, router]);
 
+  /**
+   * Maximum conversation turns sent as history to the match API.
+   * Mirrors the WeChat cap (see wechat/src/pages/discover/index.tsx).
+   * Keeping history short lets the server hit the vector fast-path on the
+   * first turn (history.length === 0) and prevents Vercel function timeouts
+   * on long chats.
+   */
+  const MAX_HISTORY_MESSAGES = 6;
+
   const runMatch = useCallback(
     async (query: string) => {
       const q = query.trim();
@@ -117,7 +126,12 @@ function DiscoverContent() {
       setChatMessages(withUser);
       setChatLoading(true);
 
-      const history = discoverMatchMessagesToApiHistory(withUser);
+      // Send only the PRIOR messages as history (not the current query, which
+      // is sent separately as `query`). This keeps the conversation context
+      // correct and lets the server hit the vector fast-path when this is the
+      // first turn (prior history is empty).
+      const priorMessages = chatMessages.slice(-MAX_HISTORY_MESSAGES);
+      const history = discoverMatchMessagesToApiHistory(priorMessages);
 
       try {
         const res = await fetch("/api/experts/match", {
