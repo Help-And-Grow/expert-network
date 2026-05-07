@@ -94,6 +94,25 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 - All notification calls (Telegram, WeChat) must be `.catch(() => {})` to not block responses
 - Debug APIs under `/api/debug/*` must stay admin-gated; production reads require `DEBUG_API_ENABLED=1`, and destructive mutations additionally require `DEBUG_MUTATION_ENABLED=1`
 
+## PR & Verification Workflow
+
+**Default order (as of 2026-05-07):**
+
+1. **Open the PR** with `gh pr create --base main` against the canonical branch.
+2. **Wait for the Vercel preview deploy** to reach `Ready` (`vercel ls expert-network` shows the new branch deployment). Vercel comments the preview URL on the PR automatically.
+3. **Verify on the preview URL** with realistic headers — for WeChat-origin paths, send `x-wechat-token`; for prod-domain behaviour, hit `https://<preview>.vercel.app/...` directly.
+4. **Merge** (squash + delete branch). `--admin` flag is fine for solo-dev workflow but only after preview verification has passed.
+5. **Re-verify on PROD live** at `https://www.help-and-grow.com/...` once the alias swap completes (~30-60 s after merge). Do not declare "done" until this final step shows the new behaviour on the canonical domain.
+
+**No localhost or `npm run dev` for verification.** The repo's CI also runs Playwright against the canonical production URL only — there is no ephemeral CI Postgres any more. Live PROD is the single source of truth.
+
+**Reasonable exceptions that DON'T need preview verification:**
+- Pure documentation changes (no code in `src/`, `prisma/`, `wechat/src/`, `infra/`)
+- Test-only changes (files under `e2e/` or `__tests__/`)
+- Workflow-file-only changes (`.github/workflows/*.yml`) — preview deploy doesn't exercise these anyway
+
+For everything else, treat skipping preview verification as a P1 bug if it ships broken code.
+
 ## Where to Look
 
 | Task | Start here |
