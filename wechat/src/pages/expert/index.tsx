@@ -13,9 +13,9 @@ import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
 import { ENABLE_PAID_BOOKINGS } from "../../shared/brand";
 import { normalizeRouteId } from "../../shared/route-params";
-import type { ExpertDetail, Review, ReviewsResponse, ServiceItem } from "../../shared/types";
+import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
-import { buildWebProfileLoginUrl, buildWebBookUrl } from "../../shared/web-booking";
+import { buildWebProfileLoginUrl } from "../../shared/web-booking";
 import "./index.scss";
 
 function resolveExpertIdFromLaunch(loadOpts?: Record<string, unknown>): string {
@@ -156,6 +156,43 @@ export default function ExpertPage() {
     };
   }, []);
 
+  const toggleIntroPlayback = useCallback(async () => {
+    if (!expert?.hasAudio) return;
+
+    if (introPlaying) {
+      introAudioRef.current?.stop();
+      setIntroPlaying(false);
+      return;
+    }
+
+    try {
+      const localPath = await prepareAudioForInnerAudio(
+        `/api/experts/${expertId}/audio`,
+        `expert-intro-${expertId}`,
+      );
+
+      introAudioRef.current?.stop();
+      introAudioRef.current?.destroy();
+
+      const ctx = Taro.createInnerAudioContext();
+      ctx.obeyMuteSwitch = false;
+      ctx.src = localPath;
+      ctx.onEnded(() => setIntroPlaying(false));
+      ctx.onStop(() => setIntroPlaying(false));
+      ctx.onPause(() => setIntroPlaying(false));
+      ctx.onError(() => {
+        setIntroPlaying(false);
+        Taro.showToast({ title: "语音播放失败", icon: "none" });
+      });
+      introAudioRef.current = ctx;
+      ctx.play();
+      setIntroPlaying(true);
+    } catch {
+      setIntroPlaying(false);
+      Taro.showToast({ title: "语音加载失败", icon: "none" });
+    }
+  }, [expert?.hasAudio, expertId, introPlaying]);
+
   if (loading) {
     return (
       <View className="expert-profile">
@@ -196,43 +233,6 @@ export default function ExpertPage() {
   const realtimeMinutes = Math.max(1, Math.round(realtimeDurationSeconds / 60));
   const loginFirstProfileUrl =
     experience?.web.loginFirstProfileUrl ?? buildWebProfileLoginUrl(expertId);
-
-  const toggleIntroPlayback = useCallback(async () => {
-    if (!expert?.hasAudio) return;
-
-    if (introPlaying) {
-      introAudioRef.current?.stop();
-      setIntroPlaying(false);
-      return;
-    }
-
-    try {
-      const localPath = await prepareAudioForInnerAudio(
-        `/api/experts/${expertId}/audio`,
-        `expert-intro-${expertId}`,
-      );
-
-      introAudioRef.current?.stop();
-      introAudioRef.current?.destroy();
-
-      const ctx = Taro.createInnerAudioContext();
-      ctx.obeyMuteSwitch = false;
-      ctx.src = localPath;
-      ctx.onEnded(() => setIntroPlaying(false));
-      ctx.onStop(() => setIntroPlaying(false));
-      ctx.onPause(() => setIntroPlaying(false));
-      ctx.onError(() => {
-        setIntroPlaying(false);
-        Taro.showToast({ title: "语音播放失败", icon: "none" });
-      });
-      introAudioRef.current = ctx;
-      ctx.play();
-      setIntroPlaying(true);
-    } catch {
-      setIntroPlaying(false);
-      Taro.showToast({ title: "语音加载失败", icon: "none" });
-    }
-  }, [expert?.hasAudio, expertId, introPlaying]);
 
   return (
     <View className="expert-profile">
