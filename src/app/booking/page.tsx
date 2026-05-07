@@ -364,9 +364,14 @@ export default function DashboardPage() {
 
       <main className="space-y-6 p-4 pb-12">
         {/* One-time merge notice — first visit after signing in with the
-            same email a guest booking used. Hidden when bookings.length === 0
-            or after the user dismisses it. See src/components/guest-merge-banner.tsx. */}
-        <GuestMergeBanner userId={userData?.id} bookingCount={bookings.length} />
+            same email a guest booking used. Hidden when bookings.length === 0,
+            after the user dismisses it, or when the user has already completed
+            expert onboarding (isPublished) — returning experts don't need the
+            newcomer guidance. See src/components/guest-merge-banner.tsx. */}
+        <GuestMergeBanner
+          userId={userData?.expert?.isPublished ? null : userData?.id}
+          bookingCount={bookings.length}
+        />
 
         {/* Upcoming Bookings */}
         <section>
