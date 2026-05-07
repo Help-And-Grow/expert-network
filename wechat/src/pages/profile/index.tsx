@@ -43,14 +43,14 @@ export default function ProfilePage() {
 
   useShareAppMessage(() => {
     if (isExpert && expert) {
-      const name = user?.nickName || user?.name || "成员";
+      const name = user?.nickName || user?.name || "导师";
       return {
-        title: `${name} 在 Help & Grow`,
+        title: `${name} · Help & Grow 青年AI 志愿导师`,
         path: `/pages/expert/index?id=${expert.id}`,
       };
     }
     return {
-      title: "Help & Grow · 专家网络",
+      title: "Help & Grow 青年AI · 免费的青年导师计划",
       path: "/pages/index/index",
     };
   });
@@ -184,8 +184,8 @@ export default function ProfilePage() {
               <Icon name="star" size={28} color="#d97706" />
             </View>
             <View className="profile__menu-content">
-              <Text className="profile__menu-label">成为专家</Text>
-              <Text className="profile__menu-hint">创建主页并开始分享你的经验</Text>
+              <Text className="profile__menu-label">成为志愿导师</Text>
+              <Text className="profile__menu-hint">为青年学员分享你的 AI 经验，全部公益</Text>
             </View>
             <Text className="profile__menu-arrow">›</Text>
           </View>
@@ -211,7 +211,7 @@ export default function ProfilePage() {
           </View>
           <View className="profile__menu-content">
             <Text className="profile__menu-label">分享给朋友</Text>
-            <Text className="profile__menu-hint">邀请朋友加入专家社区</Text>
+            <Text className="profile__menu-hint">邀请朋友加入这个公益学习社区</Text>
           </View>
           <Text className="profile__menu-arrow">›</Text>
         </View>
@@ -221,8 +221,9 @@ export default function ProfilePage() {
           hoverClass="profile__menu-item--hover"
           onClick={() => {
             Taro.showModal({
-              title: "关于 Help & Grow",
-              content: "Help & Grow 是一个面向真实协作与长期关系的专家网络：人人既是教练也是玩家。你可以分享自己的经验，也可以向他人求助并安排见面，在实战中学习，在帮助中成长。",
+              title: "关于 Help & Grow 青年AI",
+              content:
+                "Help & Grow 青年AI 是新加坡社会企业 Help & Grow 发起的公益项目，面向中国与东南亚青年，连接全球志愿导师，帮助大家学AI、用AI、在真实场景中创新。\n\n本小程序对青年学员完全免费，不提供任何商业服务。",
               showCancel: false,
               confirmText: "我知道了",
             });
@@ -233,14 +234,16 @@ export default function ProfilePage() {
           </View>
           <View className="profile__menu-content">
             <Text className="profile__menu-label">关于我们</Text>
-            <Text className="profile__menu-hint">了解 Help & Grow 品牌与理念</Text>
+            <Text className="profile__menu-hint">新加坡社会企业 Help & Grow · 公益项目</Text>
           </View>
           <Text className="profile__menu-arrow">›</Text>
         </View>
       </View>
 
       <View className="profile__footer">
-        <Text className="profile__footer-text">Help & Grow · 专家网络</Text>
+        <Text className="profile__footer-text">
+          Help & Grow 青年AI · 新加坡社会企业公益项目 · 完全免费
+        </Text>
       </View>
     </View>
   );

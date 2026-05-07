@@ -53,7 +53,7 @@ export default function OnboardingPage() {
       id: 0,
       role: "system",
       content:
-        "欢迎来到 Help & Grow。我们先为你建立一张专业、可信、可持续经营的专家主页。请问怎么称呼你？",
+        "欢迎来到 Help & Grow 青年AI 志愿导师计划。本项目由新加坡社会企业 Help & Grow 发起，面向中国与东南亚青年。我们先为你建立一张可信的导师主页，让需要帮助的学员可以找到你。请问怎么称呼你？",
     },
   ]);
   const [input, setInput] = useState("");
@@ -307,7 +307,7 @@ export default function OnboardingPage() {
 
       if (ok) {
         addMsg("user", `📄 ${file.name || "简历.pdf"}`);
-        addMsg("system", "资料已收妥，正在生成你的专家主页草稿...");
+        addMsg("system", "资料已收妥，正在生成你的导师主页草稿...");
         setDocumentReadyForPublish(true);
         await generateProfile();
       } else {
@@ -322,7 +322,7 @@ export default function OnboardingPage() {
 
   const skipDocument = async () => {
     addMsg("user", "跳过");
-    addMsg("system", "我们先继续生成专家主页草稿。请注意：正式发布前仍需补充服务介绍 PDF。");
+    addMsg("system", "我们先继续生成导师主页草稿。请注意：正式发布前仍需补充服务介绍 PDF。");
     setDocumentReadyForPublish(false);
     await generateProfile();
   };
@@ -378,8 +378,8 @@ export default function OnboardingPage() {
         addMsg(
           "system",
           documentReadyForPublish
-            ? "专家主页已就绪，请预览并发布。"
-            : "专家主页已就绪，请先预览；正式发布前仍需补充服务介绍 PDF。"
+            ? "导师主页已就绪，请预览并发布。"
+            : "导师主页已就绪，请先预览；正式发布前仍需补充服务介绍 PDF。"
         ),
       400
     );
@@ -644,7 +644,7 @@ export default function OnboardingPage() {
         {step === "generating" && (
           <View className="onboarding__generating">
             <Text className="onboarding__generating-text">
-              ✨ 正在生成专家主页...
+              ✨ 正在生成导师主页...
             </Text>
           </View>
         )}

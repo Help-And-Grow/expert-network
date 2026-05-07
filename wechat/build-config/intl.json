@@ -3,14 +3,19 @@
   "_comment2": "Singapore-company app. Talks to Vercel directly (same backend as Web + Telegram).",
   "_comment3": "Same Qwen → Gemini AI chain, same database (Supabase → Cloud SQL planned), same Vercel Blob storage. No Tencent infra on the production path.",
   "_comment4": "The CloudBase env id below stays in the file as a paused dev sandbox for the future mainland-CN MP — it is NOT in the runtime API path.",
+  "_comment5": "Rebrand 2026-05-07 — the WeChat MP runs as a FREE youth AI mentoring platform provided by the Singapore social enterprise Help & Grow. WeChat platform requires a Chinese company entity for commercial services; until that's provisioned, this MP is non-commercial. Web + Telegram remain the commercial expert-network marketplace.",
   "TARO_APP_REGION": "intl",
   "TARO_APP_APPID": "wx09d0eb079596060d",
   "TARO_APP_API_BASE": "https://www.help-and-grow.com",
   "TARO_APP_CLOUDBASE_ENV_ID_PAUSED": "cn-wechat-d1gzncs8i34827c98",
   "TARO_APP_CLOUDBASE_TRACE_USER": "false",
-  "TARO_APP_DEFAULT_LANG": "en-US",
-  "TARO_APP_BRAND_NAME": "Help & Grow",
+  "TARO_APP_DEFAULT_LANG": "zh-CN",
+  "TARO_APP_BRAND_NAME": "Help & Grow 青年AI",
   "TARO_APP_BRAND_LOGO": "/assets/logo-intl.jpg",
-  "TARO_APP_BRAND_SLOGAN": "AI Native Expert Network",
-  "TARO_APP_ENABLE_WECHAT_PAY": "false"
+  "TARO_APP_BRAND_SLOGAN": "免费的青年 AI 导师计划",
+  "TARO_APP_BRAND_PROVIDER": "新加坡社会企业 Help & Grow",
+  "TARO_APP_BRAND_MISSION": "助力中国与东南亚青年 学AI · 用AI · 创新未来",
+  "TARO_APP_ENABLE_WECHAT_PAY": "false",
+  "TARO_APP_ENABLE_PAID_BOOKINGS": "false",
+  "TARO_APP_ENABLE_PREMIUM_LIVE": "false"
 }

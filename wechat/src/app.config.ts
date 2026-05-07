@@ -24,13 +24,13 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/discover/index",
-        text: "发现",
+        text: "找导师",
         iconPath: "assets/tab-discover.png",
         selectedIconPath: "assets/tab-discover-active.png",
       },
       {
         pagePath: "pages/dashboard/index",
-        text: "见面",
+        text: "学习",
         iconPath: "assets/tab-bookings.png",
         selectedIconPath: "assets/tab-bookings-active.png",
       },
@@ -45,7 +45,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: "light",
     navigationBarBackgroundColor: "#fcfbf8",
-    navigationBarTitleText: "帮助与成长",
+    navigationBarTitleText: "Help & Grow 青年AI",
     navigationBarTextStyle: "black",
   },
 });

@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import Icon from "../../components/Icon";
 import { get } from "../../shared/api";
 import { isLoggedIn } from "../../shared/auth";
-import { BRAND_NAME, BRAND_LOGO, BRAND_SLOGAN } from "../../shared/brand";
+import {
+  BRAND_NAME,
+  BRAND_LOGO,
+  BRAND_SLOGAN,
+  BRAND_PROVIDER,
+  BRAND_MISSION,
+} from "../../shared/brand";
 import "./index.scss";
 
 export default function IndexPage() {
@@ -55,9 +61,10 @@ export default function IndexPage() {
         </View>
         <Text className="landing__title">{BRAND_NAME}</Text>
         <Text className="landing__subtitle">{BRAND_SLOGAN}</Text>
-        <Text className="landing__tagline">每个人既是教练，也是选手</Text>
-          <Text className="landing__desc">
-          在这里，专业经验以高效的方式被看见 & 被链接！
+        <Text className="landing__tagline">{BRAND_MISSION}</Text>
+        <Text className="landing__desc">
+          由{BRAND_PROVIDER}发起的非商业项目，面向中国与东南亚青年 —
+          连接全球志愿导师，全部免费。
         </Text>
       </View>
 
@@ -67,14 +74,14 @@ export default function IndexPage() {
           hoverClass="landing__btn--hover"
           onClick={goDiscover}
         >
-          发现专家
+          找一位导师
         </View>
         <View
           className="landing__btn landing__btn--outline"
           hoverClass="landing__btn--hover"
           onClick={onboardingDone ? goDashboard : goOnboarding}
         >
-          {onboardingDone ? "我的见面" : "成为专家"}
+          {onboardingDone ? "我的学习见面" : "成为志愿导师"}
         </View>
       </View>
 
@@ -84,9 +91,9 @@ export default function IndexPage() {
             <Icon name="zap" size={32} color="#4f46e5" />
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">动手与互助</Text>
+            <Text className="landing__feature-title">学AI · 动手实践</Text>
             <Text className="landing__feature-desc">
-              快速找到真正懂业务的人，先了解，再决定是否安排正式见面
+              与导师一对一交流真实的 AI 应用场景，把课堂知识变成解决问题的能力
             </Text>
           </View>
         </View>
@@ -95,9 +102,10 @@ export default function IndexPage() {
             <Icon name="sparkles" size={32} color="#7c3aed" />
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">分享专业能力</Text>
+            <Text className="landing__feature-title">用AI · 启发创新</Text>
             <Text className="landing__feature-desc">
-              把经验沉淀成可持续的专业服务，与高质量用户建立长期信任
+              带你用 AI 工具完成第一个真实项目 —
+              从产品想法到原型实现，志愿导师全程陪跑
             </Text>
           </View>
         </View>
@@ -106,12 +114,21 @@ export default function IndexPage() {
             <Icon name="search" size={32} color="#059669" />
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">更懂业务场景的匹配</Text>
+            <Text className="landing__feature-title">免费 · 公益项目</Text>
             <Text className="landing__feature-desc">
-              以语音与内容沉淀构建数字分身，让服务体验更稳定、更个性化
+              本项目由{BRAND_PROVIDER}资助，所有学习见面对青年学员完全免费
             </Text>
           </View>
         </View>
+      </View>
+
+      <View className="landing__about">
+        <Text className="landing__about-title">关于我们</Text>
+        <Text className="landing__about-text">
+          {BRAND_PROVIDER} ·
+          专注于通过 AI 教育与导师网络，帮助中国与东南亚青年面对未来世界。
+          本小程序为非商业平台，不收取任何费用，亦不提供商业服务。
+        </Text>
       </View>
 
       <View className="landing__safe-bottom" />

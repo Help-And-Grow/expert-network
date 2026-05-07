@@ -171,13 +171,13 @@ export default function DashboardPage() {
           </View>
           <Text className="dashboard__empty-text">
             {tab === "upcoming"
-              ? "暂无即将开始的见面"
-              : "暂无历史见面"}
+              ? "暂无即将开始的学习见面"
+              : "暂无历史学习见面"}
           </Text>
           <Text className="dashboard__empty-hint">
             {tab === "upcoming"
-              ? "先去浏览合适的专家主页，正式安排仍在网页完成"
-              : "已完成或已结束的见面会显示在这里"}
+              ? "去「找导师」浏览志愿导师主页，正式预约在网页完成（免费）"
+              : "已完成或已结束的学习见面会显示在这里"}
           </Text>
           {tab === "upcoming" && (
             <View

@@ -13,12 +13,14 @@ import {
 import type { MatchResponse } from "../../shared/types";
 import "./index.scss";
 
-/** Short labels for quick-match chips — concise for mobile */
+/** Short labels for quick-match chips — concise for mobile.
+ *  Rebrand 2026-05-07: chips now reflect the youth-AI-mentoring framing
+ *  rather than the commercial-marketplace topics. */
 const QUICK_TAGS = [
-  { label: "增长策略", prompt: "我正在找一位能帮我梳理产品增长策略的专家" },
-  { label: "招聘优化", prompt: "我希望请教招聘负责人，优化核心岗位招聘方案" },
-  { label: "法律合规", prompt: "我想尽快确认公司合同与合规风险，找法律专家" },
-  { label: "融资策略", prompt: "我需要融资策略与投资人沟通建议" },
+  { label: "学AI入门", prompt: "我刚开始学 AI，想找一位导师带我入门" },
+  { label: "用AI做项目", prompt: "我想用 AI 做一个真实的小项目，需要导师指导" },
+  { label: "升学/求职", prompt: "我想了解 AI 方向的升学和求职路径，找一位过来人聊聊" },
+  { label: "AI产品创新", prompt: "我有一个产品创意，想请导师帮我看 AI 的可行性" },
 ] as const;
 
 /**
@@ -73,11 +75,11 @@ function hasChineseText(value?: string): boolean {
 
 function normalizeNoMatchMessage(message?: string): string {
   if (!message) {
-    return "暂时还没有找到完全贴合的专家。可以补充更具体的背景后再试。";
+    return "暂时还没有找到完全贴合的导师。可以补充更具体的背景或目标后再试。";
   }
   return hasChineseText(message)
     ? message
-    : "暂时还没有找到完全贴合的专家。可以补充更具体的背景后再试。";
+    : "暂时还没有找到完全贴合的导师。可以补充更具体的背景或目标后再试。";
 }
 
 function normalizeRecommendationReason(reason?: string): string {
@@ -210,11 +212,11 @@ export default function DiscoverPage() {
   }, [chatMessages.length, matching]);
 
   useLoad(() => {
-    Taro.setNavigationBarTitle({ title: "发现" });
+    Taro.setNavigationBarTitle({ title: "找导师" });
   });
 
   useDidShow(() => {
-    Taro.setNavigationBarTitle({ title: "发现" });
+    Taro.setNavigationBarTitle({ title: "找导师" });
   });
 
   const activeQuickPrompt = useMemo(() => {
@@ -236,14 +238,14 @@ export default function DiscoverPage() {
             <View className="discover__chat-hint-icon">
               <Icon name="sparkles" size={40} color="#6366f1" />
             </View>
-            <Text className="discover__chat-hint-title">发现你的专家</Text>
+            <Text className="discover__chat-hint-title">找一位志愿导师</Text>
             <Text className="discover__chat-hint-desc">
-              描述你的问题或场景，AI 帮你找到最合适的专家
+              告诉我你正在学习的方向或卡住的地方，AI 帮你匹配最合适的志愿导师 — 全部免费
             </Text>
             <View className="discover__chat-hint-examples">
-              <Text className="discover__chat-hint-example">"我需要融资策略建议"</Text>
-              <Text className="discover__chat-hint-example">"帮我优化招聘流程"</Text>
-              <Text className="discover__chat-hint-example">"新加坡公司合规咨询"</Text>
+              <Text className="discover__chat-hint-example">"想用 AI 做一个学习助手"</Text>
+              <Text className="discover__chat-hint-example">"AI 方向研究生申请方向"</Text>
+              <Text className="discover__chat-hint-example">"如何用 ChatGPT 提升论文写作"</Text>
             </View>
           </View>
         )}
@@ -260,7 +262,7 @@ export default function DiscoverPage() {
                 {m.recommendations && m.recommendations.length > 0 ? (
                   <View className="discover__match-list">
                     <Text className="discover__match-heading">
-                      ✨ 为你匹配到 {m.recommendations.length} 位专家
+                      ✨ 为你匹配到 {m.recommendations.length} 位志愿导师
                     </Text>
                     {m.recommendations.map((item) => (
                       <View key={item.expertId} className="discover__match-card" hoverClass="discover__match-card--hover" onClick={() => openExpert(item.expertId)}>
@@ -311,7 +313,7 @@ export default function DiscoverPage() {
               <View className="discover__typing-dot discover__typing-dot--2" />
               <View className="discover__typing-dot discover__typing-dot--3" />
             </View>
-            <Text className="discover__typing-text">AI 正在为你匹配专家…</Text>
+            <Text className="discover__typing-text">AI 正在为你匹配导师…</Text>
           </View>
         )}
 

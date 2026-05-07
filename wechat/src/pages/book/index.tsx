@@ -67,18 +67,19 @@ export default function BookWebPage() {
     );
   }
 
-  const name = expert.user.nickName || expert.user.name || "专家";
+  const name = expert.user.nickName || expert.user.name || "导师";
 
   return (
     <View className="book-web">
-      <Text className="book-web__title">见面与支付</Text>
+      <Text className="book-web__title">免费预约学习见面</Text>
       <Text className="book-web__desc">
-        小程序内不提供支付。请复制下方链接，在手机浏览器中打开，完成时段选择与支付（支持 Stripe Checkout，可在开通后使用微信支付等方式）。
+        本项目对青年学员完全免费 —
+        请复制下方链接，在手机浏览器中打开，选择时段并确认见面。系统不会向你收取任何费用。
       </Text>
       <View className="book-web__card">
         <Text className="book-web__expert">{name}</Text>
         <Text className="book-web__type">
-          {sessionType === "OFFLINE" ? "线下见面" : "线上见面"}
+          {sessionType === "OFFLINE" ? "线下见面" : "线上见面"} · 免费
         </Text>
       </View>
       <View
@@ -86,7 +87,7 @@ export default function BookWebPage() {
         hoverClass="book-web__btn--hover"
         onClick={copyLink}
       >
-        复制网页见面链接
+        复制网页预约链接
       </View>
       <View
         className="book-web__btn book-web__btn--ghost"
@@ -95,7 +96,7 @@ export default function BookWebPage() {
           Taro.navigateTo({ url: `/pages/expert/index?id=${expertId}` })
         }
       >
-        返回专家主页
+        返回导师主页
       </View>
     </View>
   );

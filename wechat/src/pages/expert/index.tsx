@@ -11,6 +11,7 @@ import { get } from "../../shared/api";
 import { getApiBase, getToken, isLoggedIn, wxLogin } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
+import { ENABLE_PAID_BOOKINGS } from "../../shared/brand";
 import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse, ServiceItem } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
@@ -55,12 +56,12 @@ export default function ExpertPage() {
       if (res.statusCode === 200) {
         setExpert(res.data);
       } else if (res.statusCode === 404) {
-        setError("未找到该专家主页");
+        setError("未找到该导师主页");
       } else {
-        setError("加载专家主页失败");
+        setError("加载导师主页失败");
       }
     } catch {
-      setError("加载专家主页失败");
+      setError("加载导师主页失败");
     } finally {
       setLoading(false);
     }
@@ -126,7 +127,7 @@ export default function ExpertPage() {
       }
       setLoading(false);
       setExpert(null);
-      setError("无法打开主页：缺少专家信息。请返回「我的」下拉刷新后再试。");
+      setError("无法打开主页：缺少导师信息。请返回「我的」下拉刷新后再试。");
     }, 200);
     return () => clearTimeout(timer);
   }, [expertId]);
@@ -173,7 +174,7 @@ export default function ExpertPage() {
       <View className="expert-profile">
         <View className="expert-profile__error">
           <Text className="expert-profile__error-icon">😔</Text>
-          <Text className="expert-profile__error-text">{error || "未找到该专家主页"}</Text>
+          <Text className="expert-profile__error-text">{error || "未找到该导师主页"}</Text>
           <View
             className="expert-profile__error-btn"
             hoverClass="expert-profile__error-btn--hover"
@@ -312,7 +313,7 @@ export default function ExpertPage() {
             </View>
             <View className="expert-profile__intro-card-text">
               <Text className="expert-profile__intro-card-title">
-                {introPlaying ? "正在播放" : "听专家介绍"}
+                {introPlaying ? "正在播放" : "听导师介绍"}
               </Text>
               <Text className="expert-profile__intro-card-desc">
                 点击{introPlaying ? "暂停" : "播放"}语音介绍
@@ -370,7 +371,7 @@ export default function ExpertPage() {
                 语音提问
               </Text>
               <Text className="expert-profile__voice-chat-desc">
-                免费预览 · 最多 {voiceReplyLimit} 次专家回复 · 每次回复不超过 60 秒
+                免费预览 · 最多 {voiceReplyLimit} 次导师回复 · 每次回复不超过 60 秒
               </Text>
             </View>
           </View>
@@ -455,10 +456,15 @@ export default function ExpertPage() {
         </Text>
       </View>
 
-      {/* Session Pricing */}
+      {/* Session methods. On the social-enterprise build (ENABLE_PAID_BOOKINGS=false)
+          we show only the format (online / offline) with a "免费 · 公益项目" label;
+          the underlying expert.priceOnline/Offline values are intentionally not
+          rendered to keep the non-commercial framing clean. */}
       {(expert.priceOnlineCents != null || expert.priceOfflineCents != null) && (
         <View className="expert-profile__section">
-          <Text className="expert-profile__section-title">见面方式与价格</Text>
+          <Text className="expert-profile__section-title">
+            {ENABLE_PAID_BOOKINGS ? "见面方式与价格" : "见面方式"}
+          </Text>
           <View className="expert-profile__prices">
             {expert.priceOnlineCents != null && (
               <View className="expert-profile__price-card">
@@ -467,9 +473,13 @@ export default function ExpertPage() {
                 </View>
                 <Text className="expert-profile__price-label">线上见面</Text>
                 <Text className="expert-profile__price-value">
-                  ${(expert.priceOnlineCents / 100).toFixed(0)}
+                  {ENABLE_PAID_BOOKINGS
+                    ? `$${(expert.priceOnlineCents / 100).toFixed(0)}`
+                    : "免费"}
                 </Text>
-                <Text className="expert-profile__price-note">每次 30 分钟</Text>
+                <Text className="expert-profile__price-note">
+                  {ENABLE_PAID_BOOKINGS ? "每次 30 分钟" : "公益项目 · 每次 30 分钟"}
+                </Text>
               </View>
             )}
             {expert.priceOfflineCents != null && (
@@ -479,9 +489,13 @@ export default function ExpertPage() {
                 </View>
                 <Text className="expert-profile__price-label">线下见面</Text>
                 <Text className="expert-profile__price-value">
-                  ${(expert.priceOfflineCents / 100).toFixed(0)}
+                  {ENABLE_PAID_BOOKINGS
+                    ? `$${(expert.priceOfflineCents / 100).toFixed(0)}`
+                    : "免费"}
                 </Text>
-                <Text className="expert-profile__price-note">每次 30 分钟</Text>
+                <Text className="expert-profile__price-note">
+                  {ENABLE_PAID_BOOKINGS ? "每次 30 分钟" : "公益项目 · 每次 30 分钟"}
+                </Text>
               </View>
             )}
           </View>
@@ -573,7 +587,7 @@ export default function ExpertPage() {
               });
             }}
           >
-            预约见面
+            预约学习见面（免费）
           </View>
         </View>
       )}
