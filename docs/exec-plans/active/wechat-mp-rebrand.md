@@ -1,6 +1,7 @@
 # WeChat Mini Program Rebrand — Help & Grow 青年AI
 
-**Status:** Phase 1 ✅ shipped 2026-05-07. Phase 2 + 3 deferred.
+**Status:** Phase 1 ✅ shipped 2026-05-07. Phase 1.5 (discover-page de-AI) ✅
+shipped 2026-05-07 after WeChat review rejection. Phase 2 + 3 deferred.
 
 ## Why
 
@@ -31,6 +32,7 @@ expert-network marketplace for Singapore + global users.
 | Phase | Scope | Status |
 |---|---|---|
 | **1 — copy + branding rebuild** | Brand strings (env + UI), tab labels, page copy, hide pricing UI, hide premium-live entry, add social-enterprise framing in profile / about | ✅ Shipped 2026-05-07 |
+| **1.5 — drop AI Q&A from discover** | Replace the AI-chat "find a mentor" experience with a plain list+filter browse view. Forced by WeChat review rejection: 「小程序服务内容涉及【ai问答】，属境外主体尚未开放服务类目」. AI Q&A surfaces are restricted to mainland-CN entity-owned mini programs. | ✅ Shipped 2026-05-07 |
 | **2 — server-side guardrails** | Force-free booking creation when `isWeChatOriginatedRequest` is true (override expert pricing); per-MP rate limit on free booking; dedicated mentoring-program privacy policy | ⏸ Deferred |
 | **3 — mentor opt-in flow** | New `Expert.isYouthMentor: Boolean` field; opt-in checkbox in onboarding; MP discovery filters to opted-in mentors only; opt-in onboarding email | ⏸ Deferred |
 | **4 — MP backend description** | Update `mp.weixin.qq.com` MP profile, category, description, and re-submit for review under the new positioning | ⏸ Deferred — operator task |
