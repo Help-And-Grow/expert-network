@@ -23,7 +23,6 @@ const requestSchema = z.object({
   bookingId: z.string().min(1, "bookingId is required"),
 });
 
-const PREMIUM_LIVE_LEDGER_TYPE = "PREMIUM_LIVE_DEBIT";
 const ROOM_ID_ALLOCATION_ATTEMPTS = 8;
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -62,51 +61,25 @@ async function ensureLiveRoomId(bookingId: string, currentLiveRoomId: string | n
   throw new Error("Failed to allocate a unique TRTC room ID for this booking.");
 }
 
-async function ensurePremiumLiveDebit(bookingId: string, founderId: string): Promise<void> {
-  const { premiumLiveTokens } = getTrtcConfig();
-  const chargedAt = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    const claim = await tx.booking.updateMany({
-      where: {
-        id: bookingId,
-        liveAccessChargedAt: null,
-      },
-      data: {
-        liveAccessChargedAt: chargedAt,
-      },
-    });
-
-    if (claim.count === 0) return;
-
-    if (premiumLiveTokens <= 0) return;
-
-    const debit = await tx.user.updateMany({
-      where: {
-        id: founderId,
-        tokenBalance: { gte: premiumLiveTokens },
-      },
-      data: {
-        tokenBalance: { decrement: premiumLiveTokens },
-      },
-    });
-
-    if (debit.count !== 1) {
-      throw new Error(`Premium live access requires ${premiumLiveTokens} H&G tokens.`);
-    }
-
-    await tx.tokenLedger.create({
-      data: {
-        userId: founderId,
-        bookingId,
-        type: PREMIUM_LIVE_LEDGER_TYPE,
-        amount: -premiumLiveTokens,
-        description: `Premium live consultation access for booking ${bookingId}`,
-      },
-    });
-  });
-}
-
+/**
+ * Premium live consultation entitlement.
+ *
+ * Scope (2026-05-07): Premium live is a **WeChat-Mini-Program-only** feature.
+ * Web and Telegram bookings do not surface a premium-live opt-in and cannot
+ * obtain a TRTC user signature. The route enforces both the surface gate
+ * (origin must be WeChat) and the entitlement gate (founder must hold an
+ * active Membership).
+ *
+ * The expert (host) can join from any surface — they aren't paying, they're
+ * answering. Only the founder side gets the membership / surface check.
+ *
+ * Previously the founder side debited H&G tokens (`PREMIUM_LIVE_DEBIT` ledger
+ * entries) for non-WeChat callers. That dual-track has been retired —
+ * membership is the sole gate. The token-debit code path is gone; existing
+ * `PREMIUM_LIVE_DEBIT` ledger rows are kept for audit history.
+ *
+ * See `docs/design-docs/product-features.md` §2 for the product framing.
+ */
 export async function POST(request: NextRequest) {
   if (!isTrtcConfigured()) {
     return NextResponse.json(
@@ -198,12 +171,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Entitlement: WeChat-originated requests gate on an active membership.
-  // Web/Telegram requests gate on H&G token balance via ensurePremiumLiveDebit.
-  // The expert (host) is always allowed in — only the founder pays.
-  const fromWeChat = isWeChatOriginatedRequest(request);
+  // Founder-side entitlement: must originate from the WeChat Mini Program AND
+  // hold an active Membership. The expert (host) bypasses both checks because
+  // they are answering, not paying.
+  if (participantRole === "founder") {
+    if (!isWeChatOriginatedRequest(request)) {
+      return NextResponse.json(
+        {
+          error:
+            "Premium live consultation is only available in the WeChat Mini Program.",
+          reason: "WECHAT_ONLY",
+        },
+        { status: 403 },
+      );
+    }
 
-  if (fromWeChat && participantRole === "founder") {
     const membership = await prisma.membership.findUnique({
       where: { userId: booking.founderId },
       select: { currentUntil: true },
@@ -222,12 +204,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const roomId = await ensureLiveRoomId(booking.id, booking.liveRoomId);
-    if (!fromWeChat) {
-      // Token-debit path stays for web/Telegram. Expert role joining a
-      // WeChat booking shouldn't trigger a token charge against the founder
-      // either — fromWeChat covers that case.
-      await ensurePremiumLiveDebit(booking.id, booking.founderId);
-    }
 
     const config = getTrtcConfig();
     const trtcUserId = buildTrtcParticipantId({
@@ -244,12 +220,10 @@ export async function POST(request: NextRequest) {
       expiresInSeconds: window.expiresInSeconds,
       expiresAt: window.expiresAt.toISOString(),
       participantRole,
-      premiumLiveTokenCost: config.premiumLiveTokens,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to issue TRTC credentials.";
-    const status = message.includes("requires") ? 402 : 500;
     console.error("[trtc/token POST]", message, error);
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

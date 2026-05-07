@@ -117,7 +117,10 @@ export default function BookSessionPage() {
   const expertId = params.id as string;
 
   const [sessionType, setSessionType] = useState<SessionType>("ONLINE");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  // Default selection = today. The slot picker fires for the selected date on
+  // mount, so the user lands with today's available times already loading
+  // instead of an empty "Select a date to see available slots" state.
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => new Date());
   const [selectedSlots, setSelectedSlots] = useState<(DefaultSlot | AvailableSlot)[]>([]);
   const [slots, setSlots] = useState<(DefaultSlot | AvailableSlot)[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -134,19 +137,9 @@ export default function BookSessionPage() {
   const isGuest = auth.status === "unauthenticated";
   const guestEmailValid = !isGuest || EMAIL_RE.test(guestEmail.trim());
   const guestFieldsReady = !isGuest || (guestName.trim().length > 0 && guestEmailValid);
-  /**
-   * Premium live consultation opt-in. When true, the booking is flagged
-   * `isPremiumLive` and the dashboard surfaces a "Join live" entry inside
-   * the TRTC window (15 min before startTime → 15 min after endTime).
-   */
-  const [isPremiumLive, setIsPremiumLive] = useState(false);
-  /**
-   * `null` = still loading; `false` = TRTC not configured on this deployment;
-   * otherwise the per-booking H&G token cost (0 = free).
-   */
-  const [premiumLiveCost, setPremiumLiveCost] = useState<number | null | false>(null);
-  /** User's current H&G token balance — null while loading or signed-out. */
-  const [tokenBalance, setTokenBalance] = useState<number | null>(null);
+  // (Token balance fetch removed — premium live is membership-gated and the
+  // book page no longer needs to surface H&G token state. Token-as-discount on
+  // paid bookings still flows through `/api/bookings/checkout` server-side.)
   const [expertPricing, setExpertPricing] = useState<{
     priceOnlineCents: number | null;
     priceOfflineCents: number | null;
@@ -237,47 +230,9 @@ export default function BookSessionPage() {
     updateTypeParam(type);
   };
 
-  // Load TRTC config + token balance once. Both are optional for the page
-  // to function — the toggle shows the cost only after these resolve.
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/trtc/config", { cache: "no-store" })
-      .then(async (res) => {
-        if (!res.ok) {
-          if (!cancelled) setPremiumLiveCost(false);
-          return;
-        }
-        const data = (await res.json()) as {
-          configured: boolean;
-          premiumLiveTokens?: number;
-        };
-        if (cancelled) return;
-        setPremiumLiveCost(
-          data.configured ? Math.max(0, data.premiumLiveTokens ?? 0) : false,
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setPremiumLiveCost(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/user/tokens", { cache: "no-store" })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const data = (await res.json()) as { balance?: number };
-        if (cancelled) return;
-        if (typeof data.balance === "number") setTokenBalance(data.balance);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // (TRTC config probe removed — premium live consultation is WeChat-Mini-Program-only
+  // and gated by membership. The web/Telegram book page no longer surfaces a premium-
+  // live opt-in. See docs/design-docs/product-features.md §2.)
 
   useEffect(() => {
     if (!expertId || !selectedDate) {
@@ -342,7 +297,6 @@ export default function BookSessionPage() {
     endTime: mergedEnd!,
     timezone,
     ...(sessionType === "OFFLINE" && offlineAddress.trim() && { offlineAddress: offlineAddress.trim() }),
-    ...(isPremiumLive ? { isPremiumLive: true } : {}),
     // Guest checkout fields: server ignores these when a session is present.
     ...(isGuest
       ? {
@@ -601,104 +555,10 @@ export default function BookSessionPage() {
               </div>
             </section>
 
-            {premiumLiveCost !== false && (
-              <section>
-                {(() => {
-                  const cost = typeof premiumLiveCost === "number" ? premiumLiveCost : null;
-                  const insufficient =
-                    cost !== null &&
-                    cost > 0 &&
-                    tokenBalance !== null &&
-                    tokenBalance < cost;
-                  const disabled = insufficient && !isPremiumLive;
-
-                  return (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (disabled) return;
-                          setIsPremiumLive((v) => !v);
-                        }}
-                        aria-pressed={isPremiumLive}
-                        disabled={disabled}
-                        className={cn(
-                          "flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors",
-                          isPremiumLive
-                            ? "border-indigo-400 bg-indigo-500/10"
-                            : disabled
-                              ? "border-input bg-muted/20 opacity-60"
-                              : "border-input bg-muted/30 hover:bg-muted/50",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
-                            isPremiumLive
-                              ? "border-indigo-400 bg-indigo-600 text-white"
-                              : "border-input bg-background",
-                          )}
-                          aria-hidden="true"
-                        >
-                          {isPremiumLive ? "✓" : ""}
-                        </span>
-                        <span className="flex-1">
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-foreground">
-                              Premium live consultation
-                            </span>
-                            {cost !== null && cost > 0 && (
-                              <span
-                                className={cn(
-                                  "rounded-full px-2 py-0.5 text-xs font-medium",
-                                  isPremiumLive
-                                    ? "bg-indigo-500/30 text-indigo-100"
-                                    : "bg-muted text-muted-foreground",
-                                )}
-                              >
-                                {cost} H&G token{cost > 1 ? "s" : ""}
-                              </span>
-                            )}
-                            {cost === 0 && (
-                              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-200">
-                                Free
-                              </span>
-                            )}
-                          </span>
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            Open an in-app HD video room hosted by Tencent TRTC.
-                            Available from 15 minutes before the meetup until 15
-                            minutes after it ends. Optional — your meetup also
-                            works without it.
-                          </span>
-                          {cost !== null && cost > 0 && tokenBalance !== null && (
-                            <span className="mt-1.5 block text-xs">
-                              <span className="text-muted-foreground">
-                                Your balance:{" "}
-                              </span>
-                              <span
-                                className={cn(
-                                  "font-medium",
-                                  insufficient ? "text-amber-400" : "text-foreground",
-                                )}
-                              >
-                                {tokenBalance} token{tokenBalance === 1 ? "" : "s"}
-                              </span>
-                              {insufficient && (
-                                <span className="text-amber-400">
-                                  {" "}
-                                  · need {cost - tokenBalance} more
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </>
-                  );
-                })()}
-              </section>
-            )}
+            {/* Premium live consultation toggle removed — feature is now WeChat-Mini-
+                Program-only and gated by membership (not H&G tokens). The web/Telegram
+                online-booking flow stays simple: pick a slot, confirm, done.
+                See docs/design-docs/product-features.md §2. */}
           </>
         )}
 
@@ -826,16 +686,7 @@ export default function BookSessionPage() {
                   : "Free"}
               </span>
             </div>
-            {isPremiumLive && typeof premiumLiveCost === "number" && premiumLiveCost > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Premium live consultation
-                </span>
-                <span className="font-medium text-indigo-200">
-                  +{premiumLiveCost} H&G token{premiumLiveCost > 1 ? "s" : ""}
-                </span>
-              </div>
-            )}
+            {/* Premium-live cost row removed — see comment above on the toggle. */}
             {totalCents > 0 && (
               <>
                 <hr className="border-indigo-300/20" />

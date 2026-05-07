@@ -42,32 +42,33 @@ Both paths key off `stripeCheckoutSessionId` to dedupe.
 
 ---
 
-## 2. Premium Live Consultation (TRTC)
+## 2. Premium Live Consultation (TRTC) — WeChat-Mini-Program-only
 
-Paid 1:1 live consultations on **Tencent Cloud TRTC**. Phased rollout intentionally constrained so we never ship an open-ended realtime cost surface.
+Paid 1:1 live consultations on **Tencent Cloud TRTC**, available only inside the **WeChat Mini Program** and gated by an active `Membership` on the founder side. Web and Telegram surfaces no longer expose a premium-live opt-in; the regular online booking experience there is intentionally identical to a normal Google-Meet-style meetup.
 
 ### Decisions
 
 1. **Booking-scoped rooms** — one TRTC room per `Booking`, never ad hoc.
-2. **Per-surface entitlement model** (see §2a below) — `POST /api/trtc/token` refuses to mint a `UserSig` unless the booking is flagged premium-live AND the caller's surface-specific entitlement check passes.
-3. **Server-side signing only** — `UserSig` minted in `src/lib/trtc.ts`; no Tencent secret on any client.
-4. **Reuse existing ledger** — debits go to `TokenLedger`, tied to `bookingId`. We did not add a `Transaction` model.
-5. **One contract, two clients** — Web uses `trtc-sdk-v5`, WeChat uses native `<live-pusher>` / `<live-player>` with the TRTC `room://` URL scheme. Same backend.
+2. **WeChat-only surface** — `POST /api/trtc/token` refuses to mint a `UserSig` for a founder unless the request originates from the WeChat Mini Program (`isWeChatOriginatedRequest`). The expert (host) can join from any surface — they answer, they don't pay.
+3. **Membership-only entitlement** — founder must hold an active `Membership.currentUntil > now`. The previous H&G token-debit code path (`ensurePremiumLiveDebit`, `PREMIUM_LIVE_DEBIT` ledger entries) was retired 2026-05-07; existing ledger rows stay for audit history.
+4. **Server-side signing only** — `UserSig` minted in `src/lib/trtc.ts`; no Tencent secret on any client.
+5. **One contract, two clients** — Web uses `trtc-sdk-v5` (used by experts joining their own MP-booked rooms). WeChat MP founder client uses native `<live-pusher>` / `<live-player>` with the TRTC `room://` URL scheme. Same backend.
 
-### 2a. Entitlement model: tokens vs membership
+### 2a. Why this scope
 
-The pricing/access rail is **branched on origin** because the two audiences have different billing surfaces:
+- **Mainland-CN audience uses WeChat Pay subscriptions** as the natural billing surface for renewable access — premium live maps cleanly to a Membership tier. Forcing them to top up a token balance would feel out of place.
+- **Web / Telegram audience already gets Google-Meet-style meetings** out of the box. Adding an in-app HD video room there would be a feature in search of a use case — and bloated the booking UX with a token-balance tracker most users would never engage with.
+- **One billing rail per surface** keeps the booking flow simple but beautiful — fewer toggles, fewer error states.
 
-| Surface | Entitlement | How access is granted | Where this is enforced |
-|---|---|---|---|
-| **Web / Telegram** | `tokens` | One-time **`TRTC_PREMIUM_LIVE_TOKENS` H&G token** debit per booking via `TokenLedger` (type `PREMIUM_LIVE_DEBIT`). Token balance topped up via in-app purchase / earned via paid meetups. | `ensurePremiumLiveDebit()` in `/api/trtc/token` |
-| **WeChat MP (current Intl + future Mainland CN)** | `membership` | Active row in the `Membership` table. Subscription billed via WeChat Pay (when mainland-CN MP launches) or kept manual for the international user-test. | `hasActiveMembership()` from `src/lib/membership` |
+### Phase status
 
-Both gates run **after** the booking has been validated as premium-live, the participant is verified as founder/expert, and the time window is open. So if the user is a participant of a premium-live booking and inside the room window, the only remaining check is "do you have the right entitlement for your surface."
-
-The public read-only endpoint `GET /api/trtc/config` returns `entitlement: "membership" | "tokens"` based on the requesting surface, so the booking page can render the correct CTA copy ("Costs N H&G tokens" vs. "Active membership required") without an authenticated round-trip.
-
-**Why split, not unify.** Mainland-CN users can't easily top up an in-app token balance — WeChat Pay pushes toward subscription products with renewals/cancellations as a first-class concept. Web/Telegram users hit Stripe / TON which already supports one-shot charges and aligns naturally with per-booking token debits. Unifying the rails would force one audience into a billing UX their platform doesn't natively support.
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Backend foundation: schema, env, signing, `POST /api/trtc/token`, ownership/window/credit checks | **Done** |
+| 2 | Booking-flow toggle, `Booking.isPremiumLive`, premium-cost preview at checkout | **Done (toggle UI removed 2026-05-07; flag stays for WeChat-MP-driven bookings)** |
+| 3 | Web client `/consultation/[bookingId]` with `trtc-sdk-v5`; entry chip on `/booking` cards | **Done — used by experts joining MP-booked rooms only** |
+| 4 | WeChat client `pages/consultation/index` using native `<live-pusher mode="RTC">` + `<live-player mode="RTC">`; entry chip on the dashboard card | **Done** |
+| 5 | Membership-only entitlement on `/api/trtc/token`; H&G token debit path retired | **Done 2026-05-07** |
 
 ### Phase status
 

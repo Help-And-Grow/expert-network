@@ -45,7 +45,9 @@ type TokenResponse = {
   expiresInSeconds: number;
   expiresAt: string;
   participantRole: "founder" | "expert";
-  premiumLiveTokenCost: number;
+  // Optional / removed: premiumLiveTokenCost. Premium live is now membership-
+  // gated (WeChat-MP-only); the per-room H&G token debit no longer applies.
+  premiumLiveTokenCost?: number;
 };
 
 type RoomState = "loading" | "ready" | "joining" | "in-room" | "leaving" | "error";
@@ -307,11 +309,7 @@ export default function ConsultationPage() {
             </span>
             .
           </p>
-          {token.premiumLiveTokenCost > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {token.premiumLiveTokenCost} H&G token{token.premiumLiveTokenCost > 1 ? "s" : ""} debited for room access.
-            </p>
-          )}
+          {/* Premium-live H&G token cost message removed — feature is membership-gated. */}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
