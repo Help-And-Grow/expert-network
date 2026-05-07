@@ -63,6 +63,15 @@ export const ENABLE_PAID_BOOKINGS =
 export const ENABLE_PREMIUM_LIVE =
   (process.env.TARO_APP_ENABLE_PREMIUM_LIVE || "true") === "true";
 
+/**
+ * Whether the MP exposes AI voice features (语音提问 + 实时 AI 对话).
+ * WeChat platform restricts AI Q&A services to mainland-CN entity apps;
+ * the intl (Singapore-entity) build must hide all AI voice surfaces until
+ * a mainland-CN company entity is provisioned.
+ */
+export const ENABLE_AI_VOICE =
+  (process.env.TARO_APP_ENABLE_AI_VOICE || "true") === "true";
+
 /** Default UI language for this build. */
 export const DEFAULT_LANG =
   process.env.TARO_APP_DEFAULT_LANG || "zh-CN";

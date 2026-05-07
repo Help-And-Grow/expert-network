@@ -11,7 +11,7 @@ import { get } from "../../shared/api";
 import { getApiBase, getToken, isLoggedIn, wxLogin } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
-import { ENABLE_PAID_BOOKINGS } from "../../shared/brand";
+import { ENABLE_AI_VOICE, ENABLE_PAID_BOOKINGS } from "../../shared/brand";
 import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
@@ -334,7 +334,7 @@ export default function ExpertPage() {
         </View>
       )}
 
-      {!expert.viewerIsOwner && (expert.hasVoiceChat ?? true) && (
+      {ENABLE_AI_VOICE && !expert.viewerIsOwner && (expert.hasVoiceChat ?? true) && (
         <View className="expert-profile__section">
           <Text className="expert-profile__section-title">AI 语音体验</Text>
 

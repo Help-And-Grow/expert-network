@@ -17,5 +17,6 @@
   "TARO_APP_BRAND_MISSION": "助力中国与东南亚青年 学AI · 用AI · 创新未来",
   "TARO_APP_ENABLE_WECHAT_PAY": "false",
   "TARO_APP_ENABLE_PAID_BOOKINGS": "false",
-  "TARO_APP_ENABLE_PREMIUM_LIVE": "false"
+  "TARO_APP_ENABLE_PREMIUM_LIVE": "false",
+  "TARO_APP_ENABLE_AI_VOICE": "false"
 }
