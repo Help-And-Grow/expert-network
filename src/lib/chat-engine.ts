@@ -130,7 +130,7 @@ export async function chat(
         expertId: expert.id,
         name: expert.user.nickName ?? expert.user.name ?? "Unknown",
         summary,
-        reason: buildDeterministicExpertMatchReason(expert),
+        reason: buildDeterministicExpertMatchReason(expert, message),
         sessionTypes: [expert.sessionType],
         profileUrl: `${APP_BASE_URL}/experts/${expert.id}`,
         bookUrl: `${APP_BASE_URL}/experts/${expert.id}/book`,

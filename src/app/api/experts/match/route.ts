@@ -524,7 +524,12 @@ export async function POST(request: NextRequest) {
           expertId: expert.id,
           name: expert.user.nickName ?? expert.user.name ?? "Unknown",
           summary: buildExpertSummary(expert),
-          reason: buildDeterministicExpertMatchReason(expert),
+          // Pass the original query so the reason can extract a sentence
+          // from the expert's profile that mentions it (e.g. "Singapore"
+          // → quote the sentence about Singapore tech events). Without
+          // the query we'd fall back to the first sentence of the script
+          // which is usually generic boilerplate.
+          reason: buildDeterministicExpertMatchReason(expert, query),
           sessionTypes: [expert.sessionType],
         })),
       });
