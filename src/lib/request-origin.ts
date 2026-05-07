@@ -19,12 +19,25 @@ function readRuntimeEnv(name: string): string | undefined {
 }
 
 /**
- * Detects whether a request originated from the WeChat Mini Program by
- * inspecting either the SCF deployment marker (`IS_WECHAT=true`) or headers
- * stamped by the older TCB proxy path (`infra/tcb-proxy/index.js`).
+ * Detects whether a request originated from the WeChat Mini Program. Signals,
+ * in priority order:
  *
- * Used by the storage factory to auto-route uploads to Tencent COS and by
- * the AI factory to route WeChat inference to Tencent Hunyuan.
+ *   1. `WECHAT_BUILD_TARGET=wechat` build-time env.
+ *   2. `IS_WECHAT=true` runtime env (SCF deploys dedicated to a WeChat region).
+ *   3. Per-request headers:
+ *      - `x-wechat-token` — set on every request by the Mini Program's
+ *        `wechat/src/shared/api.ts`. This is the canonical signal now that
+ *        the TCB proxy has been retired and the Mini Program calls Vercel
+ *        directly.
+ *      - `x-forwarded-via: tcb-proxy` / `x-forwarded-from: wechat` — legacy
+ *        stamps from the old TCB proxy path; kept so any straggler deploys
+ *        still route correctly.
+ *
+ * Used by the storage factory (Tencent COS) and the AI factory (Hunyuan).
+ * Misclassifying a WeChat call as Web/Telegram routes it through the
+ * Qwen→Gemini chain, which on Vercel `sin1` regularly exceeds the 60 s
+ * `maxDuration` for `/api/experts/match` and surfaces as the
+ * "这次匹配没有成功" toast on the discover page.
  */
 export function isWeChatOriginatedRequest(
   request: HeaderBearingRequest | undefined | null,
@@ -32,6 +45,7 @@ export function isWeChatOriginatedRequest(
   if (buildTargetIsWeChat) return true;
   if (readRuntimeEnv("IS_WECHAT") === "true") return true;
   if (!request) return false;
+  if (request.headers.get("x-wechat-token")) return true;
   const via = request.headers.get("x-forwarded-via");
   const from = request.headers.get("x-forwarded-from");
   return via === "tcb-proxy" || from === "wechat";
