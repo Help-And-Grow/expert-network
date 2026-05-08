@@ -194,11 +194,36 @@ AI chat          → searchExpertMemories() → context-aware responses
 
 ## WeChat Mini Program
 
+### Two-App Strategy
+
+Help & Grow operates **two separate WeChat Mini Programs** for different markets:
+
+| App | Region | Company | Positioning | AI Provider | Data Residency |
+|-----|--------|----------|-------------|--------------|----------------|
+| **International** | `intl` | Singapore | Free mentoring platform for youth learning AI | Qwen/DashScope (default) | Global (Supabase/Google Cloud) |
+| **China Mainland** (future) | `cn` | Chinese company | Localized expert network | **Hunyuan** (Tencent LLM) | 🔒 **China-only** (separate Tencent Cloud stack) |
+
+**Data residency principle (China app)**: All user data is stored and processed **only within China mainland** — separate Tencent Cloud account, separate DB, separate COS, Hunyuan AI processing. No data sync with international stack.
+
+### International App (Current)
+
+- **AppID**: `wx09d0eb079596060d`
+- **CloudBase env**: `cn-wechat-d1gzncs8i34827c98`
+- **Build config**: `wechat/build-config/intl.json`
+- **Product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
+
+### China App (Future)
+
+- **AppID**: `PENDING_*` (requires China company registration)
+- **Cloud infra**: China-local Tencent Cloud (separate stack)
+- **Build config**: `wechat/build-config/cn.json` (contains `PENDING_*` values)
+- **AI provider**: **Hunyuan** (ensures data stays in China)
+
+### Shared Technical Details
+
 - **Framework**: Taro 4.x (React)
 - **Location**: `wechat/`
 - **Pages**: Home, Discover, Expert, Book, Dashboard, Onboarding, Profile
 - **Auth**: `wx.login()` → backend `code2session` → JWT stored in Taro storage
 - **API calls**: Same backend via `TARO_APP_API_BASE` with `x-wechat-token` header
-- **Current product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
-- **Current deployment target**: international WeChat Mini Program (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`) backed by Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98` and Hunyuan. The mainland-CN app is a future separate AppID/company path.
-- **Build / upload**: `npm run build:weapp:intl` in `wechat/`; from repo root `npm run wechat:upload:intl` builds `wechat/dist-intl` and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` builds/uploads the intl app on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`.
+- **Build / upload**: `npm run build:weapp:intl` (intl) or `npm run build:weapp:cn` (cn) in `wechat/`; from repo root `npm run wechat:upload:intl` builds `wechat/dist-intl` and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` builds/uploads the intl app on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`.

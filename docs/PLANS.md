@@ -9,12 +9,26 @@
 3. **AI matching**: Improve expert recommendation quality with richer context
 4. **Growth**: SEO, sharing features, referral mechanics
 
+## WeChat Mini Program Strategy (Two-App Architecture)
+
+| App | Company | Positioning | Status |
+|-----|----------|-------------|--------|
+| **International** | Singapore | Free mentoring platform for youth learning AI in building products | Live (AppID: `wx09d0eb079596060d`) |
+| **China Mainland** | Chinese company (future) | Localized expert network | Planned |
+
+**China app key principles:**
+- Separate Tencent Cloud infrastructure stack (China region only)
+- **Hunyuan** as AI provider (all AI processing stays in China)
+- **Data residency**: All user data stored and processed **only within China mainland** (no sync with international DB)
+- Separate AppID, separate CloudBase env, separate COS bucket
+
 ## Upcoming Work
 
 - [x] **Next.js 15 upgrade** — [completed plan](exec-plans/completed/nextjs-15-upgrade.md) (run manual QA on preview before prod)
 - [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 5-reply free cap) + realtime AI chat; Web, Telegram, WeChat
 - [ ] **AI Voice Chat — Realtime deployment** — Realtime readiness depends on DashScope/Qwen (`DASHSCOPE_API_KEY`); verify the timed chat UX on web and Telegram when `VOICE_CHAT_MODE` includes `realtime`
 - [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
+- [ ] **China WeChat Mini Program** — Register Chinese company, obtain mainland AppID, set up separate China Tencent Cloud stack with data residency
 - [ ] Expert earnings dashboard (view payouts, transaction history)
 - [ ] Group sessions / workshop meetup support
 - [ ] Avatar language switching quality (English, Chinese, Malay) — keep chat UI free of translation buttons

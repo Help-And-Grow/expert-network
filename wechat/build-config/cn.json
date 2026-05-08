@@ -2,6 +2,9 @@
   "_comment": "Future mainland-CN WeChat Mini Program build config.",
   "_comment2": "Do not use for the current user test. This becomes active only after the Chinese company/appId exists.",
   "_comment3": "Secrets stay in SCF runtime env, not here.",
+  "_comment4": "DATA RESIDENCY: This app uses a SEPARATE Tencent Cloud stack in China mainland.",
+  "_comment5": "All user data is stored and processed ONLY within China (separate DB, separate COS).",
+  "_comment6": "AI provider is Hunyuan (Tencent LLM) to ensure no data leaves China for AI processing.",
   "TARO_APP_REGION": "cn",
   "TARO_APP_APPID": "PENDING_MAINLAND_CN_WECHAT_APPID",
   "TARO_APP_CLOUDBASE_ENV_ID": "PENDING_MAINLAND_CN_CLOUDBASE_ENV_ID",
@@ -11,5 +14,6 @@
   "TARO_APP_BRAND_NAME": "Help & Grow",
   "TARO_APP_BRAND_LOGO": "/images/logo.png",
   "TARO_APP_BRAND_SLOGAN": "AI Native Expert Network",
-  "TARO_APP_ENABLE_WECHAT_PAY": "true"
+  "TARO_APP_ENABLE_WECHAT_PAY": "true",
+  "TARO_APP_AI_PROVIDER": "hunyuan"
 }

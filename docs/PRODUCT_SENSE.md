@@ -45,13 +45,22 @@ Members are **not** only "buyers" or "sellers." Everyone has expertise worth **s
 
 ## Infrastructure (platform parity enabler)
 
-Help & Grow runs on a **Tri-Cloud architecture**:
+Help & Grow runs on a **Tri-Cloud architecture** with **strict data residency** for China users:
 
 | Cloud | Role |
 |-------|------|
-| **Google Cloud Platform** | Primary backend (Cloud Run), AI engine (Gemini/Vertex AI), global asset storage (GCS) |
+| **Google Cloud Platform** | Primary backend (Cloud Run), AI engine (Gemini/Vertex AI), global asset storage (GCS) — international users |
 | **Vercel** | Edge-optimized web frontend, international traffic |
-| **Tencent Cloud** | WeChat Mini Program, China-local storage (COS), TRTC live consultation |
+| **Tencent Cloud** | WeChat Mini Programs, storage (COS), TRTC live consultation |
+
+### WeChat Mini Program Strategy
+
+| App | Company | Positioning | AI Provider | Data Residency |
+|-----|----------|-------------|--------------|----------------|
+| **International** | Singapore | Free mentoring platform for youth learning AI | Qwen/DashScope (default) | Global (Supabase/Google Cloud) |
+| **China Mainland** (future) | Chinese company | Localized expert network | **Hunyuan** (Tencent LLM) | 🔒 **China-only** (separate Tencent Cloud stack) |
+
+**China data residency principle**: The China WeChat app uses a completely separate Tencent Cloud infrastructure stack. All user data is stored and processed **only within China mainland** — no synchronization with the international database.
 
 Runtime providers (storage driver, AI model) are managed via a database-backed `SystemConfig` table — switchable without redeployment.
 
@@ -94,12 +103,13 @@ Runtime providers (storage driver, AI model) are managed via a database-backed `
 
 | Capability | Provider | Notes |
 |-----------|----------|-------|
-| Profile generation, matching, bio | **Gemini** (primary) | Google Search grounding for expert context |
+| Profile generation, matching, bio | **Gemini** (primary, international) | Google Search grounding for expert context |
 | Embeddings | `gemini-embedding-001` | Switched from legacy Gemini embedding model |
-| Voice chat (async, default) | **Qwen / DashScope** | Gender-matched device voice fallback |
-| Voice chat (realtime, feature-toggled) | **Qwen / DashScope** | Requires `DASHSCOPE_API_KEY`; toggled via `VOICE_CHAT_MODE` |
+| Voice chat (async, default) | **Qwen / DashScope** (intl), **Hunyuan** (China) | Gender-matched device voice fallback; China app uses Hunyuan |
+| Voice chat (realtime, feature-toggled) | **Qwen / DashScope** (intl), **Hunyuan** (China) | Requires API key; China app uses Hunyuan for data residency |
 | TTS | Gemini TTS (configurable) | `GEMINI_EMBEDDING_MODEL` / `TTS_MODEL` env vars |
 | AI model registry | `SystemConfig` DB table | Runtime-switchable without redeployment |
+| **China WeChat app** | **Hunyuan** (Tencent LLM) | All AI processing stays within China mainland |
 
 ## Trust & On-Chain Layer
 

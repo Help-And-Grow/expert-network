@@ -1,20 +1,44 @@
 # WeChat Mini Program (Help & Grow)
 
-## Current User-Test Target
+Help & Grow operates **two separate WeChat Mini Programs** for different markets, with strict data residency controls.
 
-The active user-test app is the **international WeChat Mini Program** registered through the Singapore company.
+## International App (Singapore Company)
 
-| Item | Current value |
+**Positioning**: Free mentoring platform helping youth learn AI in building products.
+
+| Item | Value |
 |---|---|
 | Build region | `intl` |
 | AppID | `wx09d0eb079596060d` |
+| Company | Registered in Singapore |
 | CloudBase env | `cn-wechat-d1gzncs8i34827c98` |
 | API base | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
 | Backend | Tencent CloudBase / SCF Web Function |
-| AI | Tencent Hunyuan for WeChat-originated backend traffic |
-| Database posture | Tencent-side database is synchronized from Supabase today; future source may move to Google Cloud DB |
+| AI | Configurable per `AI_PROVIDER` (default: Qwen/DashScope for international traffic) |
+| Database posture | Tencent-side database synchronized from Supabase; future source may move to Google Cloud DB |
 
-The mainland China mini program is future work. `build-config/cn.json` intentionally contains `PENDING_*` values until the China company, mainland AppID, and review path are ready.
+## China Mainland App (Future — Chinese Company)
+
+**Positioning**: Localized expert network for China mainland users.
+
+| Item | Value |
+|---|---|
+| Build region | `cn` |
+| AppID | `PENDING_*` (requires China company registration) |
+| Company | To be registered in China |
+| Cloud infra | **China-local Tencent Cloud** (separate stack) |
+| AI provider | **Hunyuan** (Tencent's LLM) |
+| Data residency | 🔒 **All data stored and processed only within China mainland** |
+
+### Data Residency Principle (China App)
+
+- Separate Tencent Cloud account and infrastructure stack
+- Separate database (no sync with international DB)
+- Separate object storage (COS China region)
+- AI processing via Hunyuan (data stays in China)
+- **No cross-border data transfer** for China-app users
+
+`build-config/cn.json` intentionally contains `PENDING_*` values until the China company, mainland AppID, and review path are ready.
 
 ## Build for WeChat DevTools
 

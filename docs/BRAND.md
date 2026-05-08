@@ -27,7 +27,8 @@ We believe in **service as agent**: a **digital version of each expert** that **
 |---------|--------|-------|
 | **Web** (Next.js) | Live | Full feature set; primary conversion surface |
 | **Telegram** Mini App | Live | Same API; reaches SEA operators where they already work |
-| **WeChat** Mini Program | Live | China market; native `live-pusher`/`live-player` for premium live |
+| **WeChat** Mini Program (International) | Live | Registered by Singapore company; **free mentoring platform** helping youth learn AI in building products |
+| **WeChat** Mini Program (China) | Planned | Future app by Chinese company; Tencent Cloud (China) + Hunyuan AI; **data stored/processed only in China mainland** |
 | **AI Voice Chat** | Live | Async (default) + realtime (feature-toggled); expert gender-matched voice |
 | **Premium Live Consultation** | Live (Phases 1–4) | TRTC HD video, token-gated, booking-scoped, web + WeChat |
 | **MCP server / OpenClaw** | Live | Exposes Help & Grow as a tool for AI agents |
@@ -55,6 +56,13 @@ Help & Grow runs on a **Tri-Cloud architecture** designed for global reach and C
 - **Tencent Cloud** — WeChat Mini Program, China-local storage (COS), TRTC for live consultation.
 
 Runtime provider switching (storage, AI model) is managed via a database-backed `SystemConfig` table — no redeployment required.
+
+### Data residency principle (China)
+
+The **China WeChat Mini Program** (future) will use a **separate Tencent Cloud infrastructure stack** within mainland China:
+- **AI provider**: Hunyuan (Tencent's LLM) for China-originated traffic.
+- **Data residency**: All user data from the China app is stored and processed **only within China mainland** — separate database, separate object storage, separate AI processing.
+- **No data sync** between the China stack and the international stack (SG/SEA users).
 
 ## Geography (context, not the headline)
 
