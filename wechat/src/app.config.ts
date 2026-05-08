@@ -7,7 +7,7 @@ export default defineAppConfig({
     "pages/dashboard/index",
     "pages/onboarding/index",
     "pages/profile/index",
-    "pages/consultation/index",
+    // "pages/consultation/index", // live-pusher/live-player — not available for overseas entities
     // "pages/membership/index", // hidden until WeChat Pay is provisioned
   ],
   tabBar: {

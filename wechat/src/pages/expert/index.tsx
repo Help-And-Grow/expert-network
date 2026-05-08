@@ -229,8 +229,6 @@ export default function ExpertPage() {
   const API_BASE = getApiBase();
   const experience = expert.experienceCapabilities;
   const voiceReplyLimit = experience?.voiceConsult.freeReplyLimit ?? 5;
-  const realtimeDurationSeconds = experience?.realtimeVoice.durationSeconds ?? 180;
-  const realtimeMinutes = Math.max(1, Math.round(realtimeDurationSeconds / 60));
   const hasOnlineBooking = expert.priceOnlineCents != null;
   const hasOfflineBooking = expert.priceOfflineCents != null;
 
@@ -393,15 +391,6 @@ export default function ExpertPage() {
             </View>
           </View>
 
-          <View className="expert-profile__realtime-card expert-profile__realtime-card--disabled">
-            <Text className="expert-profile__realtime-badge">订阅功能</Text>
-            <Text className="expert-profile__realtime-title">
-              <Icon name="sparkles" size={18} color="#f9fafb" /> 实时 AI 对话
-            </Text>
-            <Text className="expert-profile__realtime-desc">
-              订阅后可开启，每次最多 {realtimeMinutes} 分钟。
-            </Text>
-          </View>
         </View>
       )}
 
