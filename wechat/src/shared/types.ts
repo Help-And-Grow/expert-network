@@ -57,6 +57,7 @@ export interface ExpertDetail extends Expert {
   avatarScript: string | null;
   documentName: string | null;
   experienceCapabilities?: ExperienceCapabilities;
+  weeklySchedule?: Record<string, Array<{ start: string; end: string }>> | null;
 }
 
 export interface ServiceItem {
