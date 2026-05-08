@@ -16,7 +16,6 @@ import { countryFlagEmoji, getCountryOption } from "../../shared/countries";
 import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
-import { buildWebProfileLoginUrl } from "../../shared/web-booking";
 import "./index.scss";
 
 function resolveExpertIdFromLaunch(loadOpts?: Record<string, unknown>): string {
@@ -232,8 +231,8 @@ export default function ExpertPage() {
   const voiceReplyLimit = experience?.voiceConsult.freeReplyLimit ?? 5;
   const realtimeDurationSeconds = experience?.realtimeVoice.durationSeconds ?? 180;
   const realtimeMinutes = Math.max(1, Math.round(realtimeDurationSeconds / 60));
-  const loginFirstProfileUrl =
-    experience?.web.loginFirstProfileUrl ?? buildWebProfileLoginUrl(expertId);
+  const hasOnlineBooking = expert.priceOnlineCents != null;
+  const hasOfflineBooking = expert.priceOfflineCents != null;
 
   return (
     <View className="expert-profile">
@@ -461,7 +460,7 @@ export default function ExpertPage() {
             <Text className="expert-profile__document-action">查看附件</Text>
           </View>
           <Text className="expert-profile__section-hint">
-            复制网页链接可在浏览器查看更多详情并安排见面
+            点击查看服务介绍资料详情
           </Text>
         </View>
       )}
@@ -581,32 +580,41 @@ export default function ExpertPage() {
       <View style={{ height: "100px" }} />
 
       {/* Fixed bottom CTA bar */}
-      {!expert.viewerIsOwner && (
+      {!expert.viewerIsOwner && (hasOnlineBooking || hasOfflineBooking) && (
         <View className="expert-profile__bottom-bar">
-          <View
-            className="expert-profile__book-btn expert-profile__book-btn--outline"
-            hoverClass="expert-profile__book-btn--hover"
-            onClick={() => {
-              Taro.setClipboardData({
-                data: loginFirstProfileUrl,
-                success: () =>
-                  Taro.showToast({ title: "网页主页链接已复制", icon: "success" }),
-              });
-            }}
-          >
-            复制网页链接
-          </View>
-          <View
-            className="expert-profile__book-btn expert-profile__book-btn--primary"
-            hoverClass="expert-profile__book-btn--hover"
-            onClick={() => {
-              Taro.navigateTo({
-                url: `/pages/book/index?id=${expertId}`,
-              });
-            }}
-          >
-            预约学习见面（免费）
-          </View>
+          {hasOnlineBooking && hasOfflineBooking ? (
+            <>
+              <View
+                className="expert-profile__book-btn expert-profile__book-btn--outline"
+                hoverClass="expert-profile__book-btn--hover"
+                onClick={() =>
+                  Taro.navigateTo({ url: `/pages/book/index?id=${expertId}&type=OFFLINE` })
+                }
+              >
+                线下预约
+              </View>
+              <View
+                className="expert-profile__book-btn expert-profile__book-btn--primary"
+                hoverClass="expert-profile__book-btn--hover"
+                onClick={() =>
+                  Taro.navigateTo({ url: `/pages/book/index?id=${expertId}&type=ONLINE` })
+                }
+              >
+                线上预约（免费）
+              </View>
+            </>
+          ) : (
+            <View
+              className="expert-profile__book-btn expert-profile__book-btn--primary"
+              hoverClass="expert-profile__book-btn--hover"
+              onClick={() => {
+                const type = hasOnlineBooking ? "ONLINE" : "OFFLINE";
+                Taro.navigateTo({ url: `/pages/book/index?id=${expertId}&type=${type}` });
+              }}
+            >
+              {hasOnlineBooking ? "线上预约（免费）" : "线下预约（免费）"}
+            </View>
+          )}
         </View>
       )}
     </View>

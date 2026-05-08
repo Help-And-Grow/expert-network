@@ -1,10 +1,10 @@
 @import '../../styles/index';
 
-.book-web {
-  padding: $spacing-12 $spacing-10 80px;
+.book {
+  padding: $spacing-10 $spacing-8 120px;
   min-height: 100vh;
   box-sizing: border-box;
-  background: linear-gradient(180deg, $color-bg-muted 0%, $color-bg-card 40%);
+  @include page-bg;
 
   &__loading,
   &__error {
@@ -12,48 +12,235 @@
     text-align: center;
     font-size: $font-size-lg;
     color: $color-text-tertiary;
-    margin-top: 120px;
+    margin-top: 160px;
   }
 
   &__title {
     display: block;
-    font-size: $font-size-4xl;
+    font-size: $font-size-3xl;
     font-weight: $font-weight-extrabold;
     color: $color-text-heading;
+    margin-bottom: $spacing-3;
+  }
+
+  &__subtitle {
+    display: block;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-8;
+    line-height: $line-height-relaxed;
+  }
+
+  // --- session type selection ---
+  &__type-cards {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-5;
+    margin-bottom: $spacing-8;
+  }
+
+  &__type-card {
+    @include card;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: $spacing-7 $spacing-7;
+    border: 2px solid $color-border-primary;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
+
+    &--hover {
+      opacity: 0.85;
+      transform: scale(0.985);
+    }
+  }
+
+  &__type-card-icon {
+    font-size: 36px;
+    margin-bottom: $spacing-3;
+  }
+
+  &__type-card-title {
+    display: block;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    color: $color-text-heading;
+    margin-bottom: $spacing-2;
+  }
+
+  &__type-card-desc {
+    display: block;
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+  }
+
+  // --- slot list ---
+  &__slots-scroll {
+    height: 55vh;
     margin-bottom: $spacing-6;
   }
 
-  &__desc {
-    display: block;
-    font-size: $font-size-md;
-    color: #64748b;
-    line-height: 1.65;
-    margin-bottom: $spacing-8;
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: $spacing-16 0 $spacing-8;
+    text-align: center;
   }
 
-  &__card {
+  &__empty-icon {
+    font-size: 56px;
+    margin-bottom: $spacing-5;
+  }
+
+  &__empty-text {
+    display: block;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-3;
+  }
+
+  &__empty-hint {
+    display: block;
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+    line-height: $line-height-relaxed;
+  }
+
+  &__date-group {
+    margin-bottom: $spacing-7;
+  }
+
+  &__date-label {
+    display: block;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-4;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__slots-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-3;
+  }
+
+  &__slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: $spacing-4 $spacing-5;
+    border-radius: $radius-lg;
+    background: $color-bg-card;
+    border: 2px solid $color-border-primary;
+    min-width: 110px;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
+
+    &--hover {
+      opacity: 0.85;
+      transform: scale(0.96);
+    }
+  }
+
+  &__slot-start {
+    display: block;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    color: $color-primary;
+  }
+
+  &__slot-end {
+    display: block;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-top: $spacing-1;
+  }
+
+  // --- confirmation summary ---
+  &__summary {
     @include card;
     border: 1.5px solid $color-border-primary;
     margin-bottom: $spacing-8;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
-  &__expert {
-    display: block;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+  &__summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-5 0;
+    border-bottom: 1px solid $color-divider;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__summary-label {
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+    flex-shrink: 0;
+    margin-right: $spacing-4;
+  }
+
+  &__summary-value {
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
     color: $color-text-heading;
+    text-align: right;
+
+    &--free {
+      color: #059669;
+      font-weight: $font-weight-bold;
+    }
   }
 
-  &__type {
+  // --- success screen ---
+  &__success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: $spacing-12 0 $spacing-10;
+  }
+
+  &__success-icon {
+    font-size: 72px;
+    margin-bottom: $spacing-6;
+  }
+
+  &__success-title {
+    display: block;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-heading;
+    margin-bottom: $spacing-5;
+  }
+
+  &__success-desc {
+    display: block;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    line-height: $line-height-relaxed;
+    margin-bottom: $spacing-4;
+  }
+
+  &__success-hint {
     display: block;
     font-size: $font-size-md;
     color: $color-primary;
-    margin-top: $spacing-2;
+    margin-bottom: $spacing-8;
   }
 
+  // --- shared buttons ---
   &__btn {
+    display: block;
     text-align: center;
-    padding: 28px;
+    padding: $spacing-6 0;
     border-radius: $radius-xl;
     font-size: $font-size-xl;
     font-weight: $font-weight-semibold;
@@ -68,8 +255,12 @@
       @include btn-ghost;
     }
 
+    &--loading {
+      opacity: 0.6;
+    }
+
     &--hover {
-      opacity: 0.88;
+      opacity: 0.85;
       transform: scale(0.98);
     }
   }
