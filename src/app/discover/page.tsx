@@ -222,8 +222,8 @@ function DiscoverContent() {
   }
 
   return (
-    <div className="app-shell min-h-screen w-full max-w-lg mx-auto flex flex-col pb-24">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <div className="app-shell flex h-dvh w-full max-w-lg mx-auto flex-col">
+      <div className="shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center justify-between">
             <div>
@@ -243,87 +243,83 @@ function DiscoverContent() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col px-4 min-h-0">
-        <div className="flex-1 flex flex-col min-h-[min(70dvh,520px)] max-h-[calc(100dvh-12rem)]">
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2 py-4">
-            {chatMessages.length === 0 && (
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                <Sparkles className="h-10 w-10 mx-auto mb-3 text-indigo-500" />
-                <p>Describe what you&apos;re looking for and we&apos;ll find the right match.</p>
-                <p className="mt-1">e.g. &quot;I need help expanding my startup in Singapore&quot;</p>
-              </div>
-            )}
-            {chatMessages.map((m, i) => (
-              <div
-                key={i}
-                className={`chat-bubble-animate ${
-                  m.role === "user" ? "ml-4 mr-0 text-right" : "mr-4 ml-0 text-left"
-                }`}
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
-                {m.role === "user" && m.content && (
-                  <div className="inline-block rounded-2xl bg-primary px-4 py-2 text-primary-foreground text-sm">
-                    {m.content}
-                  </div>
-                )}
-                {m.role === "assistant" && (
-                  <div className="space-y-3">
-                    {m.recommendations && m.recommendations.length > 0 ? (
-                      m.recommendations.map((rec) => (
-                        <MatchRecommendationCard key={rec.expertId} rec={rec} />
-                      ))
-                    ) : m.noMatchMessage ? (
-                      <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground">
-                        <p>{m.noMatchMessage}</p>
-                        {m.transientError && i === chatMessages.length - 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-3"
-                            onClick={retryLastQuery}
-                            disabled={chatLoading}
-                          >
-                            Retry
-                          </Button>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            ))}
-            {chatLoading && (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <span className="typing-dots">Finding matches</span>
-              </div>
-            )}
-            <div ref={chatEndRef} />
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {chatMessages.length === 0 && (
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            <Sparkles className="h-10 w-10 mx-auto mb-3 text-indigo-500" />
+            <p>Describe what you&apos;re looking for and we&apos;ll find the right match.</p>
+            <p className="mt-1">e.g. &quot;I need help expanding my startup in Singapore&quot;</p>
           </div>
+        )}
+        {chatMessages.map((m, i) => (
+          <div
+            key={i}
+            className={`chat-bubble-animate ${
+              m.role === "user" ? "ml-4 mr-0 text-right" : "mr-4 ml-0 text-left"
+            }`}
+            style={{ animationDelay: `${i * 50}ms` }}
+          >
+            {m.role === "user" && m.content && (
+              <div className="inline-block rounded-2xl bg-primary px-4 py-2 text-primary-foreground text-sm">
+                {m.content}
+              </div>
+            )}
+            {m.role === "assistant" && (
+              <div className="space-y-3">
+                {m.recommendations && m.recommendations.length > 0 ? (
+                  m.recommendations.map((rec) => (
+                    <MatchRecommendationCard key={rec.expertId} rec={rec} />
+                  ))
+                ) : m.noMatchMessage ? (
+                  <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground">
+                    <p>{m.noMatchMessage}</p>
+                    {m.transientError && i === chatMessages.length - 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={retryLastQuery}
+                        disabled={chatLoading}
+                      >
+                        Retry
+                      </Button>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ))}
+        {chatLoading && (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <span className="typing-dots">Finding matches</span>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
 
-          <div className="sticky bottom-0 pt-3 pb-2 bg-background border-t border-border/60 shrink-0">
-            <div className="flex gap-2">
-              <Input
-                placeholder="What are you looking for?"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void sendMatchQuery();
-                  }
-                }}
-                disabled={chatLoading}
-                className="flex-1"
-              />
-              <VoiceInputButton
-                onTranscript={(text) => setChatInput((prev) => (prev ? `${prev} ${text}` : text))}
-              />
-              <Button size="icon" onClick={() => void sendMatchQuery()} disabled={!chatInput.trim() || chatLoading}>
-                {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
+      <div className="shrink-0 border-t border-border/60 bg-background px-4 py-3 mobile-safe-bottom">
+        <div className="flex gap-2">
+          <Input
+            placeholder="What are you looking for?"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void sendMatchQuery();
+              }
+            }}
+            disabled={chatLoading}
+            className="flex-1"
+          />
+          <VoiceInputButton
+            onTranscript={(text) => setChatInput((prev) => (prev ? `${prev} ${text}` : text))}
+          />
+          <Button size="icon" onClick={() => void sendMatchQuery()} disabled={!chatInput.trim() || chatLoading}>
+            {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
         </div>
       </div>
     </div>
