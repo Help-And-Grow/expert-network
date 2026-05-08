@@ -44,7 +44,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: $spacing-7 $spacing-7;
+    padding: $spacing-6 $spacing-6;
     border: 2px solid $color-border-primary;
     transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
 
@@ -108,7 +108,7 @@
   }
 
   &__date-group {
-    margin-bottom: $spacing-7;
+    margin-bottom: $spacing-8;
   }
 
   &__date-label {
