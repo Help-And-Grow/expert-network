@@ -2,6 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { SessionType } from "@/generated/prisma/client";
 import { absoluteAppUrl } from "@/lib/app-origin";
 import {
+  expertCountriesSearchText,
+  normalizeCountryCodes,
+} from "@/lib/expert-countries";
+import {
   buildExpertSearchText,
   legacyExpertDomains,
   matchesExpertTopics,
@@ -48,16 +52,21 @@ export async function GET(request: NextRequest) {
           requestedTopics,
         ),
       )
-      .filter((expert) =>
-        query
-          ? buildExpertSearchText({
-              name: expert.user.name,
-              nickName: expert.user.nickName,
-              bio: expert.bio,
-              servicesOffered: expert.servicesOffered,
-            }).includes(query.toLowerCase())
-          : true,
-      )
+      .filter((expert) => {
+        if (!query) return true;
+        const lower = query.toLowerCase();
+        const codes = normalizeCountryCodes(expert.countries);
+        const haystack =
+          buildExpertSearchText({
+            name: expert.user.name,
+            nickName: expert.user.nickName,
+            bio: expert.bio,
+            servicesOffered: expert.servicesOffered,
+          }) +
+          " " +
+          expertCountriesSearchText(codes);
+        return haystack.includes(lower);
+      })
       .slice(0, limit);
 
     const vendorSite = isVendorAiStackSiteRequest(request);
@@ -67,6 +76,7 @@ export async function GET(request: NextRequest) {
       image: e.user.image,
       bio: e.bio?.slice(0, 300) || "",
       domains: vendorSite ? [] : legacyExpertDomains(),
+      countries: normalizeCountryCodes(e.countries),
       sessionType: e.sessionType,
       rating: e.avgRating,
       reviewCount: e.reviewCount,

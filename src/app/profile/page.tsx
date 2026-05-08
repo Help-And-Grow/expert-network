@@ -25,9 +25,14 @@ import {
   CreditCard,
   AlertTriangle,
   CheckCircle,
+  Globe2,
 } from "lucide-react";
 
 import { AudioPlayer } from "@/components/audio-player";
+import {
+  CountryFlagList,
+  CountryMultiSelect,
+} from "@/components/country-multi-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,6 +62,7 @@ interface ExpertProfile {
   stripeAccountId: string | null;
   stripeAccountStatus: string | null;
   isPublished: boolean;
+  countries: string[];
   user: {
     id: string;
     name: string | null;
@@ -107,6 +113,9 @@ export default function ProfilePage() {
   const [pOnline, setPOnline] = useState("");
   const [pOffline, setPOffline] = useState("");
   const [stripeKycLoading, setStripeKycLoading] = useState(false);
+  const [editingCountries, setEditingCountries] = useState(false);
+  const [savingCountries, setSavingCountries] = useState(false);
+  const [countriesDraft, setCountriesDraft] = useState<string[]>([]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -139,6 +148,7 @@ export default function ProfilePage() {
       setPOnline(data.priceOnlineCents != null ? String(data.priceOnlineCents / 100) : "");
       setPOffline(data.priceOfflineCents != null ? String(data.priceOfflineCents / 100) : "");
       setTgUsername(data.user?.telegramUsername ?? "");
+      setCountriesDraft(Array.isArray(data.countries) ? data.countries : []);
     } catch {
       setProfile(null);
     } finally {
@@ -408,6 +418,27 @@ export default function ProfilePage() {
     } finally {
       setSavingPricing(false);
     }
+  };
+
+  const handleSaveCountries = async () => {
+    setSavingCountries(true);
+    try {
+      await saveSection({ countries: countriesDraft });
+      setProfile((prev) =>
+        prev ? { ...prev, countries: countriesDraft } : prev,
+      );
+      setEditingCountries(false);
+      showMessage("Countries saved!", "countries");
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", "countries", true, 5000);
+    } finally {
+      setSavingCountries(false);
+    }
+  };
+
+  const handleCancelCountries = () => {
+    setCountriesDraft(profile?.countries ?? []);
+    setEditingCountries(false);
   };
 
   const handleCancelPricing = () => {
@@ -773,6 +804,73 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Countries / Regions */}
+        {isExpert && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Globe2 className="h-4 w-4" />
+                  Countries / Regions of expertise
+                </CardTitle>
+                {!editingCountries ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCountries(true)}
+                    className="gap-1"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                ) : (
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCancelCountries}
+                      className="gap-1"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveCountries}
+                      disabled={savingCountries}
+                      className="gap-1"
+                    >
+                      {savingCountries ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                      Save
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {renderToast("countries")}
+              {editingCountries ? (
+                <CountryMultiSelect
+                  value={countriesDraft}
+                  onChange={setCountriesDraft}
+                  compact
+                />
+              ) : profile.countries.length > 0 ? (
+                <CountryFlagList codes={profile.countries} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Not set — add the countries or regions you have hands-on
+                  experience with so players can find you.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

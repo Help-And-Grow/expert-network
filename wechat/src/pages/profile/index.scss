@@ -190,4 +190,159 @@
     font-size: $font-size-sm;
     color: #cbd5e1;
   }
+
+  &__countries-card {
+    margin: 0 $spacing-6 $spacing-6;
+    padding: $spacing-6;
+    background: $color-bg-card;
+    border-radius: $radius-xl;
+    border: 1px solid $color-border;
+  }
+
+  &__countries-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-4;
+  }
+
+  &__countries-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-heading;
+  }
+
+  &__countries-edit,
+  &__countries-cancel,
+  &__countries-save {
+    font-size: $font-size-sm;
+    color: $color-primary;
+    padding: $spacing-1 $spacing-2;
+  }
+
+  &__countries-cancel {
+    color: $color-text-tertiary;
+    margin-right: $spacing-3;
+  }
+
+  &__countries-actions {
+    display: flex;
+  }
+
+  &__countries-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-2;
+  }
+
+  &__countries-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-2;
+    padding: $spacing-2 $spacing-4;
+    background: rgba(99, 102, 241, 0.08);
+    border-radius: $radius-full;
+  }
+
+  &__countries-flag-sm {
+    font-size: $font-size-lg;
+  }
+
+  &__countries-name-sm {
+    font-size: $font-size-sm;
+    color: $color-text-heading;
+  }
+
+  &__countries-empty-hint {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    line-height: $line-height-relaxed;
+  }
+
+  &__countries-editor {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-3;
+  }
+
+  &__countries-search {
+    height: 76px;
+    background: $color-bg-muted;
+    border-radius: $radius-lg;
+    padding: 0 $spacing-6;
+    font-size: $font-size-md;
+    border: 1px solid $color-border;
+  }
+
+  &__countries-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-2;
+  }
+
+  &__countries-chip {
+    padding: 10px 20px;
+    border-radius: $radius-full;
+    border: 2px solid $color-border;
+    font-size: $font-size-sm;
+    background: $color-bg-card;
+    color: #475569;
+
+    &--selected {
+      border-color: $color-primary;
+      background: rgba(79, 70, 229, 0.12);
+      color: $color-primary;
+    }
+  }
+
+  &__countries-list {
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+  }
+
+  &__countries-row {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    padding: 14px 20px;
+    border-radius: $radius-lg;
+    background: $color-bg-card;
+    border: 1px solid $color-border;
+
+    &--selected {
+      border-color: $color-primary;
+      background: rgba(79, 70, 229, 0.08);
+    }
+  }
+
+  &__countries-flag {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+
+  &__countries-name {
+    flex: 1;
+    font-size: $font-size-md;
+    color: $color-text-heading;
+  }
+
+  &__countries-en {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+
+  &__countries-check {
+    color: $color-primary;
+    font-weight: $font-weight-bold;
+    margin-left: $spacing-2;
+  }
+
+  &__countries-empty {
+    padding: $spacing-3 $spacing-4;
+    color: $color-text-tertiary;
+    font-size: $font-size-sm;
+    text-align: center;
+  }
 }

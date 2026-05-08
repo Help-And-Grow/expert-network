@@ -23,6 +23,8 @@ import {
 import { useSession } from "next-auth/react";
 
 import { AudioPlayer } from "@/components/audio-player";
+import { CountryMultiSelect } from "@/components/country-multi-select";
+import { getCountryOption } from "@/lib/expert-countries";
 import { useTelegram } from "@/components/telegram-provider";
 import { useInviteGuard } from "@/hooks/use-invite-guard";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,7 @@ type Step =
   | "GENDER"
   | "WALLET"
   | "SOCIAL_LINKS"
+  | "COUNTRIES"
   | "DOCUMENT_UPLOAD"
   | "SESSION_PREFS"
   | "PRICING"
@@ -94,6 +97,7 @@ function getProgressValue(step: Step): number {
     case "WALLET":
       return 25;
     case "SOCIAL_LINKS":
+    case "COUNTRIES":
     case "DOCUMENT_UPLOAD":
       return 35;
     case "SESSION_PREFS":
@@ -141,6 +145,7 @@ export default function OnboardingPage() {
 
   const [userNickName, setUserNickName] = useState("");
   const [selectedGender, setSelectedGender] = useState<string>("");
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [priceOnline, setPriceOnline] = useState("");
   const [priceOffline, setPriceOffline] = useState("");
   const [onboardSchedule, setOnboardSchedule] = useState<WeeklySchedule>({});
@@ -652,8 +657,47 @@ export default function OnboardingPage() {
     if (currentSocialIndex < SOCIAL_PLATFORMS.length - 1) {
       setCurrentSocialIndex((i) => i + 1);
     } else {
-      setCurrentStep("DOCUMENT_UPLOAD");
+      setCurrentStep("COUNTRIES");
     }
+  };
+
+  // Country / region step
+  useEffect(() => {
+    if (currentStep !== "COUNTRIES") return;
+    addStepMessage("countries", {
+      id: "countries",
+      role: "ai",
+      content:
+        "Which countries or regions do you have hands-on experience with? Pick all that apply — players use this to find experts familiar with their market.",
+      type: "options",
+    });
+  }, [currentStep, addStepMessage]);
+
+  const handleCountriesContinue = async () => {
+    if (selectedCountries.length > 0) {
+      const labels = selectedCountries
+        .map((code) => getCountryOption(code)?.name ?? code)
+        .join(", ");
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-countries", role: "user", content: labels },
+      ]);
+      try {
+        await saveOnboarding({ countries: selectedCountries });
+      } catch {
+        // Silently fail — user can re-edit on profile.
+      }
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "user-countries-skip",
+          role: "user",
+          content: "Skipped country/region",
+        },
+      ]);
+    }
+    setCurrentStep("DOCUMENT_UPLOAD");
   };
 
   const handleFileUpload = async (file: File) => {
@@ -1282,6 +1326,22 @@ export default function OnboardingPage() {
                 Skip {platform.label}
               </Button>
             )}
+          </div>
+        )}
+
+        {currentStep === "COUNTRIES" && (
+          <div className="space-y-3">
+            <CountryMultiSelect
+              value={selectedCountries}
+              onChange={setSelectedCountries}
+              placeholder="Search e.g. Singapore, 中国, Indonesia..."
+            />
+            <Button
+              onClick={handleCountriesContinue}
+              className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+            >
+              {selectedCountries.length > 0 ? "Continue" : "Skip & Continue"}
+            </Button>
           </div>
         )}
 

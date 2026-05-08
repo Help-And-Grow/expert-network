@@ -33,6 +33,8 @@ export interface ExperienceCapabilities {
 export interface Expert {
   id: string;
   domains: string[];
+  /** ISO 3166-1 alpha-2 codes the expert marks as a focus. */
+  countries?: string[];
   sessionType: string;
   bio: string | null;
   isVerified: boolean;

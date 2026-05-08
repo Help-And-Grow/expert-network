@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { normalizeCountryCodes } from "@/lib/expert-countries";
 import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
         sessionType: expert.sessionType,
         bio: expert.bio,
         servicesOffered: vendorSite ? null : expert.servicesOffered,
+        countries: normalizeCountryCodes(expert.countries),
         isVerified: expert.isVerified,
         avgRating: expert.avgRating,
         reviewCount: expert.reviewCount,

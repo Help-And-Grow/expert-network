@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
+import { normalizeCountryCodes } from "@/lib/expert-countries";
 import { legacyExpertDomains, matchesExpertTopics } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -90,11 +91,12 @@ export async function GET(request: NextRequest) {
     );
     const paginatedExperts = filteredExperts.slice(skip, skip + take);
     const result = paginatedExperts.map((e) => {
-      const { servicesOffered, ...rest } = e;
+      const { servicesOffered, countries: rawCountries, ...rest } = e;
       return {
         ...rest,
         domains: vendorSite ? [] : legacyExpertDomains(),
         servicesOffered: vendorSite ? null : servicesOffered,
+        countries: normalizeCountryCodes(rawCountries),
       };
     });
 

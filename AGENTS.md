@@ -12,7 +12,7 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be Postgres-shaped (or use Vercel-synced `POSTGRES_PRISMA_URL` — see [vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md))
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Production runs on **Google Cloud SQL** (instance `hg-postgres-prod`, db `helpgrow`, region `asia-southeast1`) — cut over from Supabase on 2026-05-03 (see [supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md)). `DATABASE_URL` is marked Sensitive in Vercel; `vercel env pull` returns it empty. Apply migrations via Cloud SQL Studio or `gcloud sql connect` (see "PR & Verification Workflow" below).
 - **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
 - **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`) — for **local** development. On CI we run Playwright against the canonical production URL (`https://www.help-and-grow.com`) via the `e2e` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). The dedicated `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth.
@@ -58,7 +58,8 @@ See `docs/` for full details:
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
-| Vercel + Supabase DB | [docs/references/vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md) | Marketplace Postgres env names, `POSTGRES_PRISMA_URL` → Prisma mapping |
+| Vercel + Cloud SQL | [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md) | Production cutover (2026-05-03): Google Cloud SQL `hg-postgres-prod`, schema/migration application playbook |
+| ~~Vercel + Supabase DB~~ (legacy) | [docs/references/vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md) | Pre-2026-05-03 reference only; superseded by the Cloud SQL doc above |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 
@@ -96,22 +97,29 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 
 ## PR & Verification Workflow
 
-**Default order (as of 2026-05-07):**
+**Solo-PM fast path (as of 2026-05-08):**
 
-1. **Open the PR** with `gh pr create --base main` against the canonical branch.
-2. **Wait for the Vercel preview deploy** to reach `Ready` (`vercel ls expert-network` shows the new branch deployment). Vercel comments the preview URL on the PR automatically.
-3. **Verify on the preview URL** with realistic headers — for WeChat-origin paths, send `x-wechat-token`; for prod-domain behaviour, hit `https://<preview>.vercel.app/...` directly.
-4. **Merge** (squash + delete branch). `--admin` flag is fine for solo-dev workflow but only after preview verification has passed.
-5. **Re-verify on PROD live** at `https://www.help-and-grow.com/...` once the alias swap completes (~30-60 s after merge). Do not declare "done" until this final step shows the new behaviour on the canonical domain.
+The owner is a solo PM. Preview-URL verification was added friction without catching enough bugs to justify it on this codebase, so we skip it. The new default is: ship to PROD live, verify the Vercel build + runtime logs, and let the owner do the user test on `https://www.help-and-grow.com` directly.
 
-**No localhost or `npm run dev` for verification.** The repo's CI also runs Playwright against the canonical production URL only — there is no ephemeral CI Postgres any more. Live PROD is the single source of truth.
+1. **Commit + push.** Prefer a PR for traceability when several files change (`gh pr create --base main`); for tiny fixes you may push directly to `main`. Either way, the goal is to land on `main` quickly.
+2. **Merge immediately when CI is green** (`lint`, `smoke`, `audit`, `e2e`, `Vercel Preview Comments` all ✓). Use `gh pr merge --squash --delete-branch --admin`. Don't wait on or open the preview URL.
+3. **Verify the Vercel PROD build.** `vercel ls expert-network` should show a new Production deployment going `Building` → `Ready` (~3-4 min). Inspect logs with `vercel inspect <prod-url> --logs` and look for: build success, no migration warnings (`prisma-migrate-if-vercel`), no runtime errors after the alias swap. Hit one or two prod endpoints with `curl https://www.help-and-grow.com/...` to confirm the function path works.
+4. **Hand back to the owner for user test** on `https://www.help-and-grow.com/...` once step 3 looks clean. Do not declare "done" until you've at least confirmed the prod build went `Ready` and a smoke `curl` returned a non-500 status.
 
-**Reasonable exceptions that DON'T need preview verification:**
-- Pure documentation changes (no code in `src/`, `prisma/`, `wechat/src/`, `infra/`)
-- Test-only changes (files under `e2e/` or `__tests__/`)
-- Workflow-file-only changes (`.github/workflows/*.yml`) — preview deploy doesn't exercise these anyway
+**Database migrations are the one exception.** Production runs on **Google Cloud SQL for PostgreSQL** (`hg-postgres-prod`, db `helpgrow`, user `hg_app` — see [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md)). `DATABASE_URL` on Vercel is marked **Sensitive** so `vercel env pull` returns it as an empty string — you cannot run `prisma migrate deploy` from a local machine without first plumbing the connection string in another way. `scripts/prisma-migrate-if-vercel.mjs` likewise skips at install time. Net effect: when a PR adds a Prisma migration, the column/table won't exist in PROD until someone applies it manually, and the new code will 500 on every request that touches the new field.
 
-For everything else, treat skipping preview verification as a P1 bug if it ships broken code.
+When a PR adds a migration, do this **before merging**:
+1. Read the migration SQL out of `prisma/migrations/<timestamp>_<name>/migration.sql`.
+2. Apply it via **Cloud SQL Studio** (GCP console → SQL → `hg-postgres-prod` → Studio → log in as `hg_app` to db `helpgrow`) or `gcloud sql connect hg-postgres-prod --user=hg_app --database=helpgrow`.
+3. Also `INSERT` a row into `_prisma_migrations` so future automated migrate runs see it as applied:
+   ```sql
+   INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+   VALUES (gen_random_uuid()::text, 'manual-cloudsql-studio', NOW(), '<timestamp>_<name>', NULL, NULL, NOW(), 1)
+   ON CONFLICT DO NOTHING;
+   ```
+4. Confirm with the owner before running anything destructive (DROP, NOT NULL on existing column, etc.). Purely additive `ADD COLUMN IF NOT EXISTS` is safe to apply directly with owner's go-ahead.
+
+**No localhost or `npm run dev` for verification.** Live PROD is the single source of truth.
 
 ## Where to Look
 

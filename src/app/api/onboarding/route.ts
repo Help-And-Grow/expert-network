@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
+import { normalizeCountryCodes } from "@/lib/expert-countries";
 import { legacyExpertDomains } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -85,6 +86,12 @@ export async function POST(request: NextRequest) {
         ? body.weeklySchedule
         : undefined;
 
+    // `countries` is multi-select; treat an explicit empty array as "user
+    // cleared their selection" — that's why we check for the key, not for
+    // a non-empty value.
+    const countries =
+      body.countries !== undefined ? normalizeCountryCodes(body.countries) : undefined;
+
     const updateData: Record<string, unknown> = {};
     if (Object.keys(socialLinks).length > 0) Object.assign(updateData, socialLinks);
     if (sessionType !== null) updateData.sessionType = sessionType;
@@ -94,6 +101,7 @@ export async function POST(request: NextRequest) {
     if (priceOnlineCents !== undefined) updateData.priceOnlineCents = priceOnlineCents;
     if (priceOfflineCents !== undefined) updateData.priceOfflineCents = priceOfflineCents;
     if (weeklySchedule !== undefined) updateData.weeklySchedule = weeklySchedule;
+    if (countries !== undefined) updateData.countries = countries;
 
     if (Object.keys(updateData).length === 0 && !hasLegacyDomainsInput) {
       return NextResponse.json(

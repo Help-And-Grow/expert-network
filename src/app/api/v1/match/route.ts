@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { absoluteAppUrl } from "@/lib/app-origin";
 import {
+  detectCountriesInQuery,
+  expertCountriesSearchText,
+  normalizeCountryCodes,
+} from "@/lib/expert-countries";
+import {
   buildExpertFocusLabel,
   buildExpertSearchText,
   legacyExpertDomains,
@@ -31,16 +36,36 @@ export async function GET(request: NextRequest) {
     });
 
     const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    const detectedCountries = detectCountriesInQuery(query);
 
-    const scored = experts
+    // First-round country bias: when the inquiry mentions a country we
+    // recognise, restrict the candidate pool to experts who marked that
+    // country as a focus. Falls through to the full pool when no expert
+    // claims the country yet, otherwise we'd silently return zero hits.
+    const candidatePool = detectedCountries.length
+      ? (() => {
+          const filtered = experts.filter((e) =>
+            normalizeCountryCodes(e.countries).some((c) =>
+              detectedCountries.includes(c),
+            ),
+          );
+          return filtered.length > 0 ? filtered : experts;
+        })()
+      : experts;
+
+    const scored = candidatePool
       .map((e) => {
         let score = 0;
-        const searchText = buildExpertSearchText({
-          name: e.user.name,
-          nickName: e.user.nickName,
-          bio: e.bio,
-          servicesOffered: e.servicesOffered,
-        });
+        const codes = normalizeCountryCodes(e.countries);
+        const searchText =
+          buildExpertSearchText({
+            name: e.user.name,
+            nickName: e.user.nickName,
+            bio: e.bio,
+            servicesOffered: e.servicesOffered,
+          }) +
+          " " +
+          expertCountriesSearchText(codes);
         const bioText = (e.bio || "").toLowerCase();
         const servicesText = stringifyServicesOffered(e.servicesOffered).toLowerCase();
         const matchedServices: string[] = [];
@@ -54,6 +79,13 @@ export async function GET(request: NextRequest) {
           }
           if (bioText.includes(word)) score += 2;
           if (searchText.includes(word)) score += 1;
+        }
+
+        // Strong boost when the expert claims a detected country —
+        // ensures country-tagged experts surface even when the user's
+        // other keywords don't match the bio.
+        if (detectedCountries.length && codes.some((c) => detectedCountries.includes(c))) {
+          score += 4;
         }
 
         if (e.avgRating && e.avgRating > 0) score += e.avgRating;

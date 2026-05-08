@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import type { ExperienceCapabilities } from "@expert-network/shared-api";
 
+import { normalizeCountryCodes } from "@/lib/expert-countries";
 import { legacyExpertDomains } from "@/lib/expert-topics";
 import { supportsPayNowForCurrency } from "@/lib/paynow";
 import { prisma } from "@/lib/prisma";
@@ -135,8 +136,10 @@ export async function GET(
       instagram: _ig,
       xiaohongshu: _xh,
       servicesOffered,
+      countries: rawCountries,
       ...rest
     } = expert;
+    const countries = normalizeCountryCodes(rawCountries);
     /* eslint-enable @typescript-eslint/no-unused-vars */
     const origin = new URL(request.url).origin;
     const experienceCapabilities = buildExperienceCapabilities(
@@ -151,6 +154,7 @@ export async function GET(
       ...rest,
       domains: vendorSite ? [] : legacyExpertDomains(),
       servicesOffered: vendorSite ? null : servicesOffered,
+      countries,
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
       hasClonedVoice: false,

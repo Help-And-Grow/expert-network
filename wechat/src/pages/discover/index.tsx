@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { get } from "../../shared/api";
 import Icon from "../../components/Icon";
+import { countryFlagEmoji, getCountryOption } from "../../shared/countries";
 import "./index.scss";
 
 /**
@@ -35,6 +36,7 @@ interface MentorListItem {
   sessionType: "ONLINE" | "OFFLINE" | "BOTH";
   rating: number;
   reviewCount: number;
+  countries?: string[];
 }
 
 interface ExpertsResponse {
@@ -263,6 +265,18 @@ export default function DiscoverPage() {
                   <Text className="discover__card-bio" numberOfLines={2}>
                     {m.bio}
                   </Text>
+                )}
+                {m.countries && m.countries.length > 0 && (
+                  <View className="discover__card-countries">
+                    {m.countries.slice(0, 4).map((code) => {
+                      const opt = getCountryOption(code);
+                      return (
+                        <Text key={code} className="discover__card-country">
+                          {countryFlagEmoji(code)} {opt?.nameZh ?? code}
+                        </Text>
+                      );
+                    })}
+                  </View>
                 )}
                 <View className="discover__card-meta">
                   <View className="discover__card-tag">

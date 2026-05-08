@@ -12,6 +12,7 @@ import { getApiBase, getToken, isLoggedIn, wxLogin } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
 import { ENABLE_AI_VOICE, ENABLE_PAID_BOOKINGS } from "../../shared/brand";
+import { countryFlagEmoji, getCountryOption } from "../../shared/countries";
 import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
 import { prepareAudioForInnerAudio } from "../../shared/wechat-audio";
@@ -266,6 +267,23 @@ export default function ExpertPage() {
         {expert.isVerified && (
           <View className="expert-profile__verified">
             <Icon name="verified" size={14} color="#059669" /> 已认证
+          </View>
+        )}
+        {expert.countries && expert.countries.length > 0 && (
+          <View className="expert-profile__countries">
+            {expert.countries.map((code) => {
+              const opt = getCountryOption(code);
+              return (
+                <View key={code} className="expert-profile__country-chip">
+                  <Text className="expert-profile__country-flag">
+                    {countryFlagEmoji(code)}
+                  </Text>
+                  <Text className="expert-profile__country-name">
+                    {opt?.nameZh ?? code}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
         {expert.servicesOffered && expert.servicesOffered.length > 0 ? (

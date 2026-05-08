@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { normalizeCountryCodes } from "@/lib/expert-countries";
 import { embedExpertProfile } from "@/lib/expert-search-embeddings";
 import { resolveExpertSearchRegion } from "@/lib/expert-search-region";
 import { legacyExpertDomains } from "@/lib/expert-topics";
@@ -47,12 +48,14 @@ export async function GET(request: NextRequest) {
       fishAudioModelId: _fm,
       tonMnemonicEnc: _tm,
       servicesOffered,
+      countries: rawCountries,
       ...rest
     } = expert;
     return NextResponse.json({
       ...rest,
       domains: vendorSite ? [] : legacyExpertDomains(),
       servicesOffered: vendorSite ? null : servicesOffered,
+      countries: normalizeCountryCodes(rawCountries),
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
       hasVoiceClone: false,
@@ -119,6 +122,9 @@ export async function PATCH(request: NextRequest) {
     if (body.weeklySchedule !== undefined) {
       updateData.weeklySchedule = body.weeklySchedule;
     }
+    if (body.countries !== undefined) {
+      updateData.countries = normalizeCountryCodes(body.countries);
+    }
 
     if (Object.keys(updateData).length === 0 && !hasLegacyDomainsInput) {
       return NextResponse.json(
@@ -164,11 +170,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     const vendorSite = isVendorAiStackSiteRequest(request);
-    const { servicesOffered, ...rest } = updated!;
+    const { servicesOffered, countries: rawCountries, ...rest } = updated!;
     return NextResponse.json({
       ...rest,
       domains: vendorSite ? [] : legacyExpertDomains(),
       servicesOffered: vendorSite ? null : servicesOffered,
+      countries: normalizeCountryCodes(rawCountries),
     });
   } catch (error) {
     console.error("[expert/profile PATCH]", error);

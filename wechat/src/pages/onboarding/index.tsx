@@ -1,14 +1,20 @@
 import { View, Text, Input, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { get, post, request as apiRequest } from "../../shared/api";
 import { getApiBase, getToken } from "../../shared/auth";
+import {
+  countryFlagEmoji,
+  getCountryOption,
+  searchCountries,
+} from "../../shared/countries";
 import { DOMAINS, getDomainLabel } from "../../shared/types";
 import "./index.scss";
 
 type Step =
   | "nickname"
   | "gender"
+  | "countries"
   | "social_links"
   | "optional_social"
   | "domains"
@@ -64,6 +70,13 @@ export default function OnboardingPage() {
   const scrollRef = useRef<string>("");
   const [previewExpertId, setPreviewExpertId] = useState<string | null>(null);
   const [documentReadyForPublish, setDocumentReadyForPublish] = useState(false);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [countrySearch, setCountrySearch] = useState("");
+
+  const countryResults = useMemo(
+    () => searchCountries(countrySearch).slice(0, 12),
+    [countrySearch],
+  );
 
   const addMsg = useCallback(
     (role: "system" | "user", content: string) => {
@@ -104,8 +117,15 @@ export default function OnboardingPage() {
       case "gender":
         setFormData((p) => ({ ...p, gender: text.toLowerCase() }));
         saveToServer({ gender: text.toLowerCase() });
-        setStep("social_links");
-        setTimeout(() => addMsg("system", "如果你愿意，可以填写一个 LinkedIn 链接；也可以直接跳过。"), 400);
+        setStep("countries");
+        setTimeout(
+          () =>
+            addMsg(
+              "system",
+              "你熟悉哪些国家或地区的市场和文化？可多选，方便有同地需求的同学找到你。也可以跳过。",
+            ),
+          400,
+        );
         break;
 
       case "social_links":
@@ -232,8 +252,38 @@ export default function OnboardingPage() {
     addMsg("user", label);
     setFormData((p) => ({ ...p, gender }));
     saveToServer({ gender });
+    setStep("countries");
+    setTimeout(
+      () =>
+        addMsg(
+          "system",
+          "你熟悉哪些国家或地区的市场和文化？可多选，方便有同地需求的同学找到你。也可以跳过。",
+        ),
+      400,
+    );
+  };
+
+  const toggleCountry = (code: string) => {
+    setSelectedCountries((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
+
+  const confirmCountries = () => {
+    if (selectedCountries.length > 0) {
+      const labels = selectedCountries
+        .map((code) => getCountryOption(code)?.nameZh ?? code)
+        .join("、");
+      addMsg("user", labels);
+      saveToServer({ countries: selectedCountries });
+    } else {
+      addMsg("user", "暂不设置");
+    }
     setStep("social_links");
-    setTimeout(() => addMsg("system", "如果你愿意，可以填写一个 LinkedIn 链接；也可以直接跳过。"), 400);
+    setTimeout(
+      () => addMsg("system", "如果你愿意，可以填写一个 LinkedIn 链接；也可以直接跳过。"),
+      400,
+    );
   };
 
   const toggleDomain = (domain: string) => {
@@ -513,6 +563,73 @@ export default function OnboardingPage() {
                 {g.label}
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Countries / regions */}
+        {step === "countries" && (
+          <View className="onboarding__countries">
+            <Input
+              className="onboarding__country-search"
+              placeholder="搜索国家/地区，例如 新加坡、China、ID"
+              value={countrySearch}
+              onInput={(e) => setCountrySearch(e.detail.value)}
+            />
+            {selectedCountries.length > 0 && (
+              <View className="onboarding__country-chips">
+                {selectedCountries.map((code) => {
+                  const opt = getCountryOption(code);
+                  return (
+                    <View
+                      key={code}
+                      className="onboarding__country-chip onboarding__country-chip--selected"
+                      hoverClass="onboarding__option--hover"
+                      onClick={() => toggleCountry(code)}
+                    >
+                      {countryFlagEmoji(code)} {opt?.nameZh ?? code} ✕
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            <View className="onboarding__country-list">
+              {countryResults.map((c) => {
+                const checked = selectedCountries.includes(c.code);
+                return (
+                  <View
+                    key={c.code}
+                    className={`onboarding__country-row ${
+                      checked ? "onboarding__country-row--selected" : ""
+                    }`}
+                    hoverClass="onboarding__option--hover"
+                    onClick={() => toggleCountry(c.code)}
+                  >
+                    <Text className="onboarding__country-flag">
+                      {countryFlagEmoji(c.code)}
+                    </Text>
+                    <Text className="onboarding__country-name">{c.nameZh}</Text>
+                    <Text className="onboarding__country-en">{c.name}</Text>
+                    {checked && (
+                      <Text className="onboarding__country-check">✓</Text>
+                    )}
+                  </View>
+                );
+              })}
+              {countryResults.length === 0 && (
+                <Text className="onboarding__country-empty">
+                  没有找到，换个关键词试试
+                </Text>
+              )}
+            </View>
+            <View
+              className="onboarding__confirm-btn"
+              hoverClass="onboarding__confirm-btn--hover"
+              onClick={confirmCountries}
+            >
+              {selectedCountries.length > 0
+                ? `下一步（已选 ${selectedCountries.length} 个）`
+                : "下一步（可跳过）"}
+            </View>
           </View>
         )}
 

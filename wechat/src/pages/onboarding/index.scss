@@ -173,4 +173,93 @@
     flex-shrink: 0;
     box-shadow: $shadow-brand;
   }
+
+  &__countries {
+    padding: $spacing-2 0 $spacing-4 $spacing-2;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-3;
+  }
+
+  &__country-search {
+    height: 76px;
+    background: $color-bg-muted;
+    border-radius: $radius-lg;
+    padding: 0 $spacing-6;
+    font-size: $font-size-md;
+    border: 1px solid $color-border;
+  }
+
+  &__country-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-2;
+  }
+
+  &__country-chip {
+    padding: 12px 24px;
+    border-radius: $radius-full;
+    border: 2px solid $color-border;
+    font-size: $font-size-md;
+    background: $color-bg-card;
+    color: #475569;
+
+    &--selected {
+      border-color: $color-primary;
+      background: rgba(79, 70, 229, 0.12);
+      color: $color-primary;
+    }
+  }
+
+  &__country-list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+    max-height: 800px;
+    overflow-y: auto;
+  }
+
+  &__country-row {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    padding: 18px 24px;
+    border-radius: $radius-lg;
+    background: $color-bg-card;
+    border: 1px solid $color-border;
+
+    &--selected {
+      border-color: $color-primary;
+      background: rgba(79, 70, 229, 0.08);
+    }
+  }
+
+  &__country-flag {
+    font-size: 32px;
+    flex-shrink: 0;
+  }
+
+  &__country-name {
+    flex: 1;
+    font-size: $font-size-md;
+  }
+
+  &__country-en {
+    font-size: $font-size-sm;
+    color: #94a3b8;
+  }
+
+  &__country-check {
+    color: $color-primary;
+    font-size: $font-size-md;
+    font-weight: $font-weight-bold;
+    margin-left: $spacing-2;
+  }
+
+  &__country-empty {
+    padding: $spacing-4 $spacing-6;
+    color: #94a3b8;
+    font-size: $font-size-sm;
+    text-align: center;
+  }
 }

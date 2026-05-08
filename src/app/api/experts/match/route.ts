@@ -6,6 +6,10 @@ export const maxDuration = 60; // LLM + mem9 pipeline can take 15-20 s
 import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
 import {
+  detectCountriesInQuery,
+  normalizeCountryCodes,
+} from "@/lib/expert-countries";
+import {
   buildDeterministicExpertMatchReason,
   buildLLMExpertContext,
   neutralizeExpertReasonPronouns,
@@ -474,6 +478,27 @@ export async function POST(request: NextRequest) {
         user: { select: { nickName: true, name: true } },
       },
     });
+
+    // First-round country bias: if the inquiry mentions a country/region we
+    // recognise, pre-filter the candidate pool to experts who marked that
+    // country as a focus. We only do this on the first turn (history empty)
+    // and only when the filter leaves at least one expert in the pool —
+    // otherwise we'd return "no match" for any user who asks broadly about
+    // a country no published expert claims yet.
+    const detectedCountries = history.length === 0 ? detectCountriesInQuery(query) : [];
+    if (detectedCountries.length > 0) {
+      const filtered = experts.filter((e) => {
+        const codes = normalizeCountryCodes(e.countries);
+        return codes.some((c) => detectedCountries.includes(c));
+      });
+      if (filtered.length > 0) {
+        experts = filtered;
+        console.log(
+          "[experts/match] country filter applied:",
+          JSON.stringify({ detectedCountries, candidates: experts.length }),
+        );
+      }
+    }
 
     if (semanticRank.source === "vector") {
       const order = new Map(

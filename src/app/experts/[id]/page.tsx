@@ -21,6 +21,7 @@ import {
   Check,
 } from "lucide-react";
 
+import { CountryFlagList } from "@/components/country-multi-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,6 +64,7 @@ interface Expert {
   currency: string;
   /** "male" | "female" | "other" — drives gender-matched TTS / device-voice fallback. */
   gender?: string | null;
+  countries?: string[];
   user: ExpertUser;
   learnedFromCount: number;
   offeredHelpCount: number;
@@ -535,6 +537,9 @@ export default function ExpertProfilePage() {
               <Shield className="h-3 w-3" />
               Verified Community Member
             </Badge>
+          )}
+          {expert.countries && expert.countries.length > 0 && (
+            <CountryFlagList codes={expert.countries} className="mt-3" />
           )}
         </div>
       </section>
