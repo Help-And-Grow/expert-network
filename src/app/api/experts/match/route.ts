@@ -390,6 +390,12 @@ export async function POST(request: NextRequest) {
   try {
     const startedAt = Date.now();
     const viewerUserId = await resolveUserId(request).catch(() => null);
+    if (!viewerUserId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     const body = await request.json().catch(() => ({}));
     if (typeof body !== "object" || body === null) {
       return NextResponse.json(

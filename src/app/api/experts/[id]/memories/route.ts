@@ -1,19 +1,24 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
+import { resolveUserId } from "@/lib/request-auth";
 
 /**
  * GET /api/experts/[id]/memories?q=...&limit=...
  *
- * Public endpoint: search an expert's cloud memory.
- * Returns relevant memories for display on the profile or
- * for AI enrichment in the match flow.
+ * Search an expert's cloud memory. Requires authentication — memories
+ * contain internal AI-enriched profile data not intended for public access.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") ?? "";

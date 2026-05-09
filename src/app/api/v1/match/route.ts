@@ -13,12 +13,20 @@ import {
   stringifyServicesOffered,
 } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
 
+const AUTH_HEADERS = { "Cache-Control": "private, no-store" };
+
 export async function GET(request: NextRequest) {
   try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: AUTH_HEADERS });
+    }
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q")?.trim();
 
