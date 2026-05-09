@@ -77,23 +77,20 @@ test.describe("Recent features — auth contracts on new routes", () => {
   });
 });
 
-test.describe("Recent features — public AI-match (auth-free /v1)", () => {
-  test("GET /api/v1/match requires the q parameter (400)", async ({ request }) => {
+test.describe("Recent features — AI-match auth gate (/v1)", () => {
+  // Auth was added to /api/v1/match alongside the other expert discovery
+  // endpoints to prevent unauthenticated scraping. The auth gate runs before
+  // the q-param validator, so unauthenticated callers always see 401 — the
+  // 400-when-q-missing contract is only reachable with a valid session.
+
+  test("GET /api/v1/match requires session (401)", async ({ request }) => {
     const res = await request.get("/api/v1/match");
-    expect(res.status()).toBe(400);
-    const body = (await res.json()) as { error?: string };
-    expect(body.error).toBeTruthy();
+    expect(res.status()).toBe(401);
   });
 
-  test("GET /api/v1/match?q=... returns a JSON response", async ({ request }) => {
-    // Use a deterministic seed query. We don't assert specific experts —
-    // production data drifts — only that the endpoint returns valid JSON
-    // without 5xx. Pre-rank flag is handled inside the route.
+  test("GET /api/v1/match?q=... requires session (401)", async ({ request }) => {
     const res = await request.get("/api/v1/match?q=growth%20marketing");
-    // 200 (matches found) or 200 with empty list — both fine. Anything 5xx is a regression.
-    expect(res.status(), "Public match must not 5xx").toBeLessThan(500);
-    const text = await res.text();
-    expect(() => JSON.parse(text)).not.toThrow();
+    expect(res.status()).toBe(401);
   });
 });
 
