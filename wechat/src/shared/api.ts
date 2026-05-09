@@ -95,6 +95,10 @@ export function put<T = unknown>(url: string, data?: Record<string, unknown>) {
   return request<T>({ url, method: "PUT", data });
 }
 
+export function patch<T = unknown>(url: string, data?: Record<string, unknown>) {
+  return request<T>({ url, method: "PATCH", data });
+}
+
 export function del<T = unknown>(url: string, data?: Record<string, unknown>) {
   return request<T>({ url, method: "DELETE", data });
 }

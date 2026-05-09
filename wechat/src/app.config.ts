@@ -4,6 +4,7 @@ export default defineAppConfig({
     "pages/discover/index",
     "pages/expert/index",
     "pages/book/index",
+    "pages/reschedule/index",
     "pages/dashboard/index",
     "pages/onboarding/index",
     "pages/profile/index",

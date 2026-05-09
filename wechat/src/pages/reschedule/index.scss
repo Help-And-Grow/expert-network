@@ -1,0 +1,239 @@
+@import '../../styles/index';
+
+.reschedule {
+  padding: $spacing-10 $spacing-8 120px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  @include page-bg;
+
+  &__loading,
+  &__error {
+    display: block;
+    text-align: center;
+    font-size: $font-size-lg;
+    color: $color-text-tertiary;
+    margin-top: 160px;
+  }
+
+  &__title {
+    display: block;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-heading;
+    margin-bottom: $spacing-6;
+  }
+
+  // ── current booking context ──────────────────────────────────────────────
+  &__current {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fef3c7;
+    border: 1.5px solid #fbbf24;
+    border-radius: $radius-lg;
+    padding: $spacing-4 $spacing-5;
+    margin-bottom: $spacing-6;
+  }
+
+  &__current-label {
+    font-size: $font-size-sm;
+    color: #92400e;
+    flex-shrink: 0;
+    margin-right: $spacing-3;
+  }
+
+  &__current-value {
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: #78350f;
+    text-align: right;
+  }
+
+  // ── date picker ───────────────────────────────────────────────────────────
+  &__date-picker {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    @include card;
+    border: 2px solid $color-border-primary;
+    padding: $spacing-5 $spacing-6;
+    margin-bottom: $spacing-6;
+    transition: opacity $duration-fast $ease-default;
+  }
+
+  &__date-picker-label { font-size: $font-size-xl; flex-shrink: 0; }
+
+  &__date-picker-value {
+    flex: 1;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-heading;
+  }
+
+  &__date-picker-arrow {
+    font-size: $font-size-2xl;
+    color: $color-primary;
+    font-weight: $font-weight-bold;
+  }
+
+  // ── slot grid ─────────────────────────────────────────────────────────────
+  &__slots-scroll {
+    max-height: 44vh;
+    margin-bottom: $spacing-6;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: $spacing-10 0 $spacing-8;
+    text-align: center;
+  }
+
+  &__empty-icon { font-size: 52px; margin-bottom: $spacing-5; }
+
+  &__empty-text {
+    display: block;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-3;
+  }
+
+  &__empty-hint {
+    display: block;
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+    line-height: $line-height-relaxed;
+  }
+
+  &__slots-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-3;
+    padding-bottom: $spacing-3;
+  }
+
+  &__slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: $spacing-4 $spacing-5;
+    border-radius: $radius-lg;
+    background: $color-bg-card;
+    border: 2px solid $color-border-primary;
+    min-width: 110px;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
+
+    &--active {
+      border-color: $color-primary;
+      background: $color-primary-light;
+    }
+
+    &--hover { opacity: 0.82; transform: scale(0.96); }
+  }
+
+  &__slot-start {
+    display: block;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    color: $color-primary;
+  }
+
+  &__slot-end {
+    display: block;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-top: $spacing-1;
+  }
+
+  // ── confirmation summary ──────────────────────────────────────────────────
+  &__summary {
+    @include card;
+    border: 1.5px solid $color-border-primary;
+    margin-bottom: $spacing-6;
+  }
+
+  &__summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-5 0;
+    border-bottom: 1px solid $color-divider;
+    &:last-child { border-bottom: none; }
+  }
+
+  &__summary-label {
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+    flex-shrink: 0;
+    margin-right: $spacing-4;
+  }
+
+  &__summary-value {
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-heading;
+    text-align: right;
+
+    &--old {
+      color: $color-text-tertiary;
+      text-decoration: line-through;
+    }
+
+    &--new { color: $color-primary; }
+  }
+
+  // ── success screen ────────────────────────────────────────────────────────
+  &__success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: $spacing-12 0 $spacing-10;
+  }
+
+  &__success-icon { font-size: 72px; margin-bottom: $spacing-6; }
+
+  &__success-title {
+    display: block;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-heading;
+    margin-bottom: $spacing-5;
+  }
+
+  &__success-desc {
+    display: block;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    line-height: $line-height-relaxed;
+    margin-bottom: $spacing-4;
+  }
+
+  &__success-time {
+    display: block;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    color: $color-primary;
+    margin-bottom: $spacing-8;
+  }
+
+  // ── shared buttons ────────────────────────────────────────────────────────
+  &__btn {
+    display: block;
+    text-align: center;
+    padding: $spacing-6 0;
+    border-radius: $radius-xl;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    margin-bottom: $spacing-5;
+    transition: opacity $duration-fast $ease-default, transform $duration-fast $ease-default;
+
+    &--primary { @include btn-primary; }
+    &--ghost   { @include btn-ghost; }
+    &--disabled { opacity: 0.45; }
+    &--loading  { opacity: 0.6; }
+    &--hover    { opacity: 0.85; transform: scale(0.98); }
+  }
+}

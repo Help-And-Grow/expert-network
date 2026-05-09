@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import { get, post } from "../../shared/api";
 import Icon from "../../components/Icon";
 import type { Booking } from "../../shared/types";
-import { buildWebBookUrl } from "../../shared/web-booking";
 import "./index.scss";
 
 
@@ -278,24 +277,12 @@ export default function DashboardPage() {
                           hoverClass="dashboard__action-btn--hover"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const url = buildWebBookUrl(
-                              booking.expertId,
-                              booking.sessionType
-                            );
-                            Taro.setClipboardData({
-                              data: url,
-                              success: () => {
-                                Taro.showModal({
-                                  title: "改期",
-                                  content:
-                                    "已复制网页见面链接。请在浏览器中打开，联系平台或重新下单完成改期。",
-                                  showCancel: false,
-                                });
-                              },
+                            Taro.navigateTo({
+                              url: `/pages/reschedule/index?bookingId=${booking.id}&expertId=${booking.expertId}&sessionType=${booking.sessionType}&oldTime=${encodeURIComponent(booking.startTime)}`,
                             });
                           }}
                         >
-                          改期（网页）
+                          改期
                         </View>
                       )}
                       <View
