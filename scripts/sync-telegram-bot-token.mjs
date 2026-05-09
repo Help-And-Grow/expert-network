@@ -62,7 +62,7 @@ function upsertEnvLocal(filePath, key, value) {
     if (next.length && next[next.length - 1] !== "") next.push("");
     next.push(line);
   }
-  fs.writeFileSync(next.join("\n").replace(/\n+$/, "\n"), "utf8");
+  fs.writeFileSync(filePath, next.join("\n").replace(/\n+$/, "\n"), "utf8");
 }
 
 async function tgApi(token, method, query = "") {
