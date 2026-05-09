@@ -17,7 +17,7 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 | Stack | Status | Audience | Compute | Storage | Database | AI |
 |---|---|---|---|---|---|---|
-| **Web / Telegram** | Live | Browsers + Telegram users | Vercel Functions in `sin1` | Vercel Blob | **Cloud SQL for PostgreSQL in `asia-southeast1`** *(migrated from Supabase 2026-05-03 — see [supabase-to-cloudsql-migration.md](../exec-plans/active/supabase-to-cloudsql-migration.md))* | Qwen → Gemini chain |
+| **Web / Telegram** | Live | Browsers + Telegram users | Vercel Functions in `sin1` | Vercel Blob | **Cloud SQL for PostgreSQL in `asia-southeast1`** *(migrated 2026-05-03 — see [supabase-to-cloudsql-migration.md](../exec-plans/active/supabase-to-cloudsql-migration.md))* | Qwen → Gemini chain |
 | **WeChat — International** | **Current focus** | WeChat users outside mainland CN (HK / TW / SEA / diaspora, Singapore-company app) | **Vercel Functions in `sin1`** (same as Web) | **Vercel Blob** (same as Web) | **Same Cloud SQL as Web** | **Qwen → Gemini chain** (same as Web) |
 | **WeChat — Mainland CN** | Future (post-Sep 2026) | Mainland-CN WeChat users | Tencent CloudBase / SCF Web Function | Tencent COS CN bucket | TencentDB CN | Tencent Hunyuan |
 
@@ -163,7 +163,7 @@ Three client surfaces share one resolver.
 |---------|-------------|------------------|
 | Web (browser) | Auth.js v5 session cookie (`authjs.session-token`) | `auth()` in route handlers |
 | Telegram Mini App | `initData` HMAC | `src/lib/telegram-server.ts` → `validateAndParseTelegramInitData` |
-| WeChat Mini Program | `code2session` JWT (header `x-wechat-token`) | `src/lib/wechat-server.ts` |
+| WeChat Mini Program | `code2session` JWT (header `x-wechat-token`) | `/api/auth/wechat` issues the JWT; `resolveUserId()` verifies it (`src/lib/request-auth.ts`) |
 
 **Resolver:** `resolveUserId(request)` in `src/lib/request-auth.ts` checks signals in priority order:
 

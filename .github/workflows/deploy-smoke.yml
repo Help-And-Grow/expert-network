@@ -29,7 +29,7 @@ jobs:
           HOST="${BASE#*://}"
           HOST="${HOST%%/*}"
           case "$HOST" in
-            expert-network.vercel.app|expert-network-hackathon.vercel.app)
+            www.help-and-grow.com|expert-network.vercel.app|expert-network-hackathon.vercel.app)
               ;;
             *)
               echo "Host is $HOST (not a production alias we smoke); skipping."

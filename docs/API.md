@@ -36,7 +36,7 @@ The contract test that anchors this doc is [`e2e/smoke/api-contracts.spec.ts`](.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/experts` | optional | List / browse experts (filters in query) |
+| GET | `/api/experts` | required | List / browse experts (filters in query) |
 | GET | `/api/experts/[id]` | optional | Expert detail incl. `experienceCapabilities` |
 | GET | `/api/experts/[id]/audio` | optional | Voice intro audio |
 | GET | `/api/experts/[id]/avatar` | optional | Avatar asset |

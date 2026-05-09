@@ -125,4 +125,4 @@ See also [`e2e/README.md`](../../e2e/README.md).
 
 - [Vercel: Environment variables](https://vercel.com/docs/projects/environment-variables)
 - [Vercel CLI: `env pull`](https://vercel.com/docs/cli/env)
-- [Vercel Marketplace Supabase → this repo](vercel-supabase-marketplace.md) — `POSTGRES_PRISMA_URL`, publishable vs anon key
+- [Cloud SQL migration runbook](../exec-plans/active/supabase-to-cloudsql-migration.md)

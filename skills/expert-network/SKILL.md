@@ -2,7 +2,7 @@
 name: expert_network
 description: Search, discover, and schedule meetups on Help & Grow — the AI Native Expert Network. Find people by domain (Marketing, Fundraising, Law, Headhunting), check availability, and get meetup scheduling links.
 user-invocable: true
-metadata: {"openclaw": {"emoji": "🧠", "homepage": "https://expert-network.vercel.app"}}
+metadata: {"openclaw": {"emoji": "🧠", "homepage": "https://www.help-and-grow.com"}}
 ---
 
 # Help & Grow (AI Native Expert Network)
@@ -14,7 +14,7 @@ You have access to **Help & Grow** — an AI-native network where members are **
 All API calls use this base:
 
 ```
-https://expert-network.vercel.app/api/v1
+https://www.help-and-grow.com/api/v1
 ```
 
 ## Available Endpoints
@@ -85,16 +85,16 @@ Use `web_fetch` to call these endpoints. Examples:
 
 ```javascript
 // Search for marketing experts
-await web_fetch({ url: "https://expert-network.vercel.app/api/v1/experts?q=marketing" });
+await web_fetch({ url: "https://www.help-and-grow.com/api/v1/experts?q=marketing" });
 
 // Get recommendations based on a need
-await web_fetch({ url: "https://expert-network.vercel.app/api/v1/match?q=fundraising for my Series A" });
+await web_fetch({ url: "https://www.help-and-grow.com/api/v1/match?q=fundraising for my Series A" });
 
 // Get a specific expert's profile
-await web_fetch({ url: "https://expert-network.vercel.app/api/experts/EXPERT_ID_HERE" });
+await web_fetch({ url: "https://www.help-and-grow.com/api/experts/EXPERT_ID_HERE" });
 
 // Check availability
-await web_fetch({ url: "https://expert-network.vercel.app/api/experts/EXPERT_ID_HERE/slots" });
+await web_fetch({ url: "https://www.help-and-grow.com/api/experts/EXPERT_ID_HERE/slots" });
 ```
 
 ## Response Handling
@@ -113,4 +113,4 @@ When a user asks for expert help:
 3. **Present results** — show expert name, domains, rating, and a brief bio.
 4. **Deep dive** — if the user is interested in a specific expert, fetch their full profile with `/api/experts/{id}`.
 5. **Check availability** — use `/api/experts/{id}/slots` to show open time slots.
-6. **Direct to meetup flow** — provide the scheduling URL: `https://expert-network.vercel.app/experts/{id}/book`
+6. **Direct to meetup flow** — provide the scheduling URL: `https://www.help-and-grow.com/experts/{id}/book`

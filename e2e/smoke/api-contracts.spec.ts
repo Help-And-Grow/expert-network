@@ -21,6 +21,11 @@ test.describe("Public + auth-gated API contracts", () => {
     expect(Array.isArray(body.experts)).toBe(true);
   });
 
+  test("GET /api/experts requires session (401)", async ({ request }) => {
+    const res = await request.get("/api/experts");
+    expect(res.status()).toBe(401);
+  });
+
   test("POST /api/bookings/checkout — anonymous callers must provide guest fields (400, was 401)", async ({ request }) => {
     // Phase 1 of guest-booking dropped the 401 gate. Anonymous callers must
     // now supply guestEmail + guestName; missing them is a validation error.

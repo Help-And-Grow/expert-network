@@ -8,7 +8,7 @@ on:
       base_url:
         description: "Origin to test (no trailing slash)"
         required: true
-        default: "https://expert-network.vercel.app"
+        default: "https://www.help-and-grow.com"
   schedule:
     # Weekly automatic smoke (Mondays 06:00 UTC). Disable by removing this block if you prefer manual only.
     - cron: "0 6 * * 1"
@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Playwright (CI smoke paths)
         env:
-          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://expert-network.vercel.app' }}
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://www.help-and-grow.com' }}
         run: npm run test:e2e:ci
 
       - name: Upload HTML report

@@ -12,13 +12,13 @@ Production Postgres lives on **Google Cloud SQL** in `asia-southeast1`:
 | Admin user | `postgres` (root — only for ALTER, GRANT, etc.) |
 | TLS | required (`sslmode=require`); no client cert needed |
 
-**No `psql` server-management UI ships with Cloud SQL** the way Supabase Studio does. There are four practical ways to look at the data — pick the one that matches what you're trying to do.
+**Cloud SQL doesn’t ship a built-in `psql` management UI.** There are four practical ways to look at the data — pick the one that matches what you're trying to do.
 
 ---
 
 ## Option 1 — Cloud SQL Studio (web GUI, no install) ⭐ recommended for browsing
 
-Google's built-in browser GUI. Closest replacement for Supabase Studio.
+Google's built-in browser GUI.
 
 1. https://console.cloud.google.com/sql/instances → click `hg-postgres-prod`
 2. Left sidebar → **Cloud SQL Studio** (a beaker icon)

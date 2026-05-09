@@ -12,7 +12,7 @@ Tests are grouped **by area** under `e2e/`:
 
 Use the **production (PRD)** deployment as the single source for **storage state** and Playwright runs that should match real auth + Stripe behavior:
 
-- **PRD origin:** `https://expert-network.vercel.app` (same as `playwright.config.ts` default).
+- **PRD origin:** `https://www.help-and-grow.com`.
 
 Generate `e2e/.auth/user.json` against **PRD** sign-in, and set `PLAYWRIGHT_BASE_URL` to that origin when running authenticated specs. Local `http://localhost:5000` is only for debugging app code — **do not** mix localhost storage state with PRD URLs (cookie domains will not match).
 
@@ -39,7 +39,7 @@ You do **not** put Stripe keys in GitHub or in this git repo. Two places only:
 
 | Workflow | Trigger | What it runs |
 |----------|---------|----------------|
-| **[`ci.yml`](../.github/workflows/ci.yml)** | Every **push** and **pull request** to `main` | `npm run lint` + **`npm run test:e2e:ci`** against `https://expert-network.vercel.app` (no secrets in repo). |
+| **[`ci.yml`](../.github/workflows/ci.yml)** | Every **push** and **pull request** to `main` | `npm run lint` + **`npm run test:e2e:ci`** against `https://www.help-and-grow.com` (no secrets in repo). |
 | **[`playwright-e2e.yml`](../.github/workflows/playwright-e2e.yml)** | **Weekly** + **manual** | Same Playwright CI subset; use when you want a run without a PR. |
 | **[`deploy-smoke.yml`](../.github/workflows/deploy-smoke.yml)** | After **successful production deploy** | `curl` health checks only (not Playwright). |
 
@@ -51,7 +51,7 @@ Vercel env sync (development / preview / production) is documented in [**vercel-
 
 | | **Deploy smoke** ([`deploy-smoke.yml`](../.github/workflows/deploy-smoke.yml)) | **Playwright E2E** ([`playwright-e2e.yml`](../.github/workflows/playwright-e2e.yml)) |
 |---|------------------|------------------|
-| **When** | Automatically after a **successful deploy** to **`expert-network.vercel.app`** only | Manual **or** weekly schedule (browser tests) |
+| **When** | Automatically after a **successful deploy** to **`www.help-and-grow.com`** only | Manual **or** weekly schedule (browser tests) |
 | **What** | Three **`curl`** checks: `/api/health`, tRPC `health`, tRPC `expertsPublished` | `npm run test:e2e:ci` — home, APIs, booking page, sign-in UI |
 | **Includes all `e2e/` tests?** | **No** — it does **not** run Playwright at all | Runs the **CI subset** of `e2e/` (`test:e2e:ci`), not the optional authenticated specs unless you change the command |
 | **Stripe** | Not involved | Not involved (no keys in workflow) |
@@ -103,16 +103,16 @@ NextAuth uses **HTTP-only cookies**. Playwright cannot “type a password” for
 2. Run the **Codegen** recorder against **PRD** and save storage:
 
    ```bash
-   PLAYWRIGHT_BASE_URL=https://expert-network.vercel.app npx playwright codegen \
+   PLAYWRIGHT_BASE_URL=https://www.help-and-grow.com npx playwright codegen \
      --save-storage=e2e/.auth/user.json \
-     https://expert-network.vercel.app/auth/signin
+     https://www.help-and-grow.com/auth/signin
    ```
 
 3. Complete **Google** or **magic link** in the opened browser. After you land signed-in, close the window; `user.json` holds cookies for that origin.
 4. Run tests (PRD):
 
    ```bash
-   PLAYWRIGHT_BASE_URL=https://expert-network.vercel.app npm run test:e2e
+   PLAYWRIGHT_BASE_URL=https://www.help-and-grow.com npm run test:e2e
    ```
 
    Specs under `e2e/auth/authenticated/` use `e2e/.auth/user.json` automatically (or `PLAYWRIGHT_STORAGE_STATE`).

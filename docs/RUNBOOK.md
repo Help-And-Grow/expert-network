@@ -8,7 +8,7 @@ Operational guide for getting the app up locally, deploying to Vercel, and under
 
 ### Prereqs
 - Node.js 20.x (`.nvmrc`)
-- PostgreSQL 14+ (local, Supabase, Railway, or Vercel Marketplace)
+- PostgreSQL 14+ (local or hosted)
 - Optional: Docker (for HiClaw sidecar / ten-agent voice)
 
 ### First-time setup
@@ -54,9 +54,9 @@ The Next.js app itself runs on Node directly via `npm run dev`. There is no top-
 
 `postinstall` additionally runs [`scripts/prisma-migrate-if-vercel.mjs`](../scripts/prisma-migrate-if-vercel.mjs):
 - No-op when `VERCEL !== "1"`.
-- On Vercel: runs `prisma migrate deploy`. If it fails with **P3005** ("schema is not empty"), it auto-resolves the baseline migration `20260424120000_baseline` and retries. This unblocks deploys against Supabase databases provisioned outside of Prisma Migrate (added in commit `edf8faf`).
+- On Vercel: runs `prisma migrate deploy`. If it fails with **P3005** ("schema is not empty"), it auto-resolves the baseline migration `20260424120000_baseline` and retries. This unblocks deploys against databases provisioned outside of Prisma Migrate (added in commit `edf8faf`).
 
-This means you can take a fresh Vercel project pointed at an existing Supabase DB and the first deploy will baseline cleanly. Don't treat this as a substitute for tracked migrations going forward.
+This means you can take a fresh Vercel project pointed at an existing Postgres database (created outside Prisma Migrate) and the first deploy will baseline cleanly. Don't treat this as a substitute for tracked migrations going forward.
 
 ---
 
@@ -78,7 +78,7 @@ Pushing to `main` triggers Vercel to run `npm run build`. The auto-baseline migr
 | Apply many vars from a file | `npm run vercel:env:apply -- production ./.env.vercel.sync` |
 | Sync `TELEGRAM_BOT_TOKEN` to Vercel | `npm run vercel:env:telegram` |
 
-Detail: [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](references/vercel-env-and-secret-rotation.md), [`vercel-supabase-marketplace.md`](references/vercel-supabase-marketplace.md).
+Detail: [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](references/vercel-env-and-secret-rotation.md).
 
 ### Post-deploy smoke
 ```bash
@@ -113,8 +113,8 @@ If quota becomes a concern again, gate individual workflows with a job-level `if
 
 ## Common operations
 
-### Re-baseline after Supabase reset
-The auto-baseline kicks in only on **Vercel** builds. Locally, if you reset Supabase and `prisma migrate deploy` errors with P3005, run:
+### Re-baseline after DB reset
+The auto-baseline kicks in only on **Vercel** builds. Locally, if you reset your database and `prisma migrate deploy` errors with P3005, run:
 ```bash
 npx prisma migrate resolve --applied 20260424120000_baseline
 npx prisma migrate deploy

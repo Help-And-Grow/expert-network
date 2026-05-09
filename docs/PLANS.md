@@ -60,7 +60,7 @@
 | 2026-03 | MCP + OpenClaw skill for agent integration | Platform-as-a-service for AI agents |
 | 2026-03 | Jitsi Meet for video calls | Free, no API key needed, auto-generated links |
 | 2026-03 | Resend for transactional email | Free tier sufficient, scheduled send support |
-| 2026-03 | Switch primary DB to Supabase PostgreSQL | TiDB cold-start timeouts in serverless |
+| 2026-03 | Switch primary DB to Cloud SQL for PostgreSQL | TiDB cold-start timeouts in serverless |
 | 2026-03 | Use Qwen as primary AI in production | Better Chinese language support for SEA market |
 | 2026-03 | Remove WhatsApp integration | Low adoption, maintenance burden |
 | 2026-03 | Stripe Express Connect for experts | Simplest marketplace payout model |

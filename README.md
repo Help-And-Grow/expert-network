@@ -29,7 +29,7 @@ A monorepo around one Next.js API layer that serves three clients plus a sidecar
 - **API layer:** Next.js Route Handlers · tRPC v11 · MCP server (`/api/mcp`) · public auth-free namespace `/api/v1/*`
 - **Database:** PostgreSQL only · Prisma 7 with `@prisma/adapter-pg` · optional `pgvector` for expert memory
 - **Auth:** Auth.js v5 (`next-auth ^5.0.0-beta.30`) — Google OAuth + Nodemailer magic link · Telegram initData HMAC · WeChat `code2session` JWT — unified by [`src/lib/request-auth.ts`](src/lib/request-auth.ts)
-- **AI:** Pluggable providers via `AI_PROVIDER` (default `qwen`): DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex Model Garden), Dedalus, BytePlus ModelArk, Volcengine ModelArk, Ollama (local). Memory backend (`MEMORY_BACKEND`): `mem9 | pgvector | hybrid`.
+- **AI:** Pluggable providers via `AI_PROVIDER` (default `qwen`): DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex Model Garden), BytePlus ModelArk, Volcengine ModelArk, Tencent Hunyuan. Memory backend (`MEMORY_BACKEND`): `mem9 | pgvector | hybrid`.
 - **Voice:** Async voice chat (5-reply free cap) and realtime AI chat (3-min cap), both DashScope/Qwen-backed (`VOICE_CHAT_MODE=async|realtime|both`)
 - **Realtime media:** Tencent TRTC for premium live consultation
 - **Payments:** Stripe Connect (Express) · PayNow (SG, primary web) · TON · WeChat Pay (JSAPI + service-provider mode) · free flow for zero-priced experts
@@ -37,7 +37,7 @@ A monorepo around one Next.js API layer that serves three clients plus a sidecar
 - **Background jobs:** Inngest (`/api/inngest`) and Vercel cron (`/api/cron/charge-remainder`) — toggle with `CRON_DELEGATED_TO_INNGEST`
 - **Email:** Nodemailer (magic link) + Resend (booking confirmation + reminders)
 - **Observability:** `@vercel/otel` instrumentation · structured request logs on high-risk routes · health endpoints `/api/health` and `/api/db-health`
-- **Hosting:** Vercel (Functions). Local stack via Docker Compose (Postgres + pgvector + Ollama + Next.js + HiClaw)
+- **Hosting:** Vercel (Functions). Local stack via Docker Compose (Postgres + pgvector + Next.js + HiClaw)
 - **Testing:** Playwright e2e (`playwright.config.ts`, `playwright.prod.config.ts`)
 
 Full stack rationale and dependency layering: [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -54,7 +54,7 @@ Full stack rationale and dependency layering: [`ARCHITECTURE.md`](ARCHITECTURE.m
 
 ### Prerequisites
 - Node.js 20.x (see `.nvmrc` and `engines.node`)
-- PostgreSQL 14+ (local, Supabase, Railway, or Vercel Marketplace)
+- PostgreSQL 14+ (local or hosted)
 - Optional: Docker Desktop (for the local full-stack)
 
 ### 1. Install
@@ -109,7 +109,7 @@ Production canonical URL: **`https://www.help-and-grow.com`** (the `expert-netwo
 
 GitHub Actions workflows: [`.github/workflows/`](.github/workflows/) — `ci.yml` (lint + Playwright against canonical production URL), `deploy-smoke.yml`, `playwright-e2e.yml`, `sync-hiclaw.yml`, `wechat-ci.yml`, `npm-audit.yml`. The `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth for browser smoke. (Workflows were re-enabled in commit `27f2570` after the Action-minute quota window reset.)
 
-Vercel + env handling: [`docs/references/vercel-environments-solo-pm.md`](docs/references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](docs/references/vercel-env-and-secret-rotation.md), [`vercel-supabase-marketplace.md`](docs/references/vercel-supabase-marketplace.md).
+Vercel + env handling: [`docs/references/vercel-environments-solo-pm.md`](docs/references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](docs/references/vercel-env-and-secret-rotation.md).
 
 ## Where to dig deeper
 

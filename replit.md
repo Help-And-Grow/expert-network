@@ -7,7 +7,7 @@ An AI-native expert network platform for Singapore & Southeast Asia. Users can b
 - **Framework**: Next.js 15 (App Router) + React 18 + TypeScript 5
 - **Database ORM**: Prisma 7 with `@prisma/adapter-pg` — PostgreSQL only
 - **Auth**: Auth.js v5 (`next-auth ^5.0.0-beta.30`) with Prisma adapter; unified multi-platform resolver in `src/lib/request-auth.ts`
-- **AI**: Pluggable via `AI_PROVIDER` (default `qwen`) — DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex), Dedalus, BytePlus, Volcengine, Ollama
+- **AI**: Pluggable via `AI_PROVIDER` (default `qwen`) — DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex), Tencent Hunyuan, BytePlus, Volcengine
 - **Blockchain**: Base chain + EAS attestations (POMP reputation), `HelpGrowToken` ERC-20
 - **Payments**: Stripe Connect, PayNow (SG), TON, WeChat Pay, free flow
 - **Messaging**: Telegram Mini App, WeChat Mini Program (Taro)
@@ -37,7 +37,7 @@ See `.env.example` for the full list. Minimum required to start:
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string for the main app (Supabase recommended) |
+| `DATABASE_URL` | PostgreSQL connection string for the main app |
 | `NEXTAUTH_URL` | Full public URL of the app (e.g. `https://<repl>.replit.app`) |
 | `NEXTAUTH_SECRET` | Random secret — generate with `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (for sign-in) |
@@ -46,12 +46,12 @@ See `.env.example` for the full list. Minimum required to start:
 Optional but used by features:
 - `EMAIL_SERVER_*` / `EMAIL_FROM` — Magic link email auth
 - `OPENAI_API_KEY` — If `AI_PROVIDER=openai`
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — File storage
 - `STRIPE_*` — Payments
 - `POMP_ISSUER_PRIVATE_KEY`, `POMP_EAS_SCHEMA_UID` — Reputation attestations
 - `ALCHEMY_WEBHOOK_SECRET` — On-chain webhook verification
 - `HICLAW_POSTGRES_URL` — Optional dedicated PostgreSQL URL for HiClaw; otherwise it reuses `DATABASE_URL`
-- `VOICE_CHAT_MODE`, `REALTIME_BACKEND`, `AGORA_*` — Voice chat features
+- `VOICE_CHAT_MODE`, `DASHSCOPE_API_KEY` — Voice chat features
+- `TRTC_*` — Premium live consultation
 - `ZAI_API_KEY` — Required if `AI_PROVIDER=zai`
 
 ## Database

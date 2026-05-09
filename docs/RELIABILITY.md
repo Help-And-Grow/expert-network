@@ -8,7 +8,7 @@
 - Notification calls (Telegram, WeChat) are fire-and-forget: `.catch(() => {})` to not block responses
 
 ### Database
-- Prisma with connection pooling via Supabase Pooler
+- Prisma + PostgreSQL with provider-managed pooling where available
 - PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://` or `postgres://`
 - Cold start mitigation: keep Vercel functions warm for payment-critical routes
 
@@ -38,7 +38,7 @@ Wire these into your uptime monitor; both are auth-free.
 
 ## Migration safety net
 
-Production builds run [`scripts/prisma-migrate-if-vercel.mjs`](../scripts/prisma-migrate-if-vercel.mjs) in `postinstall`. It auto-baselines when the Supabase/Postgres database has tables but no `_prisma_migrations` history (added in commit `edf8faf`), so a fresh Vercel deploy against an existing schema will not abort with "drift detected." Treat this as a safety net, not a substitute for tracked migrations.
+Production builds run [`scripts/prisma-migrate-if-vercel.mjs`](../scripts/prisma-migrate-if-vercel.mjs) in `postinstall`. It auto-baselines when the database has tables but no `_prisma_migrations` history (added in commit `edf8faf`), so a fresh Vercel deploy against an existing schema will not abort with "drift detected." Treat this as a safety net, not a substitute for tracked migrations.
 
 ## Monitoring
 

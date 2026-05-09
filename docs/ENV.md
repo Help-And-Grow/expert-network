@@ -4,7 +4,7 @@ Grouped reference for every env var the app reads. The full annotated list lives
 
 Validation: production startup fails fast if `DATABASE_URL`, `NEXTAUTH_URL`, and an auth secret (`AUTH_SECRET` or `NEXTAUTH_SECRET`, ≥32 chars) are missing. Emergency local bypass: `SKIP_ENV_VALIDATION=1` (never use on Vercel).
 
-For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). For Marketplace Postgres naming, see [`docs/references/vercel-supabase-marketplace.md`](references/vercel-supabase-marketplace.md).
+For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md).
 
 ---
 
@@ -13,7 +13,6 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 | Var | Required | Purpose |
 |---|---|---|
 | `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`) |
-| `POSTGRES_PRISMA_URL` | optional | Vercel Marketplace Supabase pooled URL — runtime maps to Prisma automatically |
 | `NEXTAUTH_URL` | yes | Full public URL of the app (sign-in callbacks) |
 | `AUTH_SECRET` | yes | Auth.js v5 JWT signing secret (`openssl rand -base64 32`) |
 | `NEXTAUTH_SECRET` | optional | Legacy alias for `AUTH_SECRET` — both accepted |
@@ -48,9 +47,9 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 |---|---|
 | `WECHAT_APP_ID`, `WECHAT_APP_SECRET` | Mini Program `code2session` |
 | `WECHAT_CLIENT_LOG` | `1` to accept `/api/debug/wechat-client-log` in prod |
-| `IS_WECHAT` | Set to `true` on Tencent SCF deployments so backend traffic is routed through WeChat-specific AI/storage decisions even without proxy headers |
-| `PROXY_REGION` | WeChat stack marker: `intl` for the current international MP, `cn` for the future mainland app |
-| `WECHAT_STACK_REGION` | Deploy-script input written to SCF as `PROXY_REGION`; current value is `intl` |
+| `IS_WECHAT` | Set to `true` on the future **mainland-CN** Tencent SCF deployment (used to mark WeChat-originated traffic) |
+| `PROXY_REGION` | Tencent SCF region marker for the future mainland-CN stack (`cn`) |
+| `WECHAT_STACK_REGION` | Deploy-script input written to Tencent SCF as `PROXY_REGION` (future CN only) |
 | `WECHAT_PAY_MCH_ID`, `WECHAT_PAY_API_V3_KEY` (32 chars), `WECHAT_PAY_CERT_SERIAL_NO`, `WECHAT_PAY_PRIVATE_KEY`, `WECHAT_PAY_NOTIFY_URL` | WeChat Pay JSAPI |
 | `WECHAT_PAY_PARTNER_MODE`, `WECHAT_PAY_PLATFORM_*` | Service-provider + profit-sharing marketplace mode |
 | `WECHAT_TPL_BOOKING_*`, `WECHAT_TPL_LOCATION_UPDATED`, `WECHAT_TPL_SESSION_REMINDER` | Subscribe-message template IDs |
@@ -61,19 +60,19 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 
 | Surface | Text chain | Search grounding |
 |---|---|---|
-| Web / Telegram | `qwen → gemini` | Gemini (always) |
-| WeChat MP (current Intl + future CN) | `hunyuan` (no fallback by design) | Hunyuan enhanced search where provider supports it |
+| Web / Telegram / WeChat-Intl | `qwen → gemini` | Gemini (always) |
+| WeChat-CN (future Tencent backend) | `hunyuan` (no fallback by design) | Hunyuan enhanced search where provider supports it |
 
 | Var | Purpose |
 |---|---|
 | `AI_PROVIDER` | Primary provider for the Web/Telegram chain (default `qwen`). Used as the head of the chain when `AI_TEXT_PROVIDER_CHAIN` SystemConfig is unset. |
-| `AI_TEXT_PROVIDER_CHAIN` | *(SystemConfig only, no env equivalent)* Comma-separated chain for non-WeChat surfaces. Default `qwen,gemini`. Edit via `/admin/ai-provider`. |
-| `WECHAT_AI_PROVIDER` | Primary provider for WeChat-originated requests. Default `hunyuan`. Set via env or SystemConfig. |
+| `AI_TEXT_PROVIDER_CHAIN` | Comma-separated chain for non-WeChat surfaces. Default `qwen,gemini`. Prefer SystemConfig (editable via `/admin/ai-provider`); env fallback is supported. |
+| `WECHAT_AI_PROVIDER` | Primary provider for **WeChat-originated** requests (future Tencent SCF backend). Default `hunyuan`. Set via env or SystemConfig. |
 | `VENDOR_ALIBABACLOUD_DEMO` | Local mimic of the AlibabaCloud showcase deployment |
 | **Qwen / DashScope** *(primary for Web/Telegram)* | `DASHSCOPE_API_KEY`, `QWEN_TEXT_MODEL`, `QWEN_IMAGE_MODEL` |
 | **Gemini (Vertex)** *(fallback for Web/Telegram + always-on for search)* | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_SERVICE_ACCOUNT_KEY` (base64) |
 | **Gemini (AI Studio)** *(simpler dev-only auth)* | `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_TTS_MODEL`, `GEMINI_EMBEDDING_MODEL`, `GEMINI_IMAGE_VERTEX_LOCATION` |
-| **Tencent Hunyuan** *(WeChat MP only)* | `HUNYUAN_API_KEY`, `HUNYUAN_TEXT_MODEL`, `HUNYUAN_IMAGE_MODEL` |
+| **Tencent Hunyuan** *(WeChat-CN future)* | `HUNYUAN_API_KEY`, `HUNYUAN_TEXT_MODEL` |
 | **OpenAI** *(image fallback only)* | `OPENAI_API_KEY`, `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL` |
 | **Z.ai** *(image fallback only)* | `ZAI_TEXT_MODEL`, `ZAI_VERTEX_LOCATION`, `ZAI_IMAGE_MODEL`, optional `ZAI_API_KEY` + `ZAI_BASE_URL` |
 | **BytePlus ModelArk** *(legacy)* | `BYTEPLUS_API_KEY`, `BYTEPLUS_MODEL_ID` |
@@ -81,7 +80,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 
 **Required for production deploys:**
 - Web (Vercel): `DASHSCOPE_API_KEY` + Vertex creds (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`).
-- WeChat SCF (current Intl + future CN): `HUNYUAN_API_KEY` only — Qwen/Gemini are not on the WeChat path.
+- WeChat-CN (future Tencent SCF): `HUNYUAN_API_KEY` only — Qwen/Gemini are not on the WeChat-CN path.
 - Search grounding works on every surface as long as Gemini credentials (Vertex *or* AI Studio) are present somewhere on that deploy.
 
 ## Memory backend
@@ -167,13 +166,6 @@ See [`hiclaw/README.md`](../hiclaw/README.md) for additional service-only vars.
 |---|---|
 | `GOOGLE_PLACES_API_KEY` | Places API (New) — autocomplete + details |
 | `GOOGLE_PLACES_REGION_CODES` | Comma-separated ISO codes (default `sg`) |
-
-## Supabase Storage / public client
-
-| Var | Purpose |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Storage / client SDK |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) | Browser-safe key |
 
 ## Admin AI-provider switcher
 

@@ -11,11 +11,10 @@ Help & Grow operates **two separate WeChat Mini Programs** for different markets
 | Build region | `intl` |
 | AppID | `wx09d0eb079596060d` |
 | Company | Registered in Singapore |
-| CloudBase env | `cn-wechat-d1gzncs8i34827c98` |
-| API base | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
-| Backend | Tencent CloudBase / SCF Web Function |
-| AI | Configurable per `AI_PROVIDER` (default: Qwen/DashScope for international traffic) |
-| Database posture | Tencent-side database synchronized from Supabase; future source may move to Google Cloud DB |
+| API base | `https://www.help-and-grow.com` |
+| Backend | Vercel Functions (same as Web + Telegram) |
+| AI | Qwen / DashScope (primary) → Gemini (fallback) |
+| Database posture | Same Cloud SQL for PostgreSQL as Web/Telegram (no Tencent-side replica) |
 
 ## China Mainland App (Future — Chinese Company)
 
@@ -50,17 +49,15 @@ npm run build:weapp:intl
 
 Import `/Users/qiumiao/Downloads/expert-network/wechat` in WeChat DevTools. The root `project.config.json` points `miniprogramRoot` at `./dist-intl`, so DevTools loads the international build output.
 
-The app calls `Taro.cloud.init({ env: "cn-wechat-d1gzncs8i34827c98", traceUser: false })` on launch so DevTools and future native CloudBase capabilities bind to the same CloudBase env without startup user tracing. Product API calls still use HTTPS through `TARO_APP_API_BASE`.
-
 ## Domain Allowlist
 
 In `mp.weixin.qq.com` for AppID `wx09d0eb079596060d`, configure:
 
 | WeChat setting | Required domain |
 |---|---|
-| request合法域名 | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
-| uploadFile合法域名 | same CloudBase domain; add Tencent COS domain too if direct COS URLs are returned |
-| downloadFile合法域名 | same CloudBase domain; add Tencent COS domain too for audio/docs/avatar downloads |
+| request合法域名 | `https://www.help-and-grow.com` |
+| uploadFile合法域名 | `https://www.help-and-grow.com` |
+| downloadFile合法域名 | `https://www.help-and-grow.com` |
 
 For local simulator debugging only, DevTools can disable domain verification. Real-device preview and experience versions should use the allowlist above.
 
@@ -92,8 +89,7 @@ Mini Program code runs in WeChat DevTools or on the user's phone. Client `consol
 Use:
 
 - WeChat DevTools Console / Network for frontend errors.
-- Tencent CloudBase function logs for `/api/*` backend errors.
-- `curl https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/health/origin` for backend reachability.
+- Vercel logs for `/api/*` backend errors (same backend as web).
 
 Optional client log forwarding:
 
@@ -106,4 +102,3 @@ Optional client log forwarding:
 
 - Booking from the mini program currently uses the shared web booking flow rather than fully native WeChat Pay.
 - The membership page is hidden until WeChat Pay is provisioned.
-- The international user test depends on database sync from Supabase so experts onboarded through Web/Telegram appear in WeChat.

@@ -21,9 +21,11 @@
                    │      │      │
            ┌──────────┐ ┌───▼───┐ ┌▼──────────────┐
            │ Prisma + │ │Stripe │ │AI Providers   │
-           │ Supabase │ │(Pay)  │ │(Qwen/Gemini/  │
+           │ Cloud SQL│ │(Pay)  │ │(Qwen/Gemini/  │
            │ Postgres │ │       │ │ OpenAI/Z.ai/  │
-           │          │ │Connect│ │ Dedalus)      │
+           │          │ │Connect│ │ Hunyuan/      │
+           │          │ │       │ │ BytePlus/     │
+           │          │ │       │ │ Volcengine)   │
            └──────────┘ └───────┘ └───────────────┘
 ```
 
@@ -135,7 +137,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 ## Database
 
-- **Primary**: PostgreSQL (e.g. Supabase) in production
+- **Primary**: PostgreSQL in production (Cloud SQL)
 - **ORM**: Prisma 7 with `@prisma/adapter-pg` only; `DATABASE_URL` must be Postgres (`mysql://` rejected)
 - **Schema**: `prisma/schema.prisma` — `scripts/switch-db.mjs` enforces `provider = "postgresql"`
 
@@ -143,7 +145,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 - **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
 - **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
-- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the **same** Supabase/Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
+- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the same Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
 - **Doc:** [hiclaw/README.md](hiclaw/README.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
 
 ### Key Models
@@ -200,7 +202,7 @@ Help & Grow operates **two separate WeChat Mini Programs** for different markets
 
 | App | Region | Company | Positioning | AI Provider | Data Residency |
 |-----|--------|----------|-------------|--------------|----------------|
-| **International** | `intl` | Singapore | Free mentoring platform for youth learning AI | Qwen/DashScope (default) | Global (Supabase/Google Cloud) |
+| **International** | `intl` | Singapore | Free mentoring platform for youth learning AI | Qwen/DashScope → Gemini fallback | Global (Vercel + Cloud SQL) |
 | **China Mainland** (future) | `cn` | Chinese company | Localized expert network | **Hunyuan** (Tencent LLM) | 🔒 **China-only** (separate Tencent Cloud stack) |
 
 **Data residency principle (China app)**: All user data is stored and processed **only within China mainland** — separate Tencent Cloud account, separate DB, separate COS, Hunyuan AI processing. No data sync with international stack.
@@ -208,8 +210,8 @@ Help & Grow operates **two separate WeChat Mini Programs** for different markets
 ### International App (Current)
 
 - **AppID**: `wx09d0eb079596060d`
-- **CloudBase env**: `cn-wechat-d1gzncs8i34827c98`
 - **Build config**: `wechat/build-config/intl.json`
+- **Backend**: Vercel at `https://www.help-and-grow.com` (same as Web/Telegram)
 - **Product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
 
 ### China App (Future)
@@ -218,6 +220,7 @@ Help & Grow operates **two separate WeChat Mini Programs** for different markets
 - **Cloud infra**: China-local Tencent Cloud (separate stack)
 - **Build config**: `wechat/build-config/cn.json` (contains `PENDING_*` values)
 - **AI provider**: **Hunyuan** (ensures data stays in China)
+- **Backend**: Tencent CloudBase / SCF, with a China-local database and storage
 
 ### Shared Technical Details
 

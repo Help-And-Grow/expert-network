@@ -14,7 +14,7 @@
 |---|---|
 | Current intl WeChat backend | **Vercel** at canonical `https://www.help-and-grow.com` (alias: `expert-network.vercel.app`), same as Web + Telegram |
 | Current intl WeChat AI | **Qwen → Gemini chain**, same as Web + Telegram (no Hunyuan) |
-| Current intl WeChat database | Supabase Postgres now → Cloud SQL planned (same as Web) |
+| Current intl WeChat database | Cloud SQL for PostgreSQL (same as Web) |
 | Current intl WeChat storage | Vercel Blob (same as Web) |
 | Current intl AppID | `wx09d0eb079596060d` (Singapore-company app) |
 | Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98` | **Paused dev sandbox** for the future mainland-CN MP |
@@ -64,7 +64,7 @@ Web / Telegram users          WeChat-Intl Mini Program
                   Vercel Functions (sin1)
                           |
                           v
-              Supabase Postgres (→ Cloud SQL planned)
+              Cloud SQL for PostgreSQL
                           |
                           v
                 Vercel Blob + Qwen → Gemini AI chain
@@ -84,7 +84,7 @@ Web / Telegram + WeChat-Intl users          WeChat-CN Mini Program
         Vercel (sin1)                           |
               |                                  v
               v                          TencentDB CN + Tencent COS
-   Supabase / Cloud SQL                          |
+   Cloud SQL                                     |
                                                  v
                                           Hunyuan + Tencent native search
 ```
@@ -97,7 +97,7 @@ Web / Telegram + WeChat-Intl users          WeChat-CN Mini Program
 
 These all live on the Vercel stack and benefit the intl MP today:
 
-- **Supabase → Cloud SQL migration** ([`supabase-to-cloudsql-migration.md`](./supabase-to-cloudsql-migration.md)).
+- **Cloud SQL migration runbook** ([`supabase-to-cloudsql-migration.md`](./supabase-to-cloudsql-migration.md)).
 - **Semantic expert search** ([`semantic-expert-search.md`](./semantic-expert-search.md)) — Phase 3 hardening + Phase 4 production rollout.
 - **WeChat-Intl client UX** — same backend as Web, so any improvement to onboarding / discover / booking ships everywhere.
 

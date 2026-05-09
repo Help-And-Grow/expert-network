@@ -9,6 +9,11 @@ import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
 
+const PRIVATE_NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie, Authorization, x-telegram-init-data, x-wechat-token",
+};
+
 const SORT_OPTIONS = ["reviews", "newest"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
@@ -30,7 +35,10 @@ export async function GET(request: NextRequest) {
   try {
     const userId = await resolveUserId(request);
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -100,17 +108,20 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      experts: result,
-      total: domains.length > 0 ? filteredExperts.length : total,
-      skip,
-      take,
-    });
+    return NextResponse.json(
+      {
+        experts: result,
+        total: domains.length > 0 ? filteredExperts.length : total,
+        skip,
+        take,
+      },
+      { headers: PRIVATE_NO_STORE_HEADERS },
+    );
   } catch (error) {
     console.error("[experts GET]", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: PRIVATE_NO_STORE_HEADERS },
     );
   }
 }
