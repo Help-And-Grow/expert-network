@@ -13,12 +13,12 @@ test.describe("Public + auth-gated API contracts", () => {
     expect(body.service).toBe("expert-network");
   });
 
-  test("GET /api/v1/experts returns list", async ({ request }) => {
+  test("GET /api/v1/experts requires session (401)", async ({ request }) => {
+    // Auth was added to /api/v1/experts to prevent unauthenticated scraping.
+    // WeChat / Telegram clients always include their platform token so they
+    // are unaffected; unauthenticated callers should receive 401.
     const res = await request.get("/api/v1/experts?limit=5");
-    const text = await res.text();
-    expect(res.ok(), `HTTP ${res.status()} — ${text}`).toBeTruthy();
-    const body = JSON.parse(text) as { experts?: unknown[] };
-    expect(Array.isArray(body.experts)).toBe(true);
+    expect(res.status()).toBe(401);
   });
 
   test("GET /api/experts requires session (401)", async ({ request }) => {
