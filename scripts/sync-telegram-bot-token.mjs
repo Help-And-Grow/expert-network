@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Set TELEGRAM_BOT_TOKEN locally (.env.local) and on Vercel (production + preview).
+ * Set TELEGRAM_BOT_TOKEN locally (.env.local) and on Vercel (production + preview),
+ * then re-register the production webhook against the (possibly new) token.
  *
  * Prerequisites:
  *   - `npx vercel login` (once)
@@ -13,6 +14,12 @@
  * Optional: also sync Telegram Pay provider token:
  *   export TELEGRAM_PAYMENT_PROVIDER_TOKEN="..."
  *   npm run vercel:env:telegram
+ *
+ * Optional: override the webhook URL (defaults to canonical prod):
+ *   export TELEGRAM_WEBHOOK_URL="https://www.help-and-grow.com/api/webhooks/telegram"
+ *
+ * Skip the webhook step entirely (e.g. testing local-only token sync):
+ *   export TELEGRAM_SKIP_SET_WEBHOOK=1
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -25,6 +32,9 @@ const envLocalPath = path.join(root, ".env.local");
 const vercelProject = path.join(root, ".vercel", "project.json");
 
 const OPTIONAL_KEYS = ["TELEGRAM_PAYMENT_PROVIDER_TOKEN"];
+
+const DEFAULT_WEBHOOK_URL =
+  "https://www.help-and-grow.com/api/webhooks/telegram";
 
 function upsertEnvLocal(filePath, key, value) {
   const line = `${key}=${value}`;
@@ -53,6 +63,51 @@ function upsertEnvLocal(filePath, key, value) {
     next.push(line);
   }
   fs.writeFileSync(next.join("\n").replace(/\n+$/, "\n"), "utf8");
+}
+
+async function tgApi(token, method, query = "") {
+  const url = `https://api.telegram.org/bot${token}/${method}${query}`;
+  const res = await fetch(url, { method: "POST" });
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    body = { ok: false, description: `non-JSON response (${res.status})` };
+  }
+  return body;
+}
+
+async function registerWebhook(token, webhookUrl) {
+  const setRes = await tgApi(
+    token,
+    "setWebhook",
+    `?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=false`,
+  );
+  if (!setRes.ok) {
+    console.error(
+      `[fail] setWebhook → ${webhookUrl}: ${setRes.description ?? "unknown error"}`,
+    );
+    process.exit(1);
+  }
+  console.log(`[ok] setWebhook → ${webhookUrl}`);
+
+  const info = await tgApi(token, "getWebhookInfo");
+  if (!info.ok) {
+    console.error(
+      `[warn] getWebhookInfo failed: ${info.description ?? "unknown error"}`,
+    );
+    return;
+  }
+  const r = info.result ?? {};
+  console.log(
+    `[ok] getWebhookInfo: url=${r.url} pending=${r.pending_update_count ?? 0}` +
+      (r.last_error_message ? ` last_error="${r.last_error_message}"` : ""),
+  );
+  if (r.last_error_message) {
+    console.error(
+      "[warn] Telegram reports a recent webhook delivery error — check the route is reachable and returns 200.",
+    );
+  }
 }
 
 function vercelEnvAdd(key, target, value) {
@@ -120,6 +175,17 @@ for (const opt of OPTIONAL_KEYS) {
   for (const target of ["production", "preview"]) {
     vercelEnvAdd(opt, target, v);
   }
+}
+
+// Re-register the Telegram webhook against the (possibly new) token.
+// If you skip this and the token was rotated, the bot will silently stop
+// receiving updates: /start does nothing, expert telegramId back-fill stops,
+// and notifyExpertBooking() bails at resolveChatId().
+if (process.env.TELEGRAM_SKIP_SET_WEBHOOK === "1") {
+  console.log("[skip] setWebhook (TELEGRAM_SKIP_SET_WEBHOOK=1)");
+} else {
+  const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL?.trim() || DEFAULT_WEBHOOK_URL;
+  await registerWebhook(botToken, webhookUrl);
 }
 
 console.log("Done.");
