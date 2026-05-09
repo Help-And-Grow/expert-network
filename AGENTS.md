@@ -12,10 +12,10 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Production runs on **Google Cloud SQL** (instance `hg-postgres-prod`, db `helpgrow`, region `asia-southeast1`). `DATABASE_URL` is marked Sensitive in Vercel; `vercel env pull` returns it empty. Apply migrations via Cloud SQL Studio or `gcloud sql connect` (see "PR & Verification Workflow" below).
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Treat Web/Telegram production as Supabase-backed until the Cloud SQL cutover has row-count proof and verified Vercel `DATABASE_URL` ownership. The Cloud SQL cutover was partially attempted but is not complete; see [supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md).
 - **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
-- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`) — for **local** development. On CI we run Playwright against the canonical production URL (`https://www.help-and-grow.com`) via the `e2e` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). The dedicated `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth.
+- **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
 
 ## Repository Layout
 
@@ -43,35 +43,31 @@ See `docs/` for full details:
 | Document | Location | What it covers |
 |----------|----------|----------------|
 | Architecture | [ARCHITECTURE.md](ARCHITECTURE.md) | Domains, layers, dependency rules |
-| API reference | [docs/API.md](docs/API.md) | Full endpoint matrix (methods, auth, purpose) |
-| Env vars | [docs/ENV.md](docs/ENV.md) | Grouped reference for every env var |
-| Runbook | [docs/RUNBOOK.md](docs/RUNBOOK.md) | Local dev, build pipeline, Vercel deploy, CI workflows, troubleshooting |
 | Design system | [docs/DESIGN.md](docs/DESIGN.md) | UI conventions, component patterns |
 | Frontend | [docs/FRONTEND.md](docs/FRONTEND.md) | Page structure, routing, state |
 | Plans | [docs/PLANS.md](docs/PLANS.md) | Current roadmap and priorities |
 | Brand | [docs/BRAND.md](docs/BRAND.md) | Name, positioning, vision, voice |
 | Product sense | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) | User personas, product principles |
 | Quality | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md) | Per-domain quality grades |
-| Reliability | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Error handling, SLOs, monitoring, health checks, auto-baseline |
+| Reliability | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Error handling, SLOs, monitoring |
 | Security | [docs/SECURITY.md](docs/SECURITY.md) | Auth, data handling, secrets; [Vercel env / rotation](docs/references/vercel-env-and-secret-rotation.md) |
 | Design docs | [docs/design-docs/](docs/design-docs/) | Indexed design decisions |
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
-| Vercel + Cloud SQL | [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md) | Production cutover (2026-05-03): Google Cloud SQL `hg-postgres-prod`, schema/migration application playbook |
+| Web/Telegram DB cutover | [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md) | Current Supabase status, Cloud SQL target, verification and rollback |
+| Vercel + Supabase DB | [docs/references/vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md) | Current Supabase env names and legacy `POSTGRES_PRISMA_URL` mapping |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 
 ## Key Conventions
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
-2. **AI providers**: `AI_PROVIDER` supports multiple adapters in code (`gemini`, `qwen`, `openai`, `zai`, `byteplus`, `volcengine`, `hunyuan`). Production routing for Web/Telegram/WeChat-Intl is **Qwen / DashScope (Alibaba Cloud)** with **Gemini / Vertex (Google Cloud)** as fallback and search grounding. Default when unset: **`qwen`**. **China WeChat app** (future) will use **`hunyuan`** (Tencent LLM) on a China-local Tencent Cloud stack to keep all AI processing within China mainland. See `src/lib/ai/index.ts` and `src/lib/vendor-ai-stack-site.ts`.
+2. **AI providers**: `AI_PROVIDER` still supports multiple adapters in code (`dedalus`, `gemini`, `qwen`, `openai`, `zai`, `ollama`, `byteplus`, `volcengine`), but the public **Help-And-Grow/expert-network** deployment is standardized on **Alibaba Cloud Qwen / DashScope**. Default when unset: **`qwen`**. The containerized local stack defaults to **`ollama`**. Keep public docs, deployment config, and admin controls aligned with Alibaba/Qwen unless a task explicitly targets private experimentation. See `src/lib/ai/index.ts` and `src/lib/vendor-ai-stack-site.ts`.
 3. **Expert memory backend**: `MEMORY_BACKEND=mem9|pgvector|hybrid`. Local/on-prem defaults should be **`pgvector`** with `EMBEDDING_PROVIDER=ollama`; mem9 remains optional for cloud/hybrid runs. See `src/lib/integrations/mem9-lifecycle.ts` and `src/lib/integrations/pgvector-memory.ts`.
 4. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
 5. **Database switching**: Run `node scripts/switch-db.mjs` — Prisma is PostgreSQL-only and the script enforces `provider = "postgresql"` in `prisma/schema.prisma`.
-6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Two apps serve different markets:
-   - **International app** (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`): Registered by Singapore company, positioned as a **free mentoring platform** helping youth learn AI in building products. Talks directly to Vercel at `https://www.help-and-grow.com` (same backend + database as Web/Telegram).
-   - **China mainland app** (`TARO_APP_REGION=cn`): Future app registered by the Chinese company, connecting to China-local Tencent Cloud infrastructure (CloudBase/TCB + TencentDB + COS) with **Hunyuan** as AI provider. **Data residency principle**: all data for the China app is stored and processed **only within China mainland** (separate DB, separate infra). Build config: `wechat/build-config/cn.json`.
+6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Current user-test target is the international app (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`) on Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98`; the mainland-CN app is a future separate company/AppID path. Uses the same backend API with `x-wechat-token` auth header. The separate Tencent Cloud International Singapore experiment (`infra/tencent-intl/`, SG PostgreSQL/COS/VPC) was cleaned up on 2026-05-05; do not recreate it unless explicitly reopening Tencent Intl infrastructure.
 7. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
 8. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
 9. **POMP (Proof of Meet Protocol)**: Every completed meetup (`Booking` row) creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
@@ -96,32 +92,6 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 - All notification calls (Telegram, WeChat) must be `.catch(() => {})` to not block responses
 - Debug APIs under `/api/debug/*` must stay admin-gated; production reads require `DEBUG_API_ENABLED=1`, and destructive mutations additionally require `DEBUG_MUTATION_ENABLED=1`
 
-## PR & Verification Workflow
-
-**Solo-PM fast path (as of 2026-05-08):**
-
-The owner is a solo PM. Preview-URL verification was added friction without catching enough bugs to justify it on this codebase, so we skip it. The new default is: ship to PROD live, verify the Vercel build + runtime logs, and let the owner do the user test on `https://www.help-and-grow.com` directly.
-
-1. **Commit + push.** Prefer a PR for traceability when several files change (`gh pr create --base main`); for tiny fixes you may push directly to `main`. Either way, the goal is to land on `main` quickly.
-2. **Merge immediately when CI is green** (`lint`, `smoke`, `audit`, `e2e`, `Vercel Preview Comments` all ✓). Use `gh pr merge --squash --delete-branch --admin`. Don't wait on or open the preview URL.
-3. **Verify the Vercel PROD build.** `vercel ls expert-network` should show a new Production deployment going `Building` → `Ready` (~3-4 min). Inspect logs with `vercel inspect <prod-url> --logs` and look for: build success, no migration warnings (`prisma-migrate-if-vercel`), no runtime errors after the alias swap. Hit one or two prod endpoints with `curl https://www.help-and-grow.com/...` to confirm the function path works.
-4. **Hand back to the owner for user test** on `https://www.help-and-grow.com/...` once step 3 looks clean. Do not declare "done" until you've at least confirmed the prod build went `Ready` and a smoke `curl` returned a non-500 status.
-
-**Database migrations are the one exception.** Production runs on **Google Cloud SQL for PostgreSQL** (`hg-postgres-prod`, db `helpgrow`, user `hg_app` — see [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md)). `DATABASE_URL` on Vercel is marked **Sensitive** so `vercel env pull` returns it as an empty string — you cannot run `prisma migrate deploy` from a local machine without first plumbing the connection string in another way. `scripts/prisma-migrate-if-vercel.mjs` likewise skips at install time. Net effect: when a PR adds a Prisma migration, the column/table won't exist in PROD until someone applies it manually, and the new code will 500 on every request that touches the new field.
-
-When a PR adds a migration, do this **before merging**:
-1. Read the migration SQL out of `prisma/migrations/<timestamp>_<name>/migration.sql`.
-2. Apply it via **Cloud SQL Studio** (GCP console → SQL → `hg-postgres-prod` → Studio → log in as `hg_app` to db `helpgrow`) or `gcloud sql connect hg-postgres-prod --user=hg_app --database=helpgrow`.
-3. Also `INSERT` a row into `_prisma_migrations` so future automated migrate runs see it as applied:
-   ```sql
-   INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
-   VALUES (gen_random_uuid()::text, 'manual-cloudsql-studio', NOW(), '<timestamp>_<name>', NULL, NULL, NOW(), 1)
-   ON CONFLICT DO NOTHING;
-   ```
-4. Confirm with the owner before running anything destructive (DROP, NOT NULL on existing column, etc.). Purely additive `ADD COLUMN IF NOT EXISTS` is safe to apply directly with owner's go-ahead.
-
-**No localhost or `npm run dev` for verification.** Live PROD is the single source of truth.
-
 ## Where to Look
 
 | Task | Start here |
@@ -143,7 +113,7 @@ When a PR adds a migration, do this **before merging**:
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |
 | Premium live consultation | [docs/design-docs/product-features.md §2](docs/design-docs/product-features.md#2-premium-live-consultation-trtc), `src/app/api/trtc/token/route.ts`, `src/lib/trtc.ts`, `prisma/schema.prisma` |
-| Run browser smoke tests | `playwright.config.ts`, `e2e/`. Local dev: `npm run test:ui` (local Next.js + dev-login). CI: `npm run test:e2e:ci` against `https://www.help-and-grow.com` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — single workflow, single source of truth |
+| Run browser smoke tests | `playwright.config.ts`, `e2e/`, `npm run test:ui`, `.github/workflows/ui-smoke.yml`; production URL smoke: `npm run test:e2e:ci`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | E2E docs | [e2e/README.md](e2e/README.md) |
 | Vercel OpenTelemetry / trace drains | `src/instrumentation.ts`, [docs/references/vercel-open-telemetry.md](docs/references/vercel-open-telemetry.md) |
 | Vercel env (dev / preview / prod) | [docs/references/vercel-environments-solo-pm.md](docs/references/vercel-environments-solo-pm.md) |

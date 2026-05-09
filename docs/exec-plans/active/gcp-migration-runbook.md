@@ -1,58 +1,42 @@
-# Runbook: Google Cloud Platform (GCP) Migration
+# Future GCP App Migration Runbook
 
-This document outlines the steps to deploy the **Help & Grow** Expert Network to Google Cloud using Cloud Run and Cloud SQL.
+**Status**: Deferred
+**Scope**: Move Web/Telegram compute from Vercel to Google Cloud Run. This is not the current database cutover.
 
-## Prerequisites
-- Google Cloud SDK (`gcloud`) installed and authenticated.
-- A GCP project with Billing enabled.
-- `PROJECT_ID` environment variable set.
+## Current Decision
 
-## 1. Containerize the Application
-We use a multi-stage Dockerfile that leverages Next.js `standalone` output for minimal image size.
+Web and Telegram stay on **Vercel** for the current phase. The active database-only plan is:
 
-```bash
-# Build the image locally (for testing)
-docker build -t expert-network .
+- [Web/Telegram DB Cutover: Supabase to Cloud SQL](supabase-to-cloudsql-migration.md)
 
-# Run locally to verify
-docker run -p 3000:3000 expert-network
+Do not use this document to migrate production data. It is only for a future full-GCP hosting move.
+
+## Future Target Shape
+
+```text
+Web / Telegram
+  -> Cloud Run in asia-southeast1
+  -> Cloud SQL for PostgreSQL
+  -> Google Cloud Storage, if we also move media
+  -> Vertex AI / Gemini plus the configured provider chain
 ```
 
-## 2. Deploy to Artifact Registry
-1. Create a repository in Artifact Registry:
-   ```bash
-   gcloud artifacts repositories create expert-network-repo \
-     --repository-format=docker --location=asia-southeast1
-   ```
-2. Tag and push the image:
-   ```bash
-   docker tag expert-network asia-southeast1-docker.pkg.dev/$PROJECT_ID/expert-network-repo/app
-   docker push asia-southeast1-docker.pkg.dev/$PROJECT_ID/expert-network-repo/app
-   ```
+## When To Reopen This Plan
 
-## 3. Database Migration (Cloud SQL)
-1. Create a Cloud SQL (Postgres) instance.
-2. Enable the Cloud SQL Auth Proxy or use Private IP.
-3. Update `DATABASE_URL` to point to the Cloud SQL instance.
-   *Format: `postgresql://user:pass@localhost:5432/dbname?host=/cloudsql/PROJECT_ID:REGION:INSTANCE_NAME`*
+Revisit this only if at least one of these becomes true:
 
-## 4. Deploy to Cloud Run
-Deploy the container to Cloud Run, passing the necessary environment variables.
+- Vercel serverless limits become a product blocker.
+- We need private Cloud SQL networking that Vercel cannot provide.
+- We consolidate compute, database, storage, and AI under one Google Cloud account for compliance or cost control.
 
-```bash
-gcloud run deploy expert-network \
-  --image asia-southeast1-docker.pkg.dev/$PROJECT_ID/expert-network-repo/app \
-  --region asia-southeast1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --set-env-vars="DATABASE_URL=...,GEMINI_API_KEY=...,AI_PROVIDER=gemini"
-```
+## High-Level Steps
 
-> [!NOTE]
-> Since we implemented **Database-driven configuration**, you can switch AI providers after deployment via the `/admin/ai-provider` page without redeploying the Cloud Run service.
+1. Add a production Dockerfile or Cloud Run build config.
+2. Provision Artifact Registry.
+3. Deploy the Next.js standalone output to Cloud Run.
+4. Move secrets to Secret Manager.
+5. Point `DATABASE_URL` at Cloud SQL.
+6. Move media storage to GCS only if Vercel Blob is also being retired.
+7. Switch domains after parity tests pass.
 
-## 5. Secret Management
-Use **Google Cloud Secret Manager** to store sensitive keys like `GEMINI_API_KEY`, `STRIPE_SECRET_KEY`, and `DATABASE_URL`. Mount them as environment variables in the Cloud Run configuration.
-
----
-**Status:** Ready for initial deployment.
+Until this plan is reopened, keep all Web/Telegram production deploys on Vercel.

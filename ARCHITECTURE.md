@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and players**—**sharing** domain judgment as services and learning from others (**coaches** when they offer help)—supported by **AI matching**, **expert memory via mem9 or pgvector**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real meetups). It serves web, Telegram Mini App, and WeChat Mini Program from one Next.js API layer on Vercel. Current WeChat work is converging on a premium, voice-first expert experience rather than a generic AI chatbot surface. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
+**Help & Grow** is an **AI Native Expert Network**: a multi-platform product where people act as **both experts and players**—**sharing** domain judgment as services and learning from others (**coaches** when they offer help)—supported by **AI matching**, **expert memory via mem9 or pgvector**, and a long-term direction toward **service as agent** (always-on digital experts that learn from their human counterpart and facilitate real meetups). It serves web and Telegram from Vercel today. WeChat uses Tencent-friendly infrastructure. Current WeChat work is converging on a premium, voice-first expert experience rather than a generic AI chatbot surface. See [docs/BRAND.md](docs/BRAND.md) for positioning and vision.
 
 ## System Diagram
 
@@ -21,13 +21,13 @@
                    │      │      │
            ┌──────────┐ ┌───▼───┐ ┌▼──────────────┐
            │ Prisma + │ │Stripe │ │AI Providers   │
-           │ Cloud SQL│ │(Pay)  │ │(Qwen/Gemini/  │
-           │ Postgres │ │       │ │ OpenAI/Z.ai/  │
-           │          │ │Connect│ │ Hunyuan/      │
-           │          │ │       │ │ BytePlus/     │
-           │          │ │       │ │ Volcengine)   │
+           │ Postgres │ │(Pay)  │ │(Qwen/Gemini/  │
+           │ DB       │ │       │ │ OpenAI/Z.ai/  │
+           │          │ │Connect│ │ Dedalus)      │
            └──────────┘ └───────┘ └───────────────┘
 ```
+
+**Database status (verified 2026-05-04):** Treat Web/Telegram production as Supabase-backed until the Cloud SQL cutover has row-count proof and verified Vercel `DATABASE_URL` ownership. Claude Code partially attempted Cloud SQL setup, but data migration and production cutover are not proven complete. Track it in [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md).
 
 ## Business Domains
 
@@ -137,7 +137,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 ## Database
 
-- **Primary**: PostgreSQL in production (Cloud SQL)
+- **Primary**: PostgreSQL in production. Treat current Web/Telegram DB as Supabase until the Cloud SQL cutover runbook is completed and verified.
 - **ORM**: Prisma 7 with `@prisma/adapter-pg` only; `DATABASE_URL` must be Postgres (`mysql://` rejected)
 - **Schema**: `prisma/schema.prisma` — `scripts/switch-db.mjs` enforces `provider = "postgresql"`
 
@@ -145,7 +145,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 - **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
 - **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
-- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the same Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
+- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the **same** Supabase/Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
 - **Doc:** [hiclaw/README.md](hiclaw/README.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
 
 ### Key Models
@@ -196,37 +196,11 @@ AI chat          → searchExpertMemories() → context-aware responses
 
 ## WeChat Mini Program
 
-### Two-App Strategy
-
-Help & Grow operates **two separate WeChat Mini Programs** for different markets:
-
-| App | Region | Company | Positioning | AI Provider | Data Residency |
-|-----|--------|----------|-------------|--------------|----------------|
-| **International** | `intl` | Singapore | Free mentoring platform for youth learning AI | Qwen/DashScope → Gemini fallback | Global (Vercel + Cloud SQL) |
-| **China Mainland** (future) | `cn` | Chinese company | Localized expert network | **Hunyuan** (Tencent LLM) | 🔒 **China-only** (separate Tencent Cloud stack) |
-
-**Data residency principle (China app)**: All user data is stored and processed **only within China mainland** — separate Tencent Cloud account, separate DB, separate COS, Hunyuan AI processing. No data sync with international stack.
-
-### International App (Current)
-
-- **AppID**: `wx09d0eb079596060d`
-- **Build config**: `wechat/build-config/intl.json`
-- **Backend**: Vercel at `https://www.help-and-grow.com` (same as Web/Telegram)
-- **Product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
-
-### China App (Future)
-
-- **AppID**: `PENDING_*` (requires China company registration)
-- **Cloud infra**: China-local Tencent Cloud (separate stack)
-- **Build config**: `wechat/build-config/cn.json` (contains `PENDING_*` values)
-- **AI provider**: **Hunyuan** (ensures data stays in China)
-- **Backend**: Tencent CloudBase / SCF, with a China-local database and storage
-
-### Shared Technical Details
-
 - **Framework**: Taro 4.x (React)
 - **Location**: `wechat/`
 - **Pages**: Home, Discover, Expert, Book, Dashboard, Onboarding, Profile
 - **Auth**: `wx.login()` → backend `code2session` → JWT stored in Taro storage
 - **API calls**: Same backend via `TARO_APP_API_BASE` with `x-wechat-token` header
-- **Build / upload**: `npm run build:weapp:intl` (intl) or `npm run build:weapp:cn` (cn) in `wechat/`; from repo root `npm run wechat:upload:intl` builds `wechat/dist-intl` and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` builds/uploads the intl app on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`.
+- **Current product posture**: premium discovery + expert-profile browsing + voice-first preview; no text-chat shell on the public expert consult surface
+- **Current deployment target**: international WeChat Mini Program (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`) backed by Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98` and Hunyuan. The mainland-CN app is a future separate AppID/company path. A separate Tencent Cloud International Singapore setup (`infra/tencent-intl/`, SG PostgreSQL/COS/VPC) was removed on 2026-05-05 and is not part of the active architecture.
+- **Build / upload**: `npm run build:weapp:intl` in `wechat/`; from repo root `npm run wechat:upload:intl` builds `wechat/dist-intl` and uploads via `miniprogram-ci` (Node 20; local key `wechat/private.*.key` or `WECHAT_CI_KEY_PATH`). CI: `.github/workflows/wechat-ci.yml` builds/uploads the intl app on `main` + manual dispatch with secret `WECHAT_CI_PRIVATE_KEY`.

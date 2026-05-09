@@ -39,6 +39,8 @@ Help & Grow operates **two separate WeChat Mini Programs** for different markets
 
 `build-config/cn.json` intentionally contains `PENDING_*` values until the China company, mainland AppID, and review path are ready.
 
+The deleted Tencent Cloud International Singapore resources shown in the 2026-05-05 cleanup (`infra/tencent-intl/`, SG PostgreSQL/COS/VPC) are not required by this current build. Do not add them back for phase-1 user testing.
+
 ## Build for WeChat DevTools
 
 ```bash

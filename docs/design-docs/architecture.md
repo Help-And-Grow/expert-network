@@ -10,41 +10,43 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 ## 1. Multi-Cloud Deployment with Regional Data Isolation
 
-**Decision (2026-05-05):** the rollout has two phases, and the current intl WeChat MP rides Web's stack — not a separate Tencent backend.
+The rollout now has two explicit phases:
 
-1. **Current intl user test (now → ~Sep 2026):** the international WeChat Mini Program (Singapore company, AppID `wx09d0eb079596060d`) talks **directly to Vercel** at the canonical domain `https://www.help-and-grow.com` (the underlying `expert-network.vercel.app` deployment alias still resolves but is not the brand surface). It uses the **same** AI chain (Qwen → Gemini), the **same** database, and the **same** storage as Web and Telegram. No Tencent infrastructure on the hot path.
-2. **Future mainland-CN launch (post-Sep 2026, after the Chinese company opens):** a separate mainland Mini Program with mainland AppID, WeChat Pay merchant, ICP filing, and review path. **Only this stack** uses Tencent CloudBase + SCF Web Function + Hunyuan + Tencent COS.
+1. **Current user test:** the international WeChat Mini Program registered through the Singapore company, using Tencent CloudBase / SCF and Hunyuan. This app reads expert data from a Tencent-side database synchronized from the global primary DB. Treat that global DB as Supabase until the Google Cloud SQL cutover is verified.
+2. **Future mainland-CN launch:** a separate mainland mini program after the Chinese company, mainland AppID, WeChat Pay merchant, and review path are ready.
 
 | Stack | Status | Audience | Compute | Storage | Database | AI |
 |---|---|---|---|---|---|---|
-| **Web / Telegram** | Live | Browsers + Telegram users | Vercel Functions in `sin1` | Vercel Blob | **Cloud SQL for PostgreSQL in `asia-southeast1`** *(migrated 2026-05-03 — see [supabase-to-cloudsql-migration.md](../exec-plans/active/supabase-to-cloudsql-migration.md))* | Qwen → Gemini chain |
-| **WeChat — International** | **Current focus** | WeChat users outside mainland CN (HK / TW / SEA / diaspora, Singapore-company app) | **Vercel Functions in `sin1`** (same as Web) | **Vercel Blob** (same as Web) | **Same Cloud SQL as Web** | **Qwen → Gemini chain** (same as Web) |
-| **WeChat — Mainland CN** | Future (post-Sep 2026) | Mainland-CN WeChat users | Tencent CloudBase / SCF Web Function | Tencent COS CN bucket | TencentDB CN | Tencent Hunyuan |
+| **Web / Telegram** | Live | Browsers and Telegram users | Vercel Functions in `sin1` | Vercel Blob | Supabase Postgres until Cloud SQL cutover proof | Qwen/Gemini chain |
+| **WeChat — International** | **Current focus** | WeChat users outside mainland CN | Tencent CloudBase / SCF Web Function, env `cn-wechat-d1gzncs8i34827c98` | Tencent COS | Tencent-side Postgres synchronized from the global primary DB | Tencent Hunyuan |
+| **WeChat — Mainland CN** | Future | Mainland-CN WeChat users | Separate Tencent CloudBase / SCF env | Separate Tencent COS CN bucket | Separate TencentDB CN | Tencent Hunyuan |
 
 **Two separate WeChat Mini Program apps.** The current international app uses AppID `wx09d0eb079596060d`. The mainland-CN app will use a different AppID after the Chinese company is set up and approved. The `wechat/` Taro source supports both builds, but only `TARO_APP_REGION=intl` is deploy-ready today; `build-config/cn.json` is intentionally blocked with `PENDING_*` values.
 
-**No data sync needed for the intl MP.** Because the intl MP shares Web's database, every expert onboarded via Web/Telegram is visible in the intl MP automatically — no Tencent-side replica, no cross-region eventual consistency to reason about.
+**Removed Tencent Cloud International Singapore experiment.** On 2026-05-05 the separate Tencent Cloud International Singapore resources were cleaned up: PostgreSQL `postgres-8bqbytbh`, COS bucket `sg-expert-network-1424085034`, subnets `subnet-lrcgprpg` / `subnet-91o4zq0c`, VPC `vpc-2ari99bl`, local `infra/tencent-intl/`, and `.cos.conf`. Do not recreate this stack for phase 1. The cleanup does not affect the Web/Telegram stack or the global DB cutover plan.
 
-**Tencent CloudBase / SCF / Hunyuan / COS code is paused, not deleted.** Files under `infra/tcb-proxy/`, `infra/tencent-cn/`, the Hunyuan AI provider, the `tencent-cos` storage driver, the `IS_WECHAT=true` runtime flag, and the SCF deploy scripts all stay in the repo as scaffolding for the **mainland-CN MP** when its company / AppID / merchant are ready. None of them run on the intl path.
+**Shared expert visibility.** Experts onboarded through Web or Telegram must become visible in the international WeChat Mini Program through database synchronization from the global primary DB into the Tencent-side WeChat backend.
 
-### Future: CloudBase HTTP access in front of SCF (mainland-CN MP only)
+**Web and Telegram remain on Vercel + the global primary DB** — the Tencent backend exists so the WeChat app can run on WeChat-friendly infrastructure and use Tencent-native AI.
 
-WeChat Mini Programs require callable domains to be on the WeChat allowlist. The **mainland-CN** MP will eventually call the CloudBase default domain directly:
+**Cloud SQL status.** As of 2026-05-04, the Web/Telegram DB migration to Google Cloud SQL is not complete. Claude Code partially attempted Cloud SQL setup, but data migration and production cutover are not proven complete. Follow [`../exec-plans/active/supabase-to-cloudsql-migration.md`](../exec-plans/active/supabase-to-cloudsql-migration.md) before changing Vercel `DATABASE_URL`.
+
+### CloudBase HTTP access in front of SCF
+
+WeChat Mini Programs require callable domains to be on the WeChat allowlist. The current international app calls the CloudBase default domain directly:
 
 ```text
-https://<future-mainland-env>-<appid>.ap-shanghai.app.tcloudbase.com/api/...
+https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/...
 ```
 
-CloudBase HTTP access will route `/api` to the SCF Web Function as `WEB_SCF` with path passthrough enabled. The SCF deployment will set:
+CloudBase HTTP access routes `/api` to the SCF Web Function as `WEB_SCF` with path passthrough enabled. The SCF deployment sets:
 
 - `IS_WECHAT=true`
-- `PROXY_REGION=cn`
-- `WECHAT_AI_PROVIDER=hunyuan`
+- `PROXY_REGION=intl`
+- `AI_PROVIDER=hunyuan`
 - `STORAGE_PROVIDER=tencent-cos`
 
-`src/lib/request-origin.ts` treats `IS_WECHAT=true` as the WeChat-origin signal and uses `PROXY_REGION` for region-aware decisions. **Today** the intl MP calls Vercel directly, so none of these flags are set on production runtime — they only activate when the mainland-CN backend is deployed.
-
-The existing `cn-wechat-d1gzncs8i34827c98` CloudBase env (built during the SCF spike) is paused and serves as a **dev sandbox** for the mainland-CN backend work.
+`src/lib/request-origin.ts` treats `IS_WECHAT=true` as the WeChat-origin signal and uses `PROXY_REGION` for region-aware decisions. The older TCB-proxy header path is still supported for compatibility.
 
 ### Dynamic Configuration (`SystemConfig`)
 
@@ -95,11 +97,11 @@ Switching providers requires only an admin-panel change at `/admin/ai-provider` 
 
 ### 3.2 Per-Surface Provider Routing
 
-**Decision (2026-05):** Web, Telegram, and **WeChat-Intl** all share the same Qwen → Gemini chain. Hunyuan and Tencent-native search are reserved for the future **mainland-CN MP** because that's the only surface with a hard data-residency boundary.
+**Decision (2026-05):** Each stack uses its **native cloud's** AI services as the primary provider, with a single cross-cloud fallback for the global stack. The exception is web search grounding, which is **always Gemini** because it is the only free, production-grade source of Google Search results we have access to.
 
-| Capability | Web / Telegram / **WeChat-Intl** | WeChat-CN *(future, post Sep 2026)* |
+| Capability | Web / Telegram | WeChat-CN / WeChat-Intl |
 |---|---|---|
-| Text (generation, matching, reasoning, query normalisation, PDF extraction) | **Qwen → Gemini** | **Hunyuan** (no cross-cloud fallback — keeps inference inside the Tencent compliance boundary) |
+| Text (generation, matching, reasoning, query normalisation, PDF extraction) | **Qwen → Gemini** | **Hunyuan** (no cross-cloud fallback by design — keeps inference inside the Tencent compliance boundary) |
 | Image generation | Qwen → Gemini (chain) | Tencent Hunyuan Image (planned) → Qwen → Gemini |
 | Text-to-speech (intro voice + async reply) | Qwen-TTS → Gemini-TTS | Tencent TXTTS (planned) → Qwen-TTS → Gemini-TTS |
 | Speech recognition (voice chat input) | DashScope Qwen3-ASR-Flash | Tencent TXASR (planned) → DashScope ASR |
@@ -108,37 +110,26 @@ Switching providers requires only an admin-panel change at `/admin/ai-provider` 
 
 **Per-cloud search choice.** Each surface uses the search engine native to its cloud so the entire request pipeline (LLM call + grounding lookups) stays inside one compliance boundary:
 
-- **Web / Telegram / WeChat-Intl → Gemini.** Google Search grounding (`tools: [{ googleSearch: {} }]`) gives us the best recall on the profiles our users care about (LinkedIn, Substack, Twitter, personal blogs). The intl WeChat audience (HK / TW / SEA / diaspora) overlaps strongly with the global audience, so the same provider chain serves them.
-- **Future WeChat-CN → Hunyuan with `enable_enhancement: true`.** Tencent's chat completions API takes a single boolean parameter (`enable_enhancement: true` on the OpenAI-compatible endpoint, `EnableEnhancement: true` on the native API) which causes Hunyuan to do internal Sogou-powered web searches and ground the response. Recall on Chinese-language sources (Xiaohongshu, Zhihu, WeChat public accounts) is materially better than what Google Search returns; recall on English-language profiles is lower but acceptable for the mainland-CN audience.
+- **Web / Telegram → Gemini.** Google Search grounding (`tools: [{ googleSearch: {} }]`) gives us the best recall on the profiles our users care about (LinkedIn, Substack, Twitter, personal blogs).
+- **WeChat → Hunyuan with `enable_enhancement: true`.** Tencent's chat completions API takes a single boolean parameter (`enable_enhancement: true` on the OpenAI-compatible endpoint, `EnableEnhancement: true` on the native API) which causes Hunyuan to do internal Sogou-powered web searches and ground the response. Recall on Chinese-language sources (Xiaohongshu, Zhihu, WeChat public accounts) is materially better than what Google Search returns; recall on English-language profiles is lower but acceptable for the WeChat audience.
 
 Both implementations live in `src/lib/ai/search.ts` (`searchSocialProfilesWithGemini`, `searchSocialProfilesWithHunyuan`). The active surface picks one at the provider layer: `BaseAIProvider.generateExpertProfile` uses the Gemini path by default; `HunyuanProvider` overrides to use the Hunyuan path so WeChat traffic never crosses to Google.
 
 **Why Qwen-primary on Web/Telegram instead of Gemini-primary.** Vertex AI's Gemini quotas tighten under sustained load, and most of our text traffic (matching, query normalisation, profile generation) is well within Qwen-Plus's capability. Qwen is also resident in `ap-southeast-1`, which is a single hop from our Vercel `sin1` functions and the Singapore-resident user base. Gemini stays as the fallback so a Qwen outage doesn't surface as a user-visible 500.
 
-**Why no cross-cloud fallback for the mainland-CN MP (future).** Adding a Gemini fallback path on the mainland surface would re-introduce the cross-border traffic we explicitly designed out (compliance + latency). If Hunyuan is unavailable, the route handler returns a graceful "Try again in a moment" instead of routing the request through the GFW.
+**Why no cross-cloud fallback for WeChat.** Adding a Gemini fallback path on the WeChat surfaces would re-introduce the cross-border traffic we explicitly designed out (compliance + latency). If Hunyuan is unavailable, the route handler returns a graceful "Try again in a moment" instead of routing the request through the GFW.
 
-Tencent-native providers for image / TTS / ASR are **listed but not yet wired** — when they are, only the mainland-CN MP will route to them. The intl WeChat MP keeps using Qwen / Gemini for all modalities. Wiring is tracked in [`tencent-cloud-rollout.md`](../exec-plans/active/tencent-cloud-rollout.md).
-
-### 3.2a Pricing & Entitlement Model (cross-surface)
-
-The pricing rail for premium features (today: TRTC live consultation; tomorrow: voice clone, longer-context chat) is **branched on origin**:
-
-| Surface | Entitlement | Mechanism |
-|---|---|---|
-| Web / Telegram / **WeChat-Intl** | **`tokens`** | One-time **H&G token** debit per access via `TokenLedger`. Token balance topped up via Stripe / TON or earned 1:1 with paid meetups. |
-| Future WeChat-CN | **`membership`** | Active row in the `Membership` table, billed via WeChat Pay subscription. |
-
-**Why split.** WeChat Pay (mainland) optimises for subscription products with first-class renewal/cancel. Stripe and TON optimise for one-shot charges. Forcing one audience into the other's billing UX would create a worse UX for at least one side. See [`product-features.md` §2a](product-features.md#2a-entitlement-model-tokens-vs-membership) for the full rationale + code references.
+Tencent-native providers for image / TTS / ASR are **listed but not yet wired** — until they are, both WeChat stacks fall through the configurable `IMAGE_PROVIDER_CHAIN` / `VOICE_PROVIDER_CHAIN` to Qwen / Gemini. Wiring is tracked in [`tencent-cloud-rollout.md`](../exec-plans/active/tencent-cloud-rollout.md).
 
 ### 3.3 Configurable Chains (no redeploy)
 
 Three SystemConfig keys drive runtime fallback order:
 
-- **`AI_TEXT_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to **all current production surfaces** (Web, Telegram, REST API, WeChat-Intl). Editable from `/admin/ai-provider`.
+- **`AI_TEXT_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to non-WeChat surfaces (Web, Telegram, REST API). Editable from `/admin/ai-provider`.
 - **`IMAGE_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to all surfaces.
 - **`VOICE_PROVIDER_CHAIN`** — comma-separated, default `qwen-tts,gemini-tts`. Allowed tokens: `qwen-tts`, `gemini-tts` (more added as Tencent-native voice lands).
 
-**WeChat-CN bypass (future).** Once the mainland-CN backend is deployed, requests reaching it will be classified by `isWeChatOriginatedRequest` (reads `IS_WECHAT=true` on the SCF deployment) and bypass `AI_TEXT_PROVIDER_CHAIN`, using `WECHAT_AI_PROVIDER` (default `hunyuan`) as a single-provider chain — no cross-cloud fallback for the reason given in §3.2. **Today this code path is dormant** because no production traffic reaches the SCF backend.
+WeChat-originated requests (detected via `isWeChatOriginatedRequest`, which reads `IS_WECHAT=true` on the SCF deployments) bypass `AI_TEXT_PROVIDER_CHAIN` and use `WECHAT_AI_PROVIDER` (default `hunyuan`) as a single-provider chain — no cross-cloud fallback for the reason given in §3.2.
 
 Provider availability is filtered by credential at chain-build time (`computeProviderHealth`); a provider without its required env vars is silently dropped from the chain so the deploy fails gracefully when, e.g., `GEMINI_API_KEY` is unset.
 
@@ -163,7 +154,7 @@ Three client surfaces share one resolver.
 |---------|-------------|------------------|
 | Web (browser) | Auth.js v5 session cookie (`authjs.session-token`) | `auth()` in route handlers |
 | Telegram Mini App | `initData` HMAC | `src/lib/telegram-server.ts` → `validateAndParseTelegramInitData` |
-| WeChat Mini Program | `code2session` JWT (header `x-wechat-token`) | `/api/auth/wechat` issues the JWT; `resolveUserId()` verifies it (`src/lib/request-auth.ts`) |
+| WeChat Mini Program | `code2session` JWT (header `x-wechat-token`) | `src/lib/wechat-server.ts` |
 
 **Resolver:** `resolveUserId(request)` in `src/lib/request-auth.ts` checks signals in priority order:
 
@@ -184,7 +175,7 @@ Each stack is the same Next.js codebase deployed with different env vars.
 
 | Env var | Web / Telegram | Current WeChat-Intl SCF | Future WeChat-CN SCF |
 |---|---|---|---|
-| `DATABASE_URL` | Cloud SQL for PostgreSQL (`asia-southeast1`) | Tencent-side synced Postgres | TencentDB CN |
+| `DATABASE_URL` | Supabase until Cloud SQL cutover proof | Tencent-side synced Postgres | TencentDB CN |
 | `STORAGE_PROVIDER` | `vercel` or configured provider | `tencent-cos` | `tencent-cos` |
 | `TENCENT_COS_BUCKET` | unset unless explicitly enabled | current WeChat COS bucket | future CN COS bucket |
 | `TENCENT_COS_REGION` | unset unless explicitly enabled | currently `ap-shanghai` with existing CloudBase env | future CN region |
