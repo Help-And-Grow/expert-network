@@ -57,3 +57,8 @@ private.*.key
 wechat/private.*.key
 .cursor/mcp.json
 expert-network.code-workspace
+
+# Locally pulled env snapshots (never commit)
+.env.prod
+.env.pulled
+.env.vercel.*.local
