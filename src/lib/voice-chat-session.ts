@@ -299,7 +299,7 @@ async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
     });
     return response.choices[0]?.message?.content?.trim() ?? "";
   } catch {
-    return "I can help, but I’m hitting a temporary latency limit. - Clarify your goal and constraints - Share your current approach + blockers - I’ll give a MECE 3-point fix plan.";
+    return "I’m hitting a temporary latency spike—please resend your question. To get a fast MECE answer, include: • goal (success looks like) • current situation (what you tried + data) • constraints (time/budget/risks).";
   }
 }
 
