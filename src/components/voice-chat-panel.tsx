@@ -52,6 +52,30 @@ function hasDeviceVoiceSupport(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
+async function pickDeviceVoiceWhenReady(
+  lang: string,
+  gender?: string | null,
+): Promise<SpeechSynthesisVoice | null> {
+  const immediate = pickDeviceVoice(lang, gender);
+  if (immediate) return immediate;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+
+  const synth = window.speechSynthesis;
+  return await new Promise((resolve) => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      synth.removeEventListener("voiceschanged", onChanged);
+      clearTimeout(timer);
+      resolve(pickDeviceVoice(lang, gender));
+    };
+    const onChanged = () => finish();
+    const timer = setTimeout(finish, 800);
+    synth.addEventListener("voiceschanged", onChanged);
+  });
+}
+
 function assignAudioSource(audio: HTMLAudioElement, src: string): boolean {
   try {
     audio.src = src;
@@ -160,6 +184,10 @@ export function VoiceChatPanel({
       audioRef.current.pause();
       audioRef.current.removeAttribute("src");
       audioRef.current.load();
+      try {
+        audioRef.current.remove();
+      } catch {
+      }
       audioRef.current = null;
     }
     cleanupAudioSource();
@@ -179,12 +207,25 @@ export function VoiceChatPanel({
     audio.setAttribute("playsinline", "true");
     audio.setAttribute("webkit-playsinline", "true");
     audio.preload = "auto";
+    try {
+      audio.style.display = "none";
+      document.body.appendChild(audio);
+    } catch {
+    }
     const preparedSource = prepareAudioSourceForElement(src);
     if (!preparedSource) {
+      try {
+        audio.remove();
+      } catch {
+      }
       return false;
     }
     if (!assignAudioSource(audio, preparedSource.src)) {
       preparedSource.revoke();
+      try {
+        audio.remove();
+      } catch {
+      }
       return false;
     }
     audioSourceCleanupRef.current = preparedSource.revoke;
@@ -194,6 +235,17 @@ export function VoiceChatPanel({
     setPlayingId(msgId);
     const clearPlaying = () => {
       if (playbackModeRef.current === "audio") {
+        if (audioRef.current === audio) {
+          audio.onended = null;
+          audio.onpause = null;
+          audio.onerror = null;
+          audio.removeAttribute("src");
+          audio.load();
+          try {
+            audio.remove();
+          } catch {}
+          audioRef.current = null;
+        }
         cleanupAudioSource();
         playbackModeRef.current = null;
         setPlayingId(null);
@@ -214,8 +266,8 @@ export function VoiceChatPanel({
   }, [cleanupAudioSource, stopPlayback]);
 
   const speakWithDeviceVoice = useCallback(
-    (text: string, msgId: string) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    async (text: string, msgId: string): Promise<boolean> => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
 
       stopPlayback();
 
@@ -225,7 +277,7 @@ export function VoiceChatPanel({
       // doesn't surprise the user with a female default voice for a male
       // expert. Returns null when getVoices() hasn't populated yet (Safari
       // first-call quirk) \u2014 utterance falls back to browser default.
-      const matched = pickDeviceVoice(utterance.lang, expertGender);
+      const matched = await pickDeviceVoiceWhenReady(utterance.lang, expertGender);
       if (matched) utterance.voice = matched;
       utterance.onend = () => {
         if (playbackModeRef.current === "device") {
@@ -247,18 +299,23 @@ export function VoiceChatPanel({
       setPlayingId(msgId);
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
+      return true;
     },
     [stopPlayback, expertGender],
   );
 
   const autoPlayAssistantReply = useCallback(
     async (message: Message) => {
+      resumeSharedAudioContext();
       let played = false;
       if (message.audioSrc) {
         played = await playExpertAudio(message.audioSrc, message.id);
       }
       if (!played && hasDeviceVoiceSupport()) {
-        speakWithDeviceVoice(message.text, message.id);
+        played = await speakWithDeviceVoice(message.text, message.id);
+      }
+      if (!played && message.audioSrc) {
+        setError("Voice playback was blocked. Tap play to listen.");
       }
     },
     [playExpertAudio, speakWithDeviceVoice],
@@ -449,7 +506,9 @@ export function VoiceChatPanel({
           redirectToSignIn();
           return;
         }
-        const data = await res.json();
+        const data = await res
+          .json()
+          .catch(async () => ({ error: (await res.text().catch(() => "")) || "Server error" }));
         if (!res.ok) throw new Error(data.error || "Failed to send message");
 
         setMessages((prev) =>
@@ -503,7 +562,9 @@ export function VoiceChatPanel({
         redirectToSignIn();
         return;
       }
-      const data = await res.json();
+      const data = await res
+        .json()
+        .catch(async () => ({ error: (await res.text().catch(() => "")) || "Server error" }));
       if (!res.ok) throw new Error(data.error || "Failed to send message");
 
       const aiMsg: Message = {
@@ -531,7 +592,9 @@ export function VoiceChatPanel({
       if (playingId === msg.id && playbackModeRef.current === "audio") {
         stopPlayback();
       } else {
-        void playExpertAudio(msg.audioSrc, msg.id);
+        void playExpertAudio(msg.audioSrc, msg.id).then((ok) => {
+          if (!ok) setError("Voice playback was blocked. Tap play again to listen.");
+        });
       }
     },
     [playingId, playExpertAudio, stopPlayback, unlockAudioPlayback],
@@ -544,7 +607,7 @@ export function VoiceChatPanel({
         stopPlayback();
         return;
       }
-      speakWithDeviceVoice(msg.text, msg.id);
+      void speakWithDeviceVoice(msg.text, msg.id);
     },
     [playingId, speakWithDeviceVoice, stopPlayback],
   );

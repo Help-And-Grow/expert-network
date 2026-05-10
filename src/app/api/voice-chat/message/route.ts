@@ -16,7 +16,7 @@ import {
   processTextMessage,
 } from "@/lib/voice-chat-session";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_AUDIO_CLIPS = 3;
@@ -188,15 +188,15 @@ async function handleTextMessage(request: NextRequest, userId: string) {
   if (!text?.trim()) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
-  if (includeAudio === false) {
+  if (!sessionId && !isAsyncEnabled()) {
+    return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
+  }
+  if (sessionId) {
     if (!isRealtimeEnabled()) {
       return NextResponse.json(
         { error: "Real-time AI chat is not enabled for the current configuration." },
         { status: 503 },
       );
-    }
-    if (!sessionId) {
-      return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
     }
 
     const session = getRealtimeSession(sessionId);
@@ -216,6 +216,7 @@ async function handleTextMessage(request: NextRequest, userId: string) {
 
   const result = await processTextMessage(userId, expertId, text.trim(), {
     synthesizeAudio: includeAudio,
+    voiceSynthesisTimeoutMs: includeAudio ? 10_000 : undefined,
   });
 
   return NextResponse.json({

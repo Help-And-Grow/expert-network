@@ -11,7 +11,7 @@ import {
   getVoiceChatGreeting,
 } from "@/lib/voice-chat-session";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /**
  * POST /api/voice-chat/greeting

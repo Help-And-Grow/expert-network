@@ -160,6 +160,7 @@ function buildSystemPrompt(profile: ExpertVoiceChatProfile): string {
     "Default to concise professional English.",
     "Only switch to another language when the user explicitly asks you to continue in that language.",
     "This is a short voice preview. Deliver one compact reply that can be spoken in under 60 seconds.",
+    "Format constraint: one paragraph only; <= 100 words. If you use bullet points, use at most 3 bullets and keep them MECE (mutually exclusive, collectively exhaustive).",
     "Prioritize concrete judgment, structure, and personalization over generic encouragement.",
     "Use the introduction, services, retrieved memories, and user context as factual anchors whenever relevant.",
     "When the user asks for advice, tailor it to their stage, role, and likely scenario. If information is incomplete, make the best bounded assumption and state the most important factor you would confirm next.",
@@ -355,12 +356,13 @@ async function synthesizeVoiceIfAvailable(
   text: string,
   voiceModelId: string,
   gender?: string | null,
+  timeoutMs: number = VOICE_SYNTHESIS_TIMEOUT_MS,
 ): Promise<{ audioBase64: string; format: string } | null> {
   try {
     return await Promise.race([
       synthesizeVoice(text, voiceModelId, gender),
       new Promise<null>((resolve) => {
-        setTimeout(() => resolve(null), VOICE_SYNTHESIS_TIMEOUT_MS);
+        setTimeout(() => resolve(null), timeoutMs);
       }),
     ]);
   } catch (error) {
@@ -462,7 +464,7 @@ export async function processTextMessage(
   userId: string,
   expertId: string,
   text: string,
-  options?: { synthesizeAudio?: boolean },
+  options?: { synthesizeAudio?: boolean; voiceSynthesisTimeoutMs?: number },
 ): Promise<VoiceChatResult> {
   const profile = await loadExpertVoiceChatProfile(expertId);
   if (!profile) throw new Error("Expert not found");
@@ -482,6 +484,7 @@ export async function processTextMessage(
           replyText,
           conv.voiceModelId,
           profile.gender,
+          options?.voiceSynthesisTimeoutMs,
         );
 
   return {

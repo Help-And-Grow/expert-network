@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Clock3, Loader2, Send, Sparkles, X } from "lucide-react";
+import { Clock3, Loader2, Pause, Play, Send, Sparkles, Volume2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  audioSrc?: string | null;
 };
 
 function formatTimer(seconds: number): string {
@@ -36,6 +37,30 @@ function formatTimer(seconds: number): string {
 
 function hasDeviceVoiceSupport(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
+async function pickDeviceVoiceWhenReady(
+  lang: string,
+  gender?: string | null,
+): Promise<SpeechSynthesisVoice | null> {
+  const immediate = pickDeviceVoice(lang, gender);
+  if (immediate) return immediate;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+
+  const synth = window.speechSynthesis;
+  return await new Promise((resolve) => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      synth.removeEventListener("voiceschanged", onChanged);
+      clearTimeout(timer);
+      resolve(pickDeviceVoice(lang, gender));
+    };
+    const onChanged = () => finish();
+    const timer = setTimeout(finish, 800);
+    synth.addEventListener("voiceschanged", onChanged);
+  });
 }
 
 function assignAudioSource(audio: HTMLAudioElement, src: string): boolean {
@@ -63,6 +88,8 @@ export function VoiceChatModal({
   const [maxDuration, setMaxDuration] = useState(180);
   const [turnInfo, setTurnInfo] = useState({ count: 0, max: 5 });
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [deviceVoiceSupported, setDeviceVoiceSupported] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -73,6 +100,7 @@ export function VoiceChatModal({
   const audioSourceCleanupRef = useRef<(() => void) | null>(null);
   const pendingSessionIdRef = useRef<string | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const playbackModeRef = useRef<"audio" | "device" | null>(null);
   const shouldStopAfterConnectRef = useRef(false);
 
   const router = useRouter();
@@ -109,6 +137,10 @@ export function VoiceChatModal({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  useEffect(() => {
+    setDeviceVoiceSupported(hasDeviceVoiceSupport());
+  }, []);
+
   const cleanupAudioSource = useCallback(() => {
     audioSourceCleanupRef.current?.();
     audioSourceCleanupRef.current = null;
@@ -122,6 +154,9 @@ export function VoiceChatModal({
       audioRef.current.pause();
       audioRef.current.removeAttribute("src");
       audioRef.current.load();
+      try {
+        audioRef.current.remove();
+      } catch {}
       audioRef.current = null;
     }
     cleanupAudioSource();
@@ -130,6 +165,8 @@ export function VoiceChatModal({
       window.speechSynthesis.cancel();
     }
     speechRef.current = null;
+    playbackModeRef.current = null;
+    setPlayingId(null);
   }, [cleanupAudioSource]);
 
   const playGreetingAudio = useCallback(
@@ -140,19 +177,47 @@ export function VoiceChatModal({
       audio.setAttribute("playsinline", "true");
       audio.setAttribute("webkit-playsinline", "true");
       audio.preload = "auto";
+      try {
+        audio.style.display = "none";
+        document.body.appendChild(audio);
+      } catch {}
       const preparedSource = prepareAudioSourceForElement(src);
       if (!preparedSource) {
+        try {
+          audio.remove();
+        } catch {}
         return false;
       }
       if (!assignAudioSource(audio, preparedSource.src)) {
         preparedSource.revoke();
+        try {
+          audio.remove();
+        } catch {}
         return false;
       }
-      audio.onended = cleanupAudioSource;
-      audio.onerror = cleanupAudioSource;
-      audio.onpause = cleanupAudioSource;
       audioSourceCleanupRef.current = preparedSource.revoke;
       audioRef.current = audio;
+      playbackModeRef.current = "audio";
+
+      const clearPlaying = () => {
+        if (playbackModeRef.current !== "audio") return;
+        if (audioRef.current !== audio) return;
+        audio.onended = null;
+        audio.onpause = null;
+        audio.onerror = null;
+        audio.removeAttribute("src");
+        audio.load();
+        try {
+          audio.remove();
+        } catch {}
+        audioRef.current = null;
+        cleanupAudioSource();
+        playbackModeRef.current = null;
+      };
+
+      audio.onended = clearPlaying;
+      audio.onerror = clearPlaying;
+      audio.onpause = clearPlaying;
 
       try {
         await audio.play();
@@ -165,15 +230,78 @@ export function VoiceChatModal({
     [cleanupAudioSource, stopGreetingPlayback],
   );
 
+  const playMessageAudio = useCallback(
+    async (src: string, msgId: string): Promise<boolean> => {
+      stopGreetingPlayback();
+
+      const audio = document.createElement("audio");
+      audio.setAttribute("playsinline", "true");
+      audio.setAttribute("webkit-playsinline", "true");
+      audio.preload = "auto";
+      try {
+        audio.style.display = "none";
+        document.body.appendChild(audio);
+      } catch {}
+      const preparedSource = prepareAudioSourceForElement(src);
+      if (!preparedSource) {
+        try {
+          audio.remove();
+        } catch {}
+        return false;
+      }
+      if (!assignAudioSource(audio, preparedSource.src)) {
+        preparedSource.revoke();
+        try {
+          audio.remove();
+        } catch {}
+        return false;
+      }
+      audioSourceCleanupRef.current = preparedSource.revoke;
+      audioRef.current = audio;
+      playbackModeRef.current = "audio";
+      setPlayingId(msgId);
+
+      const clearPlaying = () => {
+        if (playbackModeRef.current !== "audio") return;
+        if (audioRef.current !== audio) return;
+        audio.onended = null;
+        audio.onpause = null;
+        audio.onerror = null;
+        audio.removeAttribute("src");
+        audio.load();
+        try {
+          audio.remove();
+        } catch {}
+        audioRef.current = null;
+        cleanupAudioSource();
+        playbackModeRef.current = null;
+        setPlayingId(null);
+      };
+
+      audio.onended = clearPlaying;
+      audio.onpause = clearPlaying;
+      audio.onerror = clearPlaying;
+
+      try {
+        await audio.play();
+        return true;
+      } catch {
+        clearPlaying();
+        return false;
+      }
+    },
+    [cleanupAudioSource, stopGreetingPlayback],
+  );
+
   const speakGreetingWithDeviceVoice = useCallback(
-    (text: string): boolean => {
+    async (text: string): Promise<boolean> => {
       if (!hasDeviceVoiceSupport()) return false;
 
       stopGreetingPlayback();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
-      const matched = pickDeviceVoice(utterance.lang, expertGender);
+      const matched = await pickDeviceVoiceWhenReady(utterance.lang, expertGender);
       if (matched) utterance.voice = matched;
       speechRef.current = utterance;
       window.speechSynthesis.cancel();
@@ -181,6 +309,86 @@ export function VoiceChatModal({
       return true;
     },
     [stopGreetingPlayback, expertGender],
+  );
+
+  const speakWithDeviceVoice = useCallback(
+    async (text: string, msgId: string): Promise<boolean> => {
+      if (!hasDeviceVoiceSupport()) return false;
+
+      stopGreetingPlayback();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+      const matched = await pickDeviceVoiceWhenReady(utterance.lang, expertGender);
+      if (matched) utterance.voice = matched;
+      utterance.onend = () => {
+        if (playbackModeRef.current === "device") {
+          playbackModeRef.current = null;
+          speechRef.current = null;
+          setPlayingId(null);
+        }
+      };
+      utterance.onerror = () => {
+        if (playbackModeRef.current === "device") {
+          playbackModeRef.current = null;
+          speechRef.current = null;
+          setPlayingId(null);
+        }
+      };
+
+      speechRef.current = utterance;
+      playbackModeRef.current = "device";
+      setPlayingId(msgId);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      return true;
+    },
+    [expertGender, stopGreetingPlayback],
+  );
+
+  const autoPlayAssistantReply = useCallback(
+    async (message: ChatMessage) => {
+      resumeSharedAudioContext();
+      let played = false;
+      if (message.audioSrc) {
+        played = await playMessageAudio(message.audioSrc, message.id);
+      }
+      if (!played && hasDeviceVoiceSupport()) {
+        played = await speakWithDeviceVoice(message.text, message.id);
+      }
+      if (!played && message.audioSrc) {
+        setError("Voice playback was blocked. Tap play to listen.");
+      }
+    },
+    [playMessageAudio, speakWithDeviceVoice],
+  );
+
+  const togglePlayback = useCallback(
+    (msg: ChatMessage) => {
+      if (!msg.audioSrc) return;
+      resumeSharedAudioContext();
+      if (playingId === msg.id && playbackModeRef.current === "audio") {
+        stopGreetingPlayback();
+      } else {
+        void playMessageAudio(msg.audioSrc, msg.id).then((ok) => {
+          if (!ok) setError("Voice playback was blocked. Tap play again to listen.");
+        });
+      }
+    },
+    [playingId, playMessageAudio, stopGreetingPlayback],
+  );
+
+  const toggleDeviceVoice = useCallback(
+    (msg: ChatMessage) => {
+      if (!hasDeviceVoiceSupport()) return;
+      resumeSharedAudioContext();
+      if (playingId === msg.id && playbackModeRef.current === "device") {
+        stopGreetingPlayback();
+        return;
+      }
+      void speakWithDeviceVoice(msg.text, msg.id);
+    },
+    [playingId, speakWithDeviceVoice, stopGreetingPlayback],
   );
 
   useEffect(() => () => {
@@ -263,7 +471,7 @@ export function VoiceChatModal({
         played = await playGreetingAudio(data.replyAudio);
       }
       if (!played) {
-        speakGreetingWithDeviceVoice(greetingText);
+        void speakGreetingWithDeviceVoice(greetingText);
       }
     } catch {
       // Greeting is non-blocking.
@@ -351,6 +559,7 @@ export function VoiceChatModal({
       const trimmed = text.trim();
       if (!trimmed || sending || sessionState !== "connected") return;
 
+      resumeSharedAudioContext();
       setSending(true);
       setError(null);
       setInput("");
@@ -367,16 +576,19 @@ export function VoiceChatModal({
             expertId,
             sessionId,
             text: trimmed,
-            includeAudio: false,
+            includeAudio: true,
           }),
         });
         if (res.status === 401) {
           redirectToSignIn();
           return;
         }
-        const data = (await res.json()) as {
+        const data = (await res
+          .json()
+          .catch(async () => ({ error: (await res.text().catch(() => "")) || "Server error" }))) as {
           error?: string;
           replyText?: string;
+          replyAudio?: string | null;
           turnCount?: number;
           maxTurns?: number;
         };
@@ -384,10 +596,14 @@ export function VoiceChatModal({
           throw new Error(data.error || `Server error ${res.status}`);
         }
 
-        setMessages((prev) => [
-          ...prev,
-          { id: nextMessageId(), role: "assistant", text: data.replyText ?? "" },
-        ]);
+        const aiMsg: ChatMessage = {
+          id: nextMessageId(),
+          role: "assistant",
+          text: data.replyText ?? "",
+          audioSrc: data.replyAudio,
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        void autoPlayAssistantReply(aiMsg);
         if (typeof data.turnCount === "number" && typeof data.maxTurns === "number") {
           setTurnInfo({ count: data.turnCount, max: data.maxTurns });
         }
@@ -398,7 +614,7 @@ export function VoiceChatModal({
         setSending(false);
       }
     },
-    [expertId, nextMessageId, sending, sessionId, sessionState, redirectToSignIn],
+    [expertId, nextMessageId, sending, sessionId, sessionState, redirectToSignIn, autoPlayAssistantReply],
   );
 
   const handleClose = useCallback(async () => {
@@ -507,6 +723,49 @@ export function VoiceChatModal({
             >
               <p className="whitespace-pre-wrap">{message.text}</p>
 
+              {message.role === "assistant" && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {message.audioSrc && (
+                    <button
+                      type="button"
+                      onClick={() => togglePlayback(message)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-600 transition-colors hover:bg-indigo-500/25"
+                      aria-label={
+                        playingId === message.id && playbackModeRef.current === "audio"
+                          ? "Pause voice reply"
+                          : "Play voice reply"
+                      }
+                      title={
+                        playingId === message.id && playbackModeRef.current === "audio"
+                          ? "Pause"
+                          : "Play voice reply"
+                      }
+                    >
+                      {playingId === message.id && playbackModeRef.current === "audio" ? (
+                        <Pause className="h-3.5 w-3.5" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5 ml-0.5" />
+                      )}
+                    </button>
+                  )}
+
+                  {deviceVoiceSupported && !message.audioSrc && (
+                    <button
+                      type="button"
+                      onClick={() => toggleDeviceVoice(message)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-600 transition-colors hover:bg-indigo-500/25"
+                      aria-label="Read aloud with device voice"
+                      title="Read aloud with device voice"
+                    >
+                      {playingId === message.id && playbackModeRef.current === "device" ? (
+                        <Pause className="h-3.5 w-3.5" />
+                      ) : (
+                        <Volume2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
