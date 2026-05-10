@@ -11,12 +11,26 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * @deprecated Use `/api/admin/providers` instead. Kept for one release so
+ * external scripts don't break. Phase 1 of the admin-page revamp.
+ */
+let warnedDeprecated = false;
+function warnDeprecatedOnce() {
+  if (warnedDeprecated) return;
+  warnedDeprecated = true;
+  console.warn(
+    "[admin/system-config] DEPRECATED — use /api/admin/providers (Phase 1 revamp).",
+  );
+}
+
 const bodySchema = z.object({
   STORAGE_PROVIDER: z.enum(["vercel", "gcs", "tencent-cos", "db"]).optional(),
   EXPERT_SEARCH_VECTOR_PRERANK: z.boolean().optional(),
 });
 
 export async function GET(request: NextRequest) {
+  warnDeprecatedOnce();
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 
@@ -33,6 +47,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  warnDeprecatedOnce();
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 

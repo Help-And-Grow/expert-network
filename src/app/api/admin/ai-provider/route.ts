@@ -28,6 +28,21 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/**
+ * @deprecated Use `/api/admin/providers` instead. This route is kept
+ * functional for one release so external scripts don't break; new clients
+ * should call the unified endpoint. Phase 1 of the admin-page revamp
+ * (2026-05-09).
+ */
+let warnedDeprecated = false;
+function warnDeprecatedOnce() {
+  if (warnedDeprecated) return;
+  warnedDeprecated = true;
+  console.warn(
+    "[admin/ai-provider] DEPRECATED — use /api/admin/providers (Phase 1 revamp).",
+  );
+}
+
 const modelInputSchema = z
   .object({
     textModel: z.string().trim().max(128).optional(),
@@ -86,6 +101,7 @@ function nonEmpty(value?: string | null): string | null {
 }
 
 export async function GET(request: NextRequest) {
+  warnDeprecatedOnce();
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 
@@ -137,6 +153,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  warnDeprecatedOnce();
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 

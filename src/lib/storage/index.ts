@@ -55,3 +55,21 @@ export async function getActiveStorageProviderName(): Promise<StorageProviderNam
   const dbProvider = (await getSystemConfig("STORAGE_PROVIDER")) as StorageProviderName | null;
   return dbProvider || env.STORAGE_PROVIDER || "db";
 }
+
+/**
+ * Registry-first list of enabled storage providers (Phase 1 admin revamp).
+ * Falls back to the static `["vercel","gcs","tencent-cos","db"]` list if
+ * the `ProviderRegistry` table is unreachable or empty so cold starts and
+ * unmigrated environments don't break.
+ */
+export async function listEnabledStorageProviderKeys(): Promise<string[]> {
+  const FALLBACK: StorageProviderName[] = ["vercel", "gcs", "tencent-cos", "db"];
+  try {
+    const { listProviders } = await import("@/lib/admin/provider-registry");
+    const rows = await listProviders("storage", { enabledOnly: true });
+    if (rows.length > 0) return rows.map((r) => r.key);
+  } catch {
+    // fall through to fallback
+  }
+  return FALLBACK;
+}

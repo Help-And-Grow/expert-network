@@ -1,6 +1,14 @@
 import { env } from "@/lib/env";
 
-export const ALL_AI_PROVIDERS = [
+/**
+ * Hard-coded fallback list. Used at boot when the `ProviderRegistry` table
+ * is unreachable (cold start before migrations apply, or DB outage).
+ * Keep in sync with the seed in `src/lib/admin/provider-registry-seed.ts`.
+ *
+ * Phase 1 of the admin-page revamp moved the source of truth into
+ * `ProviderRegistry`; this constant is now a safety net.
+ */
+export const FALLBACK_LLM_PROVIDERS = [
   "openai",
   "zai",
   "qwen",
@@ -10,7 +18,47 @@ export const ALL_AI_PROVIDERS = [
   "volcengine",
 ] as const;
 
-export type AIProviderName = (typeof ALL_AI_PROVIDERS)[number];
+/**
+ * Static narrow union of providers known at compile time. New providers
+ * added via the registry are valid at runtime but not present in this
+ * type — admin code paths should treat unknown registry keys as a
+ * runtime extension point. Phase 2 will widen this to `string`.
+ */
+export const ALL_AI_PROVIDERS = FALLBACK_LLM_PROVIDERS;
+
+export type AIProviderName = (typeof FALLBACK_LLM_PROVIDERS)[number];
+
+let warnedRegistryFallback = false;
+
+/**
+ * Registry-first list of active LLM provider keys. Falls back to
+ * `FALLBACK_LLM_PROVIDERS` (and logs once) if the registry is unreachable
+ * or empty. Returned strings may include keys outside the static
+ * `AIProviderName` union — callers should validate before narrowing.
+ */
+export async function listAllAIProviderNames(): Promise<string[]> {
+  try {
+    const { listProviders } = await import("@/lib/admin/provider-registry");
+    const rows = await listProviders("llm", { enabledOnly: true });
+    if (rows.length > 0) return rows.map((r) => r.key);
+  } catch (err) {
+    if (!warnedRegistryFallback) {
+      console.warn(
+        "[provider-catalog] ProviderRegistry unavailable, using FALLBACK_LLM_PROVIDERS:",
+        err instanceof Error ? err.message : err,
+      );
+      warnedRegistryFallback = true;
+    }
+    return [...FALLBACK_LLM_PROVIDERS];
+  }
+  if (!warnedRegistryFallback) {
+    console.warn(
+      "[provider-catalog] ProviderRegistry empty, using FALLBACK_LLM_PROVIDERS",
+    );
+    warnedRegistryFallback = true;
+  }
+  return [...FALLBACK_LLM_PROVIDERS];
+}
 
 /**
  * Default profile-image chain. Tried in order; first to return an image wins.

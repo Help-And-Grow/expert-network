@@ -178,11 +178,33 @@ See [`hiclaw/README.md`](../hiclaw/README.md) for additional service-only vars.
 | `GOOGLE_PLACES_API_KEY` | Places API (New) — autocomplete + details |
 | `GOOGLE_PLACES_REGION_CODES` | Comma-separated ISO codes (default `sg`) |
 
-## Admin AI-provider switcher
+## Admin Providers page
+
+The unified admin Providers page lives at **`/admin/providers`** (Phase 1
+of the admin-page revamp, 2026-05-09). It replaces the two scattered
+pages — `/admin/ai-provider` and `/admin/system-config` — both of which
+are now **deprecated 308 redirects** to the unified page. The legacy API
+routes (`/api/admin/ai-provider`, `/api/admin/system-config`) still
+respond for one release with a `console.warn` deprecation notice.
+
+The new page is backed by the `ProviderRegistry` Prisma model: each LLM
+or storage provider is a single row with its env-key map and default
+models stored as JSON. Adding a new provider is a one-row insert + a
+thin adapter — no longer a 6-file edit. Operator edits go through
+`/api/admin/providers` and are written to both the registry and the
+existing `SystemConfig` keys for back-compat.
+
+After deploying the migration, run the seeder once to populate the
+table from the legacy hard-coded catalog (idempotent — existing rows
+are preserved):
+
+```
+npx tsx -e "import('./src/lib/admin/provider-registry-seed').then(m => m.seedProviderRegistryIfEmpty()).then(console.log)"
+```
 
 | Var | Purpose |
 |---|---|
-| `VERCEL_MANAGEMENT_TOKEN`, `VERCEL_MANAGED_TEAM_ID`, `VERCEL_MANAGED_PROJECT` | Required for `/admin/ai-provider` to update Vercel env + redeploy |
+| `VERCEL_MANAGEMENT_TOKEN`, `VERCEL_MANAGED_TEAM_ID`, `VERCEL_MANAGED_PROJECT` | Required for `/admin/providers` to update Vercel env + redeploy |
 | `VERCEL_DEPLOY_HOOK_URL` | Optional deploy hook for automatic redeploy |
 
 ## Debug gating

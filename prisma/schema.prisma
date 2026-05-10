@@ -342,3 +342,23 @@ model SystemConfig {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/// Registry of pluggable providers (LLM, storage, voice, image, ...).
+/// Adding a new provider should be a one-row insert + thin adapter, not a
+/// 6-file edit. The admin page at `/admin/providers` is the read/write UI.
+model ProviderRegistry {
+  id          String   @id @default(cuid())
+  category    String // 'llm' | 'storage' | (future: 'voice' | 'image')
+  key         String // 'openai' | 'qwen' | 'vercel-blob' | 'gcs' | ...
+  displayName String
+  enabled     Boolean  @default(true)
+  envKeys     Json // { apiKey: 'OPENAI_API_KEY', baseUrl: 'OPENAI_BASE_URL', ... }
+  models      Json // { text: { envKey: 'OPENAI_TEXT_MODEL', default: 'gpt-4o' }, image: {...} }
+  metadata    Json? // free-form: capabilities, regions, notes
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([category, key])
+  @@index([category, enabled, sortOrder])
+}
