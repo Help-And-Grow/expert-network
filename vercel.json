@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/charge-remainder",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/provider-drift",
+      "schedule": "0 22 * * *"
     }
   ]
 }

@@ -3,6 +3,10 @@ import { z } from "zod";
 
 import { isErrorResponse, requireAdmin } from "@/lib/admin-auth";
 import {
+  getCloudRegionSettings,
+  type ResolvedCloudRegionSetting,
+} from "@/lib/admin/cloud-regions";
+import {
   ALL_VOICE_PROVIDERS,
   computeProviderHealth,
   computeProviderHealthFromRuntime,
@@ -106,6 +110,15 @@ const overrideDeleteSchema = z.object({
   category: z.enum(["llm", "image", "voice", "storage"]),
 });
 
+const systemConfigUpsertSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .max(120)
+    .regex(/^[A-Z0-9_]+$/, "key must be UPPER_SNAKE_CASE"),
+  value: z.string().max(4000),
+});
+
 const bodySchema = z.object({
   activeLlm: z.string().optional(),
   llmTextChain: z.union([z.string(), z.array(z.string())]).optional(),
@@ -116,6 +129,7 @@ const bodySchema = z.object({
   routingScopeUpserts: z.array(scopeUpsertSchema).optional(),
   routeOverrideUpserts: z.array(overrideUpsertSchema).optional(),
   routeOverrideDeletes: z.array(overrideDeleteSchema).optional(),
+  systemConfigUpserts: z.array(systemConfigUpsertSchema).optional(),
   triggerDeploy: z.boolean().optional(),
   /** Optional: target a specific environment. Defaults to VERCEL_ENV. */
   environment: z.enum(["production", "preview", "development"]).optional(),
@@ -169,6 +183,8 @@ export async function GET(request: NextRequest) {
     imageOverrides,
     voiceOverrides,
     storageOverrides,
+    cloudRegions,
+    driftCount,
   ] = await Promise.all([
     listProviders("llm"),
     listProviders("storage"),
@@ -184,7 +200,13 @@ export async function GET(request: NextRequest) {
     listRouteOverrides("image", env),
     listRouteOverrides("voice", env),
     listRouteOverrides("storage", env),
+    getCloudRegionSettings(env),
+    prisma.providerConfigDrift
+      .count({ where: { resolved: false, environment: env } })
+      .catch(() => 0),
   ]);
+  // Type guard for the cloud regions tuple position.
+  const cloudRegionsTyped: ResolvedCloudRegionSetting[] = cloudRegions;
 
   let providerHealth: Record<string, unknown>;
   if (cfg) {
@@ -249,6 +271,8 @@ export async function GET(request: NextRequest) {
       llmVoiceChain: [...VOICE_FALLBACK_ORDER],
       voiceOptions,
     },
+    cloudRegions: cloudRegionsTyped,
+    driftCount,
     providerHealth,
     canManage: Boolean(cfg),
     deployHookConfigured: Boolean(cfg?.deployHookUrl),
@@ -305,6 +329,9 @@ export async function POST(request: NextRequest) {
   }
   if (parsed.data.activeStorage) {
     writes.push({ key: "STORAGE_PROVIDER", value: parsed.data.activeStorage });
+  }
+  for (const item of parsed.data.systemConfigUpserts ?? []) {
+    writes.push({ key: item.key, value: item.value });
   }
 
   // -------------------------------------------------------------------------
@@ -430,6 +457,17 @@ function storageOrLlmCategory(key: string): string {
     key === "VOICE_PROVIDER_CHAIN"
   ) {
     return "llm";
+  }
+  if (
+    key === "GOOGLE_CLOUD_PROJECT" ||
+    key === "GOOGLE_CLOUD_LOCATION" ||
+    key === "GEMINI_IMAGE_VERTEX_LOCATION" ||
+    key === "ZAI_VERTEX_LOCATION" ||
+    key === "GCS_BUCKET_NAME" ||
+    key === "TENCENT_COS_REGION" ||
+    key === "TENCENT_COS_BUCKET"
+  ) {
+    return "cloud-region";
   }
   return "system-config";
 }

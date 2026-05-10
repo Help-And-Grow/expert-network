@@ -455,3 +455,23 @@ model ProviderRouteOverride {
   @@unique([routePattern, category, environment])
   @@index([enabled, environment])
 }
+
+/// Drift between SystemConfig (DB) and Vercel project env. Populated by the
+/// `/api/cron/provider-drift` job. Each row is a snapshot of a single key
+/// found to differ at scan time. The admin resolves drift by either pushing
+/// DB→Vercel, pulling Vercel→DB, or marking it intentional.
+model ProviderConfigDrift {
+  id           String    @id @default(cuid())
+  detectedAt   DateTime  @default(now())
+  configKey    String
+  environment  String
+  dbValue      String?
+  vercelValue  String?
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  resolvedBy   String?
+  resolvedNote String?
+
+  @@index([resolved, detectedAt])
+  @@index([configKey, environment])
+}

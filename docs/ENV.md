@@ -230,6 +230,31 @@ runs **after** the DB commit. If it fails, the response carries
 `deployTriggered: false` + a `deployError` message and the operator can
 re-trigger via `POST /api/admin/providers/retry-deploy`.
 
+### Phase 4 — regions, drift detector, export/import (2026-05-10)
+
+A fourth tab — **Regions** — surfaces the cloud-region knobs
+(`GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GEMINI_IMAGE_VERTEX_LOCATION`,
+`ZAI_VERTEX_LOCATION`, `GCS_BUCKET_NAME`, `TENCENT_COS_REGION`,
+`TENCENT_COS_BUCKET`) as editable SystemConfig rows. Cloud SQL instance +
+region are read-only display.
+
+The **drift detector** runs nightly via Vercel Cron at
+`/api/cron/provider-drift` (schedule `0 22 * * *` = daily 06:00 SGT).
+It diffs every managed SystemConfig key against the same key in the
+Vercel project env and writes a row to the new `ProviderConfigDrift`
+table for any mismatch. The route is gated on the `CRON_SECRET` Bearer
+header (same convention as `/api/cron/charge-remainder`). Operators
+reconcile drift at `/admin/providers/drift` — push DB→Vercel, pull
+Vercel→DB, or mark intentional with a note.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/admin/providers/drift?environment=production` | List drift rows |
+| `POST /api/admin/providers/drift/:id/resolve` | `{ direction: 'push'\|'pull'\|'note', note? }` |
+| `GET /api/admin/providers/export?environment=production` | Snapshot the full provider config as JSON. Sensitive values are redacted unless `?includeSecrets=true` AND the request includes `X-Confirm-Sensitive: yes`. |
+| `POST /api/admin/providers/import` | Apply a snapshot. Body: `{ mode: 'merge'\|'replace', dryRun?, environment, payload }`. Always audited. |
+| `GET /api/cron/provider-drift` | Vercel Cron entry (Bearer `CRON_SECRET`). Compares DB ↔ Vercel and updates `ProviderConfigDrift`. |
+
 ## Debug gating
 
 | Var | Purpose |

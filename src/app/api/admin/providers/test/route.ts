@@ -68,6 +68,22 @@ type ProbeResult = {
 const probeCache: Map<string, { result: ProbeResult; expires: number }> =
   new Map();
 
+/**
+ * Rate-limit per (admin user, category, key) to 1 request per second so
+ * an over-eager click doesn't burn provider quota. Bucket is keyed by
+ * the admin's userId so different admins don't block each other.
+ */
+const RATE_LIMIT_WINDOW_MS = 1_000;
+const lastProbeAt: Map<string, number> = new Map();
+function rateLimitKey(
+  userId: string,
+  category: string,
+  key: string,
+  env: string,
+): string {
+  return `${userId}:${category}:${key}:${env}`;
+}
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(
@@ -110,6 +126,26 @@ export async function POST(request: NextRequest) {
   if (cached && cached.expires > now) {
     return NextResponse.json({ ...cached.result, cached: true });
   }
+
+  // 1 req/sec per (admin, category, key, env) to protect provider quotas.
+  const rlKey = rateLimitKey(auth.userId, category, key, env);
+  const lastAt = lastProbeAt.get(rlKey) ?? 0;
+  if (now - lastAt < RATE_LIMIT_WINDOW_MS) {
+    const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - lastAt);
+    return NextResponse.json(
+      {
+        ok: false,
+        latencyMs: 0,
+        error: `Rate limited: 1 probe / sec per provider. Retry in ${retryAfterMs}ms.`,
+        probedAt: new Date().toISOString(),
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": Math.ceil(retryAfterMs / 1000).toString() },
+      },
+    );
+  }
+  lastProbeAt.set(rlKey, now);
 
   // Validate that the registry knows the row.
   const row = await getProvider(category, key);
