@@ -96,10 +96,15 @@ async function vercelRequest<T>(
 export async function listManagedProjectEnvs(
   cfg: VercelProjectConfig,
 ): Promise<ManagedEnvVar[]> {
-  return vercelRequest<ManagedEnvVar[]>(
-    cfg,
-    `/v10/projects/${encodeURIComponent(cfg.project)}/env`,
-  );
+  // Vercel's /v10/projects/:id/env returns `{ envs, pagination }`, NOT a bare
+  // array. Older callers only used this for side-effect upserts so the wrong
+  // typing never surfaced; the Phase-4 drift detector iterates the list and
+  // breaks without this unwrap.
+  const body = await vercelRequest<
+    ManagedEnvVar[] | { envs?: ManagedEnvVar[] }
+  >(cfg, `/v10/projects/${encodeURIComponent(cfg.project)}/env`);
+  if (Array.isArray(body)) return body;
+  return body.envs ?? [];
 }
 
 export async function upsertManagedProjectEnv(
