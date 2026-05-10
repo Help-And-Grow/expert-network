@@ -111,7 +111,12 @@ export async function GET(
     const etag = `"${createHash("md5").update(buffer).digest("hex")}"`;
     const size = buffer.length;
 
-    const rangeHeader = request.headers.get("range");
+    // WeChat Mini Program's Taro.downloadFile() does not reliably handle HTTP 206
+    // Partial Content. The client sends ?full=1 to request a complete 200 response
+    // so it can download the entire file as a local temp file for InnerAudioContext.
+    const forceFull = request.nextUrl.searchParams.get("full") === "1";
+
+    const rangeHeader = !forceFull ? request.headers.get("range") : null;
     const parsed = parseByteRange(rangeHeader, size);
 
     if (parsed) {

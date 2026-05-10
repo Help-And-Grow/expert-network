@@ -166,6 +166,7 @@ export default function ExpertPage() {
     }
 
     try {
+      setIntroPlaying(false);
       const localPath = await prepareAudioForInnerAudio(
         `/api/experts/${expertId}/audio`,
         `expert-intro-${expertId}`,
@@ -177,17 +178,40 @@ export default function ExpertPage() {
       const ctx = Taro.createInnerAudioContext();
       ctx.obeyMuteSwitch = false;
       ctx.src = localPath;
+      ctx.onPlay(() => {
+        console.log("[expert] audio play started");
+      });
       ctx.onEnded(() => setIntroPlaying(false));
       ctx.onStop(() => setIntroPlaying(false));
       ctx.onPause(() => setIntroPlaying(false));
-      ctx.onError(() => {
+      ctx.onError((err) => {
+        console.error("[expert] audio playback error", err);
         setIntroPlaying(false);
         Taro.showToast({ title: "语音播放失败", icon: "none" });
+      });
+      // Guard: if no canplay/timeupdate within 2s, assume silent failure
+      let resolved = false;
+      const guard = setTimeout(() => {
+        if (!resolved && introPlaying) {
+          console.warn("[expert] audio playback timeout — no canplay/timeUpdate received");
+          setIntroPlaying(false);
+          Taro.showToast({ title: "语音播放异常，请重试", icon: "none" });
+        }
+      }, 2200);
+      ctx.onCanplay(() => {
+        clearTimeout(guard);
+      });
+      ctx.onTimeUpdate(() => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(guard);
+        }
       });
       introAudioRef.current = ctx;
       ctx.play();
       setIntroPlaying(true);
-    } catch {
+    } catch (err) {
+      console.error("[expert] audio download/prepare failed", err);
       setIntroPlaying(false);
       Taro.showToast({ title: "语音加载失败", icon: "none" });
     }
