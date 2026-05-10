@@ -11,6 +11,7 @@ export const MAX_TURNS = 5;
 const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 const QWEN_VOICE_CHAT_MODEL = getQwenTextModel();
 const VOICE_SYNTHESIS_TIMEOUT_MS = 12_000;
+const VOICE_CHAT_LLM_TIMEOUT_MS = 25_000;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -272,6 +273,7 @@ function getQwenChatClient(): OpenAI {
     qwenChatClient = new OpenAI({
       apiKey: env.DASHSCOPE_API_KEY?.trim() || "",
       baseURL: DASHSCOPE_BASE_URL,
+      timeout: VOICE_CHAT_LLM_TIMEOUT_MS,
     });
   }
   return qwenChatClient;
@@ -287,15 +289,18 @@ export async function transcribeAudio(
 
 async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
   const qwen = getQwenChatClient();
-  const response = await qwen.chat.completions.create({
-    model: QWEN_VOICE_CHAT_MODEL,
-    messages: messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    })),
-  });
-
-  return response.choices[0]?.message?.content?.trim() ?? "";
+  try {
+    const response = await qwen.chat.completions.create({
+      model: QWEN_VOICE_CHAT_MODEL,
+      messages: messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+    });
+    return response.choices[0]?.message?.content?.trim() ?? "";
+  } catch {
+    return "I can help, but I’m hitting a temporary latency limit. - Clarify your goal and constraints - Share your current approach + blockers - I’ll give a MECE 3-point fix plan.";
+  }
 }
 
 const VOICE_CHAT_MEMORY_SNIPPETS = 6;
