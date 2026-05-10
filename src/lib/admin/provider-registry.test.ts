@@ -1,18 +1,8 @@
 /**
  * Vitest unit tests for the ProviderRegistry helper.
  *
- * NOTE: this repository does not yet have Vitest installed (see
- * package.json — no `test` script, no `vitest`/`jest` dep). This file is
- * authored against the standard Vitest API so it'll work as soon as the
- * test runner is added in a follow-up. To run today:
- *
- *   npm install -D vitest
- *   npx vitest run src/lib/admin/provider-registry.test.ts
+ * Run: `npm test` or `npx vitest run src/lib/admin/provider-registry.test.ts`.
  */
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — Vitest is not yet installed; this import will resolve once
-// the test runner is wired in (see file header). Suppressing type-check
-// failure rather than dropping the test.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Row = {
@@ -45,13 +35,17 @@ const fakeRows: Row[] = [
   },
 ];
 
-const findManyMock = vi.fn(async () => fakeRows);
-const findUniqueMock = vi.fn(async () => fakeRows[0]);
-const upsertMock = vi.fn(async (args: { create: Row }) => ({
-  ...fakeRows[0],
-  ...args.create,
-}));
-const updateMock = vi.fn(async () => fakeRows[0]);
+const { findManyMock, findUniqueMock, upsertMock, updateMock, providerConfigChangeCreateMock } = vi.hoisted(() => {
+  const findManyMock = vi.fn(async () => fakeRows);
+  const findUniqueMock = vi.fn(async () => fakeRows[0]);
+  const upsertMock = vi.fn(async (args: { create: Row }) => ({
+    ...fakeRows[0],
+    ...args.create,
+  }));
+  const updateMock = vi.fn(async () => fakeRows[0]);
+  const providerConfigChangeCreateMock = vi.fn(async () => null);
+  return { findManyMock, findUniqueMock, upsertMock, updateMock, providerConfigChangeCreateMock };
+});
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -60,6 +54,9 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: findUniqueMock,
       upsert: upsertMock,
       update: updateMock,
+    },
+    providerConfigChange: {
+      create: providerConfigChangeCreateMock,
     },
   },
 }));

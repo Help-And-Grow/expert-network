@@ -8,76 +8,81 @@
  *
  * Vitest is not yet installed — see system-config.test.ts header.
  */
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — vitest not yet installed
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const auditRows: Array<Record<string, unknown>> = [];
-const systemConfig: Map<string, { value: string; environment: string }> = new Map();
+const { auditRows, systemConfig, fakePrisma, triggerDeployMock, upsertEnvMock } = vi.hoisted(() => {
+  const auditRows: Array<Record<string, unknown>> = [];
+  const systemConfig: Map<string, { value: string; environment: string }> = new Map();
 
-const fakeTx = {
-  systemConfig: {
-    findUnique: vi.fn(async ({ where }: any) => {
-      const k = `${where.key_environment.environment}::${where.key_environment.key}`;
-      const row = systemConfig.get(k);
-      return row ? { key: where.key_environment.key, value: row.value, environment: row.environment } : null;
-    }),
-    upsert: vi.fn(async ({ where, update, create }: any) => {
-      const k = `${where.key_environment.environment}::${where.key_environment.key}`;
-      systemConfig.set(k, {
-        value: update.value ?? create.value,
-        environment: where.key_environment.environment,
-      });
-      return { ...create, ...update };
-    }),
-  },
-  providerRegistry: {
-    findUnique: vi.fn(async () => null),
-    upsert: vi.fn(async ({ create }: any) => ({
-      id: "fake",
-      ...create,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })),
-  },
-  providerConfigChange: {
-    create: vi.fn(async ({ data }: any) => {
-      auditRows.push(data);
-      return { id: `a${auditRows.length}`, ...data };
-    }),
-  },
-  providerRoutingScope: {
-    findUnique: vi.fn(async () => null),
-    findMany: vi.fn(async () => []),
-    upsert: vi.fn(async ({ create }: any) => ({
-      id: "scope-fake",
-      ...create,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })),
-  },
-  providerRouteOverride: {
-    findUnique: vi.fn(async () => null),
-    findMany: vi.fn(async () => []),
-    upsert: vi.fn(async ({ create }: any) => ({
-      id: "override-fake",
-      ...create,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })),
-    delete: vi.fn(async () => undefined),
-  },
-};
+  const fakeTx = {
+    systemConfig: {
+      findUnique: vi.fn(async ({ where }: any) => {
+        const k = `${where.key_environment.environment}::${where.key_environment.key}`;
+        const row = systemConfig.get(k);
+        return row ? { key: where.key_environment.key, value: row.value, environment: row.environment } : null;
+      }),
+      upsert: vi.fn(async ({ where, update, create }: any) => {
+        const k = `${where.key_environment.environment}::${where.key_environment.key}`;
+        systemConfig.set(k, {
+          value: update.value ?? create.value,
+          environment: where.key_environment.environment,
+        });
+        return { ...create, ...update };
+      }),
+    },
+    providerRegistry: {
+      findUnique: vi.fn(async () => null),
+      upsert: vi.fn(async ({ create }: any) => ({
+        id: "fake",
+        ...create,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+    },
+    providerConfigChange: {
+      create: vi.fn(async ({ data }: any) => {
+        auditRows.push(data);
+        return { id: `a${auditRows.length}`, ...data };
+      }),
+    },
+    providerRoutingScope: {
+      findUnique: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      upsert: vi.fn(async ({ create }: any) => ({
+        id: "scope-fake",
+        ...create,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+    },
+    providerRouteOverride: {
+      findUnique: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      upsert: vi.fn(async ({ create }: any) => ({
+        id: "override-fake",
+        ...create,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+      delete: vi.fn(async () => undefined),
+    },
+  };
 
-const fakePrisma = {
-  ...fakeTx,
-  $transaction: vi.fn(async (fn: (tx: typeof fakeTx) => Promise<unknown>) => {
-    return fn(fakeTx);
-  }),
-  user: {
-    findUnique: vi.fn(async () => ({ email: "admin@example.com" })),
-  },
-};
+  const fakePrisma = {
+    ...fakeTx,
+    $transaction: vi.fn(async (fn: (tx: typeof fakeTx) => Promise<unknown>) => {
+      return fn(fakeTx);
+    }),
+    user: {
+      findUnique: vi.fn(async () => ({ email: "admin@example.com" })),
+    },
+  };
+
+  const triggerDeployMock = vi.fn();
+  const upsertEnvMock = vi.fn();
+
+  return { auditRows, systemConfig, fakePrisma, triggerDeployMock, upsertEnvMock };
+});
 
 vi.mock("@/lib/prisma", () => ({ prisma: fakePrisma }));
 vi.mock("@/generated/prisma/client", () => ({
@@ -104,8 +109,6 @@ vi.mock("@/lib/storage", () => ({
   getActiveStorageProviderName: async () => "vercel",
 }));
 
-const triggerDeployMock = vi.fn();
-const upsertEnvMock = vi.fn();
 vi.mock("@/lib/vercel-admin", () => ({
   getManagedVercelProjectConfig: () => ({
     project: "p",

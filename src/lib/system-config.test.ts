@@ -7,55 +7,53 @@
  *   npm install -D vitest
  *   npx vitest run src/lib/system-config.test.ts
  */
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — vitest not yet installed
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type Row = { key: string; value: string; environment: string; updatedAt: Date };
-
-const store: Map<string, Row> = new Map();
-const auditRows: Array<Record<string, unknown>> = [];
-
-function k(key: string, env: string) {
-  return `${env}::${key}`;
-}
-
-const fakePrisma = {
-  systemConfig: {
-    findUnique: vi.fn(async ({ where }: { where: { key_environment: { key: string; environment: string } } }) => {
-      return store.get(k(where.key_environment.key, where.key_environment.environment)) ?? null;
-    }),
-    upsert: vi.fn(
-      async ({
-        where,
-        update,
-        create,
-      }: {
-        where: { key_environment: { key: string; environment: string } };
-        update: { value: string };
-        create: { key: string; value: string; environment: string };
-      }) => {
-        const idx = k(where.key_environment.key, where.key_environment.environment);
-        const existing = store.get(idx);
-        if (existing) {
-          existing.value = update.value;
-          existing.updatedAt = new Date();
-          return existing;
-        }
-        const row = { ...create, updatedAt: new Date() };
-        store.set(idx, row);
-        return row;
-      },
-    ),
-    findMany: vi.fn(async () => Array.from(store.values())),
-  },
-  providerConfigChange: {
-    create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-      auditRows.push(data);
-      return { id: `audit-${auditRows.length}`, ...data };
-    }),
-  },
-};
+const { store, auditRows, fakePrisma } = vi.hoisted(() => {
+  type Row = { key: string; value: string; environment: string; updatedAt: Date };
+  const store: Map<string, Row> = new Map();
+  const auditRows: Array<Record<string, unknown>> = [];
+  function k(key: string, env: string) {
+    return `${env}::${key}`;
+  }
+  const fakePrisma = {
+    systemConfig: {
+      findUnique: vi.fn(async ({ where }: { where: { key_environment: { key: string; environment: string } } }) => {
+        return store.get(k(where.key_environment.key, where.key_environment.environment)) ?? null;
+      }),
+      upsert: vi.fn(
+        async ({
+          where,
+          update,
+          create,
+        }: {
+          where: { key_environment: { key: string; environment: string } };
+          update: { value: string };
+          create: { key: string; value: string; environment: string };
+        }) => {
+          const idx = k(where.key_environment.key, where.key_environment.environment);
+          const existing = store.get(idx);
+          if (existing) {
+            existing.value = update.value;
+            existing.updatedAt = new Date();
+            return existing;
+          }
+          const row = { ...create, updatedAt: new Date() };
+          store.set(idx, row);
+          return row;
+        },
+      ),
+      findMany: vi.fn(async () => Array.from(store.values())),
+    },
+    providerConfigChange: {
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        auditRows.push(data);
+        return { id: `audit-${auditRows.length}`, ...data };
+      }),
+    },
+  };
+  return { store, auditRows, fakePrisma };
+});
 
 vi.mock("@/lib/prisma", () => ({ prisma: fakePrisma }));
 // `Prisma.JsonNull` import — supply a sentinel that the helper passes through.

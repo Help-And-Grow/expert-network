@@ -13,6 +13,8 @@
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
     "typecheck": "prisma generate && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:ui": "playwright test",
     "test:ui:prod": "playwright test -c playwright.prod.config.ts",
     "test:ui:headed": "playwright test --headed",
@@ -131,7 +133,8 @@
     "eslint-config-next": "^15.5.14",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   },
   "overrides": {
     "valibot": "^1.1.1",

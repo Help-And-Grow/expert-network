@@ -4,8 +4,6 @@
  * Vitest is not yet installed in this repo (see other *.test.ts headers);
  * the file is type-checked and ready to run once it is.
  */
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — vitest not yet installed
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type FakeScope = {
@@ -35,45 +33,72 @@ type FakeOverride = {
   updatedAt: Date;
 };
 
-const scopes: FakeScope[] = [];
-const overrides: FakeOverride[] = [];
-let scopeFindFails = false;
-
-const fakePrisma = {
-  providerRoutingScope: {
-    findMany: vi.fn(async ({ where, orderBy }: any) => {
-      if (scopeFindFails) throw new Error("DB unreachable");
-      return scopes
-        .filter(
-          (s) =>
-            s.category === where.category &&
-            s.environment === where.environment &&
-            (where.enabled === undefined || s.enabled === where.enabled),
-        )
-        .sort((a, b) => {
-          if (Array.isArray(orderBy)) {
-            for (const o of orderBy) {
-              const k = Object.keys(o)[0] as keyof FakeScope;
-              if (a[k] !== b[k]) {
-                return (a[k] as any) < (b[k] as any) ? -1 : 1;
+const { scopes, overrides, state, fakePrisma } = vi.hoisted(() => {
+  type FakeScopeH = {
+    id: string;
+    scopeKey: string;
+    displayName: string;
+    description: string | null;
+    category: string;
+    chain: string[];
+    enabled: boolean;
+    matchRules: Record<string, unknown>;
+    priority: number;
+    environment: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  type FakeOverrideH = {
+    id: string;
+    routePattern: string;
+    category: string;
+    chainOverride: string[];
+    enabled: boolean;
+    reason: string | null;
+    environment: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  const scopes: FakeScopeH[] = [];
+  const overrides: FakeOverrideH[] = [];
+  const state = { scopeFindFails: false };
+  const fakePrisma = {
+    providerRoutingScope: {
+      findMany: vi.fn(async ({ where, orderBy }: any) => {
+        if (state.scopeFindFails) throw new Error("DB unreachable");
+        return scopes
+          .filter(
+            (s) =>
+              s.category === where.category &&
+              s.environment === where.environment &&
+              (where.enabled === undefined || s.enabled === where.enabled),
+          )
+          .sort((a, b) => {
+            if (Array.isArray(orderBy)) {
+              for (const o of orderBy) {
+                const k = Object.keys(o)[0] as keyof FakeScopeH;
+                if (a[k] !== b[k]) {
+                  return (a[k] as any) < (b[k] as any) ? -1 : 1;
+                }
               }
             }
-          }
-          return 0;
-        });
-    }),
-  },
-  providerRouteOverride: {
-    findMany: vi.fn(async ({ where }: any) =>
-      overrides.filter(
-        (o) =>
-          o.category === where.category &&
-          o.environment === where.environment &&
-          (where.enabled === undefined || o.enabled === where.enabled),
+            return 0;
+          });
+      }),
+    },
+    providerRouteOverride: {
+      findMany: vi.fn(async ({ where }: any) =>
+        overrides.filter(
+          (o) =>
+            o.category === where.category &&
+            o.environment === where.environment &&
+            (where.enabled === undefined || o.enabled === where.enabled),
+        ),
       ),
-    ),
-  },
-};
+    },
+  };
+  return { scopes, overrides, state, fakePrisma };
+});
 
 vi.mock("@/lib/prisma", () => ({ prisma: fakePrisma }));
 vi.mock("@/generated/prisma/client", () => ({
@@ -124,7 +149,7 @@ describe("routing resolver", () => {
   beforeEach(() => {
     scopes.length = 0;
     overrides.length = 0;
-    scopeFindFails = false;
+    state.scopeFindFails = false;
     invalidateRoutingCache();
     vi.clearAllMocks();
   });
@@ -203,7 +228,7 @@ describe("routing resolver", () => {
   });
 
   it("DB read failure returns the caller-provided fallback", async () => {
-    scopeFindFails = true;
+    state.scopeFindFails = true;
     const result = await resolveChainForRequest(
       "llm",
       { isWeChat: false },
