@@ -22,6 +22,10 @@ import {
   type ProviderRegistryRow,
 } from "@/lib/admin/provider-registry";
 import {
+  seedProviderRegistryIfEmpty,
+  seedRoutingScopesIfEmpty,
+} from "@/lib/admin/provider-registry-seed";
+import {
   deleteRouteOverride,
   listRouteOverrides,
   listRoutingScopes,
@@ -160,9 +164,47 @@ function parseDbHostFromUrl(url: string | undefined): string | null {
   }
 }
 
+/**
+ * Lazy auto-seed flag.
+ *
+ * The Phase 1 ProviderRegistry seed was authored as a one-shot script (not
+ * wired to Vercel postinstall). Production ended up with an empty registry,
+ * which made the active-provider dropdown blank.
+ *
+ * To self-heal without operator intervention, the first admin visit triggers
+ * an idempotent seed (existing rows are preserved). The flag prevents repeat
+ * work on every request — re-seed requires a process restart (Vercel cold
+ * start) or a redeploy.
+ */
+let providerSeedAttempted = false;
+
+async function ensureProviderSeed(): Promise<void> {
+  if (providerSeedAttempted) return;
+  providerSeedAttempted = true;
+  try {
+    const reg = await seedProviderRegistryIfEmpty();
+    if (reg.inserted > 0) {
+      console.info(
+        `[admin/providers] auto-seeded registry: ${reg.inserted} inserted, ${reg.skipped} skipped`,
+      );
+    }
+    const scopes = await seedRoutingScopesIfEmpty();
+    if (scopes.inserted > 0) {
+      console.info(
+        `[admin/providers] auto-seeded routing scopes: ${scopes.inserted} inserted, ${scopes.skipped} skipped`,
+      );
+    }
+  } catch (err) {
+    // Don't fail the admin GET — log and let the empty-state UI guide them.
+    console.error("[admin/providers] auto-seed failed:", err);
+  }
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
+
+  await ensureProviderSeed();
 
   const envParam = request.nextUrl.searchParams.get("environment");
   const env = resolveEnvironment(envParam);
