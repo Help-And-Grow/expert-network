@@ -6,9 +6,9 @@
  * so the two mini-programs look and feel distinct.
  *
  * 2026-05-07 rebrand:
- *   The intl WeChat MP is positioned as a FREE youth AI mentoring platform
+ *   The intl WeChat MP is positioned as a FREE youth career mentoring platform
  *   provided by the Singapore social enterprise Help & Grow, helping youth
- *   in China and ASEAN learn AI and use AI for innovation. WeChat platform
+ *   in China and ASEAN with career growth and skill development. WeChat platform
  *   requires a Chinese company for commercial services — until that's
  *   provisioned, this MP runs as a non-commercial mentoring program. Web
  *   and Telegram surfaces remain the commercial expert-network marketplace.
@@ -19,13 +19,13 @@ export const REGION =
   (process.env.TARO_APP_REGION || "unknown") as "cn" | "intl" | "unknown";
 
 export const BRAND_NAME =
-  process.env.TARO_APP_BRAND_NAME || "Help & Grow 青年AI";
+  process.env.TARO_APP_BRAND_NAME || "Help & Grow 青年导师";
 
 export const BRAND_LOGO =
   process.env.TARO_APP_BRAND_LOGO || "/images/logo.png";
 
 export const BRAND_SLOGAN =
-  process.env.TARO_APP_BRAND_SLOGAN || "免费的青年 AI 导师计划";
+  process.env.TARO_APP_BRAND_SLOGAN || "免费的青年成长导师计划";
 
 /**
  * The non-profit / social-enterprise providing this mini program.
@@ -41,7 +41,7 @@ export const BRAND_PROVIDER =
  */
 export const BRAND_MISSION =
   process.env.TARO_APP_BRAND_MISSION ||
-  "助力中国与东南亚青年 学AI · 用AI · 创新未来";
+  "助力中国与东南亚青年 职业成长 · 技能提升 · 创新未来";
 
 /** Whether WeChat Pay is available in this region's build. */
 export const ENABLE_WECHAT_PAY =
@@ -68,6 +68,8 @@ export const ENABLE_PREMIUM_LIVE =
  * WeChat platform restricts AI Q&A services to mainland-CN entity apps;
  * the intl (Singapore-entity) build must hide all AI voice surfaces until
  * a mainland-CN company entity is provisioned.
+ * 
+ * IMPORTANT: Set to FALSE for intl build to pass WeChat review.
  */
 export const ENABLE_AI_VOICE =
   (process.env.TARO_APP_ENABLE_AI_VOICE || "true") === "true";

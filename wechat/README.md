@@ -4,7 +4,7 @@ Help & Grow operates **two separate WeChat Mini Programs** for different markets
 
 ## International App (Singapore Company)
 
-**Positioning**: Free mentoring platform helping youth learn AI in building products.
+**Positioning**: Free career growth mentoring platform for youth.
 
 | Item | Value |
 |---|---|

@@ -91,9 +91,9 @@ export default function IndexPage() {
             <Icon name="zap" size={32} color="#4f46e5" />
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">学AI · 动手实践</Text>
+            <Text className="landing__feature-title">职业成长 · 动手实践</Text>
             <Text className="landing__feature-desc">
-              与导师一对一交流真实的 AI 应用场景，把课堂知识变成解决问题的能力
+              与导师一对一交流真实的职业场景，把课堂知识变成解决问题的能力
             </Text>
           </View>
         </View>
@@ -102,9 +102,9 @@ export default function IndexPage() {
             <Icon name="sparkles" size={32} color="#7c3aed" />
           </View>
           <View className="landing__feature-text">
-            <Text className="landing__feature-title">用AI · 启发创新</Text>
+            <Text className="landing__feature-title">创新 · 启发未来</Text>
             <Text className="landing__feature-desc">
-              带你用 AI 工具完成第一个真实项目 —
+              带你完成第一个真实项目 —
               从产品想法到原型实现，志愿导师全程陪跑
             </Text>
           </View>
@@ -126,7 +126,7 @@ export default function IndexPage() {
         <Text className="landing__about-title">关于我们</Text>
         <Text className="landing__about-text">
           {BRAND_PROVIDER} ·
-          专注于通过 AI 教育与导师网络，帮助中国与东南亚青年面对未来世界。
+          专注于通过导师网络与实战项目，帮助中国与东南亚青年面对未来职业挑战。
           本小程序为非商业平台，不收取任何费用，亦不提供商业服务。
         </Text>
       </View>

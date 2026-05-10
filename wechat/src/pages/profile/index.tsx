@@ -63,12 +63,12 @@ export default function ProfilePage() {
     if (isExpert && expert) {
       const name = user?.nickName || user?.name || "导师";
       return {
-        title: `${name} · Help & Grow 青年AI 志愿导师`,
+        title: `${name} · Help & Grow 青年志愿导师`,
         path: `/pages/expert/index?id=${expert.id}`,
       };
     }
     return {
-      title: "Help & Grow 青年AI · 免费的青年导师计划",
+      title: "Help & Grow 青年 · 免费的青年导师计划",
       path: "/pages/index/index",
     };
   });
@@ -380,9 +380,9 @@ export default function ProfilePage() {
           hoverClass="profile__menu-item--hover"
           onClick={() => {
             Taro.showModal({
-              title: "关于 Help & Grow 青年AI",
+              title: "关于 Help & Grow 青年导师",
               content:
-                "Help & Grow 青年AI 是新加坡社会企业 Help & Grow 发起的公益项目，面向中国与东南亚青年，连接全球志愿导师，帮助大家学AI、用AI、在真实场景中创新。\n\n本小程序对青年学员完全免费，不提供任何商业服务。",
+                "Help & Grow 青年导师是新加坡社会企业 Help & Grow 发起的公益项目，面向中国与东南亚青年，连接全球志愿导师，帮助大家职业成长、技能提升、在真实场景中创新。\n\n本小程序对青年学员完全免费，不提供任何商业服务。",
               showCancel: false,
               confirmText: "我知道了",
             });
@@ -401,7 +401,7 @@ export default function ProfilePage() {
 
       <View className="profile__footer">
         <Text className="profile__footer-text">
-          Help & Grow 青年AI · 新加坡社会企业公益项目 · 完全免费
+          Help & Grow 青年导师 · 新加坡社会企业公益项目 · 完全免费
         </Text>
       </View>
     </View>

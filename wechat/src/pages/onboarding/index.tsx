@@ -59,7 +59,7 @@ export default function OnboardingPage() {
       id: 0,
       role: "system",
       content:
-        "欢迎来到 Help & Grow 青年AI 志愿导师计划。本项目由新加坡社会企业 Help & Grow 发起，面向中国与东南亚青年。我们先为你建立一张可信的导师主页，让需要帮助的学员可以找到你。请问怎么称呼你？",
+        "欢迎来到 Help & Grow 青年志愿导师计划。本项目由新加坡社会企业 Help & Grow 发起，面向中国与东南亚青年。我们先为你建立一张可信的导师主页，让需要帮助的学员可以找到你。请问怎么称呼你？",
     },
   ]);
   const [input, setInput] = useState("");

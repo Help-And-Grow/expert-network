@@ -2,7 +2,7 @@
   "name": "wechat",
   "version": "1.0.2",
   "private": true,
-  "description": "Help & Grow — AI Native Expert Network (WeChat Mini Program)",
+  "description": "Help & Grow — Youth Career Mentoring Platform (WeChat Mini Program)",
   "templateInfo": {
     "name": "default",
     "typescript": true,

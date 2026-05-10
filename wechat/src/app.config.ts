@@ -46,7 +46,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: "light",
     navigationBarBackgroundColor: "#fcfbf8",
-    navigationBarTitleText: "Help & Grow 青年AI",
+    navigationBarTitleText: "Help & Grow 青年导师",
     navigationBarTextStyle: "black",
   },
 });
