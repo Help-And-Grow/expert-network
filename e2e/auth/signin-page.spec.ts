@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
  * Sign-in page smoke. The Google button and magic-link form are only rendered
  * when their providers are advertised by `/api/auth/providers` — i.e. when
  * `GOOGLE_CLIENT_ID` / `EMAIL_SERVER_HOST` are set on the deployment under
- * test. CI runs the Playwright job against an ephemeral Next.js + Supabase
+ * test. CI runs the Playwright job against an ephemeral Next.js + Cloud SQL
  * pair without either, so we must check what's actually configured before
  * asserting on it. Branding (`Help & Grow`) is unconditional.
  */

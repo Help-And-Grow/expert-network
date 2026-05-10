@@ -3,16 +3,13 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-/** Align with `src/lib/env.ts` (Vercel Marketplace Supabase). */
+/**
+ * Align with `src/lib/env.ts`. Production is on Google Cloud SQL
+ * (asia-southeast1) since 2026-05-03; only `DIRECT_URL` (CLI override
+ * for migrations) and `DATABASE_URL` are honored.
+ */
 function prismaDatasourceUrl(): string | undefined {
-  return (
-    process.env["DIRECT_URL"] ||
-    process.env["POSTGRES_URL_NON_POOLING"] ||
-    process.env["DATABASE_URL"] ||
-    process.env["POSTGRES_PRISMA_URL"] ||
-    process.env["POSTGRES_URL"] ||
-    undefined
-  );
+  return process.env["DIRECT_URL"] || process.env["DATABASE_URL"] || undefined;
 }
 
 export default defineConfig({

@@ -42,7 +42,7 @@ We are **not building from zero**. Existing scaffolding we leverage:
 
 | Component | Where | Status |
 |---|---|---|
-| pgvector extension + `vector(1536)` columns | Postgres (Supabase + TencentDB CN) | ✅ Enabled in `/api/admin/migrate` |
+| pgvector extension + `vector(1536)` columns | Postgres (Cloud SQL + TencentDB CN) | ✅ Enabled in `/api/admin/migrate` |
 | Gemini `embedding-001` helper with `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` task types | `src/lib/integrations/pgvector-memory.ts` `fetchGeminiEmbedding()` | ✅ In production for mem9 backfill |
 | `expert_memory_embeddings` table (per-memory rows, separate from this plan) | Migrate route line 73 | ✅ Live; we do **not** repurpose it |
 | Per-expert profile fields (bio, avatarScript, services, social URLs, mem9 memories) | `Expert` model + `buildLLMExpertContext()` | ✅ Already in the LLM context |
@@ -394,7 +394,7 @@ Three rollback levers, in increasing severity:
 ## 12. Acceptance criteria
 
 Phase 1 done when:
-- [ ] Migration applied to all three databases (Web/Supabase, WeChat-CN, WeChat-Intl)
+- [ ] Migration applied to all three databases (Web/Cloud SQL, WeChat-CN, WeChat-Intl)
 - [ ] Backfill produces ≥ 95 % coverage of `published = TRUE` experts
 - [ ] Re-publishing an expert updates the row with a new `content_hash`
 

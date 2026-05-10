@@ -24,7 +24,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 | # | Task | In plain English | Status |
 |---|------|------------------|--------|
 | D | **Inngest vs FC cron** | Either configure Inngest env + dashboard **or** use Alibaba **Function Compute** timer hitting `/api/cron/charge-remainder` with `CRON_SECRET`; avoid duplicate booking maintenance runs (`CRON_DELEGATED_TO_INNGEST`). | **Optional** |
-| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` if HiClaw should use a dedicated database, otherwise keep `DATABASE_URL` as the shared Supabase Postgres source of truth; rotate toward `AUTH_SECRET`. **How:** [postgres-cutover-runbook.md](./postgres-cutover-runbook.md) (CLI commands + full checklist). Platform habits: [operations.md §4](../../design-docs/operations.md#4-vercel-defaults). | **Ongoing** |
+| F | **Vercel env** | Set `HICLAW_POSTGRES_URL` if HiClaw should use a dedicated database, otherwise keep `DATABASE_URL` as the shared Cloud SQL Postgres source of truth; rotate toward `AUTH_SECRET`. **How:** [postgres-cutover-runbook.md](./postgres-cutover-runbook.md) (CLI commands + full checklist). Platform habits: [operations.md §4](../../design-docs/operations.md#4-vercel-defaults). | **Ongoing** |
 | G | **Post-deploy / toggle smoke** | **Public:** `npm run smoke:public` (or `scripts/smoke-public-endpoints.sh`) + deploy workflow. **Manual:** one **meetup** path + expert profile on staging after infra toggles. | **Ongoing** (public smoke vs prod URL passed 2026-03) |
 
 **Done (documented elsewhere):** tRPC procedure inventory; npm production audit triage ([operations.md §5](../../design-docs/operations.md#5-dependency-posture-npm-audit)).
@@ -33,7 +33,7 @@ This file lists **only work that is still open**. Shipped items (Auth.js v5, Pos
 
 | # | Task | Outcome |
 |---|------|---------|
-| **C** | **Single Postgres (optional)** | **Done.** The default architecture is **Supabase/Postgres only**. Marketplace uses `DATABASE_URL`; HiClaw may use `HICLAW_POSTGRES_URL` only when you explicitly want a separate Postgres instance. |
+| **C** | **Single Postgres (optional)** | **Done.** The default architecture is **a single Postgres** (Google Cloud SQL since 2026-05-03; previously Supabase). Marketplace uses `DATABASE_URL`; HiClaw may use `HICLAW_POSTGRES_URL` only when you explicitly want a separate Postgres instance. |
 | **E** | **Expert memory: mem9 vs pgvector** | **Done.** **mem9** is the primary path for expert memory (PingCAP partnership). **pgvector** stays an **optional** code path only if you set `USE_PGVECTOR_MEMORY=1` — not a default roadmap item. |
 
 ---

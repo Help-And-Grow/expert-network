@@ -1,21 +1,21 @@
-# Web/Telegram DB Cutover: Supabase to Cloud SQL
+# Web/Telegram DB Cutover: Supabase to Cloud SQL  *(archived)*
 
-**Status**: Partially attempted, not cut over
-**Last verified**: 2026-05-04
-**Scope**: Move only the Web and Telegram primary Postgres database from Supabase to Google Cloud SQL. Vercel remains the Web/Telegram compute platform. WeChat databases remain on Tencent-side Postgres.
+**Status**: ✅ Complete — cut over 2026-05-03
+**Archived**: 2026-05-10 (rollback window expired; Supabase project scheduled for deletion)
+**Scope**: Moved the Web and Telegram primary Postgres database from Supabase to Google Cloud SQL. Vercel remains the Web/Telegram compute platform. WeChat databases remain on Tencent-side Postgres.
 
-## Current State
+## Final State
 
-| Area | Current state |
+| Area | Final state |
 |---|---|
 | Web/Telegram compute | Vercel Functions, `sin1` |
-| Web/Telegram database | Treat as Supabase-backed until Cloud SQL cutover proof. Visible Supabase API envs point to project `xaigobdkahivuqbczljg`; Vercel `DATABASE_URL` value is encrypted and not readable from this workspace |
-| Target database | Claude Code attempted `hg-postgres-prod` in GCP project `expert-network-489508`, region `asia-southeast1` |
-| Cutover status | Not done |
-| Repo work completed | Runbook only; Prisma already works with any PostgreSQL `DATABASE_URL` |
-| Claude Code evidence | Local Claude logs show instance/user/extensions smoke tests for `hg-postgres-prod`; data copy and Vercel cutover were not completed |
-| Cloud check | Re-verify in GCP before reuse. The latest direct CLI recheck from this workspace needs `gcloud auth login` |
-| Vercel env check | Production still lists Supabase env vars plus generic encrypted `DATABASE_URL`; `vercel env pull` shows Supabase API URLs but not the `DATABASE_URL` host, so no completed Cloud SQL cutover proof was found |
+| Web/Telegram database | **Google Cloud SQL** — instance `hg-postgres-prod`, project `expert-network-489508`, region `asia-southeast1`, db `helpgrow`, user `hg_app` |
+| Cutover date | 2026-05-03 |
+| Vercel env | `DB_PROVIDER=cloudsql`, `DATABASE_URL` points at Cloud SQL (encrypted). All `POSTGRES_*` / `SUPABASE_*` Marketplace aliases removed. |
+| Live verification | `GET /api/db-health` returns `{"ok":true,"db":"up"}` |
+| Rollback window | Expired 2026-05-10. Supabase project `xaigobdkahivuqbczljg` can be deleted to stop billing. |
+
+> The historical migration plan / runbook commands below are kept for record only.
 
 ## Safe Verification Commands
 

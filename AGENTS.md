@@ -12,7 +12,7 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Treat Web/Telegram production as Supabase-backed until the Cloud SQL cutover has row-count proof and verified Vercel `DATABASE_URL` ownership. The Cloud SQL cutover was partially attempted but is not complete; see [supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md).
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Web/Telegram production runs on Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03. See [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md).
 - **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
 - **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
@@ -55,8 +55,8 @@ See `docs/` for full details:
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
-| Web/Telegram DB cutover | [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md) | Current Supabase status, Cloud SQL target, verification and rollback |
-| Vercel + Supabase DB | [docs/references/vercel-supabase-marketplace.md](docs/references/vercel-supabase-marketplace.md) | Current Supabase env names and legacy `POSTGRES_PRISMA_URL` mapping |
+| Postgres operations | [docs/exec-plans/active/postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md) | Cloud SQL env vars, deploy checklist, local dev tunneling |
+| Cloud SQL data viewing | [docs/references/cloud-sql-data-viewing.md](docs/references/cloud-sql-data-viewing.md) | Connecting via `gcloud sql connect` / Cloud SQL Auth Proxy |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 

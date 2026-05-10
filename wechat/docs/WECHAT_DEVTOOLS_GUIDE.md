@@ -99,7 +99,7 @@ and compile again.
 
 - Launch app and confirm no CloudBase init error.
 - Confirm `/api/auth/wechat` returns 200 after login.
-- Confirm Discover loads experts synchronized from Supabase.
+- Confirm Discover loads experts synchronized from the global primary DB (Google Cloud SQL).
 - Open expert detail and verify avatar/audio/document fetches.
 - Test onboarding upload.
 - Test voice greeting / voice question flow.

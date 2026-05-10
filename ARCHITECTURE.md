@@ -27,7 +27,7 @@
            └──────────┘ └───────┘ └───────────────┘
 ```
 
-**Database status (verified 2026-05-04):** Treat Web/Telegram production as Supabase-backed until the Cloud SQL cutover has row-count proof and verified Vercel `DATABASE_URL` ownership. Claude Code partially attempted Cloud SQL setup, but data migration and production cutover are not proven complete. Track it in [docs/exec-plans/active/supabase-to-cloudsql-migration.md](docs/exec-plans/active/supabase-to-cloudsql-migration.md).
+**Database status (since 2026-05-03):** Web/Telegram production runs on Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`). Operations runbook: [docs/exec-plans/active/postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md); archived migration record: [docs/exec-plans/archive/supabase-to-cloudsql-migration.md](docs/exec-plans/archive/supabase-to-cloudsql-migration.md).
 
 ## Business Domains
 
@@ -137,7 +137,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 ## Database
 
-- **Primary**: PostgreSQL in production. Treat current Web/Telegram DB as Supabase until the Cloud SQL cutover runbook is completed and verified.
+- **Primary**: PostgreSQL in production — Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03.
 - **ORM**: Prisma 7 with `@prisma/adapter-pg` only; `DATABASE_URL` must be Postgres (`mysql://` rejected)
 - **Schema**: `prisma/schema.prisma` — `scripts/switch-db.mjs` enforces `provider = "postgresql"`
 
@@ -145,7 +145,7 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 
 - **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
 - **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
-- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the **same** Supabase/Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
+- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the **same** Cloud SQL Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
 - **Doc:** [hiclaw/README.md](hiclaw/README.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
 
 ### Key Models

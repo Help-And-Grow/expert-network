@@ -24,7 +24,7 @@ Optional npm script: `npm run vercel:env:pull:production`
 
 You cannot “delete” secrets from Vercel without replacing them — the app needs values for production. After any suspected exposure:
 
-1. **Generate a new secret** in the provider’s dashboard (Stripe, Resend, Google, Supabase, etc.).
+1. **Generate a new secret** in the provider’s dashboard (Stripe, Resend, Google, GCP, etc.).
 2. **Overwrite** the variable on Vercel:
 
    ```bash
@@ -47,7 +47,7 @@ You cannot “delete” secrets from Vercel without replacing them — the app n
 | Env var(s) | Rotate at |
 |------------|-----------|
 | `AUTH_SECRET` / `NEXTAUTH_SECRET` | Generate new random string (`openssl rand -base64 32`), set on Vercel |
-| `DATABASE_URL`, `DIRECT_URL` | Supabase / Neon dashboard — reset password or rotate pooler creds |
+| `DATABASE_URL`, `DIRECT_URL` | `gcloud sql users set-password hg_app --instance=hg-postgres-prod --password='<new>' --project=expert-network-489508`, then update Vercel env |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, publishable key | Stripe Dashboard → API keys / Webhooks |
 | `RESEND_API_KEY` | Resend → API Keys → revoke old, create new |
 | `EMAIL_SERVER_PASSWORD` | Google Account → App passwords → revoke and create new |

@@ -12,7 +12,7 @@ This design turns the Zilliz / DB9 / mem9 research into product architecture. Th
 
 | Layer | Current default | Later option | Owns |
 |-------|-----------------|--------------|------|
-| Marketplace source of truth | Postgres (`DATABASE_URL`, Supabase now, Cloud SQL planned) | None | Users, experts, bookings, payments, system config |
+| Marketplace source of truth | Postgres (`DATABASE_URL`, Google Cloud SQL `hg-postgres-prod`) | None | Users, experts, bookings, payments, system config |
 | Expert semantic pre-rank | Postgres pgvector (`expert_profile_embeddings`) | Zilliz Cloud / Milvus | Fast top-K candidate retrieval |
 | Long-term expert memory | mem9 hosted API (`v1alpha2`) | Self-hosted mem9 or pgvector mirror | Durable expert facts, preferences, meetup outcomes, appreciations |
 | Agent run workspace | Postgres / HiClaw tables | DB9 for experiments and branches | Agent traces, reports, files, eval runs, temporary research DBs |

@@ -2,7 +2,7 @@
 
 The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma and for HiClaw session / on-chain sync tables. MySQL `DATABASE_URL` values are rejected at startup.
 
-> **Production runs on Cloud SQL** (`asia-southeast1`) since 2026-05-03. See [supabase-to-cloudsql-migration.md](supabase-to-cloudsql-migration.md) for the migration record and [cloud-sql-data-viewing.md](../../references/cloud-sql-data-viewing.md) for everyday DB-access patterns.
+> **Production runs on Cloud SQL** (`asia-southeast1`) since 2026-05-03. See [archive/supabase-to-cloudsql-migration.md](../archive/supabase-to-cloudsql-migration.md) for the migration record and [cloud-sql-data-viewing.md](../../references/cloud-sql-data-viewing.md) for everyday DB-access patterns.
 
 ## Environment variables
 
@@ -22,7 +22,7 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 ### HiClaw Node service (`hiclaw/service`)
 
 - **`HICLAW_POSTGRES_URL`** — preferred direct Postgres URL for HiClaw workers.
-- Else **`DATABASE_URL`** — reuse the same Supabase/Postgres instance as the main app.
+- Else **`DATABASE_URL`** — reuse the same Cloud SQL instance as the main app.
 
 ### Inngest (optional)
 
@@ -38,7 +38,7 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 
 ## Deploy checklist
 
-1. Set **`DATABASE_URL`** (or rely on **`POSTGRES_PRISMA_URL` / `POSTGRES_URL`** from Vercel Supabase) to Postgres on Vercel. Vercel **`npm install` postinstall** runs **`prisma migrate deploy`** when `VERCEL=1` so an empty database receives [`prisma/migrations`](../../../prisma/migrations/) — see [vercel-supabase-marketplace.md](../../references/vercel-supabase-marketplace.md). Transient Supabase pooler failures are retried and may be skipped with a warning; set `PRISMA_MIGRATE_STRICT=1` if the build must fail instead. When the target DB already has tables but no `_prisma_migrations` history (Prisma error **P3005**), [`scripts/prisma-migrate-if-vercel.mjs`](../../../scripts/prisma-migrate-if-vercel.mjs) auto-resolves the baseline migration `20260424120000_baseline` and retries — added 2026-04 (commit `edf8faf`).
+1. Set **`DATABASE_URL`** to the Cloud SQL Postgres instance on Vercel. Vercel **`npm install` postinstall** runs **`prisma migrate deploy`** when `VERCEL=1` so an empty database receives [`prisma/migrations`](../../../prisma/migrations/). Transient connection failures are retried and may be skipped with a warning; set `PRISMA_MIGRATE_STRICT=1` if the build must fail instead. When the target DB already has tables but no `_prisma_migrations` history (Prisma error **P3005**), [`scripts/prisma-migrate-if-vercel.mjs`](../../../scripts/prisma-migrate-if-vercel.mjs) auto-resolves the baseline migration `20260424120000_baseline` and retries — added 2026-04 (commit `edf8faf`).
 2. Set **`HICLAW_POSTGRES_URL`** to the **same** or a dedicated Postgres that holds HiClaw tables (`sessions`, etc.). If unset, the app will reuse `DATABASE_URL`.
 3. Run **Apply HiClaw schema** from **Admin → HiClaw DB** (`/admin/tidb`) or execute the DDL your team uses for that database.
 4. Register **`https://<your-domain>/api/inngest`** in Inngest Cloud and set signing + event keys if using scheduled or event-driven functions.
@@ -46,4 +46,4 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 
 ## Local development
 
-Corporate proxy may block direct DB access; use Supabase pooler or skip DB-heavy routes. **`npx prisma generate`** works offline; schema push/migrate against remote DB should use the admin migrate route or Vercel.
+Corporate proxy may block direct DB access; tunnel through Cloud SQL Auth Proxy (`cloud-sql-proxy expert-network-489508:asia-southeast1:hg-postgres-prod`) or skip DB-heavy routes. **`npx prisma generate`** works offline; schema push/migrate against remote DB should use the admin migrate route or Vercel.

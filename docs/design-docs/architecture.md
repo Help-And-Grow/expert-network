@@ -12,12 +12,12 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 The rollout now has two explicit phases:
 
-1. **Current user test:** the international WeChat Mini Program registered through the Singapore company, using Tencent CloudBase / SCF and Hunyuan. This app reads expert data from a Tencent-side database synchronized from the global primary DB. Treat that global DB as Supabase until the Google Cloud SQL cutover is verified.
+1. **Current user test:** the international WeChat Mini Program registered through the Singapore company, using Tencent CloudBase / SCF and Hunyuan. This app reads expert data from a Tencent-side database synchronized from the global primary DB (Google Cloud SQL `hg-postgres-prod` since 2026-05-03).
 2. **Future mainland-CN launch:** a separate mainland mini program after the Chinese company, mainland AppID, WeChat Pay merchant, and review path are ready.
 
 | Stack | Status | Audience | Compute | Storage | Database | AI |
 |---|---|---|---|---|---|---|
-| **Web / Telegram** | Live | Browsers and Telegram users | Vercel Functions in `sin1` | Vercel Blob | Supabase Postgres until Cloud SQL cutover proof | Qwen/Gemini chain |
+| **Web / Telegram** | Live | Browsers and Telegram users | Vercel Functions in `sin1` | Vercel Blob | Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) | Qwen/Gemini chain |
 | **WeChat — International** | **Current focus** | WeChat users outside mainland CN | Tencent CloudBase / SCF Web Function, env `cn-wechat-d1gzncs8i34827c98` | Tencent COS | Tencent-side Postgres synchronized from the global primary DB | Tencent Hunyuan |
 | **WeChat — Mainland CN** | Future | Mainland-CN WeChat users | Separate Tencent CloudBase / SCF env | Separate Tencent COS CN bucket | Separate TencentDB CN | Tencent Hunyuan |
 
@@ -29,7 +29,7 @@ The rollout now has two explicit phases:
 
 **Web and Telegram remain on Vercel + the global primary DB** — the Tencent backend exists so the WeChat app can run on WeChat-friendly infrastructure and use Tencent-native AI.
 
-**Cloud SQL status.** As of 2026-05-04, the Web/Telegram DB migration to Google Cloud SQL is not complete. Claude Code partially attempted Cloud SQL setup, but data migration and production cutover are not proven complete. Follow [`../exec-plans/active/supabase-to-cloudsql-migration.md`](../exec-plans/active/supabase-to-cloudsql-migration.md) before changing Vercel `DATABASE_URL`.
+**Cloud SQL status.** Web/Telegram DB ran cutover from Supabase to Google Cloud SQL on 2026-05-03 (instance `hg-postgres-prod`, project `expert-network-489508`, region `asia-southeast1`). Migration record archived at [`../exec-plans/archive/supabase-to-cloudsql-migration.md`](../exec-plans/archive/supabase-to-cloudsql-migration.md); operations runbook at [`../exec-plans/active/postgres-cutover-runbook.md`](../exec-plans/active/postgres-cutover-runbook.md).
 
 ### CloudBase HTTP access in front of SCF
 
@@ -175,7 +175,7 @@ Each stack is the same Next.js codebase deployed with different env vars.
 
 | Env var | Web / Telegram | Current WeChat-Intl SCF | Future WeChat-CN SCF |
 |---|---|---|---|
-| `DATABASE_URL` | Supabase until Cloud SQL cutover proof | Tencent-side synced Postgres | TencentDB CN |
+| `DATABASE_URL` | Google Cloud SQL (`hg-postgres-prod`) | Tencent-side synced Postgres | TencentDB CN |
 | `STORAGE_PROVIDER` | `vercel` or configured provider | `tencent-cos` | `tencent-cos` |
 | `TENCENT_COS_BUCKET` | unset unless explicitly enabled | current WeChat COS bucket | future CN COS bucket |
 | `TENCENT_COS_REGION` | unset unless explicitly enabled | currently `ap-shanghai` with existing CloudBase env | future CN region |

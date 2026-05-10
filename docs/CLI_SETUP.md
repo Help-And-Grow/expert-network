@@ -159,4 +159,4 @@ Most often the root account's AK is blocked by a security policy. Create a sub-u
 - Never paste service-account JSON or AK/SK into chat threads, commits, or screenshots.
 - Service-account JSON keys live only on disk under `~/.config/gcloud/` (managed by `gcloud`) or in your password manager.
 - Vercel env vars are the canonical place for production credentials — set them via `vercel env add` so they live in Vercel's encrypted store and never on a developer laptop.
-- Rotate any key that has been exposed (Supabase: Settings → Database → Reset DB password; GCP: `gcloud iam service-accounts keys delete <KEY_ID>`).
+- Rotate any key that has been exposed. For the database password, use `gcloud sql users set-password hg_app --instance=hg-postgres-prod --password='<new>' --project=expert-network-489508`. For service-account keys, `gcloud iam service-accounts keys delete <KEY_ID>`.

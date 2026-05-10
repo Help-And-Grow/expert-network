@@ -48,7 +48,7 @@ Auth.js v5 prefers `AUTH_SECRET`. The legacy `NEXTAUTH_SECRET` is still accepted
 | `POMP_ISSUER_PRIVATE_KEY` | EAS attestation issuer wallet on Base |
 | `ALCHEMY_WEBHOOK_SECRET` | On-chain webhook HMAC (`/api/webhook/onchain`) |
 | `VERCEL_MANAGEMENT_TOKEN` | `/admin/ai-provider` provider switching + redeploy |
-| `DATABASE_URL` (or marketplace `POSTGRES_PRISMA_URL`) | Postgres connection string |
+| `DATABASE_URL` | Postgres connection string (Cloud SQL `hg-postgres-prod`) |
 
 ## Data Handling
 

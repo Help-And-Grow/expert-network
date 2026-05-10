@@ -125,4 +125,5 @@ See also [`e2e/README.md`](../../e2e/README.md).
 
 - [Vercel: Environment variables](https://vercel.com/docs/projects/environment-variables)
 - [Vercel CLI: `env pull`](https://vercel.com/docs/cli/env)
-- [Cloud SQL migration runbook](../exec-plans/active/supabase-to-cloudsql-migration.md)
+- [Postgres operations runbook](../exec-plans/active/postgres-cutover-runbook.md)
+- [Archived Supabase → Cloud SQL migration record](../exec-plans/archive/supabase-to-cloudsql-migration.md)

@@ -148,7 +148,7 @@ Vercel egress IPs in `pg_stat_activity.client_addr` are typically `13.x.x.x` / `
 
 ## Backups & point-in-time recovery
 
-Already configured (see [`supabase-to-cloudsql-migration.md`](../exec-plans/active/supabase-to-cloudsql-migration.md) §2):
+Already configured (see [archived migration record `supabase-to-cloudsql-migration.md`](../exec-plans/archive/supabase-to-cloudsql-migration.md) §2):
 
 - **Automated backups** every day at 18:00 UTC (02:00 SGT), retained 7 days
 - **PITR** is on — you can restore to any point in the last 7 days

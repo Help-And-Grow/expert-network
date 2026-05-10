@@ -14,7 +14,7 @@
 | Current CloudBase env | `cn-wechat-d1gzncs8i34827c98` |
 | Current backend URL | `https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com` |
 | Current AI provider | Tencent Hunyuan |
-| Current database posture | Tencent-side DB synced from Supabase today; future source may be Google Cloud DB |
+| Current database posture | Tencent-side DB synced from Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03 |
 | Mainland CN app | Future phase, separate AppID/company/review/payment path |
 
 The `cn-wechat` env name is historical. It is the active Tencent CloudBase backend for the current international user test.
@@ -31,7 +31,7 @@ Status on 2026-05-05: the separate Tencent Cloud International Singapore experim
 | VPC | `vpc-2ari99bl` | Deleted |
 | Local config | `infra/tencent-intl/`, `.cos.conf` | Cleaned |
 
-Do not recreate this Singapore Tencent stack unless the product decision explicitly changes back to Tencent Cloud International infrastructure. For phase-1 Web/Telegram work, continue to use Vercel plus the current global Postgres posture tracked in [`supabase-to-cloudsql-migration.md`](supabase-to-cloudsql-migration.md).
+Do not recreate this Singapore Tencent stack unless the product decision explicitly changes back to Tencent Cloud International infrastructure. For phase-1 Web/Telegram work, continue to use Vercel plus the global Postgres posture documented in [`postgres-cutover-runbook.md`](postgres-cutover-runbook.md).
 
 ## Status Board
 
@@ -55,7 +55,7 @@ Do not recreate this Singapore Tencent stack unless the product decision explici
 Web / Telegram onboarding
         |
         v
-Global primary DB (Supabase today; future Google Cloud DB candidate)
+Global primary DB (Google Cloud SQL `hg-postgres-prod`, `asia-southeast1`)
         |
         | sync
         v

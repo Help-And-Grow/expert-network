@@ -5,9 +5,10 @@
 
 ## Current Decision
 
-Web and Telegram stay on **Vercel** for the current phase. The active database-only plan is:
+Web and Telegram stay on **Vercel** for the current phase. The DB layer already runs on Google Cloud SQL since 2026-05-03 — see:
 
-- [Web/Telegram DB Cutover: Supabase to Cloud SQL](supabase-to-cloudsql-migration.md)
+- [Postgres operations runbook](postgres-cutover-runbook.md)
+- [Archived migration record](../archive/supabase-to-cloudsql-migration.md)
 
 Do not use this document to migrate production data. It is only for a future full-GCP hosting move.
 

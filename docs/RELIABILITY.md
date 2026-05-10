@@ -9,7 +9,7 @@
 
 ### Database
 - Prisma with PostgreSQL only (`@prisma/adapter-pg`); `DATABASE_URL` must be `postgresql://` or `postgres://`
-- Treat Web/Telegram production as Supabase-backed until the Cloud SQL cutover has row-count proof and verified Vercel `DATABASE_URL` ownership
+- Web/Telegram production runs on Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03
 - Provider-specific URL handling lives in `src/lib/postgres-connection-url.ts` and `src/lib/postgres-pool.ts`
 - Cold start mitigation: keep Vercel functions warm for payment-critical routes
 

@@ -2,7 +2,7 @@
 
 **Status**: Proposed (2026-05-07)
 **Owner**: PM (jlzxwt8)
-**Companion docs**: [`semantic-expert-search.md`](semantic-expert-search.md) (the original design doc — Phases 1-4) and [`supabase-to-cloudsql-migration.md`](supabase-to-cloudsql-migration.md) (the DB this depends on).
+**Companion docs**: [`semantic-expert-search.md`](semantic-expert-search.md) (the original design doc — Phases 1-4) and [`postgres-cutover-runbook.md`](postgres-cutover-runbook.md) (the Cloud SQL DB this depends on).
 
 ---
 

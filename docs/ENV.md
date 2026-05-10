@@ -4,7 +4,7 @@ Grouped reference for every env var the app reads. The full annotated list lives
 
 Validation: production startup fails fast if `DATABASE_URL`, `NEXTAUTH_URL`, and an auth secret (`AUTH_SECRET` or `NEXTAUTH_SECRET`, ≥32 chars) are missing. Emergency local bypass: `SKIP_ENV_VALIDATION=1` (never use on Vercel).
 
-For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). Treat Web/Telegram production as Supabase-backed until the Cloud SQL cutover has row-count proof and verified Vercel `DATABASE_URL` ownership. The cutover is tracked in [`supabase-to-cloudsql-migration.md`](exec-plans/active/supabase-to-cloudsql-migration.md). For current Supabase naming, see [`docs/references/vercel-supabase-marketplace.md`](references/vercel-supabase-marketplace.md).
+For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). Web/Telegram production runs on **Google Cloud SQL** (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03; the migration record lives at [`exec-plans/archive/supabase-to-cloudsql-migration.md`](exec-plans/archive/supabase-to-cloudsql-migration.md), and everyday DB-access patterns at [`references/cloud-sql-data-viewing.md`](references/cloud-sql-data-viewing.md).
 
 ---
 
@@ -12,8 +12,8 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 
 | Var | Required | Purpose |
 |---|---|---|
-| `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`). Treat it as Supabase for Web/Telegram until the Cloud SQL cutover is verified. |
-| `POSTGRES_PRISMA_URL` | optional | Legacy Vercel Marketplace Supabase pooled URL; runtime maps it only when `DATABASE_URL` is unset |
+| `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`) — points at Google Cloud SQL `hg-postgres-prod` for Web/Telegram. |
+| `DB_PROVIDER` | optional | Identifier for the active provider — `cloudsql` in production. Informational; not required by Prisma. |
 | `NEXTAUTH_URL` | yes | Canonical public origin of the app. Production must be `https://www.help-and-grow.com` after the custom-domain cutover. |
 | `AUTH_URL` | optional | Auth.js v5 canonical URL alias. If set, keep it equal to production `NEXTAUTH_URL`. |
 | `AUTH_SECRET` | yes | Auth.js v5 JWT signing secret (`openssl rand -base64 32`) |
@@ -177,15 +177,6 @@ See [`hiclaw/README.md`](../hiclaw/README.md) for additional service-only vars.
 |---|---|
 | `GOOGLE_PLACES_API_KEY` | Places API (New) — autocomplete + details |
 | `GOOGLE_PLACES_REGION_CODES` | Comma-separated ISO codes (default `sg`) |
-
-## Supabase Storage / public client
-
-| Var | Purpose |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Storage / client SDK |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) | Browser-safe key |
-
-These Supabase client vars may remain during the database cutover if any Supabase Storage or client SDK path is still in use. Do not remove them only because `DATABASE_URL` moves to Cloud SQL.
 
 ## Admin AI-provider switcher
 

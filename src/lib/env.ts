@@ -26,8 +26,9 @@ function sanitizedProcessEnv(): Record<string, string | undefined> {
  * applies, so a value that's empty after trim becomes `undefined`.
  *
  * The Vercel Marketplace Supabase alias path was removed when production cut
- * over to Cloud SQL on 2026-05-03. See
- * docs/exec-plans/active/supabase-to-cloudsql-migration.md.
+ * over to Google Cloud SQL on 2026-05-03. See
+ * docs/exec-plans/active/postgres-cutover-runbook.md (operations) and
+ * docs/exec-plans/archive/supabase-to-cloudsql-migration.md (migration record).
  */
 export function resolvePrimaryDatabaseUrl(): string | undefined {
   return sanitizedProcessEnv().DATABASE_URL;

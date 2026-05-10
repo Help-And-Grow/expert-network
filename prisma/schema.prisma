@@ -12,8 +12,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   // Prisma 7 forbids `url = env(...)` here — connection URL is resolved by
-  // `prisma.config.ts` (DIRECT_URL → POSTGRES_URL_NON_POOLING → DATABASE_URL
-  // → POSTGRES_PRISMA_URL → POSTGRES_URL). Use Prisma 7+ CLI to generate.
+  // `prisma.config.ts` (DIRECT_URL → DATABASE_URL). Production points at
+  // Google Cloud SQL (asia-southeast1). Use Prisma 7+ CLI to generate.
 }
 
 model Account {

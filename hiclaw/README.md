@@ -11,7 +11,7 @@ Separate **Node service** (`hiclaw/service/`) that runs the offline-expert **sha
 The service uses **`store.js`**:
 
 1. If **`HICLAW_POSTGRES_URL`** is set, HiClaw uses that dedicated PostgreSQL connection string.
-2. Otherwise it falls back to **`DATABASE_URL`** so the marketplace app and HiClaw share the same Supabase/Postgres database.
+2. Otherwise it falls back to **`DATABASE_URL`** so the marketplace app and HiClaw share the same Cloud SQL Postgres database.
 
 There is **no MySQL / mysql2** path in this service.
 

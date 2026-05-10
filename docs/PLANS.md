@@ -7,8 +7,7 @@
 1. **Stability**: Ensure Stripe webhooks, payment flows, and notifications are reliable across all platforms
 2. **Feature + integration testing**: Web app + **Telegram** flows (WeChat polish **on hold**)
 3. **AI matching**: Improve expert recommendation quality with richer context
-4. **Database cutover prep**: Keep Web/Telegram on Supabase until the Cloud SQL runbook is executed and verified
-5. **Growth**: SEO, sharing features, referral mechanics
+4. **Growth**: SEO, sharing features, referral mechanics
 
 ## Upcoming Work
 
@@ -16,7 +15,7 @@
 - [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 5-reply free cap) + realtime AI chat; Web, Telegram, WeChat
 - [ ] **AI Voice Chat — Realtime deployment** — Realtime readiness depends on DashScope/Qwen (`DASHSCOPE_API_KEY`); verify the timed chat UX on web and Telegram when `VOICE_CHAT_MODE` includes `realtime`
 - [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
-- [ ] Web/Telegram DB cutover from Supabase to Google Cloud SQL — partially attempted, not cut over; see [runbook](exec-plans/active/supabase-to-cloudsql-migration.md)
+- [x] **Web/Telegram DB cutover from Supabase to Google Cloud SQL** — completed 2026-05-03; archived [migration record](exec-plans/archive/supabase-to-cloudsql-migration.md)
 - [ ] Expert earnings dashboard (view payouts, transaction history)
 - [ ] Group sessions / workshop meetup support
 - [ ] Avatar language switching quality (English, Chinese, Malay) — keep chat UI free of translation buttons

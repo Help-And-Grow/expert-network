@@ -25,7 +25,7 @@ Data blocks are intentionally separated. Each solves a different problem and can
 
 | If the product needs… | Where it lives | Plain English |
 |-----------------------|----------------|---------------|
-| Accounts, bookings, payments, the catalog | `DATABASE_URL` (Supabase Postgres now, Cloud SQL planned) | Source of truth for the marketplace |
+| Accounts, bookings, payments, the catalog | `DATABASE_URL` (Google Cloud SQL `hg-postgres-prod`) | Source of truth for the marketplace |
 | Fast expert candidate retrieval | Postgres `pgvector` (`expert_profile_embeddings`) | Current semantic pre-rank index for Web/Telegram matching |
 | AI-ready memory about each expert (profile facts, meetups, appreciations) | **mem9** hosted API (`v1alpha2`; per-expert key in `Expert.mem9SpaceId`) | Managed long-term memory: write stable facts/events, search snippets when building context |
 | HiClaw agent runs (sessions, waiting room, handoffs, traces) and optional vectors near agent data | `HICLAW_POSTGRES_URL` (or fallback to `DATABASE_URL`) | Same Postgres, optionally with `pgvector` |
