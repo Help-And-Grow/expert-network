@@ -104,6 +104,7 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [nickNameOverride, setNickNameOverride] = useState<string | null>(null);
   const [editingGender, setEditingGender] = useState(false);
   const [editingTelegram, setEditingTelegram] = useState(false);
   const [tgUsername, setTgUsername] = useState("");
@@ -470,6 +471,7 @@ export default function ProfilePage() {
       setProfile((prev) =>
         prev ? { ...prev, user: { ...prev.user, nickName: trimmed } } : prev
       );
+      setNickNameOverride(trimmed);
       setEditingName(false);
       showMessage("Name updated!", "name");
     } catch (err) {
@@ -619,6 +621,7 @@ export default function ProfilePage() {
 
   const isExpert = !!profile;
   const nickName =
+    nickNameOverride ??
     profile?.user?.nickName ??
     authUser?.name ??
     "User";
