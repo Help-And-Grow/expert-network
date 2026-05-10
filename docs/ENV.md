@@ -77,8 +77,8 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 | Var | Purpose |
 |---|---|
 | `AI_PROVIDER` | Primary provider for the Web/Telegram chain (default `qwen`). Used as the head of the chain when `AI_TEXT_PROVIDER_CHAIN` SystemConfig is unset. |
-| `AI_TEXT_PROVIDER_CHAIN` | *(SystemConfig only, no env equivalent)* Comma-separated chain for non-WeChat surfaces. Default `qwen,gemini`. Edit via `/admin/ai-provider`. |
-| `WECHAT_AI_PROVIDER` | Primary provider for WeChat-originated requests. Default `hunyuan`. Set via env or SystemConfig. |
+| `AI_TEXT_PROVIDER_CHAIN` | *(legacy fallback, superseded by Routing Scopes)* Comma-separated chain for non-WeChat surfaces. Default `qwen,gemini`. The source of truth is now `ProviderRoutingScope` rows in the DB (see `/admin/providers` → LLM tab → Routing scopes). This SystemConfig key only applies when the routing-scope table is unreachable. |
+| `WECHAT_AI_PROVIDER` | *(deprecated, boot-time fallback only)* Primary provider for WeChat-originated requests. Default `hunyuan`. The source of truth is now the `ProviderRoutingScope` rows seeded with `wechat-intl` / `wechat-cn` scope keys — edit via `/admin/providers`. This env stays honoured for cold starts before the routing-scope table is reachable. |
 | `VENDOR_ALIBABACLOUD_DEMO` | Local mimic of the AlibabaCloud showcase deployment |
 | **Qwen / DashScope** *(primary for Web/Telegram)* | `DASHSCOPE_API_KEY`, `QWEN_TEXT_MODEL`, `QWEN_IMAGE_MODEL` |
 | **Gemini (Vertex)** *(fallback for Web/Telegram + always-on for search)* | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_SERVICE_ACCOUNT_KEY` (base64) |

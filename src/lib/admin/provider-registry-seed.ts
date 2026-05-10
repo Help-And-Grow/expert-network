@@ -175,7 +175,232 @@ export async function seedProviderRegistryIfEmpty(): Promise<{
     storageOrder++;
   }
 
+  // ----- Voice/TTS providers (Phase 3) -----------------------------------
+  // Voice keys live in the LLM category but are tagged with capability
+  // "voice" so the chain-picker UI can filter them out of text/image lists.
+  const voiceSeed: Array<{
+    key: string;
+    displayName: string;
+    envKeys: Record<string, string>;
+    metadata: Record<string, unknown>;
+    enabled?: boolean;
+    models?: Record<string, { envKey?: string; default?: string | null }>;
+  }> = [
+    {
+      key: "qwen-tts",
+      displayName: "Qwen / DashScope TTS (CosyVoice)",
+      envKeys: { apiKey: "DASHSCOPE_API_KEY" },
+      metadata: {
+        description: "DashScope CosyVoice TTS.",
+        capabilities: ["voice"],
+        requiredAny: [["DASHSCOPE_API_KEY"]],
+      },
+      enabled: true,
+    },
+    {
+      key: "gemini-tts",
+      displayName: "Gemini TTS",
+      envKeys: { apiKey: "GEMINI_API_KEY" },
+      metadata: {
+        description: "Google Gemini TTS.",
+        capabilities: ["voice"],
+        requiredAny: [["GEMINI_API_KEY"]],
+      },
+      enabled: true,
+    },
+    {
+      key: "openai-tts",
+      displayName: "OpenAI TTS",
+      envKeys: { apiKey: "OPENAI_API_KEY" },
+      models: { text: { envKey: "OPENAI_TTS_MODEL", default: "tts-1" } },
+      metadata: {
+        description: "OpenAI text-to-speech (tts-1, tts-1-hd).",
+        capabilities: ["voice"],
+        requiredAny: [["OPENAI_API_KEY"]],
+      },
+      enabled: true,
+    },
+    {
+      key: "hunyuan-tts",
+      displayName: "Tencent Hunyuan TTS",
+      envKeys: { apiKey: "HUNYUAN_API_KEY" },
+      metadata: {
+        description: "Placeholder — Tencent Hunyuan TTS adapter not shipped yet.",
+        capabilities: ["voice"],
+        requiredAny: [["HUNYUAN_API_KEY"]],
+      },
+      enabled: false,
+    },
+  ];
+
+  let voiceOrder = 100; // keep voice keys after text llm keys
+  for (const item of voiceSeed) {
+    const existing = await safeFindUnique("llm", item.key);
+    if (existing) {
+      skipped++;
+      voiceOrder++;
+      continue;
+    }
+    await prisma.providerRegistry.create({
+      data: {
+        category: "llm",
+        key: item.key,
+        displayName: item.displayName,
+        enabled: item.enabled ?? true,
+        envKeys: item.envKeys as Prisma.InputJsonValue,
+        models: (item.models ?? {}) as Prisma.InputJsonValue,
+        metadata: item.metadata as Prisma.InputJsonValue,
+        sortOrder: voiceOrder,
+      },
+    });
+    inserted++;
+    voiceOrder++;
+  }
+
   if (inserted > 0) invalidateCache();
+  return { inserted, skipped };
+}
+
+/**
+ * Phase 3: seed the default `ProviderRoutingScope` rows and a baseline
+ * (empty) `ProviderRouteOverride` table. Idempotent — only inserts when
+ * a `(scopeKey, category, environment)` row is missing.
+ */
+export async function seedRoutingScopesIfEmpty(
+  environment: string = "production",
+): Promise<{ inserted: number; skipped: number }> {
+  let inserted = 0;
+  let skipped = 0;
+
+  type SeedScope = {
+    scopeKey: string;
+    displayName: string;
+    description?: string;
+    category: "llm" | "image" | "voice";
+    chain: string[];
+    matchRules: Record<string, unknown>;
+    priority: number;
+  };
+
+  const scopes: SeedScope[] = [
+    // ----- LLM ----------------------------------------------------------
+    {
+      scopeKey: "web-default",
+      displayName: "Web / Telegram default",
+      description: "Catch-all for non-WeChat traffic.",
+      category: "llm",
+      chain: ["qwen", "gemini"],
+      matchRules: {},
+      priority: 200,
+    },
+    {
+      scopeKey: "wechat-intl",
+      displayName: "WeChat (international stack)",
+      description: "WeChat-Intl traffic. Hunyuan only — no cross-cloud fallback.",
+      category: "llm",
+      chain: ["hunyuan"],
+      matchRules: { isWeChat: true, region: "intl" },
+      priority: 100,
+    },
+    {
+      scopeKey: "wechat-cn",
+      displayName: "WeChat (mainland China stack)",
+      description: "WeChat-CN traffic. Hunyuan only.",
+      category: "llm",
+      chain: ["hunyuan"],
+      matchRules: { isWeChat: true, region: "cn" },
+      priority: 100,
+    },
+    // ----- IMAGE --------------------------------------------------------
+    {
+      scopeKey: "web-default",
+      displayName: "Web / Telegram image default",
+      description: "Catch-all image chain.",
+      category: "image",
+      chain: ["qwen", "gemini", "openai"],
+      matchRules: {},
+      priority: 200,
+    },
+    {
+      scopeKey: "wechat-intl",
+      displayName: "WeChat-Intl images",
+      category: "image",
+      chain: ["qwen", "gemini"],
+      matchRules: { isWeChat: true, region: "intl" },
+      priority: 100,
+    },
+    {
+      scopeKey: "wechat-cn",
+      displayName: "WeChat-CN images",
+      category: "image",
+      chain: ["qwen"],
+      matchRules: { isWeChat: true, region: "cn" },
+      priority: 100,
+    },
+    // ----- VOICE --------------------------------------------------------
+    {
+      scopeKey: "web-default",
+      displayName: "Web / Telegram voice default",
+      category: "voice",
+      chain: ["qwen-tts", "gemini-tts"],
+      matchRules: {},
+      priority: 200,
+    },
+    {
+      scopeKey: "wechat-intl",
+      displayName: "WeChat-Intl voice",
+      category: "voice",
+      chain: ["qwen-tts"],
+      matchRules: { isWeChat: true, region: "intl" },
+      priority: 100,
+    },
+    {
+      scopeKey: "wechat-cn",
+      displayName: "WeChat-CN voice",
+      category: "voice",
+      chain: ["qwen-tts"],
+      matchRules: { isWeChat: true, region: "cn" },
+      priority: 100,
+    },
+  ];
+
+  for (const s of scopes) {
+    try {
+      const existing = await prisma.providerRoutingScope.findUnique({
+        where: {
+          scopeKey_category_environment: {
+            scopeKey: s.scopeKey,
+            category: s.category,
+            environment,
+          },
+        },
+      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      await prisma.providerRoutingScope.create({
+        data: {
+          scopeKey: s.scopeKey,
+          displayName: s.displayName,
+          description: s.description ?? null,
+          category: s.category,
+          chain: s.chain as unknown as Prisma.InputJsonValue,
+          enabled: true,
+          matchRules: s.matchRules as Prisma.InputJsonValue,
+          priority: s.priority,
+          environment,
+        },
+      });
+      inserted++;
+    } catch (err) {
+      console.warn(
+        `[seed routing scope] ${s.category}:${s.scopeKey} failed:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   return { inserted, skipped };
 }
 

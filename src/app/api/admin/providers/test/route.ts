@@ -30,13 +30,31 @@ export const maxDuration = 15;
 const PROBE_TIMEOUT_MS = 5_000;
 const CACHE_TTL_MS = 60_000;
 
-const bodySchema = z.object({
-  category: z.string().min(1),
-  key: z.string().min(1),
-  environment: z
-    .enum(["production", "preview", "development"])
-    .optional(),
-});
+const bodySchema = z.union([
+  z.object({
+    mode: z.literal("provider").optional(),
+    category: z.string().min(1),
+    key: z.string().min(1),
+    environment: z
+      .enum(["production", "preview", "development"])
+      .optional(),
+  }),
+  z.object({
+    mode: z.literal("scope"),
+    category: z.enum(["llm", "image", "voice", "storage"]),
+    matchRules: z
+      .object({
+        isWeChat: z.boolean().optional(),
+        region: z.enum(["intl", "cn"]).optional(),
+        userAgent: z.string().optional(),
+        header: z.record(z.string(), z.string()).optional(),
+      })
+      .partial(),
+    environment: z
+      .enum(["production", "preview", "development"])
+      .optional(),
+  }),
+]);
 
 type ProbeResult = {
   ok: boolean;
@@ -78,8 +96,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { category, key } = parsed.data;
   const env = resolveEnvironment(parsed.data.environment);
+
+  if ("mode" in parsed.data && parsed.data.mode === "scope") {
+    return probeScope(parsed.data.category, parsed.data.matchRules, env);
+  }
+
+  const { category, key } = parsed.data;
   const cacheKey = `${category}:${key}:${env}`;
 
   const now = Date.now();
@@ -116,6 +139,61 @@ export async function POST(request: NextRequest) {
 
   probeCache.set(cacheKey, { result, expires: now + CACHE_TTL_MS });
   return NextResponse.json(result);
+}
+
+async function probeScope(
+  category: "llm" | "image" | "voice" | "storage",
+  matchRules: {
+    isWeChat?: boolean;
+    region?: "intl" | "cn";
+    userAgent?: string;
+    header?: Record<string, string>;
+  },
+  environment: string,
+) {
+  const { resolveChainForRequest } = await import("@/lib/ai/routing");
+  const startedAt = Date.now();
+  try {
+    const chain = await resolveChainForRequest(
+      category,
+      {
+        isWeChat: matchRules.isWeChat ?? false,
+        region: matchRules.region,
+        userAgent: matchRules.userAgent,
+        headers: matchRules.header,
+      },
+      environment,
+      { fallback: () => [] },
+    );
+    if (chain.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        error: "No matching scope and empty fallback",
+        probedAt: new Date().toISOString(),
+      });
+    }
+    if (category === "llm") {
+      const head = await probeLlm(chain[0]);
+      return NextResponse.json({
+        ...head,
+        sampleOutput: `chain=[${chain.join(",")}] ${head.sampleOutput ?? ""}`.trim(),
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      sampleOutput: `chain=[${chain.join(",")}]`,
+      probedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    return NextResponse.json({
+      ok: false,
+      latencyMs: Date.now() - startedAt,
+      error: err instanceof Error ? err.message : String(err),
+      probedAt: new Date().toISOString(),
+    });
+  }
 }
 
 async function probeLlm(key: string): Promise<ProbeResult> {

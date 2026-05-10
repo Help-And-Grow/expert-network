@@ -71,6 +71,36 @@ type ProviderHealthEntry = {
   supportsImage: boolean;
 };
 
+type RoutingMatchRules = {
+  isWeChat?: boolean;
+  region?: "intl" | "cn";
+  userAgent?: string;
+  header?: Record<string, string>;
+};
+
+type RoutingScopeRow = {
+  id: string;
+  scopeKey: string;
+  displayName: string;
+  description: string | null;
+  category: "llm" | "image" | "voice" | "storage";
+  chain: string[];
+  enabled: boolean;
+  matchRules: RoutingMatchRules;
+  priority: number;
+  environment: string;
+};
+
+type RouteOverrideRow = {
+  id: string;
+  routePattern: string;
+  category: "llm" | "image" | "voice" | "storage";
+  chainOverride: string[];
+  enabled: boolean;
+  reason: string | null;
+  environment: string;
+};
+
 type ApiState = {
   llm: ProviderRow[];
   storage: ProviderRow[];
@@ -80,6 +110,20 @@ type ApiState = {
     storage: string;
     llmImageChain: string[];
     llmVoiceChain: string[];
+  };
+  routing: {
+    scopes: {
+      llm: RoutingScopeRow[];
+      image: RoutingScopeRow[];
+      voice: RoutingScopeRow[];
+      storage: RoutingScopeRow[];
+    };
+    overrides: {
+      llm: RouteOverrideRow[];
+      image: RouteOverrideRow[];
+      voice: RouteOverrideRow[];
+      storage: RouteOverrideRow[];
+    };
   };
   defaults: {
     llmImageChain: string[];
@@ -190,6 +234,27 @@ type DraftState = {
   llmVoiceChain: string[];
   activeStorage: string;
   models: Record<string, { textModel?: string; imageModel?: string }>;
+  /** Edited copies of routing scopes, keyed by `${category}:${scopeKey}`. */
+  scopes: Record<
+    string,
+    { chain: string[]; enabled: boolean; priority: number }
+  >;
+  /** Edited copies of route overrides, keyed by `${category}:${routePattern}`. */
+  overrides: Record<
+    string,
+    {
+      chainOverride: string[];
+      enabled: boolean;
+      reason: string | null;
+      isNew?: boolean;
+      category: "llm" | "image" | "voice" | "storage";
+      routePattern: string;
+    }
+  >;
+  deletedOverrides: Array<{
+    routePattern: string;
+    category: "llm" | "image" | "voice" | "storage";
+  }>;
 };
 
 type DiffEntry = { label: string; before: string; after: string };
@@ -246,6 +311,80 @@ function diffDrafts(api: ApiState, draft: DraftState): DiffEntry[] {
       });
     }
   }
+
+  // Routing scope diffs.
+  const allScopes: RoutingScopeRow[] = [
+    ...api.routing.scopes.llm,
+    ...api.routing.scopes.image,
+    ...api.routing.scopes.voice,
+    ...api.routing.scopes.storage,
+  ];
+  for (const scope of allScopes) {
+    const dk = `${scope.category}:${scope.scopeKey}`;
+    const d = draft.scopes[dk];
+    if (!d) continue;
+    const beforeChain = scope.chain.join(",") || "(empty)";
+    const afterChain = d.chain.join(",") || "(empty)";
+    if (beforeChain !== afterChain) {
+      out.push({
+        label: `Scope ${scope.category}/${scope.scopeKey} chain`,
+        before: beforeChain,
+        after: afterChain,
+      });
+    }
+    if (d.enabled !== scope.enabled) {
+      out.push({
+        label: `Scope ${scope.category}/${scope.scopeKey} enabled`,
+        before: String(scope.enabled),
+        after: String(d.enabled),
+      });
+    }
+  }
+
+  // Route override diffs.
+  const allOverrides: RouteOverrideRow[] = [
+    ...api.routing.overrides.llm,
+    ...api.routing.overrides.image,
+    ...api.routing.overrides.voice,
+    ...api.routing.overrides.storage,
+  ];
+  for (const o of allOverrides) {
+    const dk = `${o.category}:${o.routePattern}`;
+    const d = draft.overrides[dk];
+    if (!d) continue;
+    const beforeChain = o.chainOverride.join(",") || "(empty)";
+    const afterChain = d.chainOverride.join(",") || "(empty)";
+    if (beforeChain !== afterChain) {
+      out.push({
+        label: `Override ${o.category} ${o.routePattern}`,
+        before: beforeChain,
+        after: afterChain,
+      });
+    }
+    if (d.enabled !== o.enabled) {
+      out.push({
+        label: `Override ${o.category} ${o.routePattern} enabled`,
+        before: String(o.enabled),
+        after: String(d.enabled),
+      });
+    }
+  }
+  for (const [k, d] of Object.entries(draft.overrides)) {
+    if (!d.isNew) continue;
+    out.push({
+      label: `New override ${d.category} ${d.routePattern}`,
+      before: "(none)",
+      after: d.chainOverride.join(",") || "(empty)",
+    });
+    void k;
+  }
+  for (const del of draft.deletedOverrides) {
+    out.push({
+      label: `Delete override ${del.category} ${del.routePattern}`,
+      before: "(exists)",
+      after: "(removed)",
+    });
+  }
   return out;
 }
 
@@ -290,12 +429,45 @@ export default function ProvidersClient() {
             imageModel: row.models.image?.default ?? "",
           };
         }
+        const draftScopes: DraftState["scopes"] = {};
+        const allLoadedScopes = [
+          ...body.routing.scopes.llm,
+          ...body.routing.scopes.image,
+          ...body.routing.scopes.voice,
+          ...body.routing.scopes.storage,
+        ];
+        for (const s of allLoadedScopes) {
+          draftScopes[`${s.category}:${s.scopeKey}`] = {
+            chain: [...s.chain],
+            enabled: s.enabled,
+            priority: s.priority,
+          };
+        }
+        const draftOverrides: DraftState["overrides"] = {};
+        const allLoadedOverrides = [
+          ...body.routing.overrides.llm,
+          ...body.routing.overrides.image,
+          ...body.routing.overrides.voice,
+          ...body.routing.overrides.storage,
+        ];
+        for (const o of allLoadedOverrides) {
+          draftOverrides[`${o.category}:${o.routePattern}`] = {
+            chainOverride: [...o.chainOverride],
+            enabled: o.enabled,
+            reason: o.reason,
+            category: o.category,
+            routePattern: o.routePattern,
+          };
+        }
         setDraft({
           activeLlm: body.active.llm,
           llmImageChain: [...body.active.llmImageChain],
           llmVoiceChain: [...body.active.llmVoiceChain],
           activeStorage: body.active.storage,
           models: draftModels,
+          scopes: draftScopes,
+          overrides: draftOverrides,
+          deletedOverrides: [],
         });
       } catch (err) {
         setMessage(
@@ -338,6 +510,97 @@ export default function ProvidersClient() {
       ) {
         body.llmVoiceChain = draft.llmVoiceChain;
       }
+
+      // Routing scope upserts — only changed rows.
+      const allOriginalScopes = [
+        ...data.routing.scopes.llm,
+        ...data.routing.scopes.image,
+        ...data.routing.scopes.voice,
+        ...data.routing.scopes.storage,
+      ];
+      const scopeUpserts: Array<{
+        scopeKey: string;
+        displayName: string;
+        description?: string | null;
+        category: "llm" | "image" | "voice" | "storage";
+        chain: string[];
+        enabled: boolean;
+        matchRules: RoutingMatchRules;
+        priority: number;
+      }> = [];
+      for (const orig of allOriginalScopes) {
+        const dk = `${orig.category}:${orig.scopeKey}`;
+        const d = draft.scopes[dk];
+        if (!d) continue;
+        const chainChanged = orig.chain.join(",") !== d.chain.join(",");
+        const enabledChanged = orig.enabled !== d.enabled;
+        const priorityChanged = orig.priority !== d.priority;
+        if (chainChanged || enabledChanged || priorityChanged) {
+          scopeUpserts.push({
+            scopeKey: orig.scopeKey,
+            displayName: orig.displayName,
+            description: orig.description,
+            category: orig.category,
+            chain: d.chain,
+            enabled: d.enabled,
+            matchRules: orig.matchRules,
+            priority: d.priority,
+          });
+        }
+      }
+      if (scopeUpserts.length > 0) body.routingScopeUpserts = scopeUpserts;
+
+      // Route override upserts/deletes.
+      const overrideUpserts: Array<{
+        routePattern: string;
+        category: "llm" | "image" | "voice" | "storage";
+        chainOverride: string[];
+        enabled: boolean;
+        reason?: string | null;
+      }> = [];
+      const allOriginalOverrides = [
+        ...data.routing.overrides.llm,
+        ...data.routing.overrides.image,
+        ...data.routing.overrides.voice,
+        ...data.routing.overrides.storage,
+      ];
+      const origByKey = new Map(
+        allOriginalOverrides.map((o) => [`${o.category}:${o.routePattern}`, o]),
+      );
+      for (const [k, d] of Object.entries(draft.overrides)) {
+        const orig = origByKey.get(k);
+        if (!orig) {
+          // new override
+          if (d.chainOverride.length > 0) {
+            overrideUpserts.push({
+              routePattern: d.routePattern,
+              category: d.category,
+              chainOverride: d.chainOverride,
+              enabled: d.enabled,
+              reason: d.reason,
+            });
+          }
+          continue;
+        }
+        const chainChanged =
+          orig.chainOverride.join(",") !== d.chainOverride.join(",");
+        const enabledChanged = orig.enabled !== d.enabled;
+        const reasonChanged = (orig.reason ?? null) !== (d.reason ?? null);
+        if (chainChanged || enabledChanged || reasonChanged) {
+          overrideUpserts.push({
+            routePattern: orig.routePattern,
+            category: orig.category,
+            chainOverride: d.chainOverride,
+            enabled: d.enabled,
+            reason: d.reason,
+          });
+        }
+      }
+      if (overrideUpserts.length > 0)
+        body.routeOverrideUpserts = overrideUpserts;
+      if (draft.deletedOverrides.length > 0)
+        body.routeOverrideDeletes = draft.deletedOverrides;
+
       const res = await fetch("/api/admin/providers", {
         method: "POST",
         credentials: "include",
@@ -685,6 +948,19 @@ export default function ProvidersClient() {
               </Card>
             );
           })}
+
+          <RoutingScopesSection
+            data={data}
+            draft={draft}
+            setDraft={setDraft}
+            environment={environment}
+          />
+
+          <RouteOverridesSection
+            data={data}
+            draft={draft}
+            setDraft={setDraft}
+          />
 
           <RecentChangesPanel category="llm" environment={environment} />
         </TabsContent>
@@ -1283,6 +1559,585 @@ function AddProviderDialog({
             disabled={saving || !key.trim() || !displayName.trim()}
           >
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+            Add
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: Routing scopes + Route overrides sections
+// ---------------------------------------------------------------------------
+
+function MatchRulesBadges({ rules }: { rules: RoutingMatchRules }) {
+  const entries: string[] = [];
+  if (rules.isWeChat !== undefined) {
+    entries.push(rules.isWeChat ? "isWeChat=true" : "isWeChat=false");
+  }
+  if (rules.region) entries.push(`region=${rules.region}`);
+  if (rules.userAgent) entries.push(`UA~${rules.userAgent}`);
+  if (rules.header) {
+    for (const [k, v] of Object.entries(rules.header)) {
+      entries.push(`${k}=${v}`);
+    }
+  }
+  if (entries.length === 0) {
+    return (
+      <Badge variant="outline" className="text-[10px]">
+        catch-all
+      </Badge>
+    );
+  }
+  return (
+    <>
+      {entries.map((e, i) => (
+        <Badge key={i} variant="outline" className="font-mono text-[10px]">
+          {e}
+        </Badge>
+      ))}
+    </>
+  );
+}
+
+function RoutingScopesSection({
+  data,
+  draft,
+  setDraft,
+  environment,
+}: {
+  data: ApiState;
+  draft: DraftState;
+  setDraft: (d: DraftState) => void;
+  environment: Environment;
+}) {
+  const [activeCategory, setActiveCategory] = useState<
+    "llm" | "image" | "voice"
+  >("llm");
+
+  const optionsByCategory: Record<"llm" | "image" | "voice", ChainPickerOption[]> =
+    {
+      llm: data.llm
+        .filter((r) => {
+          const caps = (r.metadata?.capabilities ?? []) as unknown[];
+          return (
+            r.enabled && (!Array.isArray(caps) || !caps.includes("voice"))
+          );
+        })
+        .map((r) => ({ value: r.key, label: r.displayName })),
+      image: data.llm
+        .filter((r) => r.enabled && r.metadata?.supportsImage)
+        .map((r) => ({ value: r.key, label: r.displayName })),
+      voice: data.defaults.voiceOptions.map((v) => ({ value: v, label: v })),
+    };
+
+  const scopes = data.routing.scopes[activeCategory];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Routing scopes</CardTitle>
+            <CardDescription>
+              Per-surface chains. Lowest priority that matches the request
+              wins. Empty rules = catch-all.
+            </CardDescription>
+          </div>
+          <div className="inline-flex overflow-hidden rounded-md border text-xs">
+            {(["llm", "image", "voice"] as const).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={`px-2.5 py-1 font-medium transition ${
+                  activeCategory === cat
+                    ? "bg-slate-900 text-white"
+                    : "bg-white text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {scopes.length === 0 && (
+          <p className="text-xs italic text-slate-500">
+            No scopes seeded yet for {activeCategory}. Run{" "}
+            <code className="rounded bg-slate-100 px-1">
+              scripts/seed-provider-registry.mjs
+            </code>{" "}
+            or POST a routingScopeUpserts payload.
+          </p>
+        )}
+        {scopes.map((scope) => {
+          const dk = `${scope.category}:${scope.scopeKey}`;
+          const d = draft.scopes[dk] ?? {
+            chain: [...scope.chain],
+            enabled: scope.enabled,
+            priority: scope.priority,
+          };
+          return (
+            <div key={scope.id} className="rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-medium text-slate-800">
+                    {scope.displayName}{" "}
+                    <span className="ml-1 font-mono text-xs text-slate-500">
+                      {scope.scopeKey}
+                    </span>
+                  </div>
+                  {scope.description && (
+                    <p className="text-xs text-slate-600">
+                      {scope.description}
+                    </p>
+                  )}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <MatchRulesBadges rules={scope.matchRules} />
+                    <Badge variant="outline" className="text-[10px]">
+                      priority {scope.priority}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ScopeProbeButton
+                    category={scope.category}
+                    matchRules={scope.matchRules}
+                    environment={environment}
+                  />
+                  <label className="flex items-center gap-1 text-xs text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={d.enabled}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          scopes: {
+                            ...draft.scopes,
+                            [dk]: { ...d, enabled: e.target.checked },
+                          },
+                        })
+                      }
+                    />
+                    enabled
+                  </label>
+                </div>
+              </div>
+              <div className="mt-2">
+                <ChainPicker
+                  label="Chain"
+                  helpText="Tried in order; first to succeed wins."
+                  defaultLabel={scope.chain.join(", ") || "(empty)"}
+                  available={optionsByCategory[activeCategory]}
+                  value={d.chain}
+                  onChange={(next) =>
+                    setDraft({
+                      ...draft,
+                      scopes: {
+                        ...draft.scopes,
+                        [dk]: { ...d, chain: next },
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScopeProbeButton({
+  category,
+  matchRules,
+  environment,
+}: {
+  category: "llm" | "image" | "voice" | "storage";
+  matchRules: RoutingMatchRules;
+  environment: Environment;
+}) {
+  const [state, setState] = useState<ProbeState>({ status: "idle" });
+  const onTest = async () => {
+    setState({ status: "pending" });
+    try {
+      const res = await fetch("/api/admin/providers/test", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "scope",
+          category,
+          matchRules,
+          environment,
+        }),
+      });
+      const json = await res.json();
+      setState({
+        status: "done",
+        ok: !!json.ok,
+        latencyMs: typeof json.latencyMs === "number" ? json.latencyMs : 0,
+        sampleOutput: json.sampleOutput,
+        error: json.error,
+      });
+    } catch (err) {
+      setState({
+        status: "done",
+        ok: false,
+        latencyMs: 0,
+        error: err instanceof Error ? err.message : "probe failed",
+      });
+    }
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onTest}
+        disabled={state.status === "pending"}
+      >
+        {state.status === "pending" ? (
+          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+        ) : (
+          <Activity className="mr-1 h-3 w-3" />
+        )}
+        Test now
+      </Button>
+      {state.status === "done" && (
+        <span
+          className={`inline-flex items-center gap-1 text-xs ${
+            state.ok ? "text-emerald-700" : "text-red-700"
+          }`}
+          title={state.sampleOutput ?? state.error ?? ""}
+        >
+          {state.ok ? (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          ) : (
+            <XCircle className="h-3.5 w-3.5" />
+          )}
+          {state.ok
+            ? `${state.latencyMs}ms`
+            : (state.error ?? "fail").slice(0, 60)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RouteOverridesSection({
+  data,
+  draft,
+  setDraft,
+}: {
+  data: ApiState;
+  draft: DraftState;
+  setDraft: (d: DraftState) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<
+    "llm" | "image" | "voice"
+  >("llm");
+
+  const optionsByCategory: Record<"llm" | "image" | "voice", ChainPickerOption[]> =
+    {
+      llm: data.llm
+        .filter((r) => {
+          const caps = (r.metadata?.capabilities ?? []) as unknown[];
+          return (
+            r.enabled && (!Array.isArray(caps) || !caps.includes("voice"))
+          );
+        })
+        .map((r) => ({ value: r.key, label: r.displayName })),
+      image: data.llm
+        .filter((r) => r.enabled && r.metadata?.supportsImage)
+        .map((r) => ({ value: r.key, label: r.displayName })),
+      voice: data.defaults.voiceOptions.map((v) => ({ value: v, label: v })),
+    };
+
+  const overrides = data.routing.overrides[activeCategory];
+  const newOverrides = Object.values(draft.overrides).filter(
+    (o) => o.isNew && o.category === activeCategory,
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Route overrides</CardTitle>
+            <CardDescription>
+              Per-route chain overrides. Wins over the matching scope.
+              Pattern supports trailing <code>*</code> wildcard.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex overflow-hidden rounded-md border text-xs">
+              {(["llm", "image", "voice"] as const).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-2.5 py-1 font-medium transition ${
+                    activeCategory === cat
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowAdd(true)}
+            >
+              <Plus className="mr-1 h-4 w-4" /> Add override
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {overrides.length === 0 && newOverrides.length === 0 && (
+          <p className="text-xs italic text-slate-500">
+            No overrides for {activeCategory}. Click &ldquo;Add override&rdquo;
+            to create one.
+          </p>
+        )}
+        {overrides.map((o) => {
+          const dk = `${o.category}:${o.routePattern}`;
+          const d = draft.overrides[dk] ?? {
+            chainOverride: [...o.chainOverride],
+            enabled: o.enabled,
+            reason: o.reason,
+            category: o.category,
+            routePattern: o.routePattern,
+          };
+          const isPendingDelete = draft.deletedOverrides.some(
+            (x) => x.routePattern === o.routePattern && x.category === o.category,
+          );
+          return (
+            <div
+              key={o.id}
+              className={`rounded-md border p-3 ${
+                isPendingDelete ? "opacity-50 line-through" : ""
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-mono text-xs">{o.routePattern}</div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-xs text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={d.enabled}
+                      disabled={isPendingDelete}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          overrides: {
+                            ...draft.overrides,
+                            [dk]: { ...d, enabled: e.target.checked },
+                          },
+                        })
+                      }
+                    />
+                    enabled
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600"
+                    onClick={() =>
+                      setDraft({
+                        ...draft,
+                        deletedOverrides: isPendingDelete
+                          ? draft.deletedOverrides.filter(
+                              (x) =>
+                                !(
+                                  x.routePattern === o.routePattern &&
+                                  x.category === o.category
+                                ),
+                            )
+                          : [
+                              ...draft.deletedOverrides,
+                              {
+                                routePattern: o.routePattern,
+                                category: o.category,
+                              },
+                            ],
+                      })
+                    }
+                  >
+                    {isPendingDelete ? "Undo" : "Delete"}
+                  </Button>
+                </div>
+              </div>
+              {o.reason && (
+                <p className="mt-1 text-[11px] italic text-slate-500">
+                  {o.reason}
+                </p>
+              )}
+              <div className="mt-2">
+                <ChainPicker
+                  label="Chain override"
+                  helpText="Replaces the scope's chain for this route."
+                  defaultLabel={o.chainOverride.join(", ") || "(empty)"}
+                  available={optionsByCategory[activeCategory]}
+                  value={d.chainOverride}
+                  onChange={(next) =>
+                    setDraft({
+                      ...draft,
+                      overrides: {
+                        ...draft.overrides,
+                        [dk]: { ...d, chainOverride: next },
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          );
+        })}
+        {newOverrides.map((d) => {
+          const dk = `${d.category}:${d.routePattern}`;
+          return (
+            <div key={dk} className="rounded-md border border-emerald-300 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-mono text-xs">
+                  {d.routePattern}{" "}
+                  <Badge className="ml-1 bg-emerald-600 text-[10px]">new</Badge>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-600"
+                  onClick={() => {
+                    const next = { ...draft.overrides };
+                    delete next[dk];
+                    setDraft({ ...draft, overrides: next });
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+              <div className="mt-2">
+                <ChainPicker
+                  label="Chain override"
+                  helpText="Replaces the scope's chain for this route."
+                  defaultLabel="(empty)"
+                  available={optionsByCategory[activeCategory]}
+                  value={d.chainOverride}
+                  onChange={(next) =>
+                    setDraft({
+                      ...draft,
+                      overrides: {
+                        ...draft.overrides,
+                        [dk]: { ...d, chainOverride: next },
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+      <AddOverrideDialog
+        open={showAdd}
+        category={activeCategory}
+        onClose={() => setShowAdd(false)}
+        onSave={(routePattern, reason) => {
+          const dk = `${activeCategory}:${routePattern}`;
+          if (draft.overrides[dk]) return;
+          setDraft({
+            ...draft,
+            overrides: {
+              ...draft.overrides,
+              [dk]: {
+                chainOverride: [],
+                enabled: true,
+                reason,
+                isNew: true,
+                category: activeCategory,
+                routePattern,
+              },
+            },
+          });
+        }}
+      />
+    </Card>
+  );
+}
+
+function AddOverrideDialog({
+  open,
+  category,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  category: "llm" | "image" | "voice" | "storage";
+  onClose: () => void;
+  onSave: (routePattern: string, reason: string | null) => void;
+}) {
+  const [routePattern, setRoutePattern] = useState("");
+  const [reason, setReason] = useState("");
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setRoutePattern("");
+          setReason("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add {category} route override</DialogTitle>
+          <DialogDescription>
+            Match by exact path or use a trailing <code>*</code> wildcard
+            (e.g. <code>/api/voice-chat/*</code>). Apply to commit.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <label className="text-xs text-slate-600">Route pattern</label>
+            <Input
+              value={routePattern}
+              onChange={(e) => setRoutePattern(e.target.value)}
+              placeholder="/api/match"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-600">Reason (optional)</label>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. cheaper model for matchmaking"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (!routePattern.trim()) return;
+              onSave(routePattern.trim(), reason.trim() || null);
+              setRoutePattern("");
+              setReason("");
+              onClose();
+            }}
+            disabled={!routePattern.trim()}
+          >
             Add
           </Button>
         </DialogFooter>

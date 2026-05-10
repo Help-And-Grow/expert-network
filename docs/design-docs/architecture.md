@@ -121,15 +121,32 @@ Both implementations live in `src/lib/ai/search.ts` (`searchSocialProfilesWithGe
 
 Tencent-native providers for image / TTS / ASR are **listed but not yet wired** — until they are, both WeChat stacks fall through the configurable `IMAGE_PROVIDER_CHAIN` / `VOICE_PROVIDER_CHAIN` to Qwen / Gemini. Wiring is tracked in [`tencent-cloud-rollout.md`](../exec-plans/active/tencent-cloud-rollout.md).
 
-### 3.3 Configurable Chains (no redeploy)
+### 3.3 Routing Scopes & Route Overrides (Phase 3, no redeploy)
 
-Three SystemConfig keys drive runtime fallback order:
+The per-surface routing in §3.2 is now **DB-driven**. Two tables drive request → chain resolution:
 
-- **`AI_TEXT_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to non-WeChat surfaces (Web, Telegram, REST API). Editable from `/admin/ai-provider`.
-- **`IMAGE_PROVIDER_CHAIN`** — comma-separated, default `qwen,gemini`. Applies to all surfaces.
-- **`VOICE_PROVIDER_CHAIN`** — comma-separated, default `qwen-tts,gemini-tts`. Allowed tokens: `qwen-tts`, `gemini-tts` (more added as Tencent-native voice lands).
+- **`ProviderRoutingScope`** — one row per `(scopeKey, category, environment)`. Each row binds a request shape (its `matchRules`) to an ordered `chain`. The resolver in `src/lib/ai/routing.ts` evaluates enabled scopes for a category in `priority` ASC order; the first whose `matchRules` matches the request origin wins. Empty `matchRules: {}` is the catch-all. Seeded with:
+  - `web-default` (catch-all, priority 200) → `qwen,gemini`
+  - `wechat-intl` (`isWeChat: true, region: intl`, priority 100) → `hunyuan`
+  - `wechat-cn` (`isWeChat: true, region: cn`, priority 100) → `hunyuan`
+  - Mirrors for the `image` and `voice` categories.
+- **`ProviderRouteOverride`** — per-route chain overrides (e.g. `/api/match` uses a cheaper provider; `/api/voice-chat/*` uses a faster one). Pattern matching is `startsWith` with a single trailing `*` wildcard — no regex by design. **Route overrides win over scope chains.**
 
-WeChat-originated requests (detected via `isWeChatOriginatedRequest`, which reads `IS_WECHAT=true` on the SCF deployments) bypass `AI_TEXT_PROVIDER_CHAIN` and use `WECHAT_AI_PROVIDER` (default `hunyuan`) as a single-provider chain — no cross-cloud fallback for the reason given in §3.2.
+Precedence (highest → lowest): `ProviderRouteOverride` → `ProviderRoutingScope` → legacy SystemConfig (`AI_TEXT_PROVIDER_CHAIN` / `IMAGE_PROVIDER_CHAIN` / `VOICE_PROVIDER_CHAIN`) → hard-coded defaults. The legacy SystemConfig + env path stays as a cold-start safety net.
+
+Voice providers (`qwen-tts`, `gemini-tts`, `openai-tts`, `hunyuan-tts`) are now registry rows in `ProviderRegistry` with `metadata.capabilities: ["voice"]` — adding a new TTS provider is a one-row insert + thin adapter, no static-union edit.
+
+Edit all of this at `/admin/providers` → LLM tab → "Routing scopes" / "Route overrides". Every change is audited in `ProviderConfigChange` with `category='routing-scope'` or `'route-override'`.
+
+The legacy `WECHAT_AI_PROVIDER` env / SystemConfig key is **deprecated** but still read as a boot-time fallback when the routing-scope table is unreachable — so existing deployments don't break silently when this commit lands.
+
+#### Legacy SystemConfig keys (now fallbacks only)
+
+- **`AI_TEXT_PROVIDER_CHAIN`** — comma-separated. Used only when no LLM scope matches and the routing table is reachable; same precedence semantics as before.
+- **`IMAGE_PROVIDER_CHAIN`** — same, for images.
+- **`VOICE_PROVIDER_CHAIN`** — same, for voice.
+
+WeChat-originated requests are detected via `isWeChatOriginatedRequest` exactly as before; the resolver hands the `{ isWeChat, region }` tuple to `matchesScope`.
 
 Provider availability is filtered by credential at chain-build time (`computeProviderHealth`); a provider without its required env vars is silently dropped from the chain so the deploy fails gracefully when, e.g., `GEMINI_API_KEY` is unset.
 

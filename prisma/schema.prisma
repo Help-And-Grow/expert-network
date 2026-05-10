@@ -407,3 +407,51 @@ model ProviderRegistry {
   @@unique([category, key])
   @@index([category, enabled, sortOrder])
 }
+
+/// Per-surface provider routing scopes (Phase 3 admin revamp). A scope binds
+/// a request shape (WeChat-Intl, WeChat-CN, Web/Telegram, ...) to an ordered
+/// chain of provider keys. The resolver in `src/lib/ai/routing.ts` evaluates
+/// scopes in priority ASC order and the first whose `matchRules` matches the
+/// request origin wins. Empty `matchRules: {}` is the catch-all.
+///
+/// Categories: 'llm' | 'image' | 'voice' | 'storage'. Per-environment scoped
+/// so preview can route differently from production.
+model ProviderRoutingScope {
+  id          String   @id @default(cuid())
+  scopeKey    String // 'web-default' | 'wechat-intl' | 'wechat-cn' | 'telegram-default'
+  displayName String
+  description String?
+  category    String // 'llm' | 'image' | 'voice' | 'storage'
+  chain       Json // ordered string[] of provider keys, e.g. ["qwen","gemini"]
+  enabled     Boolean  @default(true)
+  /// { isWeChat?: boolean, region?: 'intl'|'cn', userAgent?: string, header?: {...} }
+  matchRules  Json
+  /// Lower = checked first. Catch-all scopes use 200, specific scopes 100.
+  priority    Int      @default(100)
+  environment String   @default("production")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scopeKey, category, environment])
+  @@index([category, enabled, priority])
+}
+
+/// Per-route chain overrides (Phase 3 admin revamp). When the request hits
+/// a path matching `routePattern`, this chain wins over the scope's chain.
+/// `routePattern` supports `startsWith` and a single trailing `*` wildcard
+/// (no regex). Empty by default; admins add overrides via `/admin/providers`.
+model ProviderRouteOverride {
+  id            String   @id @default(cuid())
+  routePattern  String // '/api/match' | '/api/voice-chat/*'
+  category      String // 'llm' | 'image' | 'voice' | 'storage'
+  chainOverride Json // ordered string[]
+  enabled       Boolean  @default(true)
+  /// Operator note: why this override exists.
+  reason        String?
+  environment   String   @default("production")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([routePattern, category, environment])
+  @@index([enabled, environment])
+}

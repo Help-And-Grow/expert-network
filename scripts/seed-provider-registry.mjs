@@ -32,6 +32,10 @@ import("dotenv/config")
     }
     const result = await mod.seedProviderRegistryIfEmpty();
     console.log("[seed] ProviderRegistry:", result);
+    if (typeof mod.seedRoutingScopesIfEmpty === "function") {
+      const scopes = await mod.seedRoutingScopesIfEmpty();
+      console.log("[seed] ProviderRoutingScope:", scopes);
+    }
     process.exit(0);
   })
   .catch((err) => {

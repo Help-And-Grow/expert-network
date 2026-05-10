@@ -82,14 +82,26 @@ export const DEFAULT_WEB_TEXT_CHAIN = ["qwen", "gemini"] as const;
 /**
  * Default voice-synthesis chain. Tokens map to TTS providers, not text
  * providers (e.g. `qwen-tts` uses DashScope CosyVoice). Override at runtime
- * via SystemConfig key `VOICE_PROVIDER_CHAIN`.
+ * via SystemConfig key `VOICE_PROVIDER_CHAIN` or the routing scopes UI.
+ *
+ * Phase 3: voice is no longer capped to a static union — the registry is
+ * the source of truth (rows where `metadata.capabilities` includes "voice").
+ * `ALL_VOICE_PROVIDERS` remains as a hard-coded boot fallback for cold
+ * starts before the registry is reachable.
  */
-export const ALL_VOICE_PROVIDERS = ["qwen-tts", "gemini-tts"] as const;
-export type VoiceProviderName = (typeof ALL_VOICE_PROVIDERS)[number];
-export const VOICE_FALLBACK_ORDER: readonly VoiceProviderName[] = [
+export const ALL_VOICE_PROVIDERS = [
   "qwen-tts",
   "gemini-tts",
-];
+  "openai-tts",
+  "hunyuan-tts",
+] as const;
+/**
+ * Voice provider keys are runtime-extensible (see `listProviders('llm', { ... })`
+ * filtered by `capabilities: ["voice"]`). This type stays narrow for the
+ * legacy fallback path; admin-driven keys are typed as `string`.
+ */
+export type VoiceProviderName = string;
+export const VOICE_FALLBACK_ORDER: readonly string[] = ["qwen-tts", "gemini-tts"];
 
 type ModelEnvKey =
   | "OPENAI_TEXT_MODEL"
@@ -277,44 +289,97 @@ export async function getActiveAIProviderNameForRequest(
 }
 
 /**
- * Per-surface provider chain (the production routing).
+ * Per-surface provider chain. Phase 3: delegates to `resolveChainForRequest`
+ * which reads `ProviderRoutingScope` rows from the DB and falls back to the
+ * legacy env-driven path below when scopes are unreachable / unmatched.
  *
+ * Legacy fallback (when no scope matches and DB is reachable):
  * - WeChat-originated requests → `[hunyuan]` (no cross-cloud fallback by
  *   design — see architecture.md §3.2 "Why no cross-cloud fallback for
  *   WeChat").
  * - All other traffic → SystemConfig `AI_TEXT_PROVIDER_CHAIN` →
  *   env `AI_TEXT_PROVIDER_CHAIN` → `DEFAULT_WEB_TEXT_CHAIN` (`qwen,gemini`).
- *   The legacy `AI_PROVIDER` env / SystemConfig is honoured by being placed
- *   at the head of the chain when set, so existing deployments don't change
- *   behaviour silently when this commit lands.
  *
- * Returns at least one provider name. If a configured chain ends up empty
- * after normalisation, falls back to `DEFAULT_WEB_TEXT_CHAIN`.
+ * Returns at least one provider name. Signature unchanged — callers stay sync.
  */
 export async function getActiveAIProviderChainForRequest(
   request: { headers: { get(name: string): string | null } } | null | undefined,
 ): Promise<AIProviderName[]> {
-  const { isWeChatOriginatedRequest } = await import("@/lib/request-origin");
-  const { getSystemConfig } = await import("@/lib/system-config");
+  const { isWeChatOriginatedRequest, getWeChatRegion } = await import(
+    "@/lib/request-origin"
+  );
+  const { resolveChainForRequest } = await import("./routing");
+  const isWeChat = isWeChatOriginatedRequest(request ?? null);
+  const region = getWeChatRegion(request ?? null);
+  const routePath = extractRoutePath(request);
 
-  if (isWeChatOriginatedRequest(request ?? null)) {
+  const resolved = await resolveChainForRequest(
+    "llm",
+    {
+      isWeChat,
+      region: region ?? undefined,
+      routePath,
+      userAgent: request?.headers.get("user-agent") ?? undefined,
+    },
+    null,
+    {
+      fallback: () => legacyTextChainFallback(request, isWeChat),
+    },
+  );
+  return narrowToKnown(resolved, ALL_AI_PROVIDERS, "qwen");
+}
+
+async function legacyTextChainFallback(
+  request: { headers: { get(name: string): string | null } } | null | undefined,
+  isWeChat: boolean,
+): Promise<string[]> {
+  const { getSystemConfig } = await import("@/lib/system-config");
+  if (isWeChat) {
     const head = await getActiveAIProviderNameForRequest(request);
     return [head];
   }
-
-  // Web / Telegram path. Honour explicit chain configs first, then fall back
-  // to the legacy AI_PROVIDER (head-of-chain), then the default Qwen→Gemini.
   const dbChain = await getSystemConfig("AI_TEXT_PROVIDER_CHAIN");
   const envChain = process.env.AI_TEXT_PROVIDER_CHAIN ?? null;
   const explicit = parseChain<AIProviderName>(dbChain ?? envChain, ALL_AI_PROVIDERS);
-  if (explicit.length > 0) return explicit;
-
+  if (explicit.length > 0) return [...explicit];
   const legacyHead = await getActiveAIProviderName();
   const merged: AIProviderName[] = [legacyHead];
   for (const name of DEFAULT_WEB_TEXT_CHAIN) {
     if (!merged.includes(name)) merged.push(name);
   }
-  return merged;
+  return [...merged];
+}
+
+function extractRoutePath(
+  request: { headers: { get(name: string): string | null } } | null | undefined,
+): string | undefined {
+  if (!request) return undefined;
+  // NextRequest exposes `.nextUrl.pathname`; we keep this guard structural
+  // so plain `Request` works too.
+  const r = request as { nextUrl?: { pathname?: string }; url?: string };
+  if (r.nextUrl?.pathname) return r.nextUrl.pathname;
+  if (typeof r.url === "string") {
+    try {
+      return new URL(r.url).pathname;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+/** Narrow a list of arbitrary keys to the known static union, dropping unknown. */
+function narrowToKnown<T extends string>(
+  resolved: string[],
+  allowed: readonly T[],
+  fallback: T,
+): T[] {
+  const out: T[] = [];
+  for (const r of resolved) {
+    const match = allowed.find((a) => a === r);
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out.length > 0 ? out : [fallback];
 }
 
 /**
@@ -337,38 +402,84 @@ function parseChain<T extends string>(
 }
 
 /**
- * Image provider chain, resolved at request time:
- * SystemConfig `IMAGE_PROVIDER_CHAIN` → env `IMAGE_PROVIDER_CHAIN` →
- * `IMAGE_FALLBACK_ORDER` constant. Operators flip this from
- * `/admin/ai-provider` without a redeploy.
+ * Image provider chain. Phase 3: resolves via `ProviderRoutingScope` rows
+ * for the catch-all (web-default) image scope first; falls back to
+ * SystemConfig `IMAGE_PROVIDER_CHAIN` → env → `IMAGE_FALLBACK_ORDER`.
+ * Signature unchanged — no callers need updating.
  */
-export async function getActiveImageProviderChain(): Promise<AIProviderName[]> {
-  const { getSystemConfig } = await import("@/lib/system-config");
-  const dbValue = await getSystemConfig("IMAGE_PROVIDER_CHAIN");
-  const envValue = process.env.IMAGE_PROVIDER_CHAIN ?? null;
-  const fromConfig = parseChain<AIProviderName>(
-    dbValue ?? envValue,
-    ALL_AI_PROVIDERS,
+export async function getActiveImageProviderChain(
+  request?: { headers: { get(name: string): string | null } } | null,
+): Promise<AIProviderName[]> {
+  const { isWeChatOriginatedRequest, getWeChatRegion } = await import(
+    "@/lib/request-origin"
   );
-  if (fromConfig.length > 0) return fromConfig;
-  return [...IMAGE_FALLBACK_ORDER] as AIProviderName[];
+  const { resolveChainForRequest } = await import("./routing");
+  const isWeChat = isWeChatOriginatedRequest(request ?? null);
+  const region = getWeChatRegion(request ?? null);
+  const resolved = await resolveChainForRequest(
+    "image",
+    {
+      isWeChat,
+      region: region ?? undefined,
+      routePath: extractRoutePath(request),
+    },
+    null,
+    {
+      fallback: async () => {
+        const { getSystemConfig } = await import("@/lib/system-config");
+        const dbValue = await getSystemConfig("IMAGE_PROVIDER_CHAIN");
+        const envValue = process.env.IMAGE_PROVIDER_CHAIN ?? null;
+        const fromConfig = parseChain<AIProviderName>(
+          dbValue ?? envValue,
+          ALL_AI_PROVIDERS,
+        );
+        if (fromConfig.length > 0) return [...fromConfig];
+        return [...IMAGE_FALLBACK_ORDER];
+      },
+    },
+  );
+  return narrowToKnown(resolved, ALL_AI_PROVIDERS, "qwen");
 }
 
 /**
- * Voice provider chain, resolved at request time. Uses TTS-specific tokens
- * (`qwen-tts`, `gemini-tts`) so admins don't accidentally swap a text-only
- * provider in.
+ * Voice provider chain. Phase 3: registry-first; admins can register new
+ * TTS providers (e.g. `openai-tts`, `hunyuan-tts`) without code changes.
+ * Returns `string[]` because voice keys are runtime-extensible.
  */
-export async function getActiveVoiceProviderChain(): Promise<VoiceProviderName[]> {
-  const { getSystemConfig } = await import("@/lib/system-config");
-  const dbValue = await getSystemConfig("VOICE_PROVIDER_CHAIN");
-  const envValue = process.env.VOICE_PROVIDER_CHAIN ?? null;
-  const fromConfig = parseChain<VoiceProviderName>(
-    dbValue ?? envValue,
-    ALL_VOICE_PROVIDERS,
+export async function getActiveVoiceProviderChain(
+  request?: { headers: { get(name: string): string | null } } | null,
+): Promise<VoiceProviderName[]> {
+  const { isWeChatOriginatedRequest, getWeChatRegion } = await import(
+    "@/lib/request-origin"
   );
-  if (fromConfig.length > 0) return fromConfig;
-  return [...VOICE_FALLBACK_ORDER];
+  const { resolveChainForRequest } = await import("./routing");
+  const isWeChat = isWeChatOriginatedRequest(request ?? null);
+  const region = getWeChatRegion(request ?? null);
+  const resolved = await resolveChainForRequest(
+    "voice",
+    {
+      isWeChat,
+      region: region ?? undefined,
+      routePath: extractRoutePath(request),
+    },
+    null,
+    {
+      fallback: async () => {
+        const { getSystemConfig } = await import("@/lib/system-config");
+        const dbValue = await getSystemConfig("VOICE_PROVIDER_CHAIN");
+        const envValue = process.env.VOICE_PROVIDER_CHAIN ?? null;
+        if (dbValue || envValue) {
+          const tokens = (dbValue ?? envValue ?? "")
+            .split(",")
+            .map((t) => t.trim().toLowerCase())
+            .filter((t) => t.length > 0);
+          if (tokens.length > 0) return tokens;
+        }
+        return [...VOICE_FALLBACK_ORDER];
+      },
+    },
+  );
+  return resolved.length > 0 ? resolved : [...VOICE_FALLBACK_ORDER];
 }
 
 export function getProviderModelDefaults(provider: AIProviderName): {

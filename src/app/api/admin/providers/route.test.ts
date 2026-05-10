@@ -46,6 +46,27 @@ const fakeTx = {
       return { id: `a${auditRows.length}`, ...data };
     }),
   },
+  providerRoutingScope: {
+    findUnique: vi.fn(async () => null),
+    findMany: vi.fn(async () => []),
+    upsert: vi.fn(async ({ create }: any) => ({
+      id: "scope-fake",
+      ...create,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+  },
+  providerRouteOverride: {
+    findUnique: vi.fn(async () => null),
+    findMany: vi.fn(async () => []),
+    upsert: vi.fn(async ({ create }: any) => ({
+      id: "override-fake",
+      ...create,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+    delete: vi.fn(async () => undefined),
+  },
 };
 
 const fakePrisma = {

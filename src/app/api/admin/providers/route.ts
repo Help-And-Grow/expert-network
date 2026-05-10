@@ -17,6 +17,15 @@ import {
   upsertProvider,
   type ProviderRegistryRow,
 } from "@/lib/admin/provider-registry";
+import {
+  deleteRouteOverride,
+  listRouteOverrides,
+  listRoutingScopes,
+  upsertRouteOverride,
+  upsertRoutingScope,
+  type RouteOverrideRow,
+  type RoutingScopeRow,
+} from "@/lib/ai/routing";
 import { prisma } from "@/lib/prisma";
 import { getActiveStorageProviderName } from "@/lib/storage";
 import { resolveEnvironment, setSystemConfig } from "@/lib/system-config";
@@ -63,6 +72,40 @@ const upsertSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+const matchRulesSchema = z
+  .object({
+    isWeChat: z.boolean().optional(),
+    region: z.enum(["intl", "cn"]).optional(),
+    userAgent: z.string().optional(),
+    header: z.record(z.string(), z.string()).optional(),
+  })
+  .strict()
+  .partial();
+
+const scopeUpsertSchema = z.object({
+  scopeKey: z.string().min(1),
+  displayName: z.string().min(1),
+  description: z.string().nullable().optional(),
+  category: z.enum(["llm", "image", "voice", "storage"]),
+  chain: z.array(z.string()),
+  enabled: z.boolean().optional(),
+  matchRules: matchRulesSchema,
+  priority: z.number().int().optional(),
+});
+
+const overrideUpsertSchema = z.object({
+  routePattern: z.string().min(1),
+  category: z.enum(["llm", "image", "voice", "storage"]),
+  chainOverride: z.array(z.string()),
+  enabled: z.boolean().optional(),
+  reason: z.string().nullable().optional(),
+});
+
+const overrideDeleteSchema = z.object({
+  routePattern: z.string().min(1),
+  category: z.enum(["llm", "image", "voice", "storage"]),
+});
+
 const bodySchema = z.object({
   activeLlm: z.string().optional(),
   llmTextChain: z.union([z.string(), z.array(z.string())]).optional(),
@@ -70,6 +113,9 @@ const bodySchema = z.object({
   llmVoiceChain: z.union([z.string(), z.array(z.string())]).optional(),
   activeStorage: z.enum(["vercel", "gcs", "tencent-cos", "db"]).optional(),
   providerUpserts: z.array(upsertSchema).optional(),
+  routingScopeUpserts: z.array(scopeUpsertSchema).optional(),
+  routeOverrideUpserts: z.array(overrideUpsertSchema).optional(),
+  routeOverrideDeletes: z.array(overrideDeleteSchema).optional(),
   triggerDeploy: z.boolean().optional(),
   /** Optional: target a specific environment. Defaults to VERCEL_ENV. */
   environment: z.enum(["production", "preview", "development"]).optional(),
@@ -108,15 +154,37 @@ export async function GET(request: NextRequest) {
   const env = resolveEnvironment(envParam);
 
   const cfg = getManagedVercelProjectConfig();
-  const [llmRows, storageRows, activeLlm, activeStorage, imageChain, voiceChain] =
-    await Promise.all([
-      listProviders("llm"),
-      listProviders("storage"),
-      getActiveAIProviderName(),
-      getActiveStorageProviderName(),
-      getActiveImageProviderChain(),
-      getActiveVoiceProviderChain(),
-    ]);
+  const [
+    llmRows,
+    storageRows,
+    activeLlm,
+    activeStorage,
+    imageChain,
+    voiceChain,
+    llmScopes,
+    imageScopes,
+    voiceScopes,
+    storageScopes,
+    llmOverrides,
+    imageOverrides,
+    voiceOverrides,
+    storageOverrides,
+  ] = await Promise.all([
+    listProviders("llm"),
+    listProviders("storage"),
+    getActiveAIProviderName(),
+    getActiveStorageProviderName(),
+    getActiveImageProviderChain(),
+    getActiveVoiceProviderChain(),
+    listRoutingScopes("llm", env),
+    listRoutingScopes("image", env),
+    listRoutingScopes("voice", env),
+    listRoutingScopes("storage", env),
+    listRouteOverrides("llm", env),
+    listRouteOverrides("image", env),
+    listRouteOverrides("voice", env),
+    listRouteOverrides("storage", env),
+  ]);
 
   let providerHealth: Record<string, unknown>;
   if (cfg) {
@@ -139,6 +207,16 @@ export async function GET(request: NextRequest) {
     process.env.DATABASE_URL || process.env.DIRECT_URL,
   );
 
+  const voiceProviderRows = llmRows.filter((row) => {
+    const caps = (row.metadata?.capabilities ?? []) as unknown[];
+    return Array.isArray(caps) && caps.includes("voice");
+  });
+  const voiceOptionsFromRegistry = voiceProviderRows.map((r) => r.key);
+  const voiceOptions =
+    voiceOptionsFromRegistry.length > 0
+      ? voiceOptionsFromRegistry
+      : [...ALL_VOICE_PROVIDERS];
+
   return NextResponse.json({
     llm: llmRows,
     storage: storageRows,
@@ -152,10 +230,24 @@ export async function GET(request: NextRequest) {
       llmImageChain: imageChain,
       llmVoiceChain: voiceChain,
     },
+    routing: {
+      scopes: {
+        llm: llmScopes,
+        image: imageScopes,
+        voice: voiceScopes,
+        storage: storageScopes,
+      },
+      overrides: {
+        llm: llmOverrides,
+        image: imageOverrides,
+        voice: voiceOverrides,
+        storage: storageOverrides,
+      },
+    },
     defaults: {
       llmImageChain: [...IMAGE_FALLBACK_ORDER],
       llmVoiceChain: [...VOICE_FALLBACK_ORDER],
-      voiceOptions: [...ALL_VOICE_PROVIDERS],
+      voiceOptions,
     },
     providerHealth,
     canManage: Boolean(cfg),
@@ -220,6 +312,8 @@ export async function POST(request: NextRequest) {
   //    If anything throws, the transaction rolls back and no rows changed.
   // -------------------------------------------------------------------------
   let upserted: ProviderRegistryRow[] = [];
+  let scopeUpserts: RoutingScopeRow[] = [];
+  let overrideUpserts: RouteOverrideRow[] = [];
   const updatedKeys: string[] = [];
   try {
     const txResult = await prisma.$transaction(async (tx) => {
@@ -234,6 +328,32 @@ export async function POST(request: NextRequest) {
         upsertedRows.push(row);
       }
 
+      const scopeRows: RoutingScopeRow[] = [];
+      for (const s of parsed.data.routingScopeUpserts ?? []) {
+        const row = await upsertRoutingScope(
+          { ...s, environment: env },
+          { tx, actorEmail, actorRole: "ADMIN", reason },
+        );
+        scopeRows.push(row);
+      }
+
+      const overrideRows: RouteOverrideRow[] = [];
+      for (const o of parsed.data.routeOverrideUpserts ?? []) {
+        const row = await upsertRouteOverride(
+          { ...o, environment: env },
+          { tx, actorEmail, actorRole: "ADMIN", reason },
+        );
+        overrideRows.push(row);
+      }
+      for (const d of parsed.data.routeOverrideDeletes ?? []) {
+        await deleteRouteOverride(d.routePattern, d.category, env, {
+          tx,
+          actorEmail,
+          actorRole: "ADMIN",
+          reason,
+        });
+      }
+
       const written: string[] = [];
       for (const w of writes) {
         await setSystemConfig(w.key, w.value, env, {
@@ -246,9 +366,11 @@ export async function POST(request: NextRequest) {
         written.push(w.key);
       }
 
-      return { upsertedRows, written };
+      return { upsertedRows, written, scopeRows, overrideRows };
     });
     upserted = txResult.upsertedRows;
+    scopeUpserts = txResult.scopeRows;
+    overrideUpserts = txResult.overrideRows;
     updatedKeys.push(...txResult.written);
   } catch (err) {
     return NextResponse.json(
@@ -285,6 +407,14 @@ export async function POST(request: NextRequest) {
     ok: true,
     updatedKeys: Array.from(new Set(updatedKeys)).sort(),
     upserted: upserted.map((r) => ({ category: r.category, key: r.key })),
+    routingScopeUpserts: scopeUpserts.map((s) => ({
+      category: s.category,
+      scopeKey: s.scopeKey,
+    })),
+    routeOverrideUpserts: overrideUpserts.map((o) => ({
+      category: o.category,
+      routePattern: o.routePattern,
+    })),
     deployTriggered,
     deployError,
     environment: env,

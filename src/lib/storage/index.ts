@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
 
 import { env } from "@/lib/env";
-import { isWeChatOriginatedRequest } from "@/lib/request-origin";
+import {
+  isWeChatOriginatedRequest,
+  getWeChatRegion,
+} from "@/lib/request-origin";
 import { getSystemConfig } from "@/lib/system-config";
 import type { StorageProvider, StorageProviderName } from "./types";
 
@@ -24,8 +27,37 @@ export async function getStorageProvider(
   const dbProvider = (await getSystemConfig("STORAGE_PROVIDER")) as StorageProviderName | null;
   let providerName: StorageProviderName = dbProvider || env.STORAGE_PROVIDER || "db";
 
+  // Phase 3: consult ProviderRoutingScope (category=storage) first, fall back
+  // to the legacy WeChat→Tencent COS auto-route. The auto-route below stays
+  // as a safety net for cold starts before the routing scope rows are seeded.
+  const isWeChat = isWeChatOriginatedRequest(ctx.request ?? null);
+  const region = getWeChatRegion(ctx.request ?? null);
+  try {
+    const { resolveChainForRequest } = await import("@/lib/ai/routing");
+    const resolved = await resolveChainForRequest(
+      "storage",
+      { isWeChat, region: region ?? undefined },
+      null,
+      { fallback: async () => [] },
+    );
+    if (resolved.length > 0) {
+      const candidate = resolved[0] as StorageProviderName;
+      if (
+        candidate === "vercel" ||
+        candidate === "gcs" ||
+        candidate === "tencent-cos" ||
+        candidate === "db"
+      ) {
+        providerName = candidate;
+      }
+    }
+  } catch {
+    // fall through to legacy logic below
+  }
+
   if (
-    isWeChatOriginatedRequest(ctx.request ?? null) &&
+    providerName !== "tencent-cos" &&
+    isWeChat &&
     env.TENCENT_COS_SECRET_ID &&
     env.TENCENT_COS_SECRET_KEY &&
     env.TENCENT_COS_BUCKET &&
