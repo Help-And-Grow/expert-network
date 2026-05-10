@@ -102,6 +102,7 @@ export function VoiceChatModal({
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const playbackModeRef = useRef<"audio" | "device" | null>(null);
   const shouldStopAfterConnectRef = useRef(false);
+  const pendingAutoPlayRef = useRef<{ src: string; msgId: string } | null>(null);
 
   const router = useRouter();
   const redirectToSignIn = useCallback(() => {
@@ -293,6 +294,19 @@ export function VoiceChatModal({
     [cleanupAudioSource, stopGreetingPlayback],
   );
 
+  const attemptPendingAutoplay = useCallback(() => {
+    const pending = pendingAutoPlayRef.current;
+    if (!pending || playingId) return;
+    pendingAutoPlayRef.current = null;
+    void playMessageAudio(pending.src, pending.msgId).then((ok) => {
+      if (!ok) {
+        pendingAutoPlayRef.current = pending;
+      } else {
+        setError(null);
+      }
+    });
+  }, [playMessageAudio, playingId]);
+
   const speakGreetingWithDeviceVoice = useCallback(
     async (text: string): Promise<boolean> => {
       if (!hasDeviceVoiceSupport()) return false;
@@ -349,18 +363,28 @@ export function VoiceChatModal({
   const autoPlayAssistantReply = useCallback(
     async (message: ChatMessage) => {
       resumeSharedAudioContext();
-      let played = false;
       if (message.audioSrc) {
-        played = await playMessageAudio(message.audioSrc, message.id);
+        const played = await playMessageAudio(message.audioSrc, message.id);
+        if (!played) {
+          pendingAutoPlayRef.current = { src: message.audioSrc, msgId: message.id };
+          setError("Voice playback was blocked. Tap once to enable sound, then tap play.");
+        }
+        return;
       }
-      if (!played && hasDeviceVoiceSupport()) {
-        played = await speakWithDeviceVoice(message.text, message.id);
-      }
-      if (!played && message.audioSrc) {
-        setError("Voice playback was blocked. Tap play to listen.");
+      if (hasDeviceVoiceSupport()) {
+        void speakWithDeviceVoice(message.text, message.id);
       }
     },
     [playMessageAudio, speakWithDeviceVoice],
+  );
+
+  const onModalPointerDownCapture = useCallback(
+    (e: React.PointerEvent) => {
+      if ((e.target as HTMLElement).closest("button, a, textarea, input")) return;
+      resumeSharedAudioContext();
+      attemptPendingAutoplay();
+    },
+    [attemptPendingAutoplay],
   );
 
   const togglePlayback = useCallback(
@@ -630,7 +654,10 @@ export function VoiceChatModal({
   const isLowTime = remaining <= 30;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onPointerDownCapture={onModalPointerDownCapture}
+    >
       <div className="surface-card mx-4 flex w-full max-w-md flex-col overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 text-white">
           <div className="flex items-start justify-between gap-3">

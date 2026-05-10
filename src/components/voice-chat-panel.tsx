@@ -144,6 +144,7 @@ export function VoiceChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
   const messagesRef = useRef<Message[]>([]);
+  const pendingAutoPlayRef = useRef<{ src: string; msgId: string } | null>(null);
 
   const nextId = () => `msg-${++msgIdRef.current}`;
   const firstName = expertName.split(" ")[0];
@@ -265,6 +266,19 @@ export function VoiceChatPanel({
     }
   }, [cleanupAudioSource, stopPlayback]);
 
+  const attemptPendingAutoplay = useCallback(() => {
+    const pending = pendingAutoPlayRef.current;
+    if (!pending || playingId) return;
+    pendingAutoPlayRef.current = null;
+    void playExpertAudio(pending.src, pending.msgId).then((ok) => {
+      if (!ok) {
+        pendingAutoPlayRef.current = pending;
+      } else {
+        setError(null);
+      }
+    });
+  }, [playExpertAudio, playingId]);
+
   const speakWithDeviceVoice = useCallback(
     async (text: string, msgId: string): Promise<boolean> => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
@@ -307,15 +321,16 @@ export function VoiceChatPanel({
   const autoPlayAssistantReply = useCallback(
     async (message: Message) => {
       resumeSharedAudioContext();
-      let played = false;
       if (message.audioSrc) {
-        played = await playExpertAudio(message.audioSrc, message.id);
+        const played = await playExpertAudio(message.audioSrc, message.id);
+        if (!played) {
+          pendingAutoPlayRef.current = { src: message.audioSrc, msgId: message.id };
+          setError("Voice playback was blocked. Tap once to enable sound, then tap play.");
+        }
+        return;
       }
-      if (!played && hasDeviceVoiceSupport()) {
-        played = await speakWithDeviceVoice(message.text, message.id);
-      }
-      if (!played && message.audioSrc) {
-        setError("Voice playback was blocked. Tap play to listen.");
+      if (hasDeviceVoiceSupport()) {
+        void speakWithDeviceVoice(message.text, message.id);
       }
     },
     [playExpertAudio, speakWithDeviceVoice],
@@ -330,8 +345,9 @@ export function VoiceChatPanel({
       // Avoid double-firing when user taps Play / Send (button handles playback).
       if ((e.target as HTMLElement).closest("button, a")) return;
       unlockAudioPlayback();
+      attemptPendingAutoplay();
     },
-    [unlockAudioPlayback],
+    [attemptPendingAutoplay, unlockAudioPlayback],
   );
 
   const fallbackGreetingText = useMemo(
