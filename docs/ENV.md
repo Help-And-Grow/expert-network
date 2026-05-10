@@ -207,6 +207,29 @@ npx tsx -e "import('./src/lib/admin/provider-registry-seed').then(m => m.seedPro
 | `VERCEL_MANAGEMENT_TOKEN`, `VERCEL_MANAGED_TEAM_ID`, `VERCEL_MANAGED_PROJECT` | Required for `/admin/providers` to update Vercel env + redeploy |
 | `VERCEL_DEPLOY_HOOK_URL` | Optional deploy hook for automatic redeploy |
 
+### Phase 2 — audit log + per-environment scoping (2026-05-10)
+
+`SystemConfig` carries an `environment` column (`production` | `preview` |
+`development`) so the admin page can edit non-production providers without
+affecting live traffic. Reads default to `process.env.VERCEL_ENV` (set by
+Vercel on every deploy); writes default the same way and accept an explicit
+`environment` from the admin UI. Cache keys are `${env}:${key}` so a write
+to `preview` never invalidates the production cache.
+
+Every write through `setSystemConfig` or `upsertProvider` appends a row to
+the new `ProviderConfigChange` audit table (immutable, append-only). Each
+row records actor (email/role), category, configKey, environment, before/
+after JSON, and an optional admin-supplied `reason`. The log is browsable
+at `/admin/providers/audit` with filters for category, environment, actor,
+and date range; the Providers page also shows the latest 10 rows per
+category as a collapsible "Recent changes" panel.
+
+The atomic-apply route (`/api/admin/providers` POST) wraps registry +
+SystemConfig writes in a single Prisma `$transaction`. Vercel sync only
+runs **after** the DB commit. If it fails, the response carries
+`deployTriggered: false` + a `deployError` message and the operator can
+re-trigger via `POST /api/admin/providers/retry-deploy`.
+
 ## Debug gating
 
 | Var | Purpose |

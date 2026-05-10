@@ -17,23 +17,29 @@ import {
   upsertProvider,
   type ProviderRegistryRow,
 } from "@/lib/admin/provider-registry";
+import { prisma } from "@/lib/prisma";
 import { getActiveStorageProviderName } from "@/lib/storage";
-import { setSystemConfig } from "@/lib/system-config";
+import { resolveEnvironment, setSystemConfig } from "@/lib/system-config";
 import {
   getManagedVercelProjectConfig,
   listManagedProjectEnvs,
   triggerManagedProjectDeploy,
   upsertManagedProjectEnv,
 } from "@/lib/vercel-admin";
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Phase 1 unified admin Providers API. Replaces (and proxies for)
- * `/api/admin/ai-provider` + `/api/admin/system-config`. Reads the new
- * `ProviderRegistry` table; writes both the registry rows and the
- * existing `SystemConfig` keys (active selections + chains) so other
- * code paths keep working unchanged.
+ * Phase 2 unified admin Providers API.
+ *
+ * Phase 1 wrote registry rows + SystemConfig keys sequentially with no
+ * isolation; if the Vercel-env push 500'd halfway through, the DB ended
+ * up partially updated. Phase 2 wraps every DB write in a single
+ * `$transaction` and only calls Vercel AFTER the commit. If the Vercel
+ * call fails we still return 200 — the DB is consistent — and surface
+ * `deployTriggered: false` plus a hint so the operator can retry via
+ * POST /api/admin/providers/retry-deploy.
  */
 
 const upsertSchema = z.object({
@@ -65,6 +71,10 @@ const bodySchema = z.object({
   activeStorage: z.enum(["vercel", "gcs", "tencent-cos", "db"]).optional(),
   providerUpserts: z.array(upsertSchema).optional(),
   triggerDeploy: z.boolean().optional(),
+  /** Optional: target a specific environment. Defaults to VERCEL_ENV. */
+  environment: z.enum(["production", "preview", "development"]).optional(),
+  /** Optional admin note recorded in every audit row written by this apply. */
+  reason: z.string().max(500).optional(),
 });
 
 function chainToString(input: string | string[] | undefined): string | null {
@@ -93,6 +103,9 @@ function parseDbHostFromUrl(url: string | undefined): string | null {
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
+
+  const envParam = request.nextUrl.searchParams.get("environment");
+  const env = resolveEnvironment(envParam);
 
   const cfg = getManagedVercelProjectConfig();
   const [llmRows, storageRows, activeLlm, activeStorage, imageChain, voiceChain] =
@@ -147,12 +160,27 @@ export async function GET(request: NextRequest) {
     providerHealth,
     canManage: Boolean(cfg),
     deployHookConfigured: Boolean(cfg?.deployHookUrl),
+    environment: env,
+    currentVercelEnv: process.env.VERCEL_ENV ?? null,
   });
 }
+
+type SystemConfigWrite = {
+  key: string;
+  value: string;
+  vercelKey?: string; // Vercel env key (usually equal to `key`)
+};
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
+
+  // Resolve the actor's email for the audit log.
+  const actor = await prisma.user.findUnique({
+    where: { id: auth.userId },
+    select: { email: true },
+  });
+  const actorEmail = actor?.email ?? null;
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -162,55 +190,95 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const env = resolveEnvironment(parsed.data.environment);
+  const reason = parsed.data.reason ?? null;
   const cfg = getManagedVercelProjectConfig();
-  const updatedKeys: string[] = [];
-  const upserted: ProviderRegistryRow[] = [];
 
-  // 1. Apply registry upserts (new providers / metadata edits).
-  for (const item of parsed.data.providerUpserts ?? []) {
-    const row = await upsertProvider(item);
-    upserted.push(row);
-  }
-
-  // 2. Active LLM provider selection.
+  // Gather every SystemConfig write to apply atomically.
+  const writes: SystemConfigWrite[] = [];
   if (parsed.data.activeLlm) {
-    await setSystemConfig("AI_PROVIDER", parsed.data.activeLlm);
-    if (cfg) await upsertManagedProjectEnv(cfg, "AI_PROVIDER", parsed.data.activeLlm);
-    updatedKeys.push("AI_PROVIDER");
+    writes.push({ key: "AI_PROVIDER", value: parsed.data.activeLlm });
   }
-
-  // 3. Chain configs.
   const textChain = chainToString(parsed.data.llmTextChain);
   if (textChain !== null) {
-    await setSystemConfig("AI_TEXT_PROVIDER_CHAIN", textChain);
-    if (cfg) await upsertManagedProjectEnv(cfg, "AI_TEXT_PROVIDER_CHAIN", textChain);
-    updatedKeys.push("AI_TEXT_PROVIDER_CHAIN");
+    writes.push({ key: "AI_TEXT_PROVIDER_CHAIN", value: textChain });
   }
   const imgChain = chainToString(parsed.data.llmImageChain);
   if (imgChain !== null) {
-    await setSystemConfig("IMAGE_PROVIDER_CHAIN", imgChain);
-    if (cfg) await upsertManagedProjectEnv(cfg, "IMAGE_PROVIDER_CHAIN", imgChain);
-    updatedKeys.push("IMAGE_PROVIDER_CHAIN");
+    writes.push({ key: "IMAGE_PROVIDER_CHAIN", value: imgChain });
   }
   const voiceChain = chainToString(parsed.data.llmVoiceChain);
   if (voiceChain !== null) {
-    await setSystemConfig("VOICE_PROVIDER_CHAIN", voiceChain);
-    if (cfg) await upsertManagedProjectEnv(cfg, "VOICE_PROVIDER_CHAIN", voiceChain);
-    updatedKeys.push("VOICE_PROVIDER_CHAIN");
+    writes.push({ key: "VOICE_PROVIDER_CHAIN", value: voiceChain });
   }
-
-  // 4. Active storage provider.
   if (parsed.data.activeStorage) {
-    await setSystemConfig("STORAGE_PROVIDER", parsed.data.activeStorage);
-    if (cfg)
-      await upsertManagedProjectEnv(cfg, "STORAGE_PROVIDER", parsed.data.activeStorage);
-    updatedKeys.push("STORAGE_PROVIDER");
+    writes.push({ key: "STORAGE_PROVIDER", value: parsed.data.activeStorage });
   }
 
+  // -------------------------------------------------------------------------
+  // 1. Atomic DB phase: registry upserts + SystemConfig writes + audit rows.
+  //    If anything throws, the transaction rolls back and no rows changed.
+  // -------------------------------------------------------------------------
+  let upserted: ProviderRegistryRow[] = [];
+  const updatedKeys: string[] = [];
+  try {
+    const txResult = await prisma.$transaction(async (tx) => {
+      const upsertedRows: ProviderRegistryRow[] = [];
+      for (const item of parsed.data.providerUpserts ?? []) {
+        const row = await upsertProvider(item, {
+          tx,
+          actorEmail,
+          actorRole: "ADMIN",
+          reason,
+        });
+        upsertedRows.push(row);
+      }
+
+      const written: string[] = [];
+      for (const w of writes) {
+        await setSystemConfig(w.key, w.value, env, {
+          tx,
+          actorEmail,
+          actorRole: "ADMIN",
+          reason,
+          category: storageOrLlmCategory(w.key),
+        });
+        written.push(w.key);
+      }
+
+      return { upsertedRows, written };
+    });
+    upserted = txResult.upsertedRows;
+    updatedKeys.push(...txResult.written);
+  } catch (err) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "DB write failed; no changes applied",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 },
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 2. Vercel sync phase (best-effort, post-commit). A failure here does NOT
+  //    roll back the DB — we report it back so the admin can retry.
+  // -------------------------------------------------------------------------
   let deployTriggered = false;
-  if (cfg && parsed.data.triggerDeploy !== false && updatedKeys.length > 0) {
-    const deploy = await triggerManagedProjectDeploy(cfg);
-    deployTriggered = deploy.triggered;
+  let deployError: string | null = null;
+  if (cfg) {
+    try {
+      for (const w of writes) {
+        await upsertManagedProjectEnv(cfg, w.vercelKey ?? w.key, w.value);
+      }
+      if (parsed.data.triggerDeploy !== false && updatedKeys.length > 0) {
+        const deploy = await triggerManagedProjectDeploy(cfg);
+        deployTriggered = deploy.triggered;
+      }
+    } catch (err) {
+      deployError = err instanceof Error ? err.message : String(err);
+    }
   }
 
   return NextResponse.json({
@@ -218,5 +286,20 @@ export async function POST(request: NextRequest) {
     updatedKeys: Array.from(new Set(updatedKeys)).sort(),
     upserted: upserted.map((r) => ({ category: r.category, key: r.key })),
     deployTriggered,
+    deployError,
+    environment: env,
   });
+}
+
+function storageOrLlmCategory(key: string): string {
+  if (key === "STORAGE_PROVIDER") return "storage";
+  if (
+    key === "AI_PROVIDER" ||
+    key === "AI_TEXT_PROVIDER_CHAIN" ||
+    key === "IMAGE_PROVIDER_CHAIN" ||
+    key === "VOICE_PROVIDER_CHAIN"
+  ) {
+    return "llm";
+  }
+  return "system-config";
 }

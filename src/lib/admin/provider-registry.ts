@@ -142,8 +142,17 @@ export type UpsertProviderInput = {
   sortOrder?: number;
 };
 
+export type UpsertProviderAuditOptions = {
+  actorEmail?: string | null;
+  actorRole?: "ADMIN" | "SYSTEM" | (string & {}) | null;
+  reason?: string | null;
+  /** Optional Prisma transaction client to coalesce upsert + audit row. */
+  tx?: Prisma.TransactionClient;
+};
+
 export async function upsertProvider(
   input: UpsertProviderInput,
+  audit?: UpsertProviderAuditOptions,
 ): Promise<ProviderRegistryRow> {
   // Prisma's JSON columns are typed as InputJsonValue; cast our typed
   // shapes through `unknown` so we don't have to widen the public API.
@@ -159,7 +168,15 @@ export async function upsertProvider(
       ? Prisma.JsonNull
       : (input.metadata as Prisma.InputJsonValue);
 
-  const row = await prisma.providerRegistry.upsert({
+  const db = audit?.tx ?? prisma;
+
+  // Capture the prior shape for the audit `before` snapshot.
+  const existing = await db.providerRegistry.findUnique({
+    where: { category_key: { category: input.category, key: input.key } },
+  });
+  const before = existing ? coerceRow(existing) : null;
+
+  const row = await db.providerRegistry.upsert({
     where: { category_key: { category: input.category, key: input.key } },
     create: {
       category: input.category,
@@ -180,8 +197,56 @@ export async function upsertProvider(
       ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
     },
   });
+  const after = coerceRow(row);
+
+  // Audit row. Registry rows are global (not env-scoped), so we stamp the
+  // current environment for filtering convenience but treat "registry"
+  // rows as cross-env. Skip when nothing changed.
+  const beforeJson = before
+    ? (toAuditJson(before) as Prisma.InputJsonValue)
+    : Prisma.JsonNull;
+  const afterJson = toAuditJson(after) as Prisma.InputJsonValue;
+  const changed =
+    !before ||
+    JSON.stringify(toAuditJson(before)) !== JSON.stringify(toAuditJson(after));
+  if (changed) {
+    const fromVercel = process.env.VERCEL_ENV;
+    const env =
+      fromVercel === "production" ||
+      fromVercel === "preview" ||
+      fromVercel === "development"
+        ? fromVercel
+        : "production";
+    await db.providerConfigChange.create({
+      data: {
+        actorEmail: audit?.actorEmail ?? null,
+        actorRole: audit?.actorRole ?? "ADMIN",
+        category: "registry",
+        configKey: `registry:${input.category}:${input.key}`,
+        environment: env,
+        before: beforeJson,
+        after: afterJson,
+        reason: audit?.reason ?? null,
+      },
+    });
+  }
+
   invalidateCache();
-  return coerceRow(row);
+  return after;
+}
+
+/** Strip Date fields and null-typed JSON for stable audit serialization. */
+function toAuditJson(row: ProviderRegistryRow): Record<string, unknown> {
+  return {
+    category: row.category,
+    key: row.key,
+    displayName: row.displayName,
+    enabled: row.enabled,
+    envKeys: row.envKeys,
+    models: row.models,
+    metadata: row.metadata,
+    sortOrder: row.sortOrder,
+  };
 }
 
 export async function setEnabled(

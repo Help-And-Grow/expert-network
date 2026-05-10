@@ -337,10 +337,55 @@ enum OnboardingStep {
   PUBLISHED
 }
 
+/// Per-environment scoped key/value config. Until Phase 2 of the admin-page
+/// revamp this used `key` as the primary key (single global value). The
+/// (key, environment) compound is now unique so production / preview /
+/// development can hold independent values for the same key — useful when
+/// rotating providers in preview without affecting production traffic.
+/// `environment` defaults to "production" so legacy single-env callers keep
+/// working unchanged.
 model SystemConfig {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  key         String
+  value       String
+  environment String   @default("production")
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, environment])
+  @@index([environment])
+}
+
+/// Append-only audit trail for provider/system-config changes made via
+/// the admin Providers page (or any code path that calls the helpers in
+/// `src/lib/system-config.ts` / `src/lib/admin/provider-registry.ts`).
+/// Rows are written transactionally with the change itself so a successful
+/// apply always leaves a complete audit footprint; a Vercel-deploy failure
+/// after commit does NOT roll back the audit row (that's the point — we
+/// want to know the DB changed even if the deploy didn't).
+model ProviderConfigChange {
+  id          String   @id @default(cuid())
+  changedAt   DateTime @default(now())
+  /// null = system / cron job (no admin attribution).
+  actorEmail  String?
+  /// 'ADMIN' | 'SYSTEM'
+  actorRole   String?
+  /// 'llm' | 'storage' | 'system-config' | 'registry'
+  category    String
+  /// SystemConfig key (e.g. 'AI_PROVIDER') or 'registry:llm:openai' for
+  /// ProviderRegistry rows.
+  configKey   String
+  /// 'production' | 'preview' | 'development' — registry rows are global
+  /// and store 'production' here for filtering convenience.
+  environment String   @default("production")
+  before      Json?
+  after       Json?
+  /// Optional admin-supplied note ("rotating leaked OpenAI key").
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([changedAt])
+  @@index([category, configKey])
+  @@index([environment, changedAt])
 }
 
 /// Registry of pluggable providers (LLM, storage, voice, image, ...).

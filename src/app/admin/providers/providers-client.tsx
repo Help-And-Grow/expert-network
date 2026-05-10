@@ -14,6 +14,11 @@ import {
   Rocket,
   Save,
   X,
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  History,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +89,23 @@ type ApiState = {
   providerHealth: Record<string, ProviderHealthEntry>;
   canManage: boolean;
   deployHookConfigured: boolean;
+  environment: Environment;
+  currentVercelEnv: Environment | null;
+};
+
+type Environment = "production" | "preview" | "development";
+
+type AuditRow = {
+  id: string;
+  changedAt: string;
+  actorEmail: string | null;
+  actorRole: string | null;
+  category: string;
+  configKey: string;
+  environment: string;
+  before: unknown;
+  after: unknown;
+  reason: string | null;
 };
 
 type ChainPickerOption = { value: string; label: string };
@@ -232,6 +254,7 @@ export default function ProvidersClient() {
   const searchParams = useSearchParams();
   const initialTab = searchParams?.get("tab") || "llm";
 
+  const [environment, setEnvironment] = useState<Environment>("production");
   const [data, setData] = useState<ApiState | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,43 +263,55 @@ export default function ProvidersClient() {
   const [showDiff, setShowDiff] = useState(false);
   const [showAddLlm, setShowAddLlm] = useState(false);
   const [showAddStorage, setShowAddStorage] = useState(false);
+  const [reason, setReason] = useState("");
+  const [lastResponse, setLastResponse] = useState<{
+    deployTriggered: boolean;
+    deployError: string | null;
+  } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/providers", {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as ApiState;
-      setData(body);
-      const draftModels: DraftState["models"] = {};
-      for (const row of body.llm) {
-        draftModels[row.key] = {
-          textModel: row.models.text?.default ?? "",
-          imageModel: row.models.image?.default ?? "",
-        };
+  const load = useCallback(
+    async (env?: Environment) => {
+      setLoading(true);
+      setMessage(null);
+      try {
+        const targetEnv = env ?? environment;
+        const res = await fetch(
+          `/api/admin/providers?environment=${encodeURIComponent(targetEnv)}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as ApiState;
+        setData(body);
+        if (body.environment) setEnvironment(body.environment);
+        const draftModels: DraftState["models"] = {};
+        for (const row of body.llm) {
+          draftModels[row.key] = {
+            textModel: row.models.text?.default ?? "",
+            imageModel: row.models.image?.default ?? "",
+          };
+        }
+        setDraft({
+          activeLlm: body.active.llm,
+          llmImageChain: [...body.active.llmImageChain],
+          llmVoiceChain: [...body.active.llmVoiceChain],
+          activeStorage: body.active.storage,
+          models: draftModels,
+        });
+      } catch (err) {
+        setMessage(
+          err instanceof Error ? err.message : "Failed to load providers",
+        );
+      } finally {
+        setLoading(false);
       }
-      setDraft({
-        activeLlm: body.active.llm,
-        llmImageChain: [...body.active.llmImageChain],
-        llmVoiceChain: [...body.active.llmVoiceChain],
-        activeStorage: body.active.storage,
-        models: draftModels,
-      });
-    } catch (err) {
-      setMessage(
-        err instanceof Error ? err.message : "Failed to load providers",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [environment],
+  );
 
   useEffect(() => {
-    if (status === "authenticated") load();
-  }, [status, load]);
+    if (status === "authenticated") void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   const diffEntries = useMemo(
     () => (data && draft ? diffDrafts(data, draft) : []),
@@ -288,7 +323,8 @@ export default function ProvidersClient() {
     setSaving(true);
     setMessage(null);
     try {
-      const body: Record<string, unknown> = {};
+      const body: Record<string, unknown> = { environment };
+      if (reason.trim()) body.reason = reason.trim();
       if (draft.activeLlm !== data.active.llm) body.activeLlm = draft.activeLlm;
       if (draft.activeStorage !== data.active.storage)
         body.activeStorage = draft.activeStorage;
@@ -310,15 +346,49 @@ export default function ProvidersClient() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+      setLastResponse({
+        deployTriggered: !!json.deployTriggered,
+        deployError: json.deployError ?? null,
+      });
+      const deployBit = json.deployError
+        ? ` — DB saved but Vercel sync FAILED: ${json.deployError}`
+        : json.deployTriggered
+          ? " — deploy triggered"
+          : "";
       setMessage(
-        `Saved ${(json.updatedKeys ?? []).length} keys${
-          json.deployTriggered ? " — deploy triggered" : ""
-        }.`,
+        `Saved ${(json.updatedKeys ?? []).length} keys${deployBit}.`,
       );
       setShowDiff(false);
+      setReason("");
       await load();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onRetryDeploy = async () => {
+    setSaving(true);
+    setMessage("Retrying deploy…");
+    try {
+      const res = await fetch("/api/admin/providers/retry-deploy", {
+        method: "POST",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      setLastResponse({
+        deployTriggered: !!json.deployTriggered,
+        deployError: null,
+      });
+      setMessage(
+        json.deployTriggered ? "Deploy triggered." : "Deploy not triggered.",
+      );
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setSaving(false);
     }
@@ -355,9 +425,11 @@ export default function ProvidersClient() {
     (v) => ({ value: v, label: v }),
   );
 
+  const showEnvWarning = environment !== "production";
+
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Link href="/admin">
             <Button variant="ghost" size="sm">
@@ -373,7 +445,15 @@ export default function ProvidersClient() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <EnvironmentPills
+            value={environment}
+            onChange={(env) => {
+              setEnvironment(env);
+              void load(env);
+            }}
+            currentVercelEnv={data.currentVercelEnv}
+          />
+          <Button variant="outline" size="sm" onClick={() => load()} disabled={loading}>
             <RefreshCw
               className={`mr-1 h-4 w-4 ${loading ? "animate-spin" : ""}`}
             />
@@ -390,9 +470,30 @@ export default function ProvidersClient() {
         </div>
       </div>
 
+      {showEnvWarning && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <div>
+            You are editing the <strong>{environment}</strong> environment.
+            Changes here do <em>not</em> affect production traffic.
+          </div>
+        </div>
+      )}
+
       {message && (
         <div className="mb-3 rounded-md border bg-slate-50 p-2 text-xs text-slate-700">
           {message}
+          {lastResponse?.deployError && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-2"
+              onClick={onRetryDeploy}
+              disabled={saving}
+            >
+              Retry deploy
+            </Button>
+          )}
         </div>
       )}
 
@@ -485,15 +586,18 @@ export default function ProvidersClient() {
                         {row.key}
                       </span>
                     </CardTitle>
-                    {health ? (
-                      <Badge
-                        variant={health.configured ? "default" : "destructive"}
-                      >
-                        {health.configured ? "configured" : "missing keys"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">unknown</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <ProbeButton category="llm" providerKey={row.key} environment={environment} />
+                      {health ? (
+                        <Badge
+                          variant={health.configured ? "default" : "destructive"}
+                        >
+                          {health.configured ? "configured" : "missing keys"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">unknown</Badge>
+                      )}
+                    </div>
                   </div>
                   {(row.metadata?.description as string | undefined) && (
                     <CardDescription>
@@ -581,6 +685,8 @@ export default function ProvidersClient() {
               </Card>
             );
           })}
+
+          <RecentChangesPanel category="llm" environment={environment} />
         </TabsContent>
 
         {/* ---------------- STORAGE TAB ---------------- */}
@@ -633,12 +739,15 @@ export default function ProvidersClient() {
           {data.storage.map((row) => (
             <Card key={row.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">
-                  {row.displayName}{" "}
-                  <span className="ml-1 font-mono text-xs text-slate-500">
-                    {row.key}
-                  </span>
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">
+                    {row.displayName}{" "}
+                    <span className="ml-1 font-mono text-xs text-slate-500">
+                      {row.key}
+                    </span>
+                  </CardTitle>
+                  <ProbeButton category="storage" providerKey={row.key} environment={environment} />
+                </div>
                 {(row.metadata?.description as string | undefined) && (
                   <CardDescription>
                     {row.metadata?.description as string}
@@ -650,9 +759,7 @@ export default function ProvidersClient() {
                   {Object.entries(row.envKeys).map(([slot, envName]) => (
                     <Badge
                       key={slot}
-                      variant={
-                        process_env_has(envName) ? "default" : "destructive"
-                      }
+                      variant="outline"
                       className="font-mono text-[10px]"
                     >
                       {slot}: {envName}
@@ -667,6 +774,8 @@ export default function ProvidersClient() {
               </CardContent>
             </Card>
           ))}
+
+          <RecentChangesPanel category="storage" environment={environment} />
         </TabsContent>
 
         {/* ---------------- DB TAB ---------------- */}
@@ -704,10 +813,11 @@ export default function ProvidersClient() {
             <DialogTitle>Confirm changes</DialogTitle>
             <DialogDescription>
               {diffEntries.length} change(s) will be written to SystemConfig
-              and (when configured) synced to Vercel + redeploy.
+              <strong> ({environment})</strong> and (when configured) synced
+              to Vercel + redeploy.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-[60vh] space-y-2 overflow-y-auto text-sm">
+          <div className="max-h-[50vh] space-y-2 overflow-y-auto text-sm">
             {diffEntries.map((d, i) => (
               <div
                 key={i}
@@ -723,6 +833,21 @@ export default function ProvidersClient() {
             {diffEntries.length === 0 && (
               <p className="text-xs italic text-slate-500">No changes.</p>
             )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-700">
+              Why are you making this change?{" "}
+              <span className="font-normal text-slate-500">
+                (optional, recorded in audit log)
+              </span>
+            </label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              placeholder="e.g. rotating leaked OpenAI API key"
+              className="text-sm"
+            />
           </div>
           <DialogFooter>
             <Button
@@ -749,26 +874,275 @@ export default function ProvidersClient() {
         open={showAddLlm}
         category="llm"
         onClose={() => setShowAddLlm(false)}
-        onSaved={load}
+        onSaved={() => load()}
       />
       <AddProviderDialog
         open={showAddStorage}
         category="storage"
         onClose={() => setShowAddStorage(false)}
-        onSaved={load}
+        onSaved={() => load()}
       />
     </div>
   );
 }
 
-/**
- * Client-side guess at whether an env var is set in the *runtime* environment.
- * We can't read process.env from a "use client" file, so this returns true to
- * keep the UI from spuriously flagging keys; the providerHealth map computed
- * by the API is the authoritative source for LLM rows.
- */
-function process_env_has(_envName: string): boolean {
-  return true;
+function EnvironmentPills({
+  value,
+  onChange,
+  currentVercelEnv,
+}: {
+  value: Environment;
+  onChange: (env: Environment) => void;
+  currentVercelEnv: Environment | null;
+}) {
+  const opts: Environment[] = ["production", "preview", "development"];
+  return (
+    <div
+      className="inline-flex overflow-hidden rounded-md border"
+      role="group"
+      aria-label="Environment"
+    >
+      {opts.map((env) => (
+        <button
+          key={env}
+          type="button"
+          onClick={() => onChange(env)}
+          className={`px-2.5 py-1 text-xs font-medium transition ${
+            value === env
+              ? "bg-slate-900 text-white"
+              : "bg-white text-slate-700 hover:bg-slate-100"
+          }`}
+          title={
+            currentVercelEnv === env
+              ? "Current Vercel deployment env"
+              : undefined
+          }
+        >
+          {env}
+          {currentVercelEnv === env && (
+            <span className="ml-1 text-[10px] opacity-70">●</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+type ProbeState =
+  | { status: "idle" }
+  | { status: "pending" }
+  | {
+      status: "done";
+      ok: boolean;
+      latencyMs: number;
+      sampleOutput?: string;
+      error?: string;
+      cached?: boolean;
+    };
+
+function ProbeButton({
+  category,
+  providerKey,
+  environment,
+}: {
+  category: string;
+  providerKey: string;
+  environment: Environment;
+}) {
+  const [state, setState] = useState<ProbeState>({ status: "idle" });
+
+  const onTest = async () => {
+    setState({ status: "pending" });
+    try {
+      const res = await fetch("/api/admin/providers/test", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, key: providerKey, environment }),
+      });
+      const json = await res.json();
+      setState({
+        status: "done",
+        ok: !!json.ok,
+        latencyMs: typeof json.latencyMs === "number" ? json.latencyMs : 0,
+        sampleOutput: json.sampleOutput,
+        error: json.error,
+        cached: !!json.cached,
+      });
+    } catch (err) {
+      setState({
+        status: "done",
+        ok: false,
+        latencyMs: 0,
+        error: err instanceof Error ? err.message : "probe failed",
+      });
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onTest}
+        disabled={state.status === "pending"}
+      >
+        {state.status === "pending" ? (
+          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+        ) : (
+          <Activity className="mr-1 h-3 w-3" />
+        )}
+        Test now
+      </Button>
+      {state.status === "done" && (
+        <span
+          className={`inline-flex items-center gap-1 text-xs ${
+            state.ok ? "text-emerald-700" : "text-red-700"
+          }`}
+          title={state.sampleOutput ?? state.error ?? ""}
+        >
+          {state.ok ? (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          ) : (
+            <XCircle className="h-3.5 w-3.5" />
+          )}
+          {state.ok
+            ? `${state.latencyMs}ms${state.cached ? " (cached)" : ""}`
+            : (state.error ?? "fail").slice(0, 60)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RecentChangesPanel({
+  category,
+  environment,
+}: {
+  category: string;
+  environment: Environment;
+}) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<AuditRow[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const fetchRows = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch(
+        `/api/admin/providers/audit?category=${encodeURIComponent(category)}&environment=${encodeURIComponent(environment)}&limit=10`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setRows(json.rows ?? []);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [category, environment]);
+
+  useEffect(() => {
+    if (open && rows === null) void fetchRows();
+  }, [open, rows, fetchRows]);
+
+  // Refetch when env or category changes if panel is open.
+  useEffect(() => {
+    if (open) {
+      setRows(null);
+      void fetchRows();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [environment, category]);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <History className="h-4 w-4" />
+            Recent changes ({category})
+          </CardTitle>
+          <span className="text-xs text-slate-500">
+            {open ? "Hide" : "Show"}
+          </span>
+        </button>
+      </CardHeader>
+      {open && (
+        <CardContent className="text-xs">
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {err && <p className="text-red-600">{err}</p>}
+          {rows && rows.length === 0 && (
+            <p className="italic text-slate-500">No recent changes.</p>
+          )}
+          {rows && rows.length > 0 && (
+            <ul className="space-y-1.5">
+              {rows.map((r) => (
+                <li key={r.id} className="rounded border p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11px] text-slate-700">
+                      {r.configKey}
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {new Date(r.changedAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
+                    <Badge variant="outline" className="text-[10px]">
+                      {r.actorEmail ?? r.actorRole ?? "system"}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {r.environment}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 break-all font-mono text-[10px] text-slate-600">
+                    <span className="line-through text-red-700">
+                      {summarize(r.before)}
+                    </span>{" "}
+                    →{" "}
+                    <span className="text-emerald-700">
+                      {summarize(r.after)}
+                    </span>
+                  </div>
+                  {r.reason && (
+                    <p className="mt-0.5 text-[10px] italic text-slate-500">
+                      “{r.reason}”
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-2">
+            <Link
+              href={`/admin/providers/audit?category=${encodeURIComponent(category)}&environment=${encodeURIComponent(environment)}`}
+              className="text-blue-600 underline"
+            >
+              View all
+            </Link>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function summarize(v: unknown): string {
+  if (v === null || v === undefined) return "(none)";
+  if (typeof v === "string") return v.length > 60 ? `${v.slice(0, 60)}…` : v;
+  try {
+    const s = JSON.stringify(v);
+    return s.length > 80 ? `${s.slice(0, 80)}…` : s;
+  } catch {
+    return String(v);
+  }
 }
 
 function AddProviderDialog({
