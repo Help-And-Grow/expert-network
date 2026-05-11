@@ -53,12 +53,11 @@ src/components/       → Shared React components
 src/hooks/            → Custom React hooks
 prisma/               → Database schema
 scripts/              → Build-time scripts (e.g. switch-db)
-hiclaw/service/       → HiClaw shadow service (Express): manager, shadow/evaluator/planner workers, store (Postgres HTTP SQL or pg)
 ```
 
-## HiClaw shadow service
+## On-chain attestation state
 
-Separate Node process documented in `hiclaw/README.md`. Session store: Postgres via `pg` (`HICLAW_POSTGRES_URL`, falls back to `DATABASE_URL`). Next.js reads the same HiClaw tables via `src/lib/tidb.ts` (Postgres; filename is historical). Design: `docs/design-docs/agent-system.md`.
+On-chain attestation status lives in `POMPCredential` (`onChainVerified`, `txHash`) in the main app Postgres. `/api/webhook/onchain` updates it idempotently from Alchemy EAS `Attested` logs; `/api/reputation/:expertId` aggregates `POMPCredential` + `Booking` via Prisma. No sidecar process or separate database.
 
 ## Documentation
 

@@ -16,9 +16,6 @@ export async function GET(request: NextRequest) {
       ? resolvedDb.replace(/:[^@]+@/, ":***@").substring(0, 80)
       : undefined,
     directUrl: process.env.DIRECT_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80),
-    hiClawDbUrl:
-      process.env.HICLAW_POSTGRES_URL?.replace(/:[^@]+@/, ":***@").substring(0, 80) ??
-      "(falls back to DATABASE_URL)",
     dbProvider: process.env.DB_PROVIDER || "(not set)",
     timestamp: new Date().toISOString(),
   };

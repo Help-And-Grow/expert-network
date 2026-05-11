@@ -21,7 +21,6 @@ This file is a thin index. The canonical sources are kept in dedicated docs to a
 | Active execution plans | [`docs/exec-plans/active/`](docs/exec-plans/active/) |
 | Product specs | [`docs/product-specs/`](docs/product-specs/) |
 | External LLM-friendly references | [`docs/references/`](docs/references/) |
-| HiClaw sidecar | [`hiclaw/README.md`](hiclaw/README.md) |
 | E2E tests | [`e2e/README.md`](e2e/README.md) |
 
 If you came here looking for system internals, start with [`ARCHITECTURE.md`](ARCHITECTURE.md). For day-to-day code work, start with [`AGENTS.md`](AGENTS.md).

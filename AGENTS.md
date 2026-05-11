@@ -24,7 +24,6 @@ AGENTS.md            ← You are here
 ARCHITECTURE.md      ← Domain map, dependency layers, tech decisions
 contracts/           ← Foundry smart contracts (HelpGrowToken)
 docs/                ← Full knowledge base (see below)
-hiclaw/              ← HiClaw multi-agent service (ECS deployment)
 prisma/              ← Database schema and migrations
 scripts/             ← Build-time helpers (switch-db, wechat-upload)
 src/
@@ -73,11 +72,10 @@ See `docs/` for full details:
 9. **POMP (Proof of Meet Protocol)**: Every completed meetup (`Booking` row) creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
 10. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. **Players** earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
 11. **Smart Contracts**: Foundry-based (`contracts/`). Deploy via `forge script script/Deploy.s.sol` (HelpGrowToken on Base Sepolia/Mainnet).
-12. **HiClaw Agent System**: Node service in `hiclaw/service/` — **manager**, **shadowWorker** (generator), **evaluatorWorker** (quality loop), optional **plannerWorker** (sprint contract), **store** (Postgres via `HICLAW_POSTGRES_URL`, falling back to `DATABASE_URL`), **waitingRoom**. Local-first defaults are **Ollama + Postgres/pgvector**; mem9 is optional and the service falls back to `expert_memory_embeddings` when mem9 is off. Details: [`hiclaw/README.md`](hiclaw/README.md).
-13. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates HiClaw `sessions` in Postgres (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from the same store.
-14. **Reputation Dashboard**: `/reputation` — expert stats from HiClaw DB + EASScan links; **player** H&G balance via wagmi + ledger API.
-15. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): **Qwen / DashScope** handles transcription, reply generation, and TTS in `src/lib/voice-chat-session.ts`, with **5-reply free cap**, `POST /api/voice-chat/message`; opening voice greeting `POST /api/voice-chat/greeting`. On Web, entering the voice-chat surface now immediately tries to read the welcome message aloud, falling back to device speech when generated audio cannot autoplay; manual replay remains available. WeChat keeps grouped voice drafts (up to 3 clips) with one confirmed send per question bundle. **Realtime**: timed **AI chat** with a **3-min cap**, `POST /api/voice-chat/start` + `/stop`, plus text turns through `POST /api/voice-chat/message` with audio disabled for that surface, except the opening greeting may still be read aloud on entry. Config endpoint: `GET /api/voice-chat/config`. Realtime readiness now depends on **`DASHSCOPE_API_KEY`**.
-16. **Expert detail contract**: `/api/experts/[id]` keeps legacy flags (`hasAudio`, `hasVoiceChat`, `hasClonedVoice`) but now also returns `experienceCapabilities` for voice-intro availability, async voice quota, premium realtime status, and canonical web continuation URLs.
+12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates `POMPCredential.onChainVerified` + `txHash` in the main app Postgres idempotently via Prisma. `/api/reputation/:expertId` aggregates from `POMPCredential` + `Booking`.
+13. **Reputation Dashboard**: `/reputation` — expert stats from `POMPCredential` + `Booking` (via Prisma) plus EASScan links; **player** H&G balance via wagmi + ledger API.
+14. **AI Voice Chat**: Two modes controlled by `VOICE_CHAT_MODE` env var (`async` | `realtime` | `both`). **Async** (default): **Qwen / DashScope** handles transcription, reply generation, and TTS in `src/lib/voice-chat-session.ts`, with **5-reply free cap**, `POST /api/voice-chat/message`; opening voice greeting `POST /api/voice-chat/greeting`. On Web, entering the voice-chat surface now immediately tries to read the welcome message aloud, falling back to device speech when generated audio cannot autoplay; manual replay remains available. WeChat keeps grouped voice drafts (up to 3 clips) with one confirmed send per question bundle. **Realtime**: timed **AI chat** with a **3-min cap**, `POST /api/voice-chat/start` + `/stop`, plus text turns through `POST /api/voice-chat/message` with audio disabled for that surface, except the opening greeting may still be read aloud on entry. Config endpoint: `GET /api/voice-chat/config`. Realtime readiness now depends on **`DASHSCOPE_API_KEY`**.
+15. **Expert detail contract**: `/api/experts/[id]` keeps legacy flags (`hasAudio`, `hasVoiceChat`, `hasClonedVoice`) but now also returns `experienceCapabilities` for voice-intro availability, async voice quota, premium realtime status, and canonical web continuation URLs.
 
 ## Documentation (key changes)
 
@@ -107,8 +105,7 @@ When you ship **user-visible behavior**, **new env vars**, **API contracts**, **
 | Optional pgvector memory | `USE_PGVECTOR_MEMORY`, `src/lib/integrations/pgvector-memory.ts`, admin `/api/admin/migrate` SQL |
 | Work on POMP/token features | `src/lib/pomp-credential.ts`, `src/lib/pomp-eas-schema.ts`, `src/lib/hg-token.ts`, `contracts/src/` |
 | Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |
-| Work on HiClaw agents | `hiclaw/README.md`, `hiclaw/service/src/` (manager, shadowWorker, evaluatorWorker, plannerWorker, store, waitingRoom) |
-| On-chain sync/reputation | `src/lib/tidb.ts`, `src/app/api/webhook/onchain/`, `src/app/api/reputation/` |
+| On-chain sync/reputation | `src/app/api/webhook/onchain/`, `src/app/api/reputation/`, `POMPCredential` in `prisma/schema.prisma` |
 | Manage AI provider on Vercel | `/admin/ai-provider`, `src/app/api/admin/ai-provider/route.ts`, `src/lib/vercel-admin.ts` |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | AI voice chat feature | `src/lib/voice-chat-config.ts` (toggle), `src/app/api/voice-chat/` (config/message/start/stop), `src/lib/voice-chat-session.ts`, `src/components/voice-chat-panel.tsx` (async), `src/components/voice-chat-modal.tsx` (realtime), `ten-agent/` (Phase B) |

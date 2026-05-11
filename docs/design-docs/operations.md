@@ -2,7 +2,7 @@
 
 **Status**: Accepted (living)
 **Date**: 2026-04
-**Scope**: Engineering principles, data-layer guidance, platform defaults, dependency posture, tech-debt status. Companion: [architecture.md](architecture.md), [product-features.md](product-features.md), [agent-system.md](agent-system.md).
+**Scope**: Engineering principles, data-layer guidance, platform defaults, dependency posture, tech-debt status. Companion: [architecture.md](architecture.md), [product-features.md](product-features.md).
 
 This document holds the operational truth that the other design docs depend on but don't repeat: how we make decisions, where data lives, what the platform expects, and what's still on the punch list.
 
@@ -28,14 +28,13 @@ Data blocks are intentionally separated. Each solves a different problem and can
 | Accounts, bookings, payments, the catalog | `DATABASE_URL` (Google Cloud SQL `hg-postgres-prod`) | Source of truth for the marketplace |
 | Fast expert candidate retrieval | Postgres `pgvector` (`expert_profile_embeddings`) | Current semantic pre-rank index for Web/Telegram matching |
 | AI-ready memory about each expert (profile facts, meetups, appreciations) | **mem9** hosted API (`v1alpha2`; per-expert key in `Expert.mem9SpaceId`) | Managed long-term memory: write stable facts/events, search snippets when building context |
-| HiClaw agent runs (sessions, waiting room, handoffs, traces) and optional vectors near agent data | `HICLAW_POSTGRES_URL` (or fallback to `DATABASE_URL`) | Same Postgres, optionally with `pgvector` |
 | Internal agent research workspaces | Future DB9 pilot | Files, SQL, branches, cron, and embedding experiments for agents; not production marketplace data |
 
 **Stance:** Postgres stays the production source of truth. pgvector remains the pragmatic semantic matching index until it becomes the bottleneck; Zilliz/Milvus is the future vector provider boundary, not an immediate rewrite. mem9 stays the product memory layer, modernized to hosted `v1alpha2` calls with `X-API-Key` and `X-Mnemo-Agent-Id`. DB9 is reserved for internal agent workspace pilots.
 
 **`USE_PGVECTOR_MEMORY=1`** enables (a) dual-write from lifecycle hooks into `expert_memory_embeddings`, (b) search-first-on-PG in `searchExpertMemories` (falls back to mem9), (c) a path toward reducing mem9 dependency. Requires Gemini embeddings via `GEMINI_API_KEY` or Vertex credentials (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`). Backfill historical mem9 text via `POST /api/admin/pgvector-backfill` (admin) only after dual-write is stable.
 
-**References**: `src/lib/integrations/mem9.ts`, `mem9-lifecycle.ts`, `pgvector-memory.ts`, `mem9-pgvector-backfill.ts`, [`agent-memory-search-stack.md`](agent-memory-search-stack.md), [`hiclaw/README.md`](../../hiclaw/README.md).
+**References**: `src/lib/integrations/mem9.ts`, `mem9-lifecycle.ts`, `pgvector-memory.ts`, `mem9-pgvector-backfill.ts`, [`agent-memory-search-stack.md`](agent-memory-search-stack.md).
 
 ---
 

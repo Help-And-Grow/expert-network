@@ -29,7 +29,7 @@
 
 We are building toward **service as agent**: a **digital counterpart** of each expert that **continuously learns** from public context, meetings (online/offline), reflection, and memos — stays **always on**, **evolves with the human**, answers on-platform, and **facilitates** real sessions (does not replace the expert).
 
-**Today:** AI matching, profiles, mem9-backed memory, HiClaw-style shadow flows (roadmap).  
+**Today:** AI matching, profiles, mem9-backed memory, multi-agent shadow flows (roadmap).  
 **Tomorrow:** richer agent layer tied to the same trust and **meetup** rails (`Booking` / payments).
 
 ---

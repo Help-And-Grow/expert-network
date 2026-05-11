@@ -15,7 +15,7 @@ This design turns the Zilliz / DB9 / mem9 research into product architecture. Th
 | Marketplace source of truth | Postgres (`DATABASE_URL`, Google Cloud SQL `hg-postgres-prod`) | None | Users, experts, bookings, payments, system config |
 | Expert semantic pre-rank | Postgres pgvector (`expert_profile_embeddings`) | Zilliz Cloud / Milvus | Fast top-K candidate retrieval |
 | Long-term expert memory | mem9 hosted API (`v1alpha2`) | Self-hosted mem9 or pgvector mirror | Durable expert facts, preferences, meetup outcomes, appreciations |
-| Agent run workspace | Postgres / HiClaw tables | DB9 for experiments and branches | Agent traces, reports, files, eval runs, temporary research DBs |
+| Agent run workspace | Postgres (main app) | DB9 for experiments and branches | Agent traces, reports, files, eval runs, temporary research DBs |
 
 The production app keeps Postgres as the source of truth. mem9 is the product memory layer. pgvector is the current vector index because it is simple and already deployed. Zilliz becomes valuable once vector volume, multimodal retrieval, or recall tuning exceeds what pgvector should own. DB9 is useful first for internal agent workspaces, not for core marketplace data.
 
@@ -98,7 +98,6 @@ Until then, pgvector remains the pragmatic default.
 
 DB9 should start as an agent workspace layer:
 
-- HiClaw experiments and evaluator outputs.
 - Codex/Cursor research runs.
 - Temporary branch databases for schema/search experiments.
 - RAG labs that combine files, SQL, cron, and built-in embeddings.
@@ -112,7 +111,7 @@ DB9 should not become the Web/Telegram production database in this phase. The pr
 1. **mem9 adapter modernization** - move runtime memory operations to hosted `v1alpha2` with `X-API-Key` and `X-Mnemo-Agent-Id`, preserving existing lifecycle call sites.
 2. **Memory governance** - add richer tags/metadata and review/delete/export surfaces before writing more sensitive memories.
 3. **Vector provider interface** - keep pgvector as default, make the boundary explicit so Zilliz is a future provider, not a rewrite.
-4. **DB9 pilot** - use DB9 for one internal HiClaw/Codex evaluation workspace, then decide whether it earns a permanent role.
+4. **DB9 pilot** - use DB9 for one internal Codex/agent evaluation workspace, then decide whether it earns a permanent role.
 5. **Zilliz pilot** - mirror expert profile embeddings to Zilliz only after pgvector shows real scale or multimodal limitations.
 
 ---

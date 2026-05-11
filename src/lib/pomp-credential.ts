@@ -103,6 +103,10 @@ export async function issuePOMPCredentials(bookingId: string) {
       const uid = String(getUIDsFromAttestReceipt(receipt)[0]);
       const txHash = receipt.hash;
 
+      // `tx.wait()` returned, so the Attested event is already on-chain.
+      // Write txHash + onChainVerified eagerly; the Alchemy webhook is now
+      // a redundant confirmation (idempotent re-set), which is the right
+      // behaviour for external attestations against our schema.
       await prisma.pOMPCredential.create({
         data: {
           expertId: booking.expertId,
@@ -111,6 +115,8 @@ export async function issuePOMPCredentials(bookingId: string) {
           attestationUID: uid,
           recipient: recipientName,
           hours,
+          txHash,
+          onChainVerified: true,
         },
       });
 

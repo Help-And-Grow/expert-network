@@ -1,6 +1,6 @@
 # Postgres cutover — operations runbook
 
-The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma and for HiClaw session / on-chain sync tables. MySQL `DATABASE_URL` values are rejected at startup.
+The main app uses **PostgreSQL** only for Prisma (including on-chain attestation state on `POMPCredential`). MySQL `DATABASE_URL` values are rejected at startup.
 
 > **Production runs on Cloud SQL** (`asia-southeast1`) since 2026-05-03. See [archive/supabase-to-cloudsql-migration.md](../archive/supabase-to-cloudsql-migration.md) for the migration record and [cloud-sql-data-viewing.md](../../references/cloud-sql-data-viewing.md) for everyday DB-access patterns.
 
@@ -10,19 +10,9 @@ The main app and HiClaw-related server routes use **PostgreSQL** only for Prisma
 
 - **`DATABASE_URL`** — must be `postgres://` or `postgresql://`. For Cloud SQL the URL takes the shape `postgresql://user:pass@HOST:5432/db?sslmode=require&sslaccept=accept_invalid_certs`. The `sslaccept=accept_invalid_certs` is required for Prisma's Rust query engine to accept Cloud SQL's managed CA chain.
 
-### HiClaw session DB (Next.js: `/api/webhook/onchain`, `/api/reputation/:expertId`, admin “HiClaw DB”)
+### On-chain attestation state
 
-Resolution order in `src/lib/tidb.ts`:
-
-1. **`HICLAW_POSTGRES_URL`**
-2. **`DATABASE_URL`**
-
-If none resolve to Postgres, routes that call `tidb` helpers will throw with a clear error.
-
-### HiClaw Node service (`hiclaw/service`)
-
-- **`HICLAW_POSTGRES_URL`** — preferred direct Postgres URL for HiClaw workers.
-- Else **`DATABASE_URL`** — reuse the same Cloud SQL instance as the main app.
+`POMPCredential.onChainVerified` and `POMPCredential.txHash` live in the main Prisma DB. `/api/webhook/onchain` and `/api/reputation/:expertId` use the same `DATABASE_URL` — no separate Postgres or env var.
 
 ### Inngest (optional)
 
@@ -39,10 +29,8 @@ If none resolve to Postgres, routes that call `tidb` helpers will throw with a c
 ## Deploy checklist
 
 1. Set **`DATABASE_URL`** to the Cloud SQL Postgres instance on Vercel. Vercel **`npm install` postinstall** runs **`prisma migrate deploy`** when `VERCEL=1` so an empty database receives [`prisma/migrations`](../../../prisma/migrations/). Transient connection failures are retried and may be skipped with a warning; set `PRISMA_MIGRATE_STRICT=1` if the build must fail instead. When the target DB already has tables but no `_prisma_migrations` history (Prisma error **P3005**), [`scripts/prisma-migrate-if-vercel.mjs`](../../../scripts/prisma-migrate-if-vercel.mjs) auto-resolves the baseline migration `20260424120000_baseline` and retries — added 2026-04 (commit `edf8faf`).
-2. Set **`HICLAW_POSTGRES_URL`** to the **same** or a dedicated Postgres that holds HiClaw tables (`sessions`, etc.). If unset, the app will reuse `DATABASE_URL`.
-3. Run **Apply HiClaw schema** from **Admin → HiClaw DB** (`/admin/tidb`) or execute the DDL your team uses for that database.
-4. Register **`https://<your-domain>/api/inngest`** in Inngest Cloud and set signing + event keys if using scheduled or event-driven functions.
-5. Remove any **`mysql://`** URLs from secrets; they will break boot or HiClaw routes.
+2. Register **`https://<your-domain>/api/inngest`** in Inngest Cloud and set signing + event keys if using scheduled or event-driven functions.
+3. Remove any **`mysql://`** URLs from secrets; they will break boot.
 
 ## Local development
 

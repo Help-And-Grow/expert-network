@@ -2,7 +2,7 @@
 
 **Status**: Accepted (mixed phases)
 **Date**: 2026-04
-**Scope**: Revenue-bearing and growth-bearing product capabilities. Companion: [architecture.md](architecture.md), [agent-system.md](agent-system.md).
+**Scope**: Revenue-bearing and growth-bearing product capabilities. Companion: [architecture.md](architecture.md).
 
 This document covers the four product capabilities that have non-trivial design surface: **payments**, **premium live consultation**, **Telegram profile sharing**, and the **pluggable expert avatar control plane**. Smaller surfaces (browse, discover, reviews, profile dashboard) follow standard CRUD patterns and live entirely in the code.
 
@@ -150,10 +150,10 @@ A capability fabric that lets each expert configure their own AI service stack w
 1. **Experience surfaces** — Web, Telegram, WeChat, MCP, future operator/admin.
 2. **Service control plane** — tenant/expert config, entitlement, routing policy, rollout flags.
 3. **Capability fabric** — named capabilities: voice reply, realtime talk, meeting capture, memo/reflection, social learning, service matching, conversion support.
-4. **Orchestration adapters** — pluggable: `hiclaw | scion | local`.
+4. **Orchestration adapters** — pluggable: `scion | local`.
 5. **Runtime/context infra** — models, tools, storage, memory, embeddings, queues.
 
-Experience surfaces never bind directly to HiClaw or Scion. They request a capability; the control plane resolves the adapter/runtime stack.
+Experience surfaces never bind directly to a specific adapter. They request a capability; the control plane resolves the adapter/runtime stack.
 
 ### Capability contract
 
@@ -161,7 +161,7 @@ Each capability resolves through four selectors:
 
 | Selector | Values | Meaning |
 |----------|--------|---------|
-| `orchestrator` | `hiclaw \| scion \| local` | Multi-agent OS choice |
+| `orchestrator` | `scion \| local` | Multi-agent OS choice |
 | `runtimeProfile` | container shape, concurrency, timeout, region, isolation | How it runs |
 | `modelProfile` | model family, provider, fallback chain, response target | Which AI |
 | `memoryProfile` | `mem9 \| pgvector \| hybrid`, retrieval mode, write policy | Where memory lives |
@@ -170,6 +170,5 @@ Each capability resolves through four selectors:
 
 ### Adapter positioning
 
-- **HiClaw** — workflows that benefit from explicit multi-agent collaboration with human-in-the-loop approval (meeting follow-up, memo loops, expert growth, multi-step coordination). See [agent-system.md](agent-system.md).
 - **Scion** — Google-oriented stacks; lighter-weight orchestration when the deployment is GCP-native.
 - **Local** — Docker + Ollama + Postgres/pgvector baseline for on-prem and air-gapped deployments. Always available as a fallback.

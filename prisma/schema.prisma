@@ -222,19 +222,29 @@ model InvitationCode {
 }
 
 model POMPCredential {
-  id             String   @id @default(cuid())
-  expertId       String
-  bookingId      String
-  recipientRole  String
-  attestationUID String   @unique
-  recipient      String?
-  hours          Float
-  createdAt      DateTime @default(now())
-  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  expert         Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  expertId        String
+  bookingId       String
+  recipientRole   String
+  attestationUID  String   @unique
+  recipient       String?
+  hours           Float
+  /// Base/Optimism tx hash that included the EAS Attested event. Written
+  /// eagerly by `issuePOMPCredentials` after `tx.wait()` returns, so it's
+  /// populated even before the Alchemy webhook fires.
+  txHash          String?
+  /// Confirmed on-chain. Set to true eagerly when our own backend issues
+  /// the attestation (the EAS receipt itself proves inclusion); also set
+  /// idempotently by the Alchemy webhook for redundancy or external
+  /// attestations.
+  onChainVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  expert          Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   @@unique([bookingId, recipientRole])
   @@index([expertId])
+  @@index([expertId, onChainVerified])
 }
 
 model TokenLedger {

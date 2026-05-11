@@ -162,8 +162,6 @@ const envSchema = z
 
     ALCHEMY_WEBHOOK_SECRET: z.string().optional(),
 
-    HICLAW_POSTGRES_URL: z.string().url().optional(),
-
     /** Enable hosted mem9 expert memory. Set "1" for per-expert key provisioning. */
     MEM9_ENABLED: z.string().optional(),
     /** Compatibility toggle for older deployments; runtime calls use per-expert keys in Expert.mem9SpaceId. */

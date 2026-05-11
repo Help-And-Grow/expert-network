@@ -347,9 +347,6 @@ function AdminContent() {
             <Button variant="outline" size="sm" asChild>
               <Link href="/admin/providers">Providers</Link>
             </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/tidb">HiClaw DB</Link>
-            </Button>
             <Button
               variant="ghost"
               size="sm"

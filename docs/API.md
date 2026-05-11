@@ -124,7 +124,7 @@ The contract test that anchors this doc is [`e2e/smoke/api-contracts.spec.ts`](.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/reputation/[expertId]` | Aggregated POMP stats from HiClaw store |
+| GET | `/api/reputation/[expertId]` | Aggregated POMP stats from `POMPCredential` + `Booking` (Prisma) |
 | GET | `/tonconnect-manifest` | TonConnect manifest (browser-fetched) |
 
 ## Stripe Connect
@@ -192,7 +192,6 @@ These are intentionally auth-free and scoped to non-sensitive read paths for age
 | POST | `/api/admin/migrate` | Run admin SQL (e.g. pgvector setup) |
 | POST | `/api/admin/pgvector-backfill` | Backfill `expert_memory_embeddings` |
 | GET | `/api/admin/stats` | Platform stats |
-| GET / POST | `/api/admin/tidb` | Legacy TiDB console (kept for HiClaw schema operations) |
 | GET / PATCH | `/api/admin/users` | List / update users |
 
 ## Debug (`/api/debug/*`) — admin + env-gated

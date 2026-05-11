@@ -1,6 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies (any depth — e.g. hiclaw/service/node_modules)
+# dependencies (any depth)
 node_modules/
 /.pnp
 .pnp.js

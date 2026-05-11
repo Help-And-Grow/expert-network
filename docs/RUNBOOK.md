@@ -9,7 +9,7 @@ Operational guide for getting the app up locally, deploying to Vercel, and under
 ### Prereqs
 - Node.js 20.x (`.nvmrc`)
 - PostgreSQL 14+ (local or hosted)
-- Optional: Docker (for HiClaw sidecar / ten-agent voice)
+- Optional: Docker (for ten-agent voice)
 
 ### First-time setup
 ```bash
@@ -38,7 +38,6 @@ With `DEV_AUTH_EMAIL` set, `/auth/signin` exposes a "Continue as local dev" butt
 ### Subsystems with Docker
 | Subsystem | Path |
 |---|---|
-| HiClaw sidecar | `cd hiclaw && docker compose up` — see [`hiclaw/README.md`](../hiclaw/README.md) |
 | ten-agent (realtime voice, Phase B) | `cd ten-agent && docker compose up` |
 
 The Next.js app itself runs on Node directly via `npm run dev`. There is no top-level `docker-compose.yml`.
@@ -104,7 +103,6 @@ Workflows were re-enabled in commit `27f2570` after the Action-minute quota wind
 | [`playwright-e2e.yml`](../.github/workflows/playwright-e2e.yml) | manual / schedule | Broader Playwright run |
 | _(removed 2026-05-06)_ `ui-smoke.yml` | — | Previously bootstrapped local Next.js + ephemeral Postgres for browser smoke. Replaced by `ci.yml`'s `e2e` job which runs the same Playwright smoke against the canonical production URL — single source of truth, no ephemeral CI database to maintain. |
 | [`wechat-ci.yml`](../.github/workflows/wechat-ci.yml) | PR / push | Builds `wechat/` Mini Program; uploads on `main` (needs `WECHAT_CI_PRIVATE_KEY`) |
-| [`sync-hiclaw.yml`](../.github/workflows/sync-hiclaw.yml) | scheduled | Sync HiClaw service deployment |
 | [`npm-audit.yml`](../.github/workflows/npm-audit.yml) | scheduled | npm audit triage |
 
 If quota becomes a concern again, gate individual workflows with a job-level `if:` guard rather than flipping every job at once.
@@ -151,4 +149,4 @@ curl -s https://www.help-and-grow.com/api/db-health | jq
 | `/api/voice-chat/*` returns "voice unavailable" | `DASHSCOPE_API_KEY` unset or `VOICE_CHAT_MODE` mismatch | Check `/api/voice-chat/config` response; reset env on Vercel |
 | WeChat sign-in 401 loops | `WECHAT_APP_SECRET` rotated | Resync secret; verify `code2session` from `/api/auth/wechat` |
 | `/admin/ai-provider` "permission denied" | Missing `VERCEL_MANAGEMENT_TOKEN` or wrong team/project | Set the three `VERCEL_MANAGED_*` vars |
-| `/reputation/[id]` returns empty | HiClaw store not aligned to same Postgres or `eas_attestation_uid` not synced | Verify `HICLAW_POSTGRES_URL` resolves to same DB; check Alchemy webhook delivery on `/api/webhook/onchain` |
+| `/reputation/[id]` returns empty | `POMPCredential` rows missing or `onChainVerified` not flipped by Alchemy webhook | Inspect `POMPCredential` rows via Prisma; check Alchemy webhook delivery + HMAC on `/api/webhook/onchain` |

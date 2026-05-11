@@ -1,21 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
-import { SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
-import {
-  createPublicClient,
-  decodeEventLog,
-  http,
-  type Hex,
-  type Log,
-} from "viem";
-import { base, baseSepolia } from "viem/chains";
+import { decodeEventLog, type Hex, type Log } from "viem";
 
-import { POMP_EAS_SCHEMA } from "@/lib/pomp-eas-schema";
-import { DEFAULT_EAS_CONTRACT_ADDRESS } from "@/lib/pomp-credential";
-import { updateSessionOnChain } from "@/lib/tidb";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Just enough EAS ABI to decode the indexed `Attested(recipient, attester,
+ * uid, schemaUID)` event. We don't read the attestation payload itself
+ * anymore — the credential row keyed by `attestationUID` already has
+ * everything we need; the webhook only flips `onChainVerified` and
+ * back-fills `txHash` if it was somehow missed at issuance time.
+ */
 const easAbi = [
   {
     type: "event",
@@ -27,30 +24,6 @@ const easAbi = [
       { name: "schemaUID", type: "bytes32", indexed: true },
     ],
   },
-  {
-    type: "function",
-    name: "getAttestation",
-    stateMutability: "view",
-    inputs: [{ name: "uid", type: "bytes32" }],
-    outputs: [
-      {
-        name: "",
-        type: "tuple",
-        components: [
-          { name: "uid", type: "bytes32" },
-          { name: "schema", type: "bytes32" },
-          { name: "time", type: "uint64" },
-          { name: "expirationTime", type: "uint64" },
-          { name: "revocationTime", type: "uint64" },
-          { name: "refUID", type: "bytes32" },
-          { name: "recipient", type: "address" },
-          { name: "attester", type: "address" },
-          { name: "revocable", type: "bool" },
-          { name: "data", type: "bytes" },
-        ],
-      },
-    ],
-  },
 ] as const;
 
 function verifyAlchemySignature(body: string, sig: string, secret: string): boolean {
@@ -60,8 +33,14 @@ function verifyAlchemySignature(body: string, sig: string, secret: string): bool
 
 /**
  * POST /api/webhook/onchain
- * Alchemy (or compatible) webhooks: EAS `Attested` events on Base.
- * Resolves attestation payload and syncs HiClaw session rows (Postgres) by sessionHash.
+ *
+ * Alchemy (or compatible) webhook for EAS `Attested` events on Base. For
+ * each Attested event matching our POMP schema, look up the matching
+ * POMPCredential row by `attestationUID` and mark it `onChainVerified=true`
+ * (idempotent — issuePOMPCredentials usually sets this eagerly after
+ * `tx.wait()` returns, so most webhook hits are no-ops). Credentials we
+ * didn't issue ourselves (e.g. external attesters using our schema) get
+ * picked up here too, provided the credential row exists.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -81,24 +60,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, processed: 0, note: "POMP_EAS_SCHEMA_UID unset" });
     }
 
-    const rpcUrl = process.env.BASE_RPC_URL;
-    if (!rpcUrl) {
-      return NextResponse.json({ error: "BASE_RPC_URL not configured" }, { status: 503 });
-    }
-
-    const easAddress = (process.env.EAS_CONTRACT_ADDRESS?.trim() ||
-      DEFAULT_EAS_CONTRACT_ADDRESS) as Hex;
-    const chain = process.env.NODE_ENV === "production" ? base : baseSepolia;
-    const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
-
     const payload = JSON.parse(body);
     const logs: Log[] = payload.event?.data?.block?.logs || payload.logs || [];
 
-    const encoder = new SchemaEncoder(POMP_EAS_SCHEMA);
     let processed = 0;
+    let skipped = 0;
 
     for (const log of logs) {
-      if (!log.address || log.address.toLowerCase() !== easAddress.toLowerCase()) continue;
       if (!log.topics?.length) continue;
 
       try {
@@ -113,32 +81,35 @@ export async function POST(request: NextRequest) {
         const schemaUID = String(decoded.args.schemaUID).toLowerCase();
         if (schemaUID !== expectedSchema) continue;
 
-        const uid = decoded.args.uid as Hex;
-        const att = await publicClient.readContract({
-          address: easAddress,
-          abi: easAbi,
-          functionName: "getAttestation",
-          args: [uid],
+        const uid = String(decoded.args.uid);
+        const txHash = (log.transactionHash as string) || undefined;
+
+        // Race-tolerant: if `issuePOMPCredentials` is still inserting the
+        // row when the webhook arrives (Alchemy fires immediately on block
+        // inclusion, our DB write follows), `update` would throw on the
+        // missing key. `updateMany` returns count=0 silently instead.
+        const result = await prisma.pOMPCredential.updateMany({
+          where: { attestationUID: uid },
+          data: {
+            onChainVerified: true,
+            ...(txHash ? { txHash } : {}),
+          },
         });
 
-        const decodedFields = encoder.decodeData(att.data);
-        const sessionEntry = decodedFields.find((f) => f.name === "sessionHash");
-        const sessionHash =
-          typeof sessionEntry?.value === "string" ? sessionEntry.value : String(sessionEntry?.value);
-
-        const txHash = (log.transactionHash as string) || "";
-
-        await updateSessionOnChain(sessionHash, {
-          txHash,
-          easAttestationUid: uid,
-        });
-        processed++;
+        if (result.count > 0) {
+          processed++;
+        } else {
+          skipped++;
+          console.warn(
+            `[webhook/onchain] No POMPCredential row for attestationUID=${uid} (race or external attester) — skipping`,
+          );
+        }
       } catch (err) {
         console.error("[webhook/onchain] Failed to process log:", err);
       }
     }
 
-    return NextResponse.json({ ok: true, processed });
+    return NextResponse.json({ ok: true, processed, skipped });
   } catch (error) {
     console.error("[webhook/onchain]", error);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });

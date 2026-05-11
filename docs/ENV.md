@@ -156,14 +156,6 @@ mem9 runtime calls use hosted `v1alpha2` (`/v1alpha2/mem9s/...`) with the expert
 | `NEXT_PUBLIC_POMP_EAS_SCHEMA_UID` | Browser EASScan deep links |
 | `NEXT_PUBLIC_BASE_RPC_URL`, `NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL` | Browser RPC URLs |
 
-## HiClaw sidecar
-
-| Var | Purpose |
-|---|---|
-| `HICLAW_POSTGRES_URL` | Dedicated Postgres for HiClaw (defaults to `DATABASE_URL`) |
-
-See [`hiclaw/README.md`](../hiclaw/README.md) for additional service-only vars.
-
 ## Background jobs
 
 | Var | Purpose |

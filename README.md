@@ -8,14 +8,13 @@ Canonical brand copy: [`docs/BRAND.md`](docs/BRAND.md). System map: [`ARCHITECTU
 
 ## What's in this repo
 
-A monorepo around one Next.js API layer that serves three clients plus a sidecar service and on-chain components.
+A monorepo around one Next.js API layer that serves three clients plus on-chain components.
 
 | Folder | What it is |
 |---|---|
 | [`src/`](src/) | Next.js 15 App Router app (web UI, API routes, tRPC, Inngest, instrumentation) |
 | [`prisma/`](prisma/) | Postgres schema and migrations |
 | [`wechat/`](wechat/) | WeChat Mini Program (Taro 4 + React) |
-| [`hiclaw/`](hiclaw/) | HiClaw sidecar — Express service for shadow workers, evaluator loop, waiting room |
 | [`ten-agent/`](ten-agent/) | Realtime voice agent (Phase B of the voice stack) |
 | [`contracts/`](contracts/) | Foundry smart contracts (`HelpGrowToken`, deploy scripts) |
 | [`e2e/`](e2e/) | Playwright tests — `smoke/`, `booking/`, `auth/` |
@@ -37,7 +36,7 @@ A monorepo around one Next.js API layer that serves three clients plus a sidecar
 - **Background jobs:** Inngest (`/api/inngest`) and Vercel cron (`/api/cron/charge-remainder`) — toggle with `CRON_DELEGATED_TO_INNGEST`
 - **Email:** Nodemailer (magic link) + Resend (booking confirmation + reminders)
 - **Observability:** `@vercel/otel` instrumentation · structured request logs on high-risk routes · health endpoints `/api/health` and `/api/db-health`
-- **Hosting:** Vercel (Functions). Local stack via Docker Compose (Postgres + pgvector + Next.js + HiClaw)
+- **Hosting:** Vercel (Functions). Local stack via Docker Compose (Postgres + pgvector + Next.js)
 - **Testing:** Playwright e2e (`playwright.config.ts`, `playwright.prod.config.ts`)
 
 Full stack rationale and dependency layering: [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -85,7 +84,6 @@ npm run dev:3000
 Open [http://localhost:5000](http://localhost:5000). Local sign-in shortcut on `/auth/signin` is enabled by `DEV_AUTH_EMAIL` (and optional `DEV_AUTH_ROLE`).
 
 ### 5. (Optional) Run subsystems locally with Docker
-- HiClaw sidecar: `cd hiclaw && docker compose up` (see [`hiclaw/README.md`](hiclaw/README.md))
 - ten-agent realtime voice: `cd ten-agent && docker compose up`
 
 ## Common tasks
@@ -107,7 +105,7 @@ Open [http://localhost:5000](http://localhost:5000). Local sign-in shortcut on `
 
 Production canonical URL: **`https://www.help-and-grow.com`** (the `expert-network.vercel.app` alias still resolves to the same deployment as a fallback). The live Vercel project is owned by the **Help And Grow** team; default Git iteration follows **`jlzxwt8/expert-network`**. Push to `main` triggers Vercel build (`npm run build`), which auto-baselines the migration history when needed.
 
-GitHub Actions workflows: [`.github/workflows/`](.github/workflows/) — `ci.yml` (lint + Playwright against canonical production URL), `deploy-smoke.yml`, `playwright-e2e.yml`, `sync-hiclaw.yml`, `wechat-ci.yml`, `npm-audit.yml`. The `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth for browser smoke. (Workflows were re-enabled in commit `27f2570` after the Action-minute quota window reset.)
+GitHub Actions workflows: [`.github/workflows/`](.github/workflows/) — `ci.yml` (lint + Playwright against canonical production URL), `deploy-smoke.yml`, `playwright-e2e.yml`, `wechat-ci.yml`, `npm-audit.yml`. The `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth for browser smoke. (Workflows were re-enabled in commit `27f2570` after the Action-minute quota window reset.)
 
 Vercel + env handling: [`docs/references/vercel-environments-solo-pm.md`](docs/references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](docs/references/vercel-env-and-secret-rotation.md).
 
@@ -121,7 +119,6 @@ Vercel + env handling: [`docs/references/vercel-environments-solo-pm.md`](docs/r
 - **Frontend layout:** [`docs/FRONTEND.md`](docs/FRONTEND.md)
 - **Reliability / SLOs:** [`docs/RELIABILITY.md`](docs/RELIABILITY.md)
 - **Security posture:** [`docs/SECURITY.md`](docs/SECURITY.md)
-- **HiClaw sidecar:** [`hiclaw/README.md`](hiclaw/README.md)
 - **E2E:** [`e2e/README.md`](e2e/README.md)
 
 ## License

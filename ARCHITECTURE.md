@@ -129,7 +129,6 @@ Precedence is platform default → expert override → capability override.
 
 ### Adapter posture
 
-- **HiClaw** is the collaboration-heavy, human-visible option for memo/reflection and expert-growth workflows.
 - **Scion** is the container-oriented, isolated execution option for future swarm and concurrent agent workloads.
 - **Local fallback** is always required: Docker + Ollama + Postgres/pgvector, with mem9 optional.
 
@@ -141,12 +140,12 @@ See [docs/design-docs/pluggable-expert-avatar-control-plane.md](docs/design-docs
 - **ORM**: Prisma 7 with `@prisma/adapter-pg` only; `DATABASE_URL` must be Postgres (`mysql://` rejected)
 - **Schema**: `prisma/schema.prisma` — `scripts/switch-db.mjs` enforces `provider = "postgresql"`
 
-### HiClaw shadow service (sidecar)
+### On-chain attestation state
 
-- **Location:** `hiclaw/service/` (Express, Node). Not part of the Vercel serverless bundle unless separately deployed.
-- **Role:** Offline-expert path — shadow generation, optional evaluator loop, session handoffs, waiting room for human approval.
-- **Data store:** **`store.js`** — PostgreSQL only, using `HICLAW_POSTGRES_URL` or falling back to `DATABASE_URL`. Align the **same** Cloud SQL Postgres instance (or a dedicated Postgres URL) with Vercel routes that update HiClaw `sessions` (`/api/webhook/onchain`, `/api/reputation/:expertId`).
-- **Doc:** [hiclaw/README.md](hiclaw/README.md) · [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md)
+- **Location:** `POMPCredential` table in the main app Postgres (`prisma/schema.prisma`). No sidecar, no separate store.
+- **Fields:** `onChainVerified` (bool) and `txHash` track Alchemy-delivered EAS attestations; one credential row per Booking.
+- **Update path:** `/api/webhook/onchain` ingests EAS `Attested` logs and updates `POMPCredential` idempotently via Prisma.
+- **Reads:** `/api/reputation/:expertId` aggregates POMPCredential + Booking via Prisma — no second database to keep in sync.
 
 ### Key Models
 

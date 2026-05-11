@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04
-**Scope**: Cloud topology, AI routing, storage, authentication. Companion docs: [product-features.md](product-features.md), [agent-system.md](agent-system.md), [operations.md](operations.md).
+**Scope**: Cloud topology, AI routing, storage, authentication. Companion docs: [product-features.md](product-features.md), [operations.md](operations.md).
 
 This document is the technical foundation. It captures **where the app runs**, **which AI provider does what**, **where assets are stored**, and **how every client surface authenticates**. Product capabilities (payments, live consultation, sharing, avatar control plane) live in [product-features.md](product-features.md).
 

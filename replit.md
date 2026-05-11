@@ -22,7 +22,6 @@ An AI-native expert network platform for Singapore & Southeast Asia. Users can b
 - `src/generated/prisma/` — Prisma generated client
 - `prisma/schema.prisma` — Database schema
 - `scripts/` — DB switch script, EAS schema registration, WeChat upload
-- `hiclaw/` — HiClaw session sync sub-service
 - `wechat/` — WeChat mini-program
 
 ## Running on Replit
@@ -49,7 +48,6 @@ Optional but used by features:
 - `STRIPE_*` — Payments
 - `POMP_ISSUER_PRIVATE_KEY`, `POMP_EAS_SCHEMA_UID` — Reputation attestations
 - `ALCHEMY_WEBHOOK_SECRET` — On-chain webhook verification
-- `HICLAW_POSTGRES_URL` — Optional dedicated PostgreSQL URL for HiClaw; otherwise it reuses `DATABASE_URL`
 - `VOICE_CHAT_MODE`, `DASHSCOPE_API_KEY` — Voice chat features
 - `TRTC_*` — Premium live consultation
 - `ZAI_API_KEY` — Required if `AI_PROVIDER=zai`

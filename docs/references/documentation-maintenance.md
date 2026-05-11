@@ -8,9 +8,9 @@ Update documentation in the same change (or immediately after) if you:
 
 | Trigger | Typical updates |
 |--------|------------------|
-| **New or removed env vars** | `.env.example`, `hiclaw/.env.example`, relevant README, optional [AGENTS.md](../../AGENTS.md) if widely used |
+| **New or removed env vars** | `.env.example`, relevant README, optional [AGENTS.md](../../AGENTS.md) if widely used |
 | **API or HTTP contract** | Route comments, domain README, product spec if one exists |
-| **Database / DDL** | `prisma/` notes if applicable, `hiclaw/schema*.sql`, `src/lib/tidb-hiclaw-schema.ts`, admin tools that apply schema |
+| **Database / DDL** | `prisma/schema.prisma` + a migration under `prisma/migrations/`, admin tools that apply schema |
 | **New services, workers, or boundaries** | [ARCHITECTURE.md](../../ARCHITECTURE.md), [AGENTS.md](../../AGENTS.md) “Where to look” / conventions |
 | **Design decision implemented or superseded** | Matching file under [docs/design-docs/](../design-docs/) — add **Status** and **Implemented in** (paths, dates) |
 | **Security / auth / secrets** | [docs/SECURITY.md](../SECURITY.md) if behavior changes |
@@ -20,7 +20,7 @@ You can **skip** doc updates for pure refactors, renames with no behavior change
 ## Where to update (minimal sufficient set)
 
 1. **[AGENTS.md](../../AGENTS.md)** — Table of contents only: new pointers, corrected facts, “Where to look” rows. Keep it short.
-2. **Domain README** — e.g. `hiclaw/README.md` for the shadow service; `contracts/README` for Foundry if you touch deploy.
+2. **Domain README** — e.g. `contracts/README` for Foundry if you touch deploy.
 3. **[ARCHITECTURE.md](../../ARCHITECTURE.md)** — When system boundaries, data stores, or major flows change.
 4. **Design doc** — Mark decisions **Proposed** / **Implemented** / **Superseded** with links to code.
 5. **`docs/references/`** — Durable playbooks (like this file) you want other repos or future agents to reuse.
@@ -28,7 +28,7 @@ You can **skip** doc updates for pure refactors, renames with no behavior change
 ## Conventions
 
 - **Progressive disclosure**: AGENTS.md links outward; deep detail lives in `docs/` or package READMEs.
-- **Single source of truth**: Prefer one authoritative README per deployable (e.g. HiClaw under `hiclaw/`), not scattered duplicates.
+- **Single source of truth**: Prefer one authoritative README per deployable, not scattered duplicates.
 - **Verification**: For design docs, add a short “Verification / status” block after implementation so agents do not re-plan completed work.
 
 ## Reuse in other projects
