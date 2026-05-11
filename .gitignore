@@ -62,3 +62,15 @@ expert-network.code-workspace
 .env.prod
 .env.pulled
 .env.vercel.*.local
+
+# Database dumps — production data must never enter git history.
+# (Prisma migrations live at prisma/migrations/<ts>/migration.sql and are not
+# matched by these patterns.)
+*.dump
+*.psql
+*-dump.sql
+*_data.sql
+*_backup.sql
+# Belt-and-suspenders: block re-adding the file that triggered the
+# 2026-05-11 history rewrite (see backup/pre-secret-cleanup-20260511).
+wechat/helpandgrow_data.sql
