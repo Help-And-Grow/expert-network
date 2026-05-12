@@ -6,8 +6,10 @@ import {
   getVolcengineTextModel,
 } from "./provider-catalog";
 
-// Volcengine ModelArk — mainland China endpoint.
-// Used by the Help-And-Grow build path deployed on IGA Pages CN.
+// Volcengine ModelArk — mainland China endpoint. Used by the
+// jlzxwt8/expert-network IGA Pages CN production deploy (post company-setup
+// + ICP filing). The overseas/demo counterpart hits ByteDance's ap-southeast
+// endpoint via src/lib/ai/byteplus.ts.
 const VOLCENGINE_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/";
 
 export class VolcengineProvider extends BaseAIProvider {

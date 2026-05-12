@@ -6,9 +6,11 @@ import {
   getBytePlusTextModel,
 } from "./provider-catalog";
 
-// BytePlus ModelArk — ap-southeast (Singapore) endpoint.
-// Used by overseas deployments; the Volcengine counterpart at
-// ark.cn-beijing.volces.com serves mainland traffic.
+// BytePlus ModelArk — ap-southeast (Singapore) endpoint. Used by the
+// Help-And-Grow/expert-network demo mirror for hackathon / investor /
+// credit-grant showcases of the ByteDance integration. The mainland CN
+// production counterpart at ark.cn-beijing.volces.com is in
+// src/lib/ai/volcengine.ts.
 const BYTEPLUS_BASE_URL = "https://ark.ap-southeast.bytepluses.com/api/v3/";
 
 export class BytePlusProvider extends BaseAIProvider {
