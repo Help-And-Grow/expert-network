@@ -21,9 +21,23 @@ export class QwenProvider extends BaseAIProvider {
   }
 
   protected async chat(prompt: string): Promise<string> {
+    // Qwen3 models (qwen3.x-plus, qwen3.x-35b-a3b, etc.) are reasoning models
+    // that emit a long internal `reasoning_content` block before the visible
+    // `content`. For all our use cases (matching, profile gen, query
+    // normalization, admin probe) we want a fast direct answer rather than a
+    // 15-30 s thinking phase. DashScope honours the Qwen-specific
+    // `enable_thinking: false` field on the OpenAI-compatible endpoint.
+    //
+    // Disabling thinking brings typical latency from ~15-30 s down to ~1-3 s
+    // and avoids gateway timeouts that surface as opaque "Unexpected token
+    // 'A', 'An error o…'" JSON-parse errors on the admin Test now button.
+    //
+    // The OpenAI SDK types don't know about this field, so we cast through
+    // Record<string, unknown> while preserving the non-streaming return type.
     const response = await this.qwen.chat.completions.create({
       model: getQwenTextModel(),
       messages: [{ role: "user", content: prompt }],
+      ...({ enable_thinking: false } as Record<string, unknown>),
     });
     return response.choices[0]?.message?.content ?? "";
   }
