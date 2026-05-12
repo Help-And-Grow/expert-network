@@ -143,11 +143,13 @@ const bodySchema = z.object({
 
 function chainToString(input: string | string[] | undefined): string | null {
   if (input === undefined) return null;
+  const arr = chainToArray(input);
+  return arr.join(",");
+}
+
+function chainToArray(input: string | string[]): string[] {
   const arr = Array.isArray(input) ? input : input.split(",");
-  return arr
-    .map((t) => t.trim().toLowerCase())
-    .filter((t) => t.length > 0)
-    .join(",");
+  return arr.map((t) => t.trim().toLowerCase()).filter((t) => t.length > 0);
 }
 
 function parseDbHostFromUrl(url: string | undefined): string | null {
@@ -404,6 +406,80 @@ export async function POST(request: NextRequest) {
           { tx, actorEmail, actorRole: "ADMIN", reason },
         );
         scopeRows.push(row);
+      }
+
+      // ── Sync the legacy "Image chain" / "Voice chain" / text-chain widgets
+      // at the top of the LLM tab into the `web-default` routing scope.
+      // Without this, removing a provider from those widgets only updates the
+      // legacy SystemConfig fallback while the routing scope (which has
+      // higher precedence and is what GET returns) retains the old value, so
+      // the removed item re-appears after page reload.
+      //
+      // The widget edits the catch-all (web-default) scope per category.
+      // Non-catch-all scopes (wechat-intl, wechat-cn) are unchanged by these
+      // top-level widgets and remain editable through the Routing Scopes
+      // section below.
+      const chainSyncs: Array<{
+        category: "llm" | "image" | "voice";
+        chain: string[];
+      }> = [];
+      if (parsed.data.llmTextChain !== undefined) {
+        chainSyncs.push({
+          category: "llm",
+          chain: chainToArray(parsed.data.llmTextChain),
+        });
+      }
+      if (parsed.data.llmImageChain !== undefined) {
+        chainSyncs.push({
+          category: "image",
+          chain: chainToArray(parsed.data.llmImageChain),
+        });
+      }
+      if (parsed.data.llmVoiceChain !== undefined) {
+        chainSyncs.push({
+          category: "voice",
+          chain: chainToArray(parsed.data.llmVoiceChain),
+        });
+      }
+      for (const sync of chainSyncs) {
+        // Look up the existing web-default row in this category/env so we
+        // preserve displayName / description / matchRules / priority / enabled.
+        const existing = await tx.providerRoutingScope.findUnique({
+          where: {
+            scopeKey_category_environment: {
+              scopeKey: "web-default",
+              category: sync.category,
+              environment: env,
+            },
+          },
+        });
+        const matchRules = existing
+          ? (existing.matchRules as Record<string, unknown> | null) ?? {}
+          : {};
+        const row = await upsertRoutingScope(
+          {
+            scopeKey: "web-default",
+            displayName:
+              existing?.displayName ??
+              (sync.category === "llm"
+                ? "Web / Telegram default"
+                : sync.category === "image"
+                  ? "Web / Telegram image default"
+                  : "Web / Telegram voice default"),
+            description: existing?.description ?? "Catch-all for non-WeChat traffic.",
+            category: sync.category,
+            chain: sync.chain,
+            enabled: existing?.enabled ?? true,
+            matchRules,
+            priority: existing?.priority ?? 200,
+            environment: env,
+          },
+          { tx, actorEmail, actorRole: "ADMIN", reason },
+        );
+        // Avoid double-counting when the same scope was also explicitly in
+        // routingScopeUpserts (the client doesn't currently do that, but
+        // defensive against future UI changes).
+        if (!scopeRows.some((r) => r.id === row.id)) scopeRows.push(row);
       }
 
       const overrideRows: RouteOverrideRow[] = [];
