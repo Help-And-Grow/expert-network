@@ -1,14 +1,25 @@
 #!/usr/bin/env node
 /**
- * Run `prisma migrate deploy` on Vercel production/preview builds so a new
+ * Run `prisma migrate deploy` on managed build environments so a fresh
  * Postgres database gets its tables before `next build` bundles the app.
- * Skips when not on Vercel or when no database URL is present.
  *
- * Managed Postgres providers can transiently reject connections during
- * install with errors such as "Circuit breaker open" or short-lived TLS
- * handshake failures. That should not fail `npm install` after the database
- * has already been migrated; retry briefly, then let the build continue
- * with a loud warning.
+ * Recognized environments (any one triggers auto-migrate):
+ *   - Vercel:           VERCEL=1                (set by Vercel build runtime)
+ *   - Volcengine IGA Pages: IGA_PAGES=1         (user-set opt-in) or
+ *                       IGA_BUILD_REGION        (set by IGA build runtime)
+ *   - Any CI/CD:        PRISMA_AUTO_MIGRATE=1   (generic opt-in)
+ *
+ * Skips silently otherwise so local `npm install` doesn't touch prod.
+ *
+ * Managed Postgres providers (Cloud SQL, Volcengine RDS, etc.) can transiently
+ * reject connections during install with errors such as "Circuit breaker
+ * open" or short-lived TLS handshake failures. That should not fail
+ * `npm install` after the database has already been migrated; retry briefly,
+ * then let the build continue with a loud warning. Set PRISMA_MIGRATE_STRICT=1
+ * to fail the build instead.
+ *
+ * (Filename retained for backwards-compatible package.json reference; the
+ * script is no longer Vercel-only.)
  */
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -20,16 +31,27 @@ function hasDbUrl() {
   return Boolean(process.env.DIRECT_URL || process.env.DATABASE_URL);
 }
 
-if (process.env.VERCEL !== "1") {
+function detectManagedBuild() {
+  if (process.env.VERCEL === "1") return "vercel";
+  if (process.env.IGA_PAGES === "1") return "iga-pages";
+  if (process.env.IGA_BUILD_REGION) return "iga-pages";
+  if (process.env.PRISMA_AUTO_MIGRATE === "1") return "ci";
+  return null;
+}
+
+const platform = detectManagedBuild();
+if (!platform) {
   process.exit(0);
 }
 
 if (!hasDbUrl()) {
   console.warn(
-    "[prisma-migrate-if-vercel] VERCEL=1 but no DATABASE_URL / DIRECT_URL — skipping migrate deploy (configure DATABASE_URL on Vercel and redeploy).",
+    `[prisma-migrate-if-vercel] ${platform} build detected but no DATABASE_URL / DIRECT_URL — skipping migrate deploy (configure DATABASE_URL in the build platform's env settings and redeploy).`,
   );
   process.exit(0);
 }
+
+console.log(`[prisma-migrate-if-vercel] Build platform: ${platform}`);
 
 const opts = { cwd: root, env: process.env };
 const maxAttempts = Number.parseInt(process.env.PRISMA_MIGRATE_DEPLOY_ATTEMPTS || "3", 10);

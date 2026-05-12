@@ -114,7 +114,9 @@ type ModelEnvKey =
   | "GEMINI_IMAGE_MODEL"
   | "HUNYUAN_TEXT_MODEL"
   | "BYTEPLUS_MODEL_ID"
-  | "VOLCENGINE_MODEL_ID";
+  | "BYTEPLUS_IMAGE_MODEL"
+  | "VOLCENGINE_MODEL_ID"
+  | "VOLCENGINE_IMAGE_MODEL";
 
 export type ProviderRequirement = {
   requiredAny: string[][];
@@ -142,7 +144,9 @@ export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.1-flash";
 export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
 export const HUNYUAN_DEFAULT_TEXT_MODEL = "hunyuan-turbo";
 export const BYTEPLUS_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
+export const BYTEPLUS_DEFAULT_IMAGE_MODEL = "doubao-seedream-4.0-flash";
 export const VOLCENGINE_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
+export const VOLCENGINE_DEFAULT_IMAGE_MODEL = "doubao-seedream-4.0-flash";
 
 export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> = {
   openai: {
@@ -201,21 +205,27 @@ export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> =
   },
   byteplus: {
     label: "BytePlus / ModelArk",
-    description: "Text-only OpenAI-compatible provider for BytePlus deployments.",
+    description:
+      "OpenAI-compatible Doubao text (Seed-1.6) + Seedream image generation, served from ap-southeast for overseas deployments.",
     requiredAny: [["BYTEPLUS_API_KEY"]],
     optional: [],
     textModelEnvKey: "BYTEPLUS_MODEL_ID",
+    imageModelEnvKey: "BYTEPLUS_IMAGE_MODEL",
     defaultTextModel: BYTEPLUS_DEFAULT_TEXT_MODEL,
-    supportsImage: false,
+    defaultImageModel: BYTEPLUS_DEFAULT_IMAGE_MODEL,
+    supportsImage: true,
   },
   volcengine: {
     label: "Volcengine / Doubao",
-    description: "Text-only OpenAI-compatible provider for mainland deployments.",
+    description:
+      "OpenAI-compatible Doubao text (Seed-1.6) + Seedream image generation, served from cn-beijing for mainland deployments.",
     requiredAny: [["VOLCENGINE_API_KEY"]],
     optional: [],
     textModelEnvKey: "VOLCENGINE_MODEL_ID",
+    imageModelEnvKey: "VOLCENGINE_IMAGE_MODEL",
     defaultTextModel: VOLCENGINE_DEFAULT_TEXT_MODEL,
-    supportsImage: false,
+    defaultImageModel: VOLCENGINE_DEFAULT_IMAGE_MODEL,
+    supportsImage: true,
   },
 };
 
@@ -241,8 +251,12 @@ function getModelEnvValue(key?: ModelEnvKey): string | undefined {
       return env.HUNYUAN_TEXT_MODEL?.trim();
     case "BYTEPLUS_MODEL_ID":
       return env.BYTEPLUS_MODEL_ID?.trim();
+    case "BYTEPLUS_IMAGE_MODEL":
+      return env.BYTEPLUS_IMAGE_MODEL?.trim();
     case "VOLCENGINE_MODEL_ID":
       return env.VOLCENGINE_MODEL_ID?.trim();
+    case "VOLCENGINE_IMAGE_MODEL":
+      return env.VOLCENGINE_IMAGE_MODEL?.trim();
     default:
       return undefined;
   }
@@ -601,5 +615,21 @@ export async function getGeminiTextModel(): Promise<string> {
 export async function getGeminiImageModel(): Promise<string> {
   const state = await getProviderModelState("gemini");
   return state.imageModel || GEMINI_DEFAULT_IMAGE_MODEL;
+}
+
+export function getVolcengineTextModel(): string {
+  return env.VOLCENGINE_MODEL_ID?.trim() || VOLCENGINE_DEFAULT_TEXT_MODEL;
+}
+
+export function getVolcengineImageModel(): string {
+  return env.VOLCENGINE_IMAGE_MODEL?.trim() || VOLCENGINE_DEFAULT_IMAGE_MODEL;
+}
+
+export function getBytePlusTextModel(): string {
+  return env.BYTEPLUS_MODEL_ID?.trim() || BYTEPLUS_DEFAULT_TEXT_MODEL;
+}
+
+export function getBytePlusImageModel(): string {
+  return env.BYTEPLUS_IMAGE_MODEL?.trim() || BYTEPLUS_DEFAULT_IMAGE_MODEL;
 }
 

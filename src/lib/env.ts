@@ -125,8 +125,12 @@ const envSchema = z
     GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
     BYTEPLUS_API_KEY: z.string().optional(),
     BYTEPLUS_MODEL_ID: z.string().optional(),
+    /** BytePlus ModelArk image endpoint id (e.g. ep-2026xxxxxx-yyyy) or alias. Default: doubao-seedream-4.0-flash. */
+    BYTEPLUS_IMAGE_MODEL: z.string().optional(),
     VOLCENGINE_API_KEY: z.string().optional(),
     VOLCENGINE_MODEL_ID: z.string().optional(),
+    /** Volcengine ModelArk image endpoint id (e.g. ep-2026xxxxxx-yyyy) or alias. Default: doubao-seedream-4.0-flash. */
+    VOLCENGINE_IMAGE_MODEL: z.string().optional(),
 
     GEMINI_TEXT_MODEL: z.string().optional(),
     GEMINI_IMAGE_MODEL: z.string().optional(),
