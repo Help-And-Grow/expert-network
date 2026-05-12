@@ -5,6 +5,7 @@ import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import { calculateBookingAmount } from "@/lib/stripe";
 import {
   createUnifiedOrder,
@@ -42,6 +43,19 @@ export async function POST(request: NextRequest) {
     if (!expertId || !sessionType || !startISO || !endISO) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // WeChat Mini Program is online-only. Reject offline attempts even though
+    // they shouldn't reach this paid endpoint today (WeChat MP is positioned
+    // as FREE) — defense-in-depth in case the MP ever enables paid bookings.
+    // Guard explicitly checks origin so a non-WeChat client (theoretical:
+    // someone hitting this route directly from the web) hits the existing
+    // pricing path rather than this WeChat-specific message.
+    if (isWeChatOriginatedRequest(request) && sessionType === "OFFLINE") {
+      return NextResponse.json(
+        { error: "WeChat Mini Program supports online meetups only." },
         { status: 400 }
       );
     }

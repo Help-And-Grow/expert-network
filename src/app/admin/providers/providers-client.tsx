@@ -638,8 +638,23 @@ export default function ProvidersClient() {
       if (draft.deletedOverrides.length > 0)
         body.routeOverrideDeletes = draft.deletedOverrides;
 
-      // Cloud-region SystemConfig writes (Phase 4 Regions tab).
-      const regionUpserts: Array<{ key: string; value: string }> = [];
+      // Cloud-region SystemConfig writes (Phase 4 Regions tab) +
+      // per-provider text/image model edits (LLM tab). Both flow through
+      // systemConfigUpserts so they reach Vercel env on apply and trigger
+      // a redeploy. Model edits also flow through providerUpserts so the
+      // registry's `models.*.default` mirrors the new value on next load.
+      const sysConfigUpserts: Array<{ key: string; value: string }> = [];
+      const providerUpserts: Array<{
+        category: "llm" | "storage";
+        key: string;
+        displayName: string;
+        envKeys: Record<string, string>;
+        models: Record<string, { envKey?: string; default?: string | null }>;
+        metadata?: unknown;
+        enabled?: boolean;
+        sortOrder?: number;
+      }> = [];
+
       for (const r of data.cloudRegions ?? []) {
         if (r.readonly) continue;
         const before = r.dbValue ?? "";
@@ -649,10 +664,75 @@ export default function ProvidersClient() {
           // override and let env/default win again". The POST schema rejects
           // empty values, so we send empty as a no-op via systemConfigUpserts
           // with the literal empty string — SystemConfig allows empty values.
-          regionUpserts.push({ key: r.key, value: after });
+          sysConfigUpserts.push({ key: r.key, value: after });
         }
       }
-      if (regionUpserts.length > 0) body.systemConfigUpserts = regionUpserts;
+
+      // Per-provider model edits — without this loop the inputs in the LLM
+      // cards (e.g. "Text model" for Qwen) would render in the diff preview
+      // but never actually persist. Track BOTH the env-var write (so the
+      // running app picks up the new model after redeploy) AND the registry
+      // row's models.*.default (so the UI shows the new default on reload).
+      for (const row of data.llm) {
+        const d = draft.models[row.key];
+        if (!d) continue;
+        const beforeText = row.models.text?.default ?? "";
+        const beforeImage = row.models.image?.default ?? "";
+        const textChanged =
+          d.textModel !== undefined && d.textModel !== beforeText;
+        const imageChanged =
+          d.imageModel !== undefined && d.imageModel !== beforeImage;
+        if (!textChanged && !imageChanged) continue;
+
+        // Env-key writes. Skipped if the registry row didn't declare an
+        // envKey for that slot (defensive — shouldn't happen for the seeded
+        // providers but plays nice with hand-added custom providers).
+        if (textChanged && row.models.text?.envKey) {
+          sysConfigUpserts.push({
+            key: row.models.text.envKey,
+            value: d.textModel ?? "",
+          });
+        }
+        if (imageChanged && row.models.image?.envKey) {
+          sysConfigUpserts.push({
+            key: row.models.image.envKey,
+            value: d.imageModel ?? "",
+          });
+        }
+
+        // Registry-row mirror — preserve every other field on the row.
+        providerUpserts.push({
+          category: "llm",
+          key: row.key,
+          displayName: row.displayName,
+          envKeys: row.envKeys,
+          models: {
+            ...row.models,
+            ...(textChanged
+              ? {
+                  text: {
+                    envKey: row.models.text?.envKey,
+                    default: d.textModel ?? null,
+                  },
+                }
+              : {}),
+            ...(imageChanged
+              ? {
+                  image: {
+                    envKey: row.models.image?.envKey,
+                    default: d.imageModel ?? null,
+                  },
+                }
+              : {}),
+          },
+          metadata: row.metadata,
+          enabled: row.enabled,
+          sortOrder: row.sortOrder,
+        });
+      }
+
+      if (sysConfigUpserts.length > 0) body.systemConfigUpserts = sysConfigUpserts;
+      if (providerUpserts.length > 0) body.providerUpserts = providerUpserts;
 
       const res = await fetch("/api/admin/providers", {
         method: "POST",

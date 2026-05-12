@@ -289,16 +289,65 @@ export async function transcribeAudio(
 
 async function generateQwenReply(messages: ChatMessage[]): Promise<string> {
   const qwen = getQwenChatClient();
+  const startedAt = Date.now();
   try {
+    // Qwen3 (qwen3.x-plus, qwen3.x-max, ...) is a *reasoning* model that
+    // produces a long internal `reasoning_content` block before emitting the
+    // visible `content`. For voice chat that thinking phase routinely exceeds
+    // our 25 s timeout, causing the fallback "latency spike" message to
+    // surface for a fraction of real traffic.
+    //
+    // DashScope's OpenAI-compatible endpoint accepts a Qwen-specific
+    // `enable_thinking` extension that disables the reasoning phase. Voice
+    // replies are short (<=100 words, one paragraph) — reasoning is overkill,
+    // and disabling it brings latency from ~15–35 s down to ~1–3 s.
+    //
+    // The official OpenAI types don't know about this field, so we cast to
+    // pass it through. Non-Qwen / non-reasoning models that don't recognise
+    // the flag simply ignore it.
     const response = await qwen.chat.completions.create({
       model: QWEN_VOICE_CHAT_MODEL,
       messages: messages.map((message) => ({
         role: message.role,
         content: message.content,
       })),
+      // Cast: `enable_thinking` is a Qwen-specific extension not in the
+      // OpenAI SDK types. Spread through a typed local so the union return
+      // type stays as ChatCompletion (not the streaming variant).
+      ...({ enable_thinking: false } as Record<string, unknown>),
     });
-    return response.choices[0]?.message?.content?.trim() ?? "";
-  } catch {
+    const text = response.choices[0]?.message?.content?.trim() ?? "";
+    if (!text) {
+      console.warn("[voice-chat] qwen returned empty content", {
+        model: QWEN_VOICE_CHAT_MODEL,
+        elapsedMs: Date.now() - startedAt,
+        finishReason: response.choices[0]?.finish_reason,
+      });
+    }
+    return text;
+  } catch (err) {
+    // Surface the real failure cause to Vercel logs so we can diagnose the
+    // "temporary latency spike" fallback. Common cases: DashScope timeout
+    // (25s ceiling), invalid/expired DASHSCOPE_API_KEY, rate limit, model
+    // not found, base-URL region drift.
+    const detail =
+      err instanceof Error
+        ? {
+            name: err.name,
+            message: err.message,
+            // OpenAI SDK errors carry .status / .code / .type
+            status: (err as { status?: number }).status,
+            code: (err as { code?: string }).code,
+            type: (err as { type?: string }).type,
+          }
+        : { message: String(err) };
+    console.error("[voice-chat] qwen reply failed", {
+      ...detail,
+      model: QWEN_VOICE_CHAT_MODEL,
+      baseURL: DASHSCOPE_BASE_URL,
+      elapsedMs: Date.now() - startedAt,
+      timeoutMs: VOICE_CHAT_LLM_TIMEOUT_MS,
+    });
     return "I’m hitting a temporary latency spike—please resend your question. For a fast MECE answer, include your goal (success looks like), current situation (what you tried + data), and constraints (time/budget/risks).";
   }
 }

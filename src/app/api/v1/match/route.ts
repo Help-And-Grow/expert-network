@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
+
+import type { SessionType } from "@/generated/prisma/client";
 import { absoluteAppUrl } from "@/lib/app-origin";
 import {
   detectCountriesInQuery,
@@ -14,6 +16,7 @@ import {
 } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +37,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "q parameter is required" }, { status: 400 });
     }
 
+    // Defense-in-depth: WeChat traffic sees only FREE + ONLINE-capable experts.
+    // See src/app/api/v1/experts/route.ts for the FREE + online-only rationale.
     const experts = await prisma.expert.findMany({
-      where: { isPublished: true },
+      where: {
+        isPublished: true,
+        ...(isWeChatOriginatedRequest(request)
+          ? {
+              priceOnlineCents: 0,
+              sessionType: { in: ["ONLINE", "BOTH"] as SessionType[] },
+            }
+          : {}),
+      },
       include: {
         user: { select: { name: true, nickName: true } },
       },

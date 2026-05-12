@@ -12,6 +12,7 @@ import {
 } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
@@ -34,10 +35,36 @@ export async function GET(request: NextRequest) {
       ? domain.split(",").map((d) => d.trim()).filter(Boolean)
       : [];
 
-    const where: Record<string, unknown> = { isPublished: true };
+    // WeChat Mini Program is positioned as a FREE online-only youth mentoring
+    // platform (Singapore social enterprise, no commercial license on the
+    // WeChat side, no offline-coordination capacity for international users).
+    // Two server-side guards:
+    //   1. priceOnlineCents = 0       — paid experts hidden from WeChat
+    //   2. sessionType ∈ {ONLINE, BOTH} — offline-only experts hidden too
+    // Detection: `isWeChatOriginatedRequest` checks `x-wechat-token` /
+    // `IS_WECHAT` / legacy TCB-proxy headers.
+    const isWeChat = isWeChatOriginatedRequest(request);
+    const where: Record<string, unknown> = {
+      isPublished: true,
+      ...(isWeChat
+        ? {
+            priceOnlineCents: 0,
+            sessionType: { in: ["ONLINE", "BOTH"] as SessionType[] },
+          }
+        : {}),
+    };
 
-    if (sessionType && ["ONLINE", "OFFLINE", "BOTH"].includes(sessionType)) {
-      where.sessionType = { in: [sessionType, "BOTH"] };
+    // WeChat clients never see OFFLINE-only results — clamp the inbound filter.
+    const effectiveSessionType = isWeChat ? "ONLINE" : sessionType;
+    if (
+      effectiveSessionType &&
+      ["ONLINE", "OFFLINE", "BOTH"].includes(effectiveSessionType)
+    ) {
+      // For WeChat the `where.sessionType` already constrains to ONLINE/BOTH
+      // above; this preserves Web/Telegram session-type filtering.
+      if (!isWeChat) {
+        where.sessionType = { in: [effectiveSessionType, "BOTH"] };
+      }
     }
 
     const experts = await prisma.expert.findMany({

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { get } from "../../shared/api";
 import Icon from "../../components/Icon";
+import { ENABLE_OFFLINE_BOOKINGS } from "../../shared/brand";
 import { countryFlagEmoji, getCountryOption } from "../../shared/countries";
 import "./index.scss";
 
@@ -44,11 +45,20 @@ interface ExpertsResponse {
   total: number;
 }
 
-const SESSION_FILTERS: { label: string; value: SessionTypeFilter }[] = [
-  { label: "全部", value: "ALL" },
-  { label: "线上", value: "ONLINE" },
-  { label: "线下", value: "OFFLINE" },
-];
+const SESSION_FILTERS: { label: string; value: SessionTypeFilter }[] =
+  ENABLE_OFFLINE_BOOKINGS
+    ? [
+        { label: "全部", value: "ALL" },
+        { label: "线上", value: "ONLINE" },
+        { label: "线下", value: "OFFLINE" },
+      ]
+    : [
+        // Online-only builds (intl) hide the 线下 chip entirely. The server
+        // also filters OFFLINE-only experts out of WeChat responses, so this
+        // is UI symmetry, not load-bearing.
+        { label: "全部", value: "ALL" },
+        { label: "线上", value: "ONLINE" },
+      ];
 
 const SEARCH_DEBOUNCE_MS = 350;
 const PAGE_SIZE = 20;
@@ -132,6 +142,9 @@ export default function DiscoverPage() {
 
   const sessionTypeLabel = useCallback(
     (type: MentorListItem["sessionType"]): string => {
+      // Online-only build: every visible expert offers online (server filter
+      // guarantees ONLINE or BOTH), so collapse the label.
+      if (!ENABLE_OFFLINE_BOOKINGS) return "线上";
       if (type === "ONLINE") return "线上";
       if (type === "OFFLINE") return "线下";
       return "线上 / 线下";

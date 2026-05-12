@@ -68,11 +68,25 @@ export const ENABLE_PREMIUM_LIVE =
  * WeChat platform restricts AI Q&A services to mainland-CN entity apps;
  * the intl (Singapore-entity) build must hide all AI voice surfaces until
  * a mainland-CN company entity is provisioned.
- * 
+ *
  * IMPORTANT: Set to FALSE for intl build to pass WeChat review.
  */
 export const ENABLE_AI_VOICE =
   (process.env.TARO_APP_ENABLE_AI_VOICE || "true") === "true";
+
+/**
+ * Whether the MP exposes offline / in-person meetup flows.
+ *
+ * The intl WeChat MP is positioned as a FREE online-only youth mentoring
+ * platform. The Singapore social enterprise has no offline-coordination
+ * capacity for international users, so offline meetups are hidden from the
+ * WeChat surface entirely. Defaults to `true` so non-intl builds (web, CN,
+ * future variants) keep their existing offline support unchanged. The server
+ * also filters OFFLINE-only experts out of WeChat responses, so the UI gate
+ * and the server gate are symmetric.
+ */
+export const ENABLE_OFFLINE_BOOKINGS =
+  (process.env.TARO_APP_ENABLE_OFFLINE_BOOKINGS || "true") === "true";
 
 /** Default UI language for this build. */
 export const DEFAULT_LANG =

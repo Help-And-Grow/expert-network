@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import type { SessionType } from "@/generated/prisma/client";
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // LLM + mem9 pipeline can take 15-20 s
 
@@ -27,6 +29,7 @@ import {
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 
 type MatchExpertRow = {
   id: string;
@@ -469,9 +472,17 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // Defense-in-depth: WeChat traffic sees only FREE + ONLINE-capable experts.
+    // See src/app/api/v1/experts/route.ts for the FREE + online-only rationale.
     const baseWhere = {
       isPublished: true,
       ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
+      ...(isWeChatOriginatedRequest(request)
+        ? {
+            priceOnlineCents: 0,
+            sessionType: { in: ["ONLINE", "BOTH"] as SessionType[] },
+          }
+        : {}),
     };
     let experts = await prisma.expert.findMany({
       where: {

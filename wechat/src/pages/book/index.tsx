@@ -3,6 +3,7 @@ import Taro, { useLoad, useRouter } from "@tarojs/taro";
 import { useState, useCallback, useEffect } from "react";
 import { get, post } from "../../shared/api";
 import { isLoggedIn, wxLogin } from "../../shared/auth";
+import { ENABLE_OFFLINE_BOOKINGS } from "../../shared/brand";
 import type { ExpertDetail, AvailableSlot } from "../../shared/types";
 import "./index.scss";
 
@@ -144,7 +145,12 @@ function getSlotsForDate(
 export default function BookPage() {
   const router = useRouter();
   const expertId = router.params.id || "";
-  const initialType = router.params.type as SessionType | undefined;
+  // Online-only build: ignore any `?type=` deep link and always start ONLINE.
+  // The server also rejects WeChat-origin OFFLINE bookings, but this keeps
+  // the UI consistent with the platform positioning.
+  const initialType = ENABLE_OFFLINE_BOOKINGS
+    ? (router.params.type as SessionType | undefined)
+    : ("ONLINE" as const);
 
   const [expert, setExpert] = useState<ExpertDetail | null>(null);
   const [dbSlots, setDbSlots] = useState<AvailableSlot[]>([]);
@@ -153,7 +159,11 @@ export default function BookPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const [step, setStep] = useState<Step>(initialType ? "slots" : "type");
+  // Online-only build: skip the type-picker step entirely. With offline
+  // disabled there's nothing for the user to choose between.
+  const [step, setStep] = useState<Step>(
+    !ENABLE_OFFLINE_BOOKINGS || initialType ? "slots" : "type",
+  );
   const [selectedType, setSelectedType] = useState<SessionType>(initialType || "ONLINE");
   const [selectedDate, setSelectedDate] = useState<string>(toDateStr(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<SlotItem | null>(null);
@@ -174,8 +184,11 @@ export default function BookPage() {
         setDbSlots(sRes.data.slots ?? []);
         setBookedSlots(sRes.data.bookedSlots ?? []);
       }
-      // Auto-advance if only one session type is available and no type was pre-selected
-      if (!initialType) {
+      // Auto-advance if only one session type is available and no type was
+      // pre-selected. On the online-only build (intl WeChat), we already
+      // forced ONLINE above and skipped the type step, so this branch is a
+      // no-op there.
+      if (!initialType && ENABLE_OFFLINE_BOOKINGS) {
         const online = eRes.data.priceOnlineCents != null;
         const offline = eRes.data.priceOfflineCents != null;
         if (online && !offline) { setSelectedType("ONLINE"); setStep("slots"); }

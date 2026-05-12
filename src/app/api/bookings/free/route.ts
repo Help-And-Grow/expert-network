@@ -9,6 +9,7 @@ import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 import { z } from "zod";
 
@@ -40,6 +41,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
     const body = parsed.data;
+
+    // WeChat Mini Program is online-only — reject any offline booking attempt
+    // crafted by a client bypassing the UI. Web/Telegram traffic unaffected.
+    if (isWeChatOriginatedRequest(request) && body.sessionType === "OFFLINE") {
+      return NextResponse.json(
+        { error: "WeChat Mini Program supports online meetups only." },
+        { status: 400 },
+      );
+    }
     const {
       expertId,
       sessionType,

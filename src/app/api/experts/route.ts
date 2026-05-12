@@ -5,6 +5,7 @@ import { normalizeCountryCodes } from "@/lib/expert-countries";
 import { legacyExpertDomains, matchesExpertTopics } from "@/lib/expert-topics";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import { isVendorAiStackSiteRequest } from "@/lib/vendor-ai-stack-site";
 
 export const dynamic = "force-dynamic";
@@ -52,10 +53,20 @@ export async function GET(request: NextRequest) {
       ? domainParam.split(",").map((d) => d.trim()).filter(Boolean)
       : [];
 
+    // Defense-in-depth: WeChat traffic only sees FREE + ONLINE-capable experts.
+    // Canonical WeChat list endpoint is /api/v1/experts; duplicating here
+    // protects any internal caller that switches endpoints later.
+    const isWeChat = isWeChatOriginatedRequest(request);
     const where = {
       isPublished: true,
       userId: { not: userId },
-      ...(sessionTypeParam
+      ...(isWeChat
+        ? {
+            priceOnlineCents: 0,
+            sessionType: { in: ["ONLINE", "BOTH"] as SessionType[] },
+          }
+        : {}),
+      ...(sessionTypeParam && !isWeChat
         ? sessionTypeParam === "BOTH"
           ? {}
           : { sessionType: { in: [sessionTypeParam, "BOTH" as SessionType] } }

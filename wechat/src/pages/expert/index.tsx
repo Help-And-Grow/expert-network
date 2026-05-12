@@ -11,7 +11,11 @@ import { get } from "../../shared/api";
 import { getApiBase, getToken, isLoggedIn, wxLogin } from "../../shared/auth";
 import VoiceChat from "../../components/VoiceChat";
 import Icon from "../../components/Icon";
-import { ENABLE_AI_VOICE, ENABLE_PAID_BOOKINGS } from "../../shared/brand";
+import {
+  ENABLE_AI_VOICE,
+  ENABLE_OFFLINE_BOOKINGS,
+  ENABLE_PAID_BOOKINGS,
+} from "../../shared/brand";
 import { countryFlagEmoji, getCountryOption } from "../../shared/countries";
 import { normalizeRouteId } from "../../shared/route-params";
 import type { ExpertDetail, Review, ReviewsResponse } from "../../shared/types";
@@ -254,7 +258,12 @@ export default function ExpertPage() {
   const experience = expert.experienceCapabilities;
   const voiceReplyLimit = experience?.voiceConsult.freeReplyLimit ?? 5;
   const hasOnlineBooking = expert.priceOnlineCents != null;
-  const hasOfflineBooking = expert.priceOfflineCents != null;
+  // Online-only build (intl WeChat): treat offline as unavailable regardless
+  // of the underlying expert profile. The server filter also hides
+  // OFFLINE-only experts entirely, so a user reaching this page from the
+  // discover list always has an ONLINE-capable expert.
+  const hasOfflineBooking =
+    ENABLE_OFFLINE_BOOKINGS && expert.priceOfflineCents != null;
 
   return (
     <View className="expert-profile">
@@ -490,13 +499,13 @@ export default function ExpertPage() {
           we show only the format (online / offline) with a "免费 · 公益项目" label;
           the underlying expert.priceOnline/Offline values are intentionally not
           rendered to keep the non-commercial framing clean. */}
-      {(expert.priceOnlineCents != null || expert.priceOfflineCents != null) && (
+      {(hasOnlineBooking || hasOfflineBooking) && (
         <View className="expert-profile__section">
           <Text className="expert-profile__section-title">
             {ENABLE_PAID_BOOKINGS ? "见面方式与价格" : "见面方式"}
           </Text>
           <View className="expert-profile__prices">
-            {expert.priceOnlineCents != null && (
+            {hasOnlineBooking && expert.priceOnlineCents != null && (
               <View className="expert-profile__price-card">
                 <View className="expert-profile__price-icon">
                   <Icon name="monitor" size={20} color="#4f46e5" />
@@ -512,7 +521,7 @@ export default function ExpertPage() {
                 </Text>
               </View>
             )}
-            {expert.priceOfflineCents != null && (
+            {hasOfflineBooking && expert.priceOfflineCents != null && (
               <View className="expert-profile__price-card">
                 <View className="expert-profile__price-icon">
                   <Icon name="mapPin" size={20} color="#059669" />

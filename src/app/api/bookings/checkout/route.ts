@@ -7,6 +7,7 @@ import { findParticipantBookingConflict } from "@/lib/booking-utils";
 import { redeemTokens } from "@/lib/hg-token";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isWeChatOriginatedRequest } from "@/lib/request-origin";
 import { createCheckoutSession, calculateBookingAmount, getPlatformFeePercent } from "@/lib/stripe";
 import { z } from "zod";
 
@@ -39,6 +40,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
     const body = parsed.data;
+
+    // WeChat Mini Program is online-only — reject offline attempts. The MP is
+    // also currently positioned as FREE so this endpoint shouldn't be hit by
+    // WeChat traffic at all, but the guard is defense-in-depth in case paid
+    // bookings get enabled in the WeChat MP later.
+    if (isWeChatOriginatedRequest(request) && body.sessionType === "OFFLINE") {
+      return NextResponse.json(
+        { error: "WeChat Mini Program supports online meetups only." },
+        { status: 400 },
+      );
+    }
     const {
       expertId,
       sessionType,
