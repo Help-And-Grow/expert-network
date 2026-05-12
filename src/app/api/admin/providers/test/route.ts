@@ -27,7 +27,12 @@ export const maxDuration = 15;
  * so repeated clicks don't burn quota.
  */
 
-const PROBE_TIMEOUT_MS = 5_000;
+// Probe timeout. Originally 5s, but Qwen3 / GPT-5 / Gemini-2.5 reasoning
+// models routinely emit a 10–25s "thinking" phase before content. A health
+// probe shouldn't tell us "broken" just because the provider is slow — so
+// we wait up to 20s. The UI keeps the button in a pending state during this
+// window, but practical latency stays sub-3s on healthy non-reasoning models.
+const PROBE_TIMEOUT_MS = 20_000;
 const CACHE_TTL_MS = 60_000;
 
 const bodySchema = z.union([
