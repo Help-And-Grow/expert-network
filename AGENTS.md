@@ -62,7 +62,12 @@ See `docs/` for full details:
 ## Key Conventions
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
-2. **AI providers**: `AI_PROVIDER` still supports multiple adapters in code (`dedalus`, `gemini`, `qwen`, `openai`, `zai`, `ollama`, `byteplus`, `volcengine`), but the public **Help-And-Grow/expert-network** deployment is standardized on **Alibaba Cloud Qwen / DashScope**. Default when unset: **`qwen`**. The containerized local stack defaults to **`ollama`**. Keep public docs, deployment config, and admin controls aligned with Alibaba/Qwen unless a task explicitly targets private experimentation. See `src/lib/ai/index.ts` and `src/lib/vendor-ai-stack-site.ts`.
+2. **AI providers**: Multiple adapters in code (`gemini`, `qwen`, `openai`, `zai`, `byteplus`, `volcengine`, `hunyuan`). Deployment topology:
+   - **jlzxwt8/expert-network on Vercel + GCP (overseas prod, current)**: `qwen → gemini` chain (default `AI_PROVIDER=qwen`).
+   - **jlzxwt8/expert-network on IGA Pages + Volcengine (CN prod, after company-setup + ICP)**: `volcengine` (Doubao-Seed-1.6 + Seedream-4.0). See [docs/exec-plans/active/iga-pages-volcengine-deployment.md](docs/exec-plans/active/iga-pages-volcengine-deployment.md).
+   - **Help-And-Grow/expert-network (one-way mirror, hackathon + investor + credit-grant showcases)**: highlights OpenAI + ByteDance integrations — typical chain is `openai,volcengine,byteplus` so the admin UI can flip between them live during demos.
+   - WeChat-originated traffic always uses `hunyuan` for text (Tencent Cloud compliance boundary) regardless of the chain config.
+   The admin UI at `/admin/providers` flips chains at runtime via `SystemConfig`. See `src/lib/ai/index.ts` and `src/lib/ai/provider-catalog.ts`.
 3. **Expert memory backend**: `MEMORY_BACKEND=mem9|pgvector|hybrid`. Local/on-prem defaults should be **`pgvector`** with `EMBEDDING_PROVIDER=ollama`; mem9 remains optional for cloud/hybrid runs. See `src/lib/integrations/mem9-lifecycle.ts` and `src/lib/integrations/pgvector-memory.ts`.
 4. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
 5. **Database switching**: Run `node scripts/switch-db.mjs` — Prisma is PostgreSQL-only and the script enforces `provider = "postgresql"` in `prisma/schema.prisma`.

@@ -2,6 +2,8 @@
 
 **Help & Grow** connects people as **both expert and player** (and **coach** when sharing): book real meetups, get AI-assisted matches, and grow with a **digital expert** that learns from each human counterpart. Strong roots in **Singapore & Southeast Asia**.
 
+> 👋 **First time here? Interns and new readers, start with [`docs/ONBOARDING.md`](docs/ONBOARDING.md)** — a 25-minute guided tour covering the product, the architecture, a codebase walk, and where to read next.
+
 Canonical brand copy: [`docs/BRAND.md`](docs/BRAND.md). System map: [`ARCHITECTURE.md`](ARCHITECTURE.md). Agent / contributor TOC: [`AGENTS.md`](AGENTS.md).
 
 ---

@@ -1,5 +1,11 @@
 # Project Guidelines
 
+## Audience
+
+This file is the **project lead's** working spec — Claude (and any AI agent) follows these rules when iterating on the codebase with the lead.
+
+Interns and new collaborators should read [`docs/ONBOARDING.md`](docs/ONBOARDING.md) first. Interns are **read-only by default**: they do not push to `main`, do not run anything against the production database, and do not touch env vars on Vercel or IGA Pages. When given a coding task, interns push to a feature branch (`interns/<name>/<topic>`) and have the project lead review before any merge.
+
 ## Workflow — Solo PM
 
 This is a solo-PM project. Keep the process lean:
