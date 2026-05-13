@@ -161,27 +161,7 @@ export async function POST(request: NextRequest) {
     const update = await request.json();
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    // Diagnostic log so we can see what Telegram is delivering. Sanitized so
-    // we never log message bodies in full (group questions can include PII);
-    // we log shape + chat type + entity types only.
-    const m = update?.message;
-    const il = update?.inline_query;
-    console.log(
-      "[telegram/update]",
-      JSON.stringify({
-        kinds: Object.keys(update ?? {}).filter((k) => k !== "update_id"),
-        chat: m?.chat ? { id: m.chat.id, type: m.chat.type, title: m.chat.title } : null,
-        from: m?.from ? { id: m.from.id, username: m.from.username } : null,
-        textLen: typeof m?.text === "string" ? m.text.length : null,
-        textHead: typeof m?.text === "string" ? m.text.slice(0, 32) : null,
-        entityTypes: (m?.entities ?? []).map((e: { type?: string }) => e.type),
-        replyToBot: m?.reply_to_message?.from?.username ?? null,
-        inlineQueryLen: typeof il?.query === "string" ? il.query.length : null,
-      }),
-    );
-
     if (!botToken) {
-      console.warn("[telegram/update] no TELEGRAM_BOT_TOKEN — bailing");
       return NextResponse.json({ ok: true });
     }
 
@@ -397,13 +377,8 @@ export async function POST(request: NextRequest) {
     let groupQuery: string | null = null;
     if (inGroup) {
       const botUsername = await getBotUsername(botToken);
-      console.log("[telegram/group-gate]", JSON.stringify({
-        botUsername,
-        envUsername: process.env.TELEGRAM_BOT_USERNAME ?? null,
-        chatType: message.chat?.type,
-      }));
       if (!botUsername) {
-        console.warn("[telegram/group-gate] bot username unresolved — bailing");
+        // Can't determine our identity → don't spam the group.
         return NextResponse.json({ ok: true });
       }
 
@@ -411,7 +386,6 @@ export async function POST(request: NextRequest) {
       const targetsUs = isCommand
         ? text.toLowerCase().includes(`@${botUsername.toLowerCase()}`)
         : isBotAddressed(message, botUsername);
-      console.log("[telegram/group-gate]", JSON.stringify({ isCommand, targetsUs }));
 
       if (!targetsUs) {
         return NextResponse.json({ ok: true });
@@ -518,35 +492,46 @@ export async function POST(request: NextRequest) {
     const result = await chat(query, [], "telegram");
 
     if (inGroup) {
-      // Group reply: inline-Markdown with clickable links (web_app buttons
-      // don't work in groups). Thread under the original question.
+      // Group reply: text body + inline-keyboard url buttons. Telegram
+      // rejects `web_app` buttons (the DM Mini-App path) in groups; `url`
+      // buttons work fine — tapping opens the page in Telegram's in-app
+      // browser on mobile, or the system browser on desktop. For the true
+      // Mini-App experience in groups we'd point url at
+      // `t.me/<bot>/<app>?startapp=<id>` AND wire start_param routing in
+      // the Mini App frontend (not yet shipped).
       const replyExtra = { reply_to_message_id: message.message_id };
 
       if (result.experts.length > 0) {
         const lines = result.experts.slice(0, 5).map((e, i) => {
           const price = e.priceLabel ? ` — ${e.priceLabel}` : "";
-          return [
-            `*${i + 1}. [${e.name}](${e.profileUrl})*${price}`,
-            e.reason,
-            `[Book →](${e.bookUrl})`,
-          ].join("\n");
+          return `*${i + 1}. ${e.name}*${price}\n${e.reason}`;
         });
-        const header = `🎯 *Expert recommendations*`;
-        const footer = `\n[Discover more](${APP_URL}/discover)`;
-        let replyText = `${header}\n\n${lines.join("\n\n")}${footer}`;
+        let replyText = `🎯 *Expert Recommendations*\n\n${lines.join("\n\n")}`;
         // Telegram caps a single message at 4096 chars.
         if (replyText.length > 4000) {
           replyText = replyText.slice(0, 3990) + "…";
         }
+
+        const buttons: Record<string, unknown>[][] = result.experts
+          .slice(0, 5)
+          .map((e) => [
+            { text: `View ${e.name}`, url: e.profileUrl },
+            { text: `Book ${e.name}`, url: e.bookUrl },
+          ]);
+        buttons.push([{ text: "🔍 Discover More", url: `${APP_URL}/discover` }]);
+
         await sendMessage(botToken, chatId, replyText, {
           ...replyExtra,
-          disable_web_page_preview: true,
+          reply_markup: { inline_keyboard: buttons },
         });
       } else {
-        const replyText = `${result.reply}\n\n[Discover more](${APP_URL}/discover)`;
-        await sendMessage(botToken, chatId, replyText, {
+        await sendMessage(botToken, chatId, result.reply, {
           ...replyExtra,
-          disable_web_page_preview: true,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔍 Discover More", url: `${APP_URL}/discover` }],
+            ],
+          },
         });
       }
       return NextResponse.json({ ok: true });
