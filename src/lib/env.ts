@@ -158,6 +158,8 @@ const envSchema = z
     TELEGRAM_BOT_TOKEN: z.string().optional(),
     /** Bot's @-handle without the leading @ (e.g. "helpAndGrowBot"). Required for group-chat mention detection without a per-request getMe call. */
     TELEGRAM_BOT_USERNAME: z.string().optional(),
+    /** Bot's Mini App slug from BotFather /myapps (e.g. "ExpertNetwork"). Used to construct t.me/<bot>/<slug>?startapp=... deep links so the group reply opens inside the Mini App instead of the in-app browser. Defaults to "ExpertNetwork". */
+    TELEGRAM_MINI_APP_SLUG: z.string().optional(),
 
     BASE_RPC_URL: z.string().url().optional(),
     POMP_ISSUER_PRIVATE_KEY: z.string().optional(),

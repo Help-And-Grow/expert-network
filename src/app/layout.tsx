@@ -2,6 +2,7 @@ import localFont from "next/font/local";
 import Script from "next/script";
 
 import { Providers } from "@/components/providers";
+import { TelegramStartParamRouter } from "@/components/telegram-start-param-router";
 import { env } from "@/lib/env";
 
 import "./globals.css";
@@ -76,7 +77,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} app-shell font-sans antialiased`}
       >
-        <Providers><main className="min-h-screen">{children}</main></Providers>
+        <Providers>
+          <TelegramStartParamRouter />
+          <main className="min-h-screen">{children}</main>
+        </Providers>
       </body>
     </html>
   );

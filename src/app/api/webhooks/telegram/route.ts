@@ -63,6 +63,20 @@ function webAppButton(label: string, path = "/discover") {
   return { text: label, web_app: { url: `${APP_URL}${path}` } };
 }
 
+// Mini-App deep link for group buttons. `web_app:` inline-keyboard buttons
+// aren't allowed in groups, but a `url:` button pointing at
+// `t.me/<bot>/<slug>?startapp=<param>` opens the same Mini App with full
+// Telegram auth context (initData), and the start_param is read on boot by
+// `<TelegramStartParamRouter>` in `src/components/...` to route to the
+// expert/booking page internally. Defaults to "ExpertNetwork" — the
+// canonical slug for @helpAndGrowBot per BotFather /myapps.
+const MINI_APP_SLUG = process.env.TELEGRAM_MINI_APP_SLUG?.trim() || "ExpertNetwork";
+function telegramMiniAppLink(botUsername: string, startParam?: string): string {
+  const base = `https://t.me/${botUsername}/${MINI_APP_SLUG}`;
+  if (!startParam) return base;
+  return `${base}?startapp=${encodeURIComponent(startParam)}`;
+}
+
 function buildExpertButtons(
   experts: { expertId: string; name: string; profileUrl: string; bookUrl: string }[]
 ): Record<string, unknown>[][] {
@@ -370,6 +384,9 @@ export async function POST(request: NextRequest) {
 
     const text = message.text.trim();
     const inGroup = isGroupChat(message);
+    // Hoisted to outer scope because the group AI-match reply (further
+    // below) needs it to build t.me/<bot>/<app>?startapp=... deep links.
+    let groupBotUsername: string | null = null;
 
     // In groups, only respond when we're explicitly addressed. Commands
     // already self-target via the `/cmd@botname` convention; bare text
@@ -381,6 +398,7 @@ export async function POST(request: NextRequest) {
         // Can't determine our identity → don't spam the group.
         return NextResponse.json({ ok: true });
       }
+      groupBotUsername = botUsername;
 
       const isCommand = text.startsWith("/");
       const targetsUs = isCommand
@@ -492,14 +510,16 @@ export async function POST(request: NextRequest) {
     const result = await chat(query, [], "telegram");
 
     if (inGroup) {
-      // Group reply: text body + inline-keyboard url buttons. Telegram
-      // rejects `web_app` buttons (the DM Mini-App path) in groups; `url`
-      // buttons work fine — tapping opens the page in Telegram's in-app
-      // browser on mobile, or the system browser on desktop. For the true
-      // Mini-App experience in groups we'd point url at
-      // `t.me/<bot>/<app>?startapp=<id>` AND wire start_param routing in
-      // the Mini App frontend (not yet shipped).
+      // Group reply: text body + inline-keyboard buttons whose URLs are
+      // t.me/<bot>/<slug>?startapp=... deep links into the Mini App.
+      // Tap behaviour: Telegram opens its own Mini App webview (with
+      // initData auth, theme sync, safe-area) — same UX as the DM path,
+      // not the in-app browser. The Mini App's start_param is read by
+      // <TelegramStartParamRouter> in layout.tsx to route to the right
+      // /experts/<id> or /experts/<id>/book page on entry.
       const replyExtra = { reply_to_message_id: message.message_id };
+      const deepLink = (param?: string) =>
+        groupBotUsername ? telegramMiniAppLink(groupBotUsername, param) : `${APP_URL}/discover`;
 
       if (result.experts.length > 0) {
         const lines = result.experts.slice(0, 5).map((e, i) => {
@@ -515,10 +535,10 @@ export async function POST(request: NextRequest) {
         const buttons: Record<string, unknown>[][] = result.experts
           .slice(0, 5)
           .map((e) => [
-            { text: `View ${e.name}`, url: e.profileUrl },
-            { text: `Book ${e.name}`, url: e.bookUrl },
+            { text: `View ${e.name}`, url: deepLink(`expert-${e.expertId}`) },
+            { text: `Book ${e.name}`, url: deepLink(`book-${e.expertId}`) },
           ]);
-        buttons.push([{ text: "🔍 Discover More", url: `${APP_URL}/discover` }]);
+        buttons.push([{ text: "🔍 Discover More", url: deepLink() }]);
 
         await sendMessage(botToken, chatId, replyText, {
           ...replyExtra,
@@ -528,9 +548,7 @@ export async function POST(request: NextRequest) {
         await sendMessage(botToken, chatId, result.reply, {
           ...replyExtra,
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "🔍 Discover More", url: `${APP_URL}/discover` }],
-            ],
+            inline_keyboard: [[{ text: "🔍 Discover More", url: deepLink() }]],
           },
         });
       }
