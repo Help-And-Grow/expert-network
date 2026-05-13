@@ -161,7 +161,27 @@ export async function POST(request: NextRequest) {
     const update = await request.json();
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
+    // Diagnostic log so we can see what Telegram is delivering. Sanitized so
+    // we never log message bodies in full (group questions can include PII);
+    // we log shape + chat type + entity types only.
+    const m = update?.message;
+    const il = update?.inline_query;
+    console.log(
+      "[telegram/update]",
+      JSON.stringify({
+        kinds: Object.keys(update ?? {}).filter((k) => k !== "update_id"),
+        chat: m?.chat ? { id: m.chat.id, type: m.chat.type, title: m.chat.title } : null,
+        from: m?.from ? { id: m.from.id, username: m.from.username } : null,
+        textLen: typeof m?.text === "string" ? m.text.length : null,
+        textHead: typeof m?.text === "string" ? m.text.slice(0, 32) : null,
+        entityTypes: (m?.entities ?? []).map((e: { type?: string }) => e.type),
+        replyToBot: m?.reply_to_message?.from?.username ?? null,
+        inlineQueryLen: typeof il?.query === "string" ? il.query.length : null,
+      }),
+    );
+
     if (!botToken) {
+      console.warn("[telegram/update] no TELEGRAM_BOT_TOKEN — bailing");
       return NextResponse.json({ ok: true });
     }
 
@@ -377,8 +397,13 @@ export async function POST(request: NextRequest) {
     let groupQuery: string | null = null;
     if (inGroup) {
       const botUsername = await getBotUsername(botToken);
+      console.log("[telegram/group-gate]", JSON.stringify({
+        botUsername,
+        envUsername: process.env.TELEGRAM_BOT_USERNAME ?? null,
+        chatType: message.chat?.type,
+      }));
       if (!botUsername) {
-        // Can't determine our identity → don't spam the group.
+        console.warn("[telegram/group-gate] bot username unresolved — bailing");
         return NextResponse.json({ ok: true });
       }
 
@@ -386,6 +411,7 @@ export async function POST(request: NextRequest) {
       const targetsUs = isCommand
         ? text.toLowerCase().includes(`@${botUsername.toLowerCase()}`)
         : isBotAddressed(message, botUsername);
+      console.log("[telegram/group-gate]", JSON.stringify({ isCommand, targetsUs }));
 
       if (!targetsUs) {
         return NextResponse.json({ ok: true });
