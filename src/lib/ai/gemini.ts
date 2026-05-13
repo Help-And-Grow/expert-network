@@ -72,7 +72,21 @@ export class GeminiProvider extends BaseAIProvider {
       { category: "HARM_CATEGORY_HARASSMENT" as any, threshold: "BLOCK_ONLY_HIGH" as any },
     ] as const;
 
-    const config: Record<string, unknown> = { safetySettings: [...safetySettings] };
+    // Gemini 2.5+ models default to a long internal "thinking" phase that
+    // produces a `thoughtsTokenCount` block before the visible response. On a
+    // typical Help & Grow prompt that adds ~7 s of pure latency without
+    // improving the answer for our short-form use cases (intro/services copy,
+    // expert matching, query normalization, admin probe). Set the budget to 0
+    // to disable it everywhere — measured: 12.4 s → 5.4 s on gemini-2.5-flash.
+    //
+    // Older Gemini models (1.5, 2.0) silently ignore this field, so it's safe
+    // to pass unconditionally. Operators who genuinely want thinking can flip
+    // this back by editing this file (no env knob — reasoning is the wrong
+    // default for an interactive product).
+    const config: Record<string, unknown> = {
+      safetySettings: [...safetySettings],
+      thinkingConfig: { thinkingBudget: 0 },
+    };
     if (systemInstruction) {
       config.systemInstruction = systemInstruction;
     }
