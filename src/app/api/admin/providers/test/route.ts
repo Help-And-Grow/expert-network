@@ -7,7 +7,11 @@ import { getProvider } from "@/lib/admin/provider-registry";
 import { resolveEnvironment } from "@/lib/system-config";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 15;
+// Function-level cap MUST exceed PROBE_TIMEOUT_MS (currently 20s) plus SDK
+// overhead, otherwise Vercel kills the function before our catch block can
+// log the structured upstream-error fields — and the operator sees "Vercel
+// Runtime Timeout Error: Task timed out" instead of the actual API failure.
+export const maxDuration = 30;
 
 /**
  * Phase 2: live re-probe.
