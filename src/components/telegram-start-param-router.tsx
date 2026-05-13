@@ -12,8 +12,10 @@ import { usePathname, useRouter } from "next/navigation";
  * user lands on the right page with full Telegram Mini-App auth context.
  *
  * Supported prefixes:
- *   - `expert-<id>`  → /experts/<id>
- *   - `book-<id>`    → /experts/<id>/book
+ *   - `expert-<id>`   → /experts/<id>
+ *   - `book-<id>`     → /experts/<id>/book
+ *   - `review-<id>`   → /reviews/<bookingId>   (post-meetup review)
+ *   - `profile-edit`  → /profile               (user/expert profile editor)
  *
  * Only fires on the entry path ("/") so an already-routed user isn't
  * yanked away by a stale start_param. Uses `router.replace` so the back
@@ -66,6 +68,24 @@ export function TelegramStartParamRouter() {
       if (EXPERT_ID_RE.test(id)) {
         router.replace(`/experts/${id}/book`);
       }
+      return;
+    }
+
+    if (param.startsWith("review-")) {
+      const id = param.slice("review-".length);
+      if (EXPERT_ID_RE.test(id)) {
+        // /reviews/<bookingId> — server-side gates submission to
+        // the founder of a COMPLETED booking; unauthorised users land
+        // on the redirect target.
+        router.replace(`/reviews/${id}`);
+      }
+      return;
+    }
+
+    if (param === "profile-edit") {
+      // Profile page is a single unified surface (user fields + expert
+      // fields toggled inline) — no separate /profile/edit route today.
+      router.replace("/profile");
       return;
     }
     // Unknown prefix — stay at "/" silently. Adding a new prefix here is

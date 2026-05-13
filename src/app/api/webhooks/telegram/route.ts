@@ -439,11 +439,21 @@ export async function POST(request: NextRequest) {
         `/help — Show this help message`,
       ].join("\n");
 
+      // The profile-edit row uses a t.me deep link rather than `web_app:`
+      // so /start@helpAndGrowBot works the same way in groups — both
+      // contexts open the Mini App at /profile via the start_param router.
+      const botUsernameForWelcome =
+        (await getBotUsername(botToken)) ?? "helpAndGrowBot";
+      const profileEditDeepLink = telegramMiniAppLink(
+        botUsernameForWelcome,
+        "profile-edit",
+      );
       await sendMessage(botToken, chatId, welcomeText, {
         reply_markup: {
           inline_keyboard: [
             [webAppButton("🚀 Open Help & Grow", "/")],
             [webAppButton("🔍 Discover Community")],
+            [{ text: "✏️ Edit my profile", url: profileEditDeepLink }],
           ],
         },
       });

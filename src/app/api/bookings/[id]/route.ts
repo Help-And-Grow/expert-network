@@ -444,6 +444,18 @@ export async function PATCH(
         } catch (err) {
           console.error("[POMP] Credential issuance failed to load:", err);
         }
+
+        // Nudge the founder to leave a review. Fire-and-forget — failures
+        // (Telegram down, founder hasn't DM'd the bot yet, etc.) shouldn't
+        // block the status-update response.
+        try {
+          const { notifyReviewRequest } = await import("@/lib/telegram-bot");
+          notifyReviewRequest(updated.id).catch((err) =>
+            console.error("[notify] review-request failed:", err),
+          );
+        } catch (err) {
+          console.error("[notify] failed to load review-request helper:", err);
+        }
       }
 
       return NextResponse.json(updated);

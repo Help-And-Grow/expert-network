@@ -171,6 +171,72 @@ export async function notifyFounderBooking(params: {
 }
 
 /**
+ * Nudge the founder to leave a review after a meetup completes.
+ *
+ * Fires from the booking status transition in
+ * `src/app/api/bookings/[id]/route.ts` once `status === "COMPLETED"`.
+ * Idempotent at the prisma layer (review submission is one-per-booking)
+ * but this helper itself is fire-and-forget — re-firing just sends the
+ * DM again, which is acceptable in practice and avoids tracking state
+ * solely for de-duping notifications.
+ */
+export async function notifyReviewRequest(bookingId: string): Promise<boolean> {
+  const { prisma } = await import("@/lib/prisma");
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      sessionType: true,
+      founder: { select: { telegramId: true, telegramUsername: true } },
+      expert: { select: { user: { select: { nickName: true, name: true } } } },
+      review: { select: { id: true } },
+    },
+  });
+  if (!booking) {
+    console.log(`[notify] Skip review prompt: booking ${bookingId} not found`);
+    return false;
+  }
+  if (booking.review) {
+    // Already reviewed — don't pester.
+    return false;
+  }
+  const chatId = await resolveChatId(
+    booking.founder.telegramId,
+    booking.founder.telegramUsername,
+  );
+  if (!chatId) {
+    console.log(
+      `[notify] Skip review prompt: founder for booking ${bookingId} has no resolvable telegram chat`,
+    );
+    return false;
+  }
+
+  const expertName =
+    booking.expert.user.nickName || booking.expert.user.name || "your expert";
+
+  const text = [
+    `🌟 *How was your meetup?*`,
+    ``,
+    `Your ${booking.sessionType.toLowerCase()} meetup with *${expertName}* is wrapped — leave a quick rating to help the next person find them.`,
+  ].join("\n");
+
+  // Use the t.me deep link so taps land in the Mini App with auth context.
+  // The frontend router (telegram-start-param-router.tsx) reads
+  // start_param=review-<id> and navigates to /reviews/<id>.
+  const botUsername =
+    env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "") || "helpAndGrowBot";
+  const slug = env.TELEGRAM_MINI_APP_SLUG?.trim() || "ExpertNetwork";
+  const deepLink = `https://t.me/${botUsername}/${slug}?startapp=review-${booking.id}`;
+
+  await sendTelegramMessage(chatId, text, [
+    [{ text: "🌟 Rate the meetup", url: deepLink }],
+    [{ text: "📋 My Meetups", web_app: { url: `${APP_URL}/booking` } }],
+  ]);
+
+  return true;
+}
+
+/**
  * Notify a user that their meetup has been cancelled.
  */
 export async function notifyCancellation(params: {
