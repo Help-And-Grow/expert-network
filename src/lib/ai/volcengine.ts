@@ -30,12 +30,47 @@ export class VolcengineProvider extends BaseAIProvider {
 
   protected async chat(prompt: string): Promise<string> {
     // Defaults to doubao-seed-1.6-flash; override via VOLCENGINE_MODEL_ID
-    // with your ModelArk endpoint id (ep-2026xxxxxx-yyyy).
-    const response = await this.client.chat.completions.create({
-      model: getVolcengineTextModel(),
-      messages: [{ role: "user", content: prompt }],
-    });
-    return response.choices[0]?.message?.content ?? "";
+    // with your activated ModelArk model name (e.g.
+    // doubao-seed-2-0-mini-260428) or endpoint id (ep-2026xxxxxx-yyyy).
+    const model = getVolcengineTextModel();
+    const startedAt = Date.now();
+    try {
+      const response = await this.client.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const text = response.choices[0]?.message?.content ?? "";
+      if (!text) {
+        console.warn("[Volcengine] empty content", {
+          model,
+          elapsedMs: Date.now() - startedAt,
+          finishReason: response.choices[0]?.finish_reason,
+        });
+      }
+      return text;
+    } catch (err) {
+      // The OpenAI SDK swallows the raw response body when it can't be parsed
+      // as JSON ("Unexpected token 'A', ... is not valid JSON") — log every
+      // error field so production logs surface the actual upstream cause
+      // (auth, rate, model-not-activated, gateway).
+      const detail =
+        err instanceof Error
+          ? {
+              name: err.name,
+              message: err.message,
+              status: (err as { status?: number }).status,
+              code: (err as { code?: string }).code,
+              type: (err as { type?: string }).type,
+            }
+          : { message: String(err) };
+      console.error("[Volcengine] chat failed", {
+        ...detail,
+        model,
+        baseURL: VOLCENGINE_BASE_URL,
+        elapsedMs: Date.now() - startedAt,
+      });
+      throw err;
+    }
   }
 
   protected async generateImageRaw(prompt: string): Promise<string | null> {

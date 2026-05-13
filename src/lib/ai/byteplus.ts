@@ -31,12 +31,44 @@ export class BytePlusProvider extends BaseAIProvider {
 
   protected async chat(prompt: string): Promise<string> {
     // Defaults to doubao-seed-1.6-flash; override via BYTEPLUS_MODEL_ID
-    // with your ModelArk endpoint id (ep-2026xxxxxx-yyyy).
-    const response = await this.client.chat.completions.create({
-      model: getBytePlusTextModel(),
-      messages: [{ role: "user", content: prompt }],
-    });
-    return response.choices[0]?.message?.content ?? "";
+    // with your activated BytePlus model name or endpoint id.
+    const model = getBytePlusTextModel();
+    const startedAt = Date.now();
+    try {
+      const response = await this.client.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const text = response.choices[0]?.message?.content ?? "";
+      if (!text) {
+        console.warn("[BytePlus] empty content", {
+          model,
+          elapsedMs: Date.now() - startedAt,
+          finishReason: response.choices[0]?.finish_reason,
+        });
+      }
+      return text;
+    } catch (err) {
+      // Surface raw error fields — the OpenAI SDK obscures non-JSON upstream
+      // bodies behind an opaque JSON-parse error.
+      const detail =
+        err instanceof Error
+          ? {
+              name: err.name,
+              message: err.message,
+              status: (err as { status?: number }).status,
+              code: (err as { code?: string }).code,
+              type: (err as { type?: string }).type,
+            }
+          : { message: String(err) };
+      console.error("[BytePlus] chat failed", {
+        ...detail,
+        model,
+        baseURL: BYTEPLUS_BASE_URL,
+        elapsedMs: Date.now() - startedAt,
+      });
+      throw err;
+    }
   }
 
   protected async generateImageRaw(prompt: string): Promise<string | null> {
