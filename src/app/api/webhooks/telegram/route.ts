@@ -72,6 +72,90 @@ function buildExpertButtons(
   ]);
 }
 
+// ---------------------------------------------------------------------------
+// Group-chat support
+// ---------------------------------------------------------------------------
+//
+// In a Telegram group, the bot only sees messages that command-ping it or
+// mention `@<botUsername>` (under default privacy-mode ON — see
+// BotFather /setprivacy). We further gate ourselves so bare text in a group
+// is ignored unless it mentions us — otherwise the bot would spam the group
+// on every non-command message. Commands like `/start@helpAndGrowBot` keep
+// working unchanged.
+//
+// `web_app` inline-keyboard buttons only function in private chats, so for
+// group replies we format an inline-Markdown reply (with clickable links)
+// instead of the button grid used in DMs.
+
+type TelegramMessage = {
+  message_id?: number;
+  chat?: { id?: number; type?: string };
+  text?: string;
+  entities?: Array<{ type?: string; offset?: number; length?: number; user?: { username?: string } }>;
+  reply_to_message?: { from?: { username?: string } };
+};
+
+let cachedBotUsername: string | null = null;
+async function getBotUsername(botToken: string): Promise<string | null> {
+  if (cachedBotUsername) return cachedBotUsername;
+  const fromEnv = process.env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "");
+  if (fromEnv) {
+    cachedBotUsername = fromEnv;
+    return cachedBotUsername;
+  }
+  // Fallback: ask Telegram. Cached for the lifetime of this serverless
+  // instance so we don't pay the round trip on every group message.
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+    const data = await res.json();
+    if (data?.ok && typeof data.result?.username === "string") {
+      cachedBotUsername = data.result.username;
+      return cachedBotUsername;
+    }
+  } catch (err) {
+    console.error("[telegram/getMe]", err);
+  }
+  return null;
+}
+
+function isGroupChat(message: TelegramMessage): boolean {
+  const t = message.chat?.type;
+  return t === "group" || t === "supergroup";
+}
+
+/**
+ * Has the bot been addressed in this group message? Three cases:
+ *   1. `@<botUsername>` literal in the text (entity type "mention").
+ *   2. Telegram-native text_mention pointing at our user.
+ *   3. A reply to a previous bot message.
+ */
+function isBotAddressed(message: TelegramMessage, botUsername: string): boolean {
+  const target = botUsername.toLowerCase();
+  const text = message.text ?? "";
+  for (const e of message.entities ?? []) {
+    if (e.type === "mention" && typeof e.offset === "number" && typeof e.length === "number") {
+      const slice = text.slice(e.offset, e.offset + e.length).toLowerCase();
+      if (slice === `@${target}`) return true;
+    }
+    if (e.type === "text_mention" && e.user?.username?.toLowerCase() === target) {
+      return true;
+    }
+  }
+  if (message.reply_to_message?.from?.username?.toLowerCase() === target) {
+    return true;
+  }
+  return false;
+}
+
+/** Strip the bot's @-mention(s) and command suffixes, return the residual question. */
+function stripBotMention(text: string, botUsername: string): string {
+  const escaped = botUsername.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text
+    .replace(new RegExp(`@${escaped}`, "gi"), "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const update = await request.json();
@@ -285,6 +369,41 @@ export async function POST(request: NextRequest) {
     }
 
     const text = message.text.trim();
+    const inGroup = isGroupChat(message);
+
+    // In groups, only respond when we're explicitly addressed. Commands
+    // already self-target via the `/cmd@botname` convention; bare text
+    // (the AI-match path) requires an @-mention or a reply-to-bot.
+    let groupQuery: string | null = null;
+    if (inGroup) {
+      const botUsername = await getBotUsername(botToken);
+      if (!botUsername) {
+        // Can't determine our identity → don't spam the group.
+        return NextResponse.json({ ok: true });
+      }
+
+      const isCommand = text.startsWith("/");
+      const targetsUs = isCommand
+        ? text.toLowerCase().includes(`@${botUsername.toLowerCase()}`)
+        : isBotAddressed(message, botUsername);
+
+      if (!targetsUs) {
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!isCommand) {
+        groupQuery = stripBotMention(text, botUsername);
+        if (!groupQuery) {
+          await sendMessage(
+            botToken,
+            chatId,
+            `Hi! Mention me with your question — e.g. \`@${botUsername} fundraising experts in Singapore\``,
+            { reply_to_message_id: message.message_id }
+          );
+          return NextResponse.json({ ok: true });
+        }
+      }
+    }
 
     // /start command
     if (text === "/start" || text.startsWith("/start@")) {
@@ -357,10 +476,14 @@ export async function POST(request: NextRequest) {
         await sendMessage(
           botToken,
           chatId,
-          `Please describe what you're looking for.\nExample: /find marketing expert for SaaS startup`
+          `Please describe what you're looking for.\nExample: /find marketing expert for SaaS startup`,
+          inGroup ? { reply_to_message_id: message.message_id } : {}
         );
         return NextResponse.json({ ok: true });
       }
+    } else if (groupQuery) {
+      // Bare @-mention in a group — the question is the residue after the mention.
+      query = groupQuery;
     }
 
     // Show "typing" indicator
@@ -368,6 +491,42 @@ export async function POST(request: NextRequest) {
 
     const result = await chat(query, [], "telegram");
 
+    if (inGroup) {
+      // Group reply: inline-Markdown with clickable links (web_app buttons
+      // don't work in groups). Thread under the original question.
+      const replyExtra = { reply_to_message_id: message.message_id };
+
+      if (result.experts.length > 0) {
+        const lines = result.experts.slice(0, 5).map((e, i) => {
+          const price = e.priceLabel ? ` — ${e.priceLabel}` : "";
+          return [
+            `*${i + 1}. [${e.name}](${e.profileUrl})*${price}`,
+            e.reason,
+            `[Book →](${e.bookUrl})`,
+          ].join("\n");
+        });
+        const header = `🎯 *Expert recommendations*`;
+        const footer = `\n[Discover more](${APP_URL}/discover)`;
+        let replyText = `${header}\n\n${lines.join("\n\n")}${footer}`;
+        // Telegram caps a single message at 4096 chars.
+        if (replyText.length > 4000) {
+          replyText = replyText.slice(0, 3990) + "…";
+        }
+        await sendMessage(botToken, chatId, replyText, {
+          ...replyExtra,
+          disable_web_page_preview: true,
+        });
+      } else {
+        const replyText = `${result.reply}\n\n[Discover more](${APP_URL}/discover)`;
+        await sendMessage(botToken, chatId, replyText, {
+          ...replyExtra,
+          disable_web_page_preview: true,
+        });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // Private chat reply: keep the existing web_app button UX.
     if (result.experts.length > 0) {
       const lines = result.experts.map(
         (e, i) =>

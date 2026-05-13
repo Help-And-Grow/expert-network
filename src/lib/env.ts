@@ -156,6 +156,8 @@ const envSchema = z
     ZAI_VERTEX_LOCATION: z.string().optional(),
 
     TELEGRAM_BOT_TOKEN: z.string().optional(),
+    /** Bot's @-handle without the leading @ (e.g. "helpAndGrowBot"). Required for group-chat mention detection without a per-request getMe call. */
+    TELEGRAM_BOT_USERNAME: z.string().optional(),
 
     BASE_RPC_URL: z.string().url().optional(),
     POMP_ISSUER_PRIVATE_KEY: z.string().optional(),
