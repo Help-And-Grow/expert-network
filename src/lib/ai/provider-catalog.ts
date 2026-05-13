@@ -204,9 +204,9 @@ export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> =
     supportsImage: false,
   },
   byteplus: {
-    label: "BytePlus / Doubao",
+    label: "BytePlus / Dola",
     description:
-      "OpenAI-compatible Doubao text + Seedream image generation via BytePlus ModelArk (ap-southeast.bytepluses.com — for overseas deployments).",
+      "OpenAI-compatible Dola text + Seedream image generation via BytePlus (ap-southeast.bytepluses.com — for overseas / international deployments).",
     requiredAny: [["BYTEPLUS_API_KEY"]],
     optional: [],
     textModelEnvKey: "BYTEPLUS_MODEL_ID",
@@ -216,9 +216,9 @@ export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> =
     supportsImage: true,
   },
   volcengine: {
-    label: "Volcengine / VeArk",
+    label: "Volcengine / Doubao",
     description:
-      "OpenAI-compatible Doubao text + Seedream image generation via Volcano Engine ARK (ark.cn-beijing.volces.com — for mainland deployments). Activate models in the VeArk console first.",
+      "OpenAI-compatible Doubao text + Seedream image generation via Volcano Engine ARK (ark.cn-beijing.volces.com — for mainland China deployments). Activate models in the VeArk console first.",
     requiredAny: [["VOLCENGINE_API_KEY"]],
     optional: [],
     textModelEnvKey: "VOLCENGINE_MODEL_ID",

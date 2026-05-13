@@ -534,6 +534,8 @@ export async function POST(request: NextRequest) {
   // -------------------------------------------------------------------------
   let deployTriggered = false;
   let deployError: string | null = null;
+  let deployUrl: string | undefined;
+  let deployVia: "api" | "hook" | "none" | undefined;
   if (cfg) {
     try {
       for (const w of writes) {
@@ -542,6 +544,8 @@ export async function POST(request: NextRequest) {
       if (parsed.data.triggerDeploy !== false && updatedKeys.length > 0) {
         const deploy = await triggerManagedProjectDeploy(cfg);
         deployTriggered = deploy.triggered;
+        deployUrl = deploy.deploymentUrl;
+        deployVia = deploy.via;
       }
     } catch (err) {
       deployError = err instanceof Error ? err.message : String(err);
@@ -562,6 +566,8 @@ export async function POST(request: NextRequest) {
     })),
     deployTriggered,
     deployError,
+    deployUrl,
+    deployVia,
     environment: env,
   });
 }

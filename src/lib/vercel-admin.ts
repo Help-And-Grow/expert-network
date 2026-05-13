@@ -129,15 +129,89 @@ export async function upsertManagedProjectEnv(
   );
 }
 
+/**
+ * Trigger a fresh production deploy.
+ *
+ * Two paths, tried in order:
+ *
+ *  1. **Vercel REST API** (`POST /v13/deployments`) using the management
+ *     token. This always creates a NEW deployment (we pass the latest
+ *     production deployment id as `deploymentId` so the build re-uses the
+ *     same Git commit + source files but starts a fresh build). Returns the
+ *     new deployment URL so the admin UI can link to it.
+ *
+ *  2. **Deploy hook** (fire-and-forget HTTP POST). Older fallback. The hook
+ *     URL is project-scoped and unauthenticated, so it works without the
+ *     management token, but Vercel deduplicates hook calls if a build is
+ *     already in flight — which is exactly why we hit "Apply succeeded but
+ *     no new deploy appeared" three times in a row before adding the REST
+ *     path. Kept as a last resort.
+ *
+ * Either path returns `triggered: true` once the request is accepted. The
+ * REST path also returns `deploymentUrl` so the UI can deep-link.
+ */
+type LatestDeploymentRow = {
+  uid: string;
+  url?: string;
+  state?: string;
+  target?: string | null;
+};
+
+async function fetchLatestProductionDeploymentId(
+  cfg: VercelProjectConfig,
+): Promise<string | null> {
+  try {
+    const body = await vercelRequest<{ deployments?: LatestDeploymentRow[] }>(
+      cfg,
+      `/v6/deployments?projectId=${encodeURIComponent(cfg.project)}&target=production&state=READY&limit=1`,
+    );
+    return body.deployments?.[0]?.uid ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function triggerManagedProjectDeploy(
   cfg: VercelProjectConfig,
-): Promise<{ triggered: boolean }> {
-  if (!cfg.deployHookUrl) return { triggered: false };
-
-  const res = await fetch(cfg.deployHookUrl, { method: "POST" });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Deploy hook ${res.status}: ${body.slice(0, 300)}`);
+): Promise<{ triggered: boolean; deploymentUrl?: string; via: "api" | "hook" | "none" }> {
+  // ---- Path 1: REST API (preferred — always creates a new build) ----------
+  try {
+    const previousId = await fetchLatestProductionDeploymentId(cfg);
+    if (previousId) {
+      const created = await vercelRequest<{
+        id?: string;
+        url?: string;
+      }>(cfg, "/v13/deployments?forceNew=1", {
+        method: "POST",
+        body: JSON.stringify({
+          name: cfg.project,
+          deploymentId: previousId,
+          target: "production",
+        }),
+      });
+      return {
+        triggered: true,
+        deploymentUrl: created.url ? `https://${created.url}` : undefined,
+        via: "api",
+      };
+    }
+  } catch (err) {
+    // Don't block on the API path — fall through to the hook if configured.
+    console.warn(
+      "[vercel-admin] REST deploy failed, falling back to deploy hook:",
+      err instanceof Error ? err.message : err,
+    );
   }
-  return { triggered: true };
+
+  // ---- Path 2: deploy hook (fallback) -------------------------------------
+  if (cfg.deployHookUrl) {
+    const res = await fetch(cfg.deployHookUrl, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Deploy hook ${res.status}: ${body.slice(0, 300)}`);
+    }
+    return { triggered: true, via: "hook" };
+  }
+
+  return { triggered: false, via: "none" };
 }
