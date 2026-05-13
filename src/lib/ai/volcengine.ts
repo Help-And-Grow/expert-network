@@ -32,12 +32,20 @@ export class VolcengineProvider extends BaseAIProvider {
     // Defaults to doubao-seed-1.6-flash; override via VOLCENGINE_MODEL_ID
     // with your activated ModelArk model name (e.g.
     // doubao-seed-2-0-mini-260428) or endpoint id (ep-2026xxxxxx-yyyy).
+    //
+    // Disable Doubao Seed reasoning for the same reason as BytePlus (see
+    // src/lib/ai/byteplus.ts). Brings probe latency from ~15-20 s down to
+    // 1-3 s without changing answer quality for our short-form use cases.
     const model = getVolcengineTextModel();
     const startedAt = Date.now();
     try {
       const response = await this.client.chat.completions.create({
         model,
         messages: [{ role: "user", content: prompt }],
+        ...({
+          thinking: { type: "disabled" },
+          enable_thinking: false,
+        } as Record<string, unknown>),
       });
       const text = response.choices[0]?.message?.content ?? "";
       if (!text) {

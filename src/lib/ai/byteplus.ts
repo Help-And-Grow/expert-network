@@ -32,12 +32,29 @@ export class BytePlusProvider extends BaseAIProvider {
   protected async chat(prompt: string): Promise<string> {
     // Defaults to doubao-seed-1.6-flash; override via BYTEPLUS_MODEL_ID
     // with your activated BytePlus model name or endpoint id.
+    //
+    // Doubao Seed 2.0+ models default to a long "thinking" phase that adds
+    // 10-20 s of latency before the visible content. The model.chat path
+    // never needs that for our short-form prompts (intro copy, services
+    // copy, matching, query normalization, probe). BytePlus / Volcengine ARK
+    // accepts the official `thinking: { type: "disabled" }` parameter to
+    // suppress it — same pattern as Qwen3's `enable_thinking: false` and
+    // Gemini 2.5's `thinkingConfig: { thinkingBudget: 0 }`. We also include
+    // `enable_thinking: false` as a backward-compat field name; older Seed
+    // models honour that and newer ones ignore unknown fields.
+    //
+    // Cast through Record<string, unknown> because neither field is in the
+    // OpenAI SDK types; the SDK passes unknown fields through to the body.
     const model = getBytePlusTextModel();
     const startedAt = Date.now();
     try {
       const response = await this.client.chat.completions.create({
         model,
         messages: [{ role: "user", content: prompt }],
+        ...({
+          thinking: { type: "disabled" },
+          enable_thinking: false,
+        } as Record<string, unknown>),
       });
       const text = response.choices[0]?.message?.content ?? "";
       if (!text) {
