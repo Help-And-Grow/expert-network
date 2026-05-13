@@ -185,9 +185,9 @@ async function ensureProviderSeed(): Promise<void> {
   providerSeedAttempted = true;
   try {
     const reg = await seedProviderRegistryIfEmpty();
-    if (reg.inserted > 0) {
+    if (reg.inserted > 0 || reg.refreshed > 0) {
       console.info(
-        `[admin/providers] auto-seeded registry: ${reg.inserted} inserted, ${reg.skipped} skipped`,
+        `[admin/providers] auto-seeded registry: ${reg.inserted} inserted, ${reg.skipped} skipped, ${reg.refreshed} refreshed`,
       );
     }
     const scopes = await seedRoutingScopesIfEmpty();

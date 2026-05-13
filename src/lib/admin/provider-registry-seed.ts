@@ -19,9 +19,96 @@ import { invalidateCache } from "@/lib/admin/provider-registry";
  * Phase 1 leaves the storage seed list aligned with the current
  * `StorageProviderName` switch.
  */
+/**
+ * Refresh the *structural* metadata on an existing registry row from the
+ * catalog: displayName, description, env-key map, model env-key slots,
+ * capabilities. Preserve every value an operator can edit via /admin/providers
+ * (currently `models.*.default` and `enabled`).
+ *
+ * Called on every admin page load via ensureProviderSeed so that catalog
+ * evolution (renames, new image-model slots, capability flags) flows to the
+ * DB without manual SQL — but operator edits are never clobbered.
+ */
+async function refreshLlmMetadata(): Promise<{ refreshed: number }> {
+  let refreshed = 0;
+  for (const key of ALL_AI_PROVIDERS) {
+    const meta = AI_PROVIDER_CATALOG[key];
+    const existing = await safeFindUnique("llm", key);
+    if (!existing) continue; // insert-path handles fresh rows
+
+    const envKeys: Record<string, string> = {};
+    const primaryGroup = meta.requiredAny[0] ?? [];
+    for (const envName of primaryGroup) {
+      const slot = inferEnvSlot(envName);
+      envKeys[slot] = envName;
+    }
+    for (const envName of meta.optional) {
+      const slot = inferEnvSlot(envName);
+      if (!envKeys[slot]) envKeys[slot] = envName;
+    }
+
+    // Preserve operator-edited model defaults; only refresh the envKey slot
+    // (and create the slot if it didn't exist before, e.g. byteplus/volcengine
+    // image fields added after the original seed).
+    const existingModels =
+      (existing.models as Record<string, { envKey?: string; default?: string | null }> | null) ??
+      {};
+    const models: Record<string, { envKey?: string; default?: string | null }> = {};
+    if (meta.textModelEnvKey || meta.defaultTextModel) {
+      models.text = {
+        envKey: meta.textModelEnvKey,
+        default:
+          existingModels.text?.default !== undefined
+            ? existingModels.text.default
+            : meta.defaultTextModel ?? null,
+      };
+    }
+    if (meta.imageModelEnvKey || meta.defaultImageModel) {
+      models.image = {
+        envKey: meta.imageModelEnvKey,
+        default:
+          existingModels.image?.default !== undefined
+            ? existingModels.image.default
+            : meta.defaultImageModel ?? null,
+      };
+    }
+
+    const newMetadata = {
+      description: meta.description,
+      requiredAny: meta.requiredAny,
+      optional: meta.optional,
+      supportsImage: meta.supportsImage,
+      capabilities: meta.supportsImage ? ["text", "image"] : ["text"],
+    };
+
+    // Skip the write if nothing actually changed — cheap idempotency.
+    const sameDisplayName = existing.displayName === meta.label;
+    const sameEnvKeys =
+      JSON.stringify(existing.envKeys) === JSON.stringify(envKeys);
+    const sameModels =
+      JSON.stringify(existing.models) === JSON.stringify(models);
+    const sameMetadata =
+      JSON.stringify(existing.metadata) === JSON.stringify(newMetadata);
+    if (sameDisplayName && sameEnvKeys && sameModels && sameMetadata) continue;
+
+    await prisma.providerRegistry.update({
+      where: { id: existing.id },
+      data: {
+        displayName: meta.label,
+        envKeys: envKeys as Prisma.InputJsonValue,
+        models: models as Prisma.InputJsonValue,
+        metadata: newMetadata as Prisma.InputJsonValue,
+      },
+    });
+    refreshed++;
+  }
+  return { refreshed };
+}
+
 export async function seedProviderRegistryIfEmpty(): Promise<{
   inserted: number;
   skipped: number;
+  refreshed: number;
 }> {
   let inserted = 0;
   let skipped = 0;
@@ -257,8 +344,14 @@ export async function seedProviderRegistryIfEmpty(): Promise<{
     voiceOrder++;
   }
 
-  if (inserted > 0) invalidateCache();
-  return { inserted, skipped };
+  // Always refresh structural metadata for existing rows so catalog evolution
+  // (renamed labels, new image-model slots, capability flags) lands without a
+  // manual migration. Operator-edited model defaults are preserved by
+  // refreshLlmMetadata's merge logic.
+  const { refreshed } = await refreshLlmMetadata();
+
+  if (inserted > 0 || refreshed > 0) invalidateCache();
+  return { inserted, skipped, refreshed };
 }
 
 /**
