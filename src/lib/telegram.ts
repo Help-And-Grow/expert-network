@@ -33,6 +33,35 @@ export function getTelegramInitData(): string | null {
 }
 
 /**
+ * Bot username + Mini App slug used to build t.me deep links.
+ *
+ * These are public identifiers (visible to anyone in Telegram), so client-side
+ * exposure is fine. Override via NEXT_PUBLIC_* env vars when deploying with a
+ * different bot or app — defaults match the production @helpAndGrowBot setup.
+ */
+const TG_BOT_USERNAME =
+  process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME?.trim() || "helpAndGrowBot";
+const TG_MINI_APP_SLUG =
+  process.env.NEXT_PUBLIC_TELEGRAM_MINI_APP_SLUG?.trim() || "ExpertNetwork";
+
+/**
+ * Construct a t.me deep link into our Mini App with an optional start_param.
+ * When a Telegram user taps this URL anywhere in Telegram, the Mini App opens
+ * (with auth context) and `<TelegramStartParamRouter>` routes by prefix:
+ *
+ *   telegramMiniAppLink(`expert-${id}`)     → /experts/<id>
+ *   telegramMiniAppLink(`book-${id}`)       → /experts/<id>/book
+ *   telegramMiniAppLink(`review-${id}`)     → /reviews/<id>
+ *   telegramMiniAppLink(`profile-edit`)     → /profile
+ *   telegramMiniAppLink()                   → /
+ */
+export function telegramMiniAppLink(startParam?: string): string {
+  const base = `https://t.me/${TG_BOT_USERNAME}/${TG_MINI_APP_SLUG}`;
+  if (!startParam) return base;
+  return `${base}?startapp=${encodeURIComponent(startParam)}`;
+}
+
+/**
  * Open an external URL safely from a Mini App.
  * In Telegram: uses WebApp.openLink() to open in external browser.
  * In web: uses window.open().
@@ -60,13 +89,21 @@ export type ShareResult = "telegram" | "web-share" | "copied" | "cancelled";
 
 /**
  * Share a URL with optional text. Picks the best channel for the runtime:
- * - Telegram Mini App → opens Telegram's native share sheet via t.me/share/url
+ * - Telegram Mini App → opens Telegram's native share sheet via t.me/share/url.
+ *   If `telegramDeepLink` is provided, that URL is shared instead of the web
+ *   URL — so the recipient lands inside the Mini App (with auth + theme)
+ *   rather than the in-app browser when they tap the forwarded link.
  * - Browser with Web Share API → navigator.share()
  * - Otherwise → copies to clipboard
  */
 export async function shareLink(input: {
   url: string;
   text?: string;
+  /**
+   * Optional t.me/<bot>/<app>?startapp=... deep link to share *instead of*
+   * `url` when running inside the Mini App. Construct via `telegramMiniAppLink`.
+   */
+  telegramDeepLink?: string;
 }): Promise<ShareResult> {
   if (typeof window === "undefined") return "cancelled";
   const absoluteUrl = new URL(input.url, window.location.origin).toString();
@@ -75,7 +112,11 @@ export async function shareLink(input: {
   if (isTelegramMiniApp()) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const webApp = (window as any).Telegram?.WebApp;
-    const params = new URLSearchParams({ url: absoluteUrl, text: shareText });
+    // Prefer the Mini App deep link when given so the recipient opens our
+    // Mini App, not the in-app browser. Falls back to the absolute web URL
+    // when no deep link was provided (non-Mini-App-deep-linkable surface).
+    const shareUrl = input.telegramDeepLink ?? absoluteUrl;
+    const params = new URLSearchParams({ url: shareUrl, text: shareText });
     const tgShareUrl = `https://t.me/share/url?${params.toString()}`;
     if (typeof webApp?.openTelegramLink === "function") {
       webApp.openTelegramLink(tgShareUrl);

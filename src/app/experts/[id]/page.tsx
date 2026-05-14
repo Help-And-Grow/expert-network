@@ -31,7 +31,7 @@ import { VoiceChatModal } from "@/components/voice-chat-modal";
 import { VoiceChatPanel } from "@/components/voice-chat-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { resumeSharedAudioContext } from "@/lib/audio-unlock";
-import { openExternalUrl, shareLink } from "@/lib/telegram";
+import { openExternalUrl, shareLink, telegramMiniAppLink } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -350,8 +350,13 @@ export default function ExpertProfilePage() {
     if (!expert) return;
     const displayName = expert.user.nickName ?? expert.user.name ?? "an expert";
     const result = await shareLink({
+      // Web fallback URL (used outside the Mini App — Web Share API or clipboard).
       url: `/experts/${expert.id}`,
       text: `Meet ${displayName} on Help & Grow — book a meetup or voice-chat for free.`,
+      // Inside the Mini App, share this t.me deep link instead so the
+      // recipient lands directly in the Mini App at /experts/<id> (via
+      // <TelegramStartParamRouter>) — not the in-app browser.
+      telegramDeepLink: telegramMiniAppLink(`expert-${expert.id}`),
     });
     if (result === "copied") {
       setShareFeedback("copied");
