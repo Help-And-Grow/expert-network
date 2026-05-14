@@ -94,19 +94,29 @@ git push origin <branch>
 - Do not push to `hackathon` unless the user explicitly asks for a public sync.
 
 ### Public sync / hackathon prep
-When the user explicitly wants the public repo updated:
-1. Confirm the code is safe to publish.
-2. Push or cherry-pick the approved branch/commit to `Help-And-Grow/expert-network`.
-3. Re-verify docs, env assumptions, and any sanitized public-facing defaults.
 
-Example:
+As of MVP rollout (2026-05-13), the repos are operated as a **one-way mirror**: every commit to `jlzxwt8/main` is mirrored to `Help-And-Grow/main` so the hackathon / investor / credit-grant audience always sees current production code. To make this a single command, the local `origin` remote is configured to push to **both** repos in one shot:
 
 ```bash
-git push origin main
-git push hackathon main
+# One-time setup (already applied on the maintainer's clone):
+git remote set-url --push origin https://github.com/jlzxwt8/expert-network.git
+git remote set-url --add --push origin https://github.com/Help-And-Grow/expert-network.git
+
+# Verify — `(push)` should list BOTH URLs:
+git remote -v
 ```
 
-That dual push is an exception workflow, not the default.
+With that configuration, the routine workflow is just:
+
+```bash
+git push origin main   # pushes to jlzxwt8/main AND Help-And-Grow/main
+```
+
+`fetch` still resolves to `jlzxwt8` only, preserving the source-of-truth model. If a divergence ever appears (e.g. Help-And-Grow gets an out-of-band commit), `git fetch helpandgrow main` reveals it; reconcile with a rebase or force-push as appropriate.
+
+The pre-existing `helpandgrow` remote is kept around as an addressable alias for one-off operations (`git push helpandgrow …`, `git fetch helpandgrow …`).
+
+**Why not a CI workflow?** GitHub Actions on `jlzxwt8` are paused until 2026-06-01 (account minutes exhausted — see commit `ddf8519`). When they resume, a `sync-to-help-and-grow.yml` workflow can replace the local-only multi-push config, but until then this is the simplest robust mirror.
 
 ### Managing Vercel environment variables
 Treat the Help And Grow Vercel project as the runtime source of truth, regardless of which GitHub repo is public.

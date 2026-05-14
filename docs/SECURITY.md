@@ -5,7 +5,7 @@
 | Platform | Method | Token Storage |
 |----------|--------|---------------|
 | Web | Auth.js v5 (JWT session) — Google OAuth + Nodemailer magic link | HTTP-only secure cookie |
-| Telegram | initData HMAC verification | Signed cookie (`tg_user_id`) |
+| Telegram | initData HMAC verification (Mini App). Bot inbound auth: `TELEGRAM_BOT_TOKEN` + Telegram-issued webhook. Bot privacy mode is **disabled** in BotFather — see [telegram-bot.md §3](references/telegram-bot.md#3-group-behaviour) for the rationale (delivery reliability vs. message scope tradeoff). | Signed cookie (`tg_user_id`) |
 | WeChat | code2session → custom JWT (`jose`) | Taro local storage; sent as `x-wechat-token` header |
 
 Auth provider config: [`src/auth.ts`](../src/auth.ts) (Auth.js v5 — `next-auth ^5.0.0-beta.30` + `@auth/prisma-adapter`).

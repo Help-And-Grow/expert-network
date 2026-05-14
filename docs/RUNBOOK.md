@@ -75,7 +75,7 @@ Pushing to `main` triggers Vercel to run `npm run build`. The auto-baseline migr
 | List names only | `npm run vercel:env:list:production` |
 | Compare keys across pulled files | `npm run vercel:env:compare-keys` |
 | Apply many vars from a file | `npm run vercel:env:apply -- production ./.env.vercel.sync` |
-| Sync `TELEGRAM_BOT_TOKEN` to Vercel | `npm run vercel:env:telegram` |
+| Sync `TELEGRAM_BOT_TOKEN` to Vercel + re-register webhook | `npm run vercel:env:telegram` (run after BotFather token rotation; the script also calls `setWebhook`). Set `TELEGRAM_BOT_USERNAME`, `TELEGRAM_MINI_APP_SLUG`, and their `NEXT_PUBLIC_*` mirrors separately if the bot identity changes — see [telegram-bot.md §7](references/telegram-bot.md#7-operational-runbook). |
 
 Detail: [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md), [`vercel-env-and-secret-rotation.md`](references/vercel-env-and-secret-rotation.md).
 

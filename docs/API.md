@@ -140,6 +140,18 @@ The contract test that anchors this doc is [`e2e/smoke/api-contracts.spec.ts`](.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/telegram/notify` | Internal notification helper |
+| POST | `/api/webhooks/telegram` | Bot inbound webhook (`@helpAndGrowBot`). Dispatches on update type: pre-checkout-query, inline-query, successful-payment, group/DM messages (commands, free-text, @-mention). Group @-mentions and bare-text DMs both route through `chat()` for AI expert matching. See [docs/references/telegram-bot.md](./references/telegram-bot.md). |
+
+### Mini App deep links
+
+`https://t.me/<bot>/<slug>?startapp=<prefix-id>` → opens the Mini App with `initDataUnsafe.start_param` set. `<TelegramStartParamRouter>` in `src/components/telegram-start-param-router.tsx` routes by prefix:
+
+| start_param | Routes to |
+|---|---|
+| `expert-<id>` | `/experts/<id>` |
+| `book-<id>` | `/experts/<id>/book` |
+| `review-<id>` | `/reviews/<bookingId>` |
+| `profile-edit` | `/profile` |
 
 ## Webhooks
 

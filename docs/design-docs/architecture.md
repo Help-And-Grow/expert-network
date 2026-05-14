@@ -170,7 +170,7 @@ Three client surfaces share one resolver.
 | Surface | Auth signal | Where validated |
 |---------|-------------|------------------|
 | Web (browser) | Auth.js v5 session cookie (`authjs.session-token`) | `auth()` in route handlers |
-| Telegram Mini App | `initData` HMAC | `src/lib/telegram-server.ts` → `validateAndParseTelegramInitData` |
+| Telegram Mini App (`@helpAndGrowBot`) | `initData` HMAC | `src/lib/telegram-server.ts` → `validateAndParseTelegramInitData`. Mini-App routing on entry via `src/components/telegram-start-param-router.tsx` (reads `start_param` deep links — see [telegram-bot reference](../references/telegram-bot.md)). |
 | WeChat Mini Program | `code2session` JWT (header `x-wechat-token`) | `src/lib/wechat-server.ts` |
 
 **Resolver:** `resolveUserId(request)` in `src/lib/request-auth.ts` checks signals in priority order:

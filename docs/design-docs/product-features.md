@@ -104,40 +104,85 @@ Paid 1:1 live consultations on **Tencent Cloud TRTC**, available only inside the
 
 ---
 
-## 3. Telegram Profile Sharing
+## 3. Telegram bot & Mini App
 
-Two flows, both using the same expert-card payload format.
+Production bot is **`@helpAndGrowBot`** (migrated from `@Expert_Network_Help_And_Grow_Bot` on 2026-05-13). Full operational reference: [docs/references/telegram-bot.md](../references/telegram-bot.md). Product-side summary below.
 
-### 3.1 Self-share via inline command
+### 3.1 DM behaviour
 
-`@HelpGrowBot me` typed by the expert in any Telegram chat. Resolved by the bot's inline-query handler in `src/app/api/webhooks/telegram/route.ts`.
+1-on-1 with the bot:
 
-### 3.2 Friend-to-friend share
+- `/start` → welcome with three Mini-App buttons: **Open Help & Grow**, **Discover Community**, **Edit my profile**.
+- `/help`, `/browse` → help text / Discover entry.
+- `/find <query>` or any free text → AI expert match (`chat()` from `src/lib/chat-engine.ts`), reply with up to 5 experts + per-expert **View** / **Book** `web_app` buttons.
 
-User A shares User B's profile to User C. Two entry points:
+### 3.2 Group @-mention recommendations
 
-- **In-app Share button** — every public expert profile (`/experts/[id]`) shows a Share button. The shared logic in `src/lib/telegram.ts` (`shareLink`) picks the best channel:
-  - Inside the Telegram Mini App → `WebApp.openTelegramLink('https://t.me/share/url?...')` opens TG's native share sheet.
-  - Browser with Web Share API → `navigator.share()`.
-  - Otherwise → clipboard copy with toast feedback.
-- **Inline search** — `@HelpGrowBot <name or topic>` in any Telegram chat. The bot's inline-query handler matches against published experts (`User.name`, `User.nickName`, `Expert.bio`) and returns up to 10 cards. The card credits the sharer ("_Shared by &lt;sharer&gt;_") when the caller is linked.
+In a Telegram group, the bot only responds when explicitly addressed:
 
-### Card payload
+- `@helpAndGrowBot <question>` — bot strips its own @-mention and runs the residue through the same AI-match pipeline. Reply is threaded under the question with up to 5 expert recommendations.
+- `/cmd@helpAndGrowBot …` — slash commands self-target via Telegram's convention; same handlers as DM.
+- Reply-to-bot — counted as addressing the bot.
+
+**Privacy Mode must be disabled** in BotFather for reliable @-mention delivery (a per-group cache quirk in Telegram). The app-level gate in `src/app/api/webhooks/telegram/route.ts` keeps observable behaviour the same — only mentioned/commanded/replied messages produce a reply.
+
+Group inline-keyboard buttons can't be `web_app:` (Telegram restriction), so we use `url:` buttons pointing at Mini-App deep links (§3.3) — taps open the Mini App with full auth context, not the in-app browser.
+
+### 3.3 Mini App deep-link convention
+
+URL shape: `https://t.me/<bot>/<slug>?startapp=<prefix-id>`. Tapping this in any Telegram chat opens our Mini App with `Telegram.WebApp.initDataUnsafe.start_param` set. `src/components/telegram-start-param-router.tsx` reads the param on boot and routes via Next.js router.
+
+| start_param | Lands on | Emitted from |
+|---|---|---|
+| `expert-<id>` | `/experts/<id>` | Group reply "View" buttons; Share button on `/experts/[id]` |
+| `book-<id>` | `/experts/<id>/book` | Group reply "Book" buttons |
+| `review-<id>` | `/reviews/<bookingId>` | `notifyReviewRequest()` DM |
+| `profile-edit` | `/profile` | `/start` welcome button |
+
+Builder helpers: `telegramMiniAppLink()` exported from `src/lib/telegram.ts` (client) and an in-file helper in the webhook route (server). Adding a new prefix is a two-line change — see the [telegram-bot reference](../references/telegram-bot.md) §4.
+
+### 3.4 Friend-to-friend share
+
+`/experts/[id]` page → **Share** button. `shareLink()` in `src/lib/telegram.ts` picks the best channel:
+
+- Inside the Mini App → shares the `expert-<id>` deep link via `openTelegramLink("https://t.me/share/url?…")`. Recipient lands directly in the Mini App at that profile (not the in-app browser).
+- Browser with Web Share API → `navigator.share()` with the canonical web URL.
+- Otherwise → clipboard copy with toast feedback.
+
+On Telegram **mobile** clients, `openTelegramLink` shows a "Forward to…" chat picker. On Telegram **Web**, content lands in Saved Messages without a picker (Telegram-client quirk). Acceptable for a mobile-first MVP.
+
+### 3.5 Inline-query expert search
+
+`@helpAndGrowBot <name or topic>` in any Telegram chat — Telegram opens an inline-query interface. The bot's inline-query handler (`src/app/api/webhooks/telegram/route.ts`) matches against published experts and returns up to 10 cards as `InlineQueryResultArticle`. Currently disabled at the bot level (`supports_inline_queries: false` per `getMe`); enable via BotFather `/setinline` to activate. Handler is dormant until enabled.
+
+Card payload:
 
 | Prisma field | Telegram element |
-|--------------|------------------|
+|---|---|
 | `user.nickName ?? user.name` | Title |
 | `expert.bio` (≤100 chars) | Description |
 | `user.image` | `thumb_url` |
 | `expert.avgRating`, `reviewCount` | "⭐ {rating} ({count} reviews)" |
 | `expert.id` | Web-app buttons → `/experts/{id}` and `/experts/{id}/book` |
 
-Telegram inline results are cached for 300s with `is_personal: true` to avoid leaking another user's share-attribution.
+Results cached 300s with `is_personal: true` to avoid leaking share-attribution.
 
-### Linking & rate limiting
+### 3.6 Outbound notifications
+
+All helpers in `src/lib/telegram-bot.ts`. Resolve a chat ID from `User.telegramId` (preferred) or `User.telegramUsername` via Prisma. Fire-and-forget — failures are logged and don't block booking flow.
+
+| Helper | Fires on | Contents |
+|---|---|---|
+| `notifyExpertBooking` / `notifyFounderBooking` | New booking confirmed (`/api/bookings/verify`) | Date + price + `web_app` → `/booking` |
+| `notifyCancellation` / `notifyReschedule` / `notifyLocationUpdate` | Booking edits | Context-specific |
+| `sendSessionReminder` | 1h before meetup | Reminder DM |
+| `notifyReviewRequest` (new 2026-05-13) | `PATCH /api/bookings/[id]` with `status: COMPLETED` | "🌟 How was your meetup?" + `url` button using `review-<bookingId>` deep link. Idempotent: skips when a `Review` row already exists. |
+
+### 3.7 Linking & rate limiting
 
 - The webhook auto-links `User.telegramId` whenever any message arrives from a known `telegramUsername`.
 - Telegram throttles inline queries upstream; the server caches answers and uses `is_personal: true` to scope.
+- Outbound DMs require the user to have DM'd the bot at least once (Telegram restriction). After a bot identity migration, existing users must `/start` the new bot before notifications resume.
 
 ---
 

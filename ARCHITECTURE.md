@@ -40,7 +40,7 @@
 | **Appreciations** (Prisma: `Review`) | Post-meetup ratings with coach follow-up | `src/app/api/reviews/` |
 | **AI** | Expert matching, profile generation, chat, image gen, TTS/ASR | `src/lib/ai/`, `src/lib/chat-engine.ts` |
 | **Onboarding** | Multi-step expert registration wizard | `src/app/api/onboarding/` |
-| **Notifications** | Telegram bot + WeChat template messages | `src/lib/telegram-bot.ts`, `src/lib/wechat-notify.ts` |
+| **Notifications** | Telegram bot (`@helpAndGrowBot`) — DM, group @-mention, Mini-App deep links — + WeChat template messages. Full reference: [docs/references/telegram-bot.md](docs/references/telegram-bot.md) | `src/lib/telegram-bot.ts`, `src/lib/telegram.ts`, `src/app/api/webhooks/telegram/route.ts`, `src/components/telegram-start-param-router.tsx`, `src/lib/wechat-notify.ts` |
 | **Memory** | Per-expert persistent context via mem9 hosted `v1alpha2`; optional pgvector mirror | `src/lib/integrations/mem9.ts`, `src/lib/integrations/pgvector-memory.ts` |
 
 ## Layer Architecture

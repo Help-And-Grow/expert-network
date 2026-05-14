@@ -48,9 +48,15 @@ Production Google OAuth checklist:
 
 | Var | Purpose |
 |---|---|
-| `TELEGRAM_BOT_TOKEN` | @BotFather HTTP API token |
+| `TELEGRAM_BOT_TOKEN` | @BotFather HTTP API token (sensitive). Rotate via `npm run vercel:env:telegram` — also re-registers the webhook. |
+| `TELEGRAM_BOT_USERNAME` | Bot's @-handle without leading `@` (e.g. `helpAndGrowBot`). Used by the webhook for group @-mention detection without a per-request `getMe` round-trip. Falls back to `getMe()` if unset. |
+| `TELEGRAM_MINI_APP_SLUG` | Bot's Mini App slug from BotFather `/myapps` (default `"ExpertNetwork"`). Used to build `t.me/<bot>/<slug>?startapp=…` deep links so group replies open the Mini App with auth context rather than the in-app browser. |
+| `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | Client-side mirror of `TELEGRAM_BOT_USERNAME`. Used by the in-Mini-App **Share** button to construct deep links recipients can tap. Defaults to `"helpAndGrowBot"`. |
+| `NEXT_PUBLIC_TELEGRAM_MINI_APP_SLUG` | Client-side mirror of `TELEGRAM_MINI_APP_SLUG`. Defaults to `"ExpertNetwork"`. |
 | `NEXT_PUBLIC_TELEGRAM_TWA_RETURN_URL` | TON Connect Mini App return URL |
 | `TELEGRAM_PAYMENT_PROVIDER_TOKEN` | Telegram Pay only (`/api/bookings/telegram-payment`) |
+
+See [docs/references/telegram-bot.md](./references/telegram-bot.md) for the full bot operational reference (DM/group behaviour, deep-link convention, notification helpers, Privacy Mode requirements).
 
 ## WeChat Mini Program + Pay
 
