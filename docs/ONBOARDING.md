@@ -69,12 +69,14 @@ For domain layers, dependency rules, and per-subsystem deep-dives, read [`ARCHIT
 
 ### Production deploy topology
 
-| Repo | Purpose | Deploys to |
-|---|---|---|
-| `jlzxwt8/expert-network` (source of truth) | Production | Vercel + GCP (overseas, today); IGA Pages + Volcengine (CN, after ICP filing) |
-| `Help-And-Grow/expert-network` (one-way mirror) | Hackathon demos / investor pitches / OpenAI + ByteDance credit-grant showcases | Flexible (Vercel preview / IGA staging / etc.) |
+> **Updated 2026-05-13 — MVP rollout.** Repo roles inverted: `Help-And-Grow` is now the active development repo, `jlzxwt8` is locked down as production-only. Full rationale in [`docs/references/multi-repo-strategy.md`](references/multi-repo-strategy.md).
 
-Both repos are kept in sync automatically — every push to `jlzxwt8/main` mirrors to `Help-And-Grow/main`. The Volcengine deployment path is documented in [`docs/exec-plans/active/iga-pages-volcengine-deployment.md`](exec-plans/active/iga-pages-volcengine-deployment.md).
+| Repo | Role | Local remote | Vercel connection |
+|---|---|---|---|
+| `Help-And-Grow/expert-network` | **Active development** — daily commits, hackathon demos, investor pitches, OpenAI + ByteDance credit-grant showcases | `origin` (fetch + push) | Not auto-deployed to www.help-and-grow.com |
+| `jlzxwt8/expert-network` | **Production lockdown** — bugfixes only, cherry-picked from Help-And-Grow | `production` (fetch + push) | Auto-deploys to www.help-and-grow.com via Vercel GitHub App |
+
+Routine push goes to `origin` only. Hotfixes follow the cherry-pick → `git push production HEAD:main` recipe described in [`CLAUDE.md`](../CLAUDE.md). The Volcengine deployment path for IGA Pages CN is in [`docs/exec-plans/active/iga-pages-volcengine-deployment.md`](exec-plans/active/iga-pages-volcengine-deployment.md).
 
 ---
 
@@ -206,7 +208,7 @@ In-house terms you'll see in the code and docs:
 
 ### What requires a heads-up first
 - **Running anything against the production database** (`DATABASE_URL` pointing at Cloud SQL). Don't.
-- **Pushing to any branch on `jlzxwt8/expert-network` or `Help-And-Grow/expert-network`.** As of 2026-05, only the project lead pushes to `main`. The Vercel deploy + Cloud SQL migration + IGA Pages mirror all auto-fire on push — one bad push has compounding effects.
+- **Pushing to any branch on `jlzxwt8/expert-network` or `Help-And-Grow/expert-network`.** As of 2026-05, only the project lead pushes to `main`. `jlzxwt8/main` auto-deploys to www.help-and-grow.com via Vercel — one bad push to production has compounding effects. `Help-And-Grow/main` doesn't auto-deploy production, but it's still the active development source the lead works from daily; an unreviewed push there is also disruptive.
 - **Touching env vars on Vercel or IGA Pages.** Those are the live production secrets.
 - **Rotating any token, key, or password.** Even if you spot a leak (see the 2026-05-11 incident, summarized below) — flag it, don't fix it yourself.
 

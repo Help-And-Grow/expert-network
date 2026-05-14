@@ -61,7 +61,9 @@ This means you can take a fresh Vercel project pointed at an existing Postgres d
 
 ## Deploy (Vercel)
 
-The live `expert-network` project is owned by the **Help And Grow** Vercel team. Default Git iteration follows **`jlzxwt8/expert-network`**; sync to the public `Help-And-Grow/expert-network` mirror only on explicit request.
+The live `expert-network` project is owned by the **Help And Grow** Vercel team. Vercel's GitHub App is connected to **`jlzxwt8/expert-network`** (the production-locked repo) — pushes there auto-deploy to www.help-and-grow.com.
+
+Daily development pushes go to **`Help-And-Grow/expert-network`** (`origin` locally), which is **not** connected to Vercel. Hotfixes get cherry-picked over to `jlzxwt8` (`production` locally) when they need to reach the live site. See [`docs/references/multi-repo-strategy.md`](references/multi-repo-strategy.md) and [`CLAUDE.md`](../CLAUDE.md).
 
 ### Push-to-deploy
 Pushing to `main` triggers Vercel to run `npm run build`. The auto-baseline migration runs first (postinstall → migrate deploy).
