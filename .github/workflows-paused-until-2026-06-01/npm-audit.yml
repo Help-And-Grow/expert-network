@@ -11,9 +11,6 @@ on:
 
 jobs:
   audit:
-    # Run only on the active-dev repo (Help-And-Grow). jlzxwt8 is paused
-    # until 2026-06-01 — see .github/workflows/ci.yml for the rationale.
-    if: github.repository == 'Help-And-Grow/expert-network'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
