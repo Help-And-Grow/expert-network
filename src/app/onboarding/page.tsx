@@ -1335,6 +1335,7 @@ export default function OnboardingPage() {
               value={selectedCountries}
               onChange={setSelectedCountries}
               placeholder="Search e.g. Singapore, 中国, Indonesia..."
+              dropdownSide="top"
             />
             <Button
               onClick={handleCountriesContinue}

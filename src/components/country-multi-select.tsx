@@ -20,6 +20,7 @@ interface CountryMultiSelectProps {
   placeholder?: string;
   /** Render a compact summary chip strip (used on the profile card). */
   compact?: boolean;
+  dropdownSide?: "top" | "bottom";
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export function CountryMultiSelect({
   onChange,
   placeholder = "Search a country or region...",
   compact = false,
+  dropdownSide = "bottom",
   className,
 }: CountryMultiSelectProps) {
   const [query, setQuery] = useState("");
@@ -57,14 +59,14 @@ export function CountryMultiSelect({
   // Close the dropdown when clicking outside.
   useEffect(() => {
     if (!open) return;
-    const handler = (event: MouseEvent) => {
+    const handler = (event: PointerEvent) => {
       if (!containerRef.current) return;
       if (!containerRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
+    document.addEventListener("pointerdown", handler, { capture: true });
+    return () => document.removeEventListener("pointerdown", handler, { capture: true });
   }, [open]);
 
   const toggle = (code: string) => {
@@ -116,41 +118,46 @@ export function CountryMultiSelect({
           placeholder={placeholder}
           className={cn("pl-9", compact ? "min-h-[40px]" : "min-h-[44px]")}
         />
-      </div>
 
-      {open && (
-        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border/60 bg-card/95 p-1 shadow-lg backdrop-blur">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-              No matches. Try a different keyword.
-            </div>
-          ) : (
-            filtered.map((c) => {
-              const checked = value.includes(c.code);
-              return (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => toggle(c.code)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                    checked
-                      ? "bg-indigo-500/15 text-foreground"
-                      : "text-foreground/90 hover:bg-muted/60",
-                  )}
-                >
-                  <span className="text-lg leading-none" aria-hidden>
-                    {countryFlagEmoji(c.code)}
-                  </span>
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-xs text-muted-foreground">{c.code}</span>
-                  {checked && <Check className="h-4 w-4 text-indigo-400" />}
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
+        {open && (
+          <div
+            className={cn(
+              "absolute left-0 z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-border/60 bg-card/95 p-1 shadow-lg backdrop-blur",
+              dropdownSide === "top" ? "bottom-full mb-1" : "top-full mt-1",
+            )}
+          >
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                No matches. Try a different keyword.
+              </div>
+            ) : (
+              filtered.map((c) => {
+                const checked = value.includes(c.code);
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => toggle(c.code)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                      checked
+                        ? "bg-indigo-500/15 text-foreground"
+                        : "text-foreground/90 hover:bg-muted/60",
+                    )}
+                  >
+                    <span className="text-lg leading-none" aria-hidden>
+                      {countryFlagEmoji(c.code)}
+                    </span>
+                    <span className="flex-1 truncate">{c.name}</span>
+                    <span className="text-xs text-muted-foreground">{c.code}</span>
+                    {checked && <Check className="h-4 w-4 text-indigo-400" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
