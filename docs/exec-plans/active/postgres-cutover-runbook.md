@@ -8,7 +8,15 @@ The main app uses **PostgreSQL** only for Prisma (including on-chain attestation
 
 ### Core app (Prisma)
 
-- **`DATABASE_URL`** — must be `postgres://` or `postgresql://`. For Cloud SQL the URL takes the shape `postgresql://user:pass@HOST:5432/db?sslmode=require&sslaccept=accept_invalid_certs`. The `sslaccept=accept_invalid_certs` is required for Prisma's Rust query engine to accept Cloud SQL's managed CA chain.
+- **`DATABASE_URL`** — must be `postgres://` or `postgresql://`.
+
+Connection string shapes:
+
+- **Vercel (public IP + TLS)**: `postgresql://user:pass@HOST:5432/db?sslmode=require&sslaccept=accept_invalid_certs`
+  - `sslaccept=accept_invalid_certs` is required for Prisma's Rust query engine to accept Cloud SQL's managed CA chain.
+- **Cloud Run (Cloud SQL connector / unix socket)**: `postgresql://user:pass@localhost:5432/db?host=/cloudsql/<CONNECTION_NAME>`
+  - `<CONNECTION_NAME>` is `PROJECT:REGION:INSTANCE` (example: `expert-network-489508:asia-southeast1:hg-postgres-prod`).
+  - No `sslmode` is required for unix socket connections.
 
 ### On-chain attestation state
 
