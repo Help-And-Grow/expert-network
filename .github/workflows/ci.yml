@@ -18,6 +18,11 @@ concurrency:
 
 jobs:
   lint:
+    # Only run on the active-dev repo. The production-locked jlzxwt8 mirror
+    # has an exhausted Actions quota (paused 2026-05-12, resets 2026-06-01),
+    # so hotfix pushes there should skip CI rather than burn the few
+    # minutes left over.
+    if: github.repository == 'Help-And-Grow/expert-network'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -32,6 +37,7 @@ jobs:
         run: npm run lint
 
   e2e:
+    if: github.repository == 'Help-And-Grow/expert-network'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

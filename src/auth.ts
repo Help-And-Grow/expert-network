@@ -4,9 +4,7 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import Nodemailer from "next-auth/providers/nodemailer";
 
-import { maskEmailForLog } from "@/lib/auth-log";
 import { prisma } from "@/lib/prisma";
 
 const providers: NextAuthConfig["providers"] = [];
@@ -27,37 +25,12 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-if (env.EMAIL_SERVER_HOST && env.EMAIL_FROM) {
-  const nodemailerProvider = Nodemailer({
-    server: {
-      host: env.EMAIL_SERVER_HOST,
-      port: parseInt(env.EMAIL_SERVER_PORT || "587", 10),
-      auth: {
-        user: env.EMAIL_SERVER_USER,
-        pass: env.EMAIL_SERVER_PASSWORD,
-      },
-    },
-    from: env.EMAIL_FROM,
-  });
-  providers.push({
-    ...nodemailerProvider,
-    async sendVerificationRequest(params) {
-      const hint = maskEmailForLog(params.identifier);
-      console.log("[auth] Magic link: sendVerificationRequest start", {
-        to: hint,
-        host: env.EMAIL_SERVER_HOST,
-      });
-      try {
-        await nodemailerProvider.sendVerificationRequest!(params);
-        console.log("[auth] Magic link: SMTP send finished OK", { to: hint });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("[auth] Magic link send failed:", { to: hint, message: msg });
-        throw err;
-      }
-    },
-  });
-}
+// Magic-link / SMTP sign-in (Nodemailer provider) was removed on 2026-05-16:
+// Gmail SMTP from Vercel datacenter IPs was unreliable (datacenter IP
+// reputation), and Google OAuth covers the same audience without the
+// deliverability tail. EMAIL_SERVER_* + EMAIL_FROM are kept on Vercel for
+// any future transactional-email path but no longer drive sign-in.
+// See `docs/auth.md` (if added) or commit history for the rationale.
 
 /** One-click local sign-in when `next dev` + DEV_AUTH_EMAIL (never enabled in production builds). */
 if ((process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && env.DEV_AUTH_EMAIL) {

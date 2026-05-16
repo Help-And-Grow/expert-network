@@ -10,7 +10,10 @@ jobs:
   smoke:
     # Only run on successful deploys. Vercel often labels previews as "Production" in GitHub too,
     # so we additionally require the production hostname below (not *.vercel.app preview URLs).
-    if: github.event.deployment_status.state == 'success'
+    # Also gated on the active-dev repo — Help-And-Grow has the Actions quota; jlzxwt8 is paused.
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      github.repository == 'Help-And-Grow/expert-network'
     runs-on: ubuntu-latest
     steps:
       - name: Resolve deployment URL
