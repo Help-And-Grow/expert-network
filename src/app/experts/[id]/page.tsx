@@ -353,6 +353,7 @@ export default function ExpertProfilePage() {
       // Web fallback URL (used outside the Mini App — Web Share API or clipboard).
       url: `/experts/${expert.id}`,
       text: `Meet ${displayName} on Help & Grow — book a meetup or start a voice chat.`,
+      mode: "copy",
       // Inside the Mini App, share this t.me deep link instead so the
       // recipient lands directly in the Mini App at /experts/<id> (via
       // <TelegramStartParamRouter>) — not the in-app browser.

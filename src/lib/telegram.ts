@@ -99,6 +99,7 @@ export type ShareResult = "telegram" | "web-share" | "copied" | "cancelled";
 export async function shareLink(input: {
   url: string;
   text?: string;
+  mode?: "auto" | "copy";
   /**
    * Optional t.me/<bot>/<app>?startapp=... deep link to share *instead of*
    * `url` when running inside the Mini App. Construct via `telegramMiniAppLink`.
@@ -108,6 +109,7 @@ export async function shareLink(input: {
   if (typeof window === "undefined") return "cancelled";
   const absoluteUrl = new URL(input.url, window.location.origin).toString();
   const shareText = input.text ?? "";
+  const clipboardText = shareText ? `${shareText} ${absoluteUrl}` : absoluteUrl;
 
   if (isTelegramMiniApp()) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,6 +126,19 @@ export async function shareLink(input: {
     }
   }
 
+  if (input.mode === "copy") {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(clipboardText);
+        return "copied";
+      } catch {
+      }
+    }
+
+    window.prompt("Copy this message", clipboardText);
+    return "copied";
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nav = navigator as any;
   if (typeof nav?.share === "function") {
@@ -137,10 +152,10 @@ export async function shareLink(input: {
   }
 
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(absoluteUrl);
+    await navigator.clipboard.writeText(clipboardText);
     return "copied";
   }
 
-  window.prompt("Copy this link", absoluteUrl);
+  window.prompt("Copy this message", clipboardText);
   return "copied";
 }
