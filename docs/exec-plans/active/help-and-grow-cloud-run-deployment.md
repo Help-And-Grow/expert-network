@@ -52,6 +52,8 @@ gcloud run revisions list \
 
 Non-secret values shown; secrets redacted:
 
+Plain env vars (non-secret):
+
 ```
 AI_PROVIDER             = gemini
 AI_TEXT_PROVIDER_CHAIN  = gemini
@@ -59,18 +61,25 @@ IMAGE_PROVIDER_CHAIN    = gemini
 GEMINI_TEXT_MODEL       = gemini-2.5-flash
 GEMINI_IMAGE_MODEL      = gemini-2.5-flash-image
 GOOGLE_CLOUD_PROJECT    = expert-network-489508
-GEMINI_API_KEY          = <redacted, mirrored from Vercel production>
-
 NEXTAUTH_URL            = https://expert-network-druobkk2ma-as.a.run.app
-DATABASE_URL            = <redacted, Cloud SQL hg-postgres-prod>
-AUTH_SECRET             = <redacted>
-GOOGLE_CLIENT_ID        = <redacted, OAuth>
-GOOGLE_CLIENT_SECRET    = <redacted, OAuth>
-EMAIL_SERVER_*          = <redacted, Nodemailer>
+EMAIL_SERVER_HOST       = <set, Nodemailer host>
+EMAIL_SERVER_PORT       = <set>
+EMAIL_SERVER_USER       = <set>
 EMAIL_FROM              = <set>
 DB_PROVIDER             = postgresql
 NODE_ENV                = production
 VERIFY_BILLING          = <set>
+```
+
+Secret-backed env vars (each references a Secret Manager secret via `valueFrom.secretKeyRef`; runtime SA `expert-network-run@…` has `roles/secretmanager.secretAccessor` on each):
+
+```
+GEMINI_API_KEY          ← expert-network-gemini-api-key:latest
+DATABASE_URL            ← expert-network-database-url:latest
+AUTH_SECRET             ← expert-network-auth-secret:latest
+GOOGLE_CLIENT_SECRET    ← expert-network-google-client-secret:latest
+EMAIL_SERVER_PASSWORD   ← expert-network-gmail-app-password:latest
+STRIPE_SECRET_KEY       ← expert-network-stripe-secret-key:latest
 ```
 
 ### Update env vars
@@ -91,24 +100,39 @@ gcloud run services update expert-network \
 
 `--update-env-vars` is additive — it preserves existing variables not listed. To remove a variable: `--remove-env-vars=KEY1,KEY2`.
 
-### Migrate `GEMINI_API_KEY` to Secret Manager (recommended next step)
+### Add a new secret-backed env var
 
-Plain env vars are visible to anyone with `roles/run.viewer` on the project. For production-grade hygiene, move the key into Secret Manager and reference it from Cloud Run:
+The pattern, used for the six secrets above:
 
 ```bash
-echo -n "<the-key>" | gcloud secrets create gemini-api-key --data-file=-
+# 1. Create the secret with the value via stdin (avoids shell history).
+printf "%s" "<the-value>" | gcloud secrets create expert-network-<descriptor> \
+  --data-file=- \
+  --replication-policy=automatic \
+  --labels=service=expert-network,kind=<credential|config>
 
-gcloud secrets add-iam-policy-binding gemini-api-key \
-  --member=serviceAccount:expert-network-run@expert-network-489508.iam.gserviceaccount.com \
-  --role=roles/secretmanager.secretAccessor
+# 2. Grant the runtime SA accessor on this specific secret.
+gcloud secrets add-iam-policy-binding expert-network-<descriptor> \
+  --member="serviceAccount:expert-network-run@expert-network-489508.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
 
+# 3. Atomically swap plain env → secret reference (or just add fresh).
 gcloud run services update expert-network \
   --region=asia-southeast1 \
-  --remove-env-vars=GEMINI_API_KEY \
-  --update-secrets=GEMINI_API_KEY=gemini-api-key:latest
+  --remove-env-vars=<NAME> \
+  --update-secrets=<NAME>=expert-network-<descriptor>:latest
 ```
 
-Deferred until needed — for a hackathon-stage demo this is over-engineering.
+### Rotate a secret value
+
+```bash
+printf "%s" "<new-value>" | gcloud secrets versions add expert-network-<descriptor> \
+  --data-file=-
+```
+
+Because Cloud Run references `:latest`, the next cold start picks up the new version automatically. To force an immediate rollout: `gcloud run services update expert-network --region=asia-southeast1` (with no other flags creates a new revision that re-reads `:latest`).
+
+To roll back a bad rotation: `gcloud secrets versions enable <prev-version-number> --secret=expert-network-<descriptor>` then disable the bad one.
 
 ## §4 · Logs + debugging
 
