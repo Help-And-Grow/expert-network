@@ -319,8 +319,15 @@ function ManagePageInner() {
       setDbSlots(data.slots ?? []);
       // Exclude the current booking's own slot from "booked" so it appears
       // selectable (otherwise rescheduling shows it as booked-against-itself).
+      // Compare in milliseconds rather than as raw strings — Prisma+Vercel
+      // JSON sometimes drops milliseconds from the booking detail response
+      // (`...:00Z`) while keeping them on the slots-API response
+      // (`...:00.000Z`), making string `!==` miss the match and leaving the
+      // current booking incorrectly *included* in the booked list, which in
+      // turn was masking other bookings' overlaps in a confusing way.
+      const myStartMs = new Date(booking.startTime).getTime();
       const filtered = (data.bookedSlots ?? []).filter(
-        (b) => b.startTime !== booking.startTime,
+        (b) => new Date(b.startTime).getTime() !== myStartMs,
       );
       setBookedSlots(filtered);
     } catch (e) {

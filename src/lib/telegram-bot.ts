@@ -286,6 +286,13 @@ export async function notifyReschedule(params: {
   oldStartTime: Date;
   newStartTime: Date;
   timezone?: string | null;
+  /**
+   * Set true when the recipient is the same person who initiated the
+   * reschedule. We then replace `*{rescheduledByName}*` with `*you*` so
+   * the message reads naturally as a self-confirmation rather than
+   * "rescheduled by {your own name}".
+   */
+  isInitiator?: boolean;
 }): Promise<boolean> {
   if (!params.telegramId && !params.telegramUsername) return false;
   const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
@@ -293,10 +300,13 @@ export async function notifyReschedule(params: {
 
   const fmt = (d: Date) => formatDate(d, params.timezone);
 
+  const byClause = params.isInitiator
+    ? "has been rescheduled by *you*"
+    : `has been rescheduled by *${params.rescheduledByName}*`;
   const text = [
     `🔄 *Meetup rescheduled*`,
     ``,
-    `Your ${params.sessionType.toLowerCase()} meetup with *${params.otherPartyName}* has been rescheduled by *${params.rescheduledByName}*.`,
+    `Your ${params.sessionType.toLowerCase()} meetup with *${params.otherPartyName}* ${byClause}.`,
     ``,
     `~~${fmt(params.oldStartTime)}~~ → 🗓 *${fmt(params.newStartTime)}*`,
   ].join("\n");
