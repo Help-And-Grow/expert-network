@@ -317,19 +317,14 @@ function ManagePageInner() {
         bookedSlots: BookedSlot[];
       };
       setDbSlots(data.slots ?? []);
-      // Exclude the current booking's own slot from "booked" so it appears
-      // selectable (otherwise rescheduling shows it as booked-against-itself).
-      // Compare in milliseconds rather than as raw strings — Prisma+Vercel
-      // JSON sometimes drops milliseconds from the booking detail response
-      // (`...:00Z`) while keeping them on the slots-API response
-      // (`...:00.000Z`), making string `!==` miss the match and leaving the
-      // current booking incorrectly *included* in the booked list, which in
-      // turn was masking other bookings' overlaps in a confusing way.
-      const myStartMs = new Date(booking.startTime).getTime();
-      const filtered = (data.bookedSlots ?? []).filter(
-        (b) => new Date(b.startTime).getTime() !== myStartMs,
-      );
-      setBookedSlots(filtered);
+      // Keep the current booking's own slot IN the booked list so the
+      // picker hides it. The earlier behaviour ("exclude my own so it
+      // appears selectable, allowing a same-time reselect as a no-op")
+      // confused users: when they click Reschedule it's because they want
+      // a *different* time, so seeing their existing slot as available is
+      // visual noise. Server-side reschedule still accepts the same-time
+      // case if anyone ever needs it; the UI just won't surface it.
+      setBookedSlots(data.bookedSlots ?? []);
     } catch (e) {
       setSlotsError(
         e instanceof Error ? e.message : "Could not load available slots",
