@@ -46,6 +46,13 @@ interface ServiceItem {
 
 interface Expert {
   id: string;
+  /**
+   * ISO timestamp the row was last modified. Used as a cache buster on the
+   * avatar / audio URLs so Vercel's Next.js Image optimizer (which caches by
+   * URL, independent of our ETag) picks up a regenerated profile picture on
+   * the next page load instead of serving the stale optimized variant.
+   */
+  updatedAt: string;
   sessionType: string;
   bio: string | null;
   servicesOffered: ServiceItem[] | null;
@@ -464,7 +471,12 @@ export default function ExpertProfilePage() {
           <div className={`aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center transition-all duration-300 ${isAudioPlaying ? "ring-4 ring-indigo-400/50 ring-offset-2 ring-offset-background" : ""}`}>
             {expert.hasAvatar ? (
               <Image
-                src={`/api/experts/${id}/avatar`}
+                // Cache buster keyed on updatedAt so Vercel's Image optimizer
+                // serves a freshly fetched + re-optimised variant whenever
+                // the row was re-saved (e.g. profile-image regenerate).
+                // Without it, the optimizer caches by URL alone and the
+                // optimised PNG can outlast the upstream change.
+                src={`/api/experts/${id}/avatar?v=${encodeURIComponent(expert.updatedAt)}`}
                 alt={`${name}'s avatar`}
                 fill
                 sizes="(max-width: 768px) 100vw, 448px"
