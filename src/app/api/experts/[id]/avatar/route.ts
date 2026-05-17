@@ -35,7 +35,16 @@ export async function GET(
     const [, contentType, base64Data] = match;
     const buffer = Buffer.from(base64Data, "base64");
 
-    const etag = `"${createHash("md5").update(base64Data.slice(0, 200)).digest("hex")}"`;
+    // ETag must reflect the actual stored bytes, otherwise two different
+    // images with similar PNG headers collide (the previous version hashed
+    // only the first 200 base64 chars — every regenerated image with the
+    // same dimensions returned the same ETag, so browsers + Next.js Image
+    // optimizer served the stale variant on refresh). Mix in updatedAt as a
+    // cheap salt so even hash-identical bytes invalidate when the row was
+    // re-saved, and hash the full base64 to be content-addressed.
+    const etag = `"${createHash("md5")
+      .update(`${expert.updatedAt.toISOString()}:${base64Data}`)
+      .digest("hex")}"`;
     if (request.headers.get("if-none-match") === etag) {
       return new NextResponse(null, { status: 304 });
     }
@@ -46,6 +55,7 @@ export async function GET(
         "Cache-Control": "public, no-cache, must-revalidate",
         "Content-Length": String(buffer.length),
         "ETag": etag,
+        "Last-Modified": expert.updatedAt.toUTCString(),
       },
     });
   } catch (error) {
