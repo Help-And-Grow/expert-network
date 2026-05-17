@@ -4,6 +4,7 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import Nodemailer from "next-auth/providers/nodemailer";
 
 import { prisma } from "@/lib/prisma";
 
@@ -25,12 +26,27 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-// Magic-link / SMTP sign-in (Nodemailer provider) was removed on 2026-05-16:
-// Gmail SMTP from Vercel datacenter IPs was unreliable (datacenter IP
-// reputation), and Google OAuth covers the same audience without the
-// deliverability tail. EMAIL_SERVER_* + EMAIL_FROM are kept on Vercel for
-// any future transactional-email path but no longer drive sign-in.
-// See `docs/auth.md` (if added) or commit history for the rationale.
+if (
+  env.EMAIL_SERVER_HOST &&
+  env.EMAIL_SERVER_PORT &&
+  env.EMAIL_SERVER_USER &&
+  env.EMAIL_SERVER_PASSWORD &&
+  env.EMAIL_FROM
+) {
+  providers.push(
+    Nodemailer({
+      server: {
+        host: env.EMAIL_SERVER_HOST,
+        port: Number(env.EMAIL_SERVER_PORT),
+        auth: {
+          user: env.EMAIL_SERVER_USER,
+          pass: env.EMAIL_SERVER_PASSWORD,
+        },
+      },
+      from: env.EMAIL_FROM,
+    }),
+  );
+}
 
 /** One-click local sign-in when `next dev` + DEV_AUTH_EMAIL (never enabled in production builds). */
 if ((process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && env.DEV_AUTH_EMAIL) {
