@@ -59,11 +59,17 @@ This means you can take a fresh Vercel project pointed at an existing Postgres d
 
 ---
 
-## Deploy (Vercel)
+## Deploy
 
-The live `expert-network` project is owned by the **Help And Grow** Vercel team. Vercel's GitHub App is connected to **`jlzxwt8/expert-network`** (the production-locked repo) — pushes there auto-deploy to www.help-and-grow.com.
+Two deploy surfaces, two repos.
 
-Daily development pushes go to **`Help-And-Grow/expert-network`** (`origin` locally), which is **not** connected to Vercel. Hotfixes get cherry-picked over to `jlzxwt8` (`production` locally) when they need to reach the live site. See [`docs/references/multi-repo-strategy.md`](references/multi-repo-strategy.md) and [`CLAUDE.md`](../CLAUDE.md).
+### Production (Vercel — `jlzxwt8/expert-network`)
+The live `expert-network` project is owned by the **Help And Grow** Vercel team. Vercel's GitHub App is connected to **`jlzxwt8/expert-network`** (the production-locked repo) — pushes there auto-deploy to www.help-and-grow.com. Default daily pushes do **not** go here; only verified bugfixes do (cherry-picked from Help-And-Grow). See [`CLAUDE.md`](../CLAUDE.md).
+
+### Active dev (Cloud Run — `Help-And-Grow/expert-network`)
+Cloud Build trigger fires on every push to `Help-And-Grow/main` → builds container → Cloud Run service `expert-network` (project `expert-network-489508`, region `asia-southeast1`) → URL https://expert-network-druobkk2ma-as.a.run.app. AI provider is Gemini (Google-Cloud-native demo stack). Full runbook: [`docs/exec-plans/active/help-and-grow-cloud-run-deployment.md`](exec-plans/active/help-and-grow-cloud-run-deployment.md).
+
+Both deploys share Cloud SQL `hg-postgres-prod`. Migration discipline lives in the Cloud Run runbook §6.
 
 ### Push-to-deploy
 Pushing to `main` triggers Vercel to run `npm run build`. The auto-baseline migration runs first (postinstall → migrate deploy).

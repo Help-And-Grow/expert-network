@@ -27,7 +27,7 @@ Help & Grow now uses a **production-locked source repo + active development repo
 - **Local remote name:** `origin`
 - **Role:** Daily feature work, hackathon demos, investor pitches, OpenAI + ByteDance credit-grant showcases, schema experiments, infrastructure prototyping. Every routine commit lands here first.
 - **Push cadence:** Multiple times per day.
-- **Vercel connection:** Not wired to www.help-and-grow.com. A separate Vercel project (or IGA Pages once it's set up) can be hooked up if you want a publicly addressable URL for the demos — that's an explicit decision per surface.
+- **Deployment target:** Google Cloud Run service `expert-network` in `asia-southeast1` (project `expert-network-489508`). Cloud Build trigger auto-builds on every push to `main`; service URL https://expert-network-druobkk2ma-as.a.run.app. AI provider: **Gemini** (single-cloud, no fallback). Full operational runbook: [`docs/exec-plans/active/help-and-grow-cloud-run-deployment.md`](../exec-plans/active/help-and-grow-cloud-run-deployment.md).
 - **Default rule:** `git push origin main` is the routine command. All AI agents, the lead, and any future intern PRs target this repo unless explicitly told otherwise.
 
 ---
@@ -37,10 +37,13 @@ Help & Grow now uses a **production-locked source repo + active development repo
 The production Vercel project is owned by the **Help And Grow** Vercel team and is connected to `jlzxwt8/expert-network` (the locked-down repo). The mismatch between the GitHub org name (`Help-And-Grow`) and the connected repo (`jlzxwt8/…`) is intentional — see §1.
 
 Current operating model:
-1. **Git source for production deploys:** `jlzxwt8/expert-network`
-2. **Vercel project owner:** `Help And Grow` team
-3. **Daily commit target:** `Help-And-Grow/expert-network` (no auto-deploy)
-4. **Default AI provider on production:** Qwen → Gemini chain (`AI_PROVIDER="qwen"`); the Volcengine/Doubao stack on Help-And-Grow can be enabled per-deploy via env vars (see [`iga-pages-volcengine-deployment.md`](../exec-plans/active/iga-pages-volcengine-deployment.md))
+1. **Git source for production deploys:** `jlzxwt8/expert-network` → Vercel (`Help And Grow` team) → www.help-and-grow.com
+2. **Git source for active-dev deploys:** `Help-And-Grow/expert-network` → Cloud Build → Cloud Run (project `expert-network-489508`, region `asia-southeast1`) → https://expert-network-druobkk2ma-as.a.run.app
+3. **Shared infrastructure:** Both deploys connect to the same Cloud SQL instance `hg-postgres-prod`. Schema migrations stay manual on the Cloud Run path so production isn't auto-migrated by Help-And-Grow experiments — see [`help-and-grow-cloud-run-deployment.md §6`](../exec-plans/active/help-and-grow-cloud-run-deployment.md#6--schema-change-discipline).
+4. **Default AI provider per deploy:**
+   - Production (Vercel) → Qwen → Gemini chain (`AI_PROVIDER="qwen"`)
+   - Help-And-Grow (Cloud Run) → Gemini only (`AI_PROVIDER="gemini"`) for the Google-Cloud-native showcase narrative
+   - The Volcengine/Doubao stack remains the planned CN path post-ICP (see [`iga-pages-volcengine-deployment.md`](../exec-plans/active/iga-pages-volcengine-deployment.md))
 
 ### Vercel dashboard URLs (avoid 404)
 
