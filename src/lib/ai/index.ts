@@ -72,10 +72,22 @@ function resolveByName(name: string): AIProvider {
   return instance;
 }
 
+/**
+ * Default provider for utility functions (improveWriting, generateExpertProfile,
+ * normalizeQuery, generateProfileImage). Uses the same chain as `chat()` so the
+ * AI_TEXT_PROVIDER_CHAIN (env or SystemConfig) is honoured uniformly —
+ * historically this only honored AI_PROVIDER, which created an asymmetry where
+ * a deployment with `AI_TEXT_PROVIDER_CHAIN=gemini` (e.g. the Help-And-Grow
+ * Cloud Run target) would still try Qwen for the single-provider paths and 401
+ * because no DASHSCOPE_API_KEY is set. Chain semantics: try each in order,
+ * first to succeed wins; identical behaviour for single-element chains.
+ *
+ * Request context is `null` because these call sites don't carry an inbound
+ * Request — that's only used for WeChat region detection, which doesn't apply
+ * to these server-side flows.
+ */
 async function provider(): Promise<AIProvider> {
-  const { getActiveAIProviderName } = await import("./provider-catalog");
-  const name = await getActiveAIProviderName();
-  return resolveByName(name);
+  return resolveAIProvider({});
 }
 
 type RequestContext = {
