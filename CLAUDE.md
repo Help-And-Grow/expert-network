@@ -8,60 +8,57 @@ Interns and new collaborators should read [`docs/ONBOARDING.md`](docs/ONBOARDING
 
 ## Workflow — Solo PM
 
-This is a solo-PM project, now in **MVP rollout** (2026-05-13 onward). Two repos, different roles. Keep the process lean.
+This is a solo-PM project, in **MVP rollout** (May 2026 onward). Two repos, same code, different deploy targets. Keep the process lean.
 
 ### Repo roles
 
-| Remote | GitHub | Role | Vercel connection |
+| Remote | GitHub | Deploy target | AI provider |
 |---|---|---|---|
-| `origin` | `Help-And-Grow/expert-network` | **Active development** — daily commits, new features, hackathon demos, investor showcases, credit-grant submissions | Not auto-deployed to www.help-and-grow.com (separate Vercel project / IGA Pages if hooked up) |
-| `production` | `jlzxwt8/expert-network` | **Production lockdown** — touched only for verified bugfixes the live site needs | Auto-deploys to www.help-and-grow.com via the Vercel GitHub App |
+| `origin` | **Both** `Help-And-Grow/expert-network` AND `jlzxwt8/expert-network` (dual-push) | Help-And-Grow → Cloud Run; jlzxwt8 → Vercel www.help-and-grow.com | Cloud Run is pinned to **Gemini** via `AI_PROVIDER_LOCK=gemini`; Vercel uses whatever's set in the **admin page** (currently Qwen) |
+| `production` | `jlzxwt8/expert-network` (single-target convenience for hotfix-style pushes) | Vercel www.help-and-grow.com | (same as above) |
+
+The local `origin` remote has two `(push)` URLs configured so a single `git push origin main` publishes to both GitHub repos at once. Verify with `git remote -v` — there should be two `origin … (push)` lines plus one `origin … (fetch)`.
 
 ### Default rule
 
-**All new code goes to `origin` (Help-And-Grow) only.** A simple `git push origin main` is the routine. The Vercel-connected `jlzxwt8` repo (`production` remote) is **not** the daily push target — leaving it stable is the entire point of MVP discipline.
+**`git push origin main`** is the routine. It publishes to both repos. Cloud Build trigger on Help-And-Grow auto-rolls a new Cloud Run revision; Vercel GitHub App auto-deploys the jlzxwt8 push to www.help-and-grow.com.
 
-### When to push to `production` (the jlzxwt8 path)
+### Per-deploy divergence is at the env layer, not the code layer
 
-Only when **all three** are true:
+The two deploys share the same source code. They differ only in:
 
-1. You've fixed an actual production bug surfaced by live users on www.help-and-grow.com.
-2. The fix has been smoke-tested on Help-And-Grow (or locally) and is small and isolated.
-3. The lead has explicitly authorized the production push (or is the one running the command).
+| Env var | Vercel (www.help-and-grow.com) | Cloud Run (Help-And-Grow demo) |
+|---|---|---|
+| `AI_PROVIDER_LOCK` | unset → routes via admin page / SystemConfig | `gemini` → bypasses DB routing, always uses Gemini |
+| `AI_PROVIDER` | `qwen` | `gemini` (effectively ignored once `AI_PROVIDER_LOCK` is set) |
+| `AI_TEXT_PROVIDER_CHAIN` | unset (default chain via DB) | `gemini` (effectively ignored once `AI_PROVIDER_LOCK` is set) |
+| `DATABASE_URL`, `AUTH_SECRET`, `GEMINI_API_KEY`, etc. | Vercel-encrypted | Google Secret Manager refs |
 
-Mechanism — cherry-pick the verified-good commit onto a clean `production` branch base and push:
-
-```bash
-git fetch production
-git checkout -b hotfix/<short-name> production/main
-git cherry-pick <sha-from-Help-And-Grow>
-git push production HEAD:main
-```
-
-Then verify Vercel auto-deploys and the bug is gone. Delete the hotfix branch.
+If you need to add a new env var that should diverge between the two surfaces, set it via the respective deploy mechanism (Vercel dashboard for jlzxwt8; `gcloud run services update` for Help-And-Grow). The code reads `process.env` either way and stays identical.
 
 ### Other rules
 
 1. **Skip preview/UI verification on the dev path.** Do not spin up dev servers or take browser screenshots to verify UI changes. Trust the build and live testing.
-2. **No Vercel build to check after a routine push to `origin`** — Help-And-Grow isn't auto-connected. Only verify Vercel deploy status after a `production` push (cf. `vercel logs --follow https://www.help-and-grow.com`).
-3. **WeChat mini program changes** — after pushing to whichever repo, trigger `wechat-ci.yml` via `gh workflow run` if not already triggered by the push. Set the new upload as 体验版 in 微信公众平台 for live user testing. (GitHub Actions are paused on `jlzxwt8` until 2026-06-01 — see commit `ddf8519`.)
-4. **User testing for production happens on www.help-and-grow.com.** Hackathon / investor / demo testing happens on the Help-And-Grow surface (whatever's hooked up to that repo).
+2. **After a routine push, verify both deploys.** Vercel: `vercel logs --follow https://www.help-and-grow.com`. Cloud Run: `gcloud run services logs read expert-network --region=asia-southeast1 --limit=200` or `gcloud builds list --limit=2 --filter="source.repoSource.repoName:Help-And-Grow*"`.
+3. **WeChat mini program changes** — after pushing, trigger `wechat-ci.yml` via `gh workflow run` if not already triggered by the push. Set the new upload as 体验版 in 微信公众平台 for live user testing. (GitHub Actions are paused on `jlzxwt8` until 2026-06-01 — see commit `ddf8519`; the workflow runs on `Help-And-Grow` instead.)
+4. **User testing for production happens on www.help-and-grow.com.** Hackathon / investor / demo testing happens on the Cloud Run URL (`expert-network-druobkk2ma-as.a.run.app`).
 
 ## Branch strategy
 
-- Default: commit and push straight to `main` of the relevant repo (almost always `origin` = Help-And-Grow).
+- Default: commit and push straight to `main`. `git push origin main` reaches both repos in one command.
 - Feature branches (`claude/…`) are acceptable for larger changes but must be merged to `main` immediately — do not leave them open.
 - After merging a feature branch to `main`, delete the feature branch.
-- Hotfix branches (`hotfix/…`) live only for the duration of the cherry-pick → push to `production` → delete cycle.
 
-## Vercel
+## Deploy verification
 
-- Production (www.help-and-grow.com) deploys automatically on every push to `production/main` (jlzxwt8). It does **not** auto-deploy on pushes to `origin/main` (Help-And-Grow) — that's the lockdown.
-- After a hotfix push to `production`, confirm the deployment is healthy before considering the task done:
-  ```
-  vercel logs --follow https://www.help-and-grow.com
-  ```
-  or check the Vercel dashboard for build status.
+After `git push origin main`:
+
+| Target | Build trigger | Verify |
+|---|---|---|
+| Vercel (jlzxwt8 → www.help-and-grow.com) | Vercel GitHub App | `vercel logs --follow https://www.help-and-grow.com` |
+| Cloud Run (Help-And-Grow → run.app URL) | Cloud Build trigger `rmgpgab-…` | `gcloud builds list --limit=1 --filter="source.repoSource.repoName:Help-And-Grow*"` |
+
+Both should reach Ready / Success within a few minutes.
 
 ## WeChat CI
 

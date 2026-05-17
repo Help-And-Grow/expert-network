@@ -2,48 +2,45 @@
 
 This document defines how Help & Grow is operated across two GitHub repositories while keeping the live Vercel deployment stable and predictable.
 
-> **2026-05-13 — MVP rollout: roles inverted.** Previously `jlzxwt8/expert-network` was the active daily-push target and `Help-And-Grow/expert-network` was a periodic mirror. With MVP rollout underway, the relationship flipped: `Help-And-Grow` is now the active development repo, and `jlzxwt8` is locked down as the production-only (Vercel-connected) repo that's touched only for verified bugfixes. The remaining sections reflect the new model; commit `65193be` (and earlier) documented the legacy dual-push model and is preserved in git history if you need to look it up.
+> **2026-05-17 — dual-push restored, divergence moved to the env layer.** The Help-And-Grow-only-active phase (commit `84e2c0b` to `def0d1a3`) created too much friction maintaining two histories. Same code now ships to both repos via a single dual-push `origin`; the per-deploy provider/storage/etc. choices live entirely in environment variables on each platform. The repos converge in code, diverge only at deploy config.
 
 ## 1. Source of Truth — by responsibility
 
-Help & Grow now uses a **production-locked source repo + active development repo** model. The two repos serve different audiences and have different push cadences.
+Help & Grow uses a **dual-push** model: one `git push origin main` publishes to both repos, and each repo's deploy target picks up the same code with its own env vars.
 
-### A. Production-locked repo: `jlzxwt8/expert-network`
-- **Local remote name:** `production`
-- **Role:** The Vercel GitHub App is connected here; every push to `jlzxwt8/main` auto-builds and deploys to **www.help-and-grow.com**.
-- **Push cadence:** Rare. Touched only for verified bugfixes that the live site needs.
-- **Read cadence:** Continuous. This is the canonical state of production.
-- **Default rule:** Do **not** push here for new features, refactors, or experiments. The whole point of the lockdown is to stop the live site from drifting with every iteration.
-- **Hotfix mechanism:**
-  ```bash
-  git fetch production
-  git checkout -b hotfix/<short-name> production/main
-  git cherry-pick <sha-from-Help-And-Grow>
-  git push production HEAD:main
-  # Then verify via `vercel logs --follow https://www.help-and-grow.com`.
-  ```
+### A. `jlzxwt8/expert-network` — Vercel production
+- **Local remote alias:** `origin` (push) + `production` (push & fetch). `git push origin main` covers it as part of the dual-push.
+- **Deploy:** Vercel GitHub App on push → www.help-and-grow.com.
+- **AI provider:** whatever's set in the **admin page** (`/admin/providers`) → SystemConfig + ProviderRoutingScope in Cloud SQL. Currently Qwen-primary, Gemini fallback.
+- **Storage:** Vercel Blob / GCS / Tencent COS (admin-driven).
 
-### B. Active development repo: `Help-And-Grow/expert-network`
-- **Local remote name:** `origin`
-- **Role:** Daily feature work, hackathon demos, investor pitches, OpenAI + ByteDance credit-grant showcases, schema experiments, infrastructure prototyping. Every routine commit lands here first.
-- **Push cadence:** Multiple times per day.
-- **Deployment target:** Google Cloud Run service `expert-network` in `asia-southeast1` (project `expert-network-489508`). Cloud Build trigger auto-builds on every push to `main`; service URL https://expert-network-druobkk2ma-as.a.run.app. AI provider: **Gemini** (single-cloud, no fallback). Full operational runbook: [`docs/exec-plans/active/help-and-grow-cloud-run-deployment.md`](../exec-plans/active/help-and-grow-cloud-run-deployment.md).
-- **Default rule:** `git push origin main` is the routine command. All AI agents, the lead, and any future intern PRs target this repo unless explicitly told otherwise.
+### B. `Help-And-Grow/expert-network` — Cloud Run demo
+- **Local remote alias:** `origin` (push & fetch). `git push origin main` covers it as part of the dual-push.
+- **Deploy:** Cloud Build trigger on push → Cloud Run service `expert-network` in `asia-southeast1` → https://expert-network-druobkk2ma-as.a.run.app. Full runbook: [`docs/exec-plans/active/help-and-grow-cloud-run-deployment.md`](../exec-plans/active/help-and-grow-cloud-run-deployment.md).
+- **AI provider:** **Gemini only.** Locked via `AI_PROVIDER_LOCK=gemini` env on Cloud Run, which short-circuits all DB-driven routing (SystemConfig + ProviderRoutingScope). Vercel leaves this var unset, so the admin page continues to drive Vercel.
+- **Storage:** `STORAGE_PROVIDER=db` for now (no dedicated GCS bucket yet).
 
 ---
 
 ## 2. Deployment Architecture
 
-The production Vercel project is owned by the **Help And Grow** Vercel team and is connected to `jlzxwt8/expert-network` (the locked-down repo). The mismatch between the GitHub org name (`Help-And-Grow`) and the connected repo (`jlzxwt8/…`) is intentional — see §1.
+| Aspect | jlzxwt8 → Vercel | Help-And-Grow → Cloud Run |
+|---|---|---|
+| Vercel team / GCP project | `Help And Grow` team | `expert-network-489508` (`asia-southeast1`) |
+| Service / URL | `expert-network` → www.help-and-grow.com | `expert-network` → https://expert-network-druobkk2ma-as.a.run.app |
+| Build trigger | Vercel GitHub App | Cloud Build trigger `rmgpgab-…-Help-And-Grow-expert-gps` |
+| DB | Cloud SQL `hg-postgres-prod` (shared) | Cloud SQL `hg-postgres-prod` (shared) |
+| Storage | admin-driven (Vercel Blob / GCS / Tencent COS) | `STORAGE_PROVIDER=db` (until dedicated GCS bucket lands) |
+| Text LLM | admin-page driven (`AI_PROVIDER=qwen` default) | **Gemini only** via `AI_PROVIDER_LOCK=gemini` |
+| Secrets storage | Vercel encrypted env | Google Secret Manager refs (see [Cloud Run runbook §3](../exec-plans/active/help-and-grow-cloud-run-deployment.md)) |
 
-Current operating model:
-1. **Git source for production deploys:** `jlzxwt8/expert-network` → Vercel (`Help And Grow` team) → www.help-and-grow.com
-2. **Git source for active-dev deploys:** `Help-And-Grow/expert-network` → Cloud Build → Cloud Run (project `expert-network-489508`, region `asia-southeast1`) → https://expert-network-druobkk2ma-as.a.run.app
-3. **Shared infrastructure:** Both deploys connect to the same Cloud SQL instance `hg-postgres-prod`. Schema migrations stay manual on the Cloud Run path so production isn't auto-migrated by Help-And-Grow experiments — see [`help-and-grow-cloud-run-deployment.md §6`](../exec-plans/active/help-and-grow-cloud-run-deployment.md#6--schema-change-discipline).
-4. **Default AI provider per deploy:**
-   - Production (Vercel) → Qwen → Gemini chain (`AI_PROVIDER="qwen"`)
-   - Help-And-Grow (Cloud Run) → Gemini only (`AI_PROVIDER="gemini"`) for the Google-Cloud-native showcase narrative
-   - The Volcengine/Doubao stack remains the planned CN path post-ICP (see [`iga-pages-volcengine-deployment.md`](../exec-plans/active/iga-pages-volcengine-deployment.md))
+Both deploys read the **same Cloud SQL DB**, so schema migrations propagate to both. The auto-migration postinstall (`prisma-migrate-if-vercel.mjs`) only fires when `VERCEL=1` is set — so Vercel pushes migrate, Cloud Build pushes don't. This is intentional: production migration is one source of truth, Cloud Run picks up the new columns on its next deploy.
+
+### The `AI_PROVIDER_LOCK` env
+
+Cloud Run sets `AI_PROVIDER_LOCK=gemini`. When set, the application short-circuits **all** AI provider resolution (DB-driven `ProviderRoutingScope`, `SystemConfig.AI_PROVIDER`, `SystemConfig.AI_TEXT_PROVIDER_CHAIN`, env `AI_PROVIDER`, env `AI_TEXT_PROVIDER_CHAIN`) and routes every call — `chat`, `improveWriting`, `generateExpertProfile`, `normalizeQuery`, `generateProfileImage` — to the named provider directly. This is how Cloud Run stays Gemini-only despite the shared Cloud SQL holding production's Qwen-first routing rules. Implemented in `src/lib/ai/index.ts`.
+
+Vercel leaves `AI_PROVIDER_LOCK` unset, so the admin page (`/admin/providers`) keeps full control over production routing.
 
 ### Vercel dashboard URLs (avoid 404)
 
@@ -89,32 +86,22 @@ Do not assume the GitHub org and the Vercel team are the same thing. The dashboa
 
 ## 3. Operational Guidelines
 
-### Daily development (the routine path)
+### Daily development (single dual-push)
 
 ```bash
-git push origin main   # → Help-And-Grow/main only
+git push origin main   # → Help-And-Grow/main AND jlzxwt8/main, in one command
 ```
 
-Every routine commit goes to `Help-And-Grow/expert-network`. No production deploy is triggered; nothing on www.help-and-grow.com changes. Iterate freely.
-
-### Bug-fix promotion (the production path)
-
-When a fix is verified and needs to reach the live site:
+`fetch` resolves to Help-And-Grow only (the active code stream). `push` fires both URLs. Both deploys auto-build from their respective triggers. After the push, verify both surfaces:
 
 ```bash
-git fetch production
-git checkout -b hotfix/<short-name> production/main
-git cherry-pick <sha-from-Help-And-Grow>   # the verified-good commit
-git push production HEAD:main              # → triggers Vercel auto-deploy
-```
-
-Verify:
-
-```bash
+# Vercel build status
 vercel logs --follow https://www.help-and-grow.com
-```
 
-Wait for the Ready state, then smoke-test the live site. Delete the local `hotfix/<short-name>` branch.
+# Cloud Build / Cloud Run status
+gcloud builds list --limit=1 --filter="source.repoSource.repoName:Help-And-Grow*"
+gcloud run services describe expert-network --region=asia-southeast1 --format="value(status.traffic[0].revisionName)"
+```
 
 ### Required local remote configuration
 
@@ -124,40 +111,53 @@ git remote remove origin       2>/dev/null || true
 git remote remove helpandgrow  2>/dev/null || true
 git remote remove production   2>/dev/null || true
 
-git remote add origin     https://github.com/Help-And-Grow/expert-network.git
+# origin: fetches from Help-And-Grow (the active code stream),
+#         pushes to BOTH repos so a single `git push origin main` covers both deploys.
+git remote add origin https://github.com/Help-And-Grow/expert-network.git
+git remote set-url --add --push origin https://github.com/jlzxwt8/expert-network.git
+
+# production: jlzxwt8-only convenience for the occasional Vercel-only push.
 git remote add production https://github.com/jlzxwt8/expert-network.git
 
-# Verify:
+# Verify (origin should have 2× (push) URLs):
 git remote -v
-# Expected output:
-#   origin      https://github.com/Help-And-Grow/expert-network.git (fetch)
-#   origin      https://github.com/Help-And-Grow/expert-network.git (push)
-#   production  https://github.com/jlzxwt8/expert-network.git       (fetch)
-#   production  https://github.com/jlzxwt8/expert-network.git       (push)
 ```
 
-### Keeping the two repos from drifting
+Expected output:
+```
+origin      https://github.com/Help-And-Grow/expert-network.git (fetch)
+origin      https://github.com/Help-And-Grow/expert-network.git (push)
+origin      https://github.com/jlzxwt8/expert-network.git       (push)
+production  https://github.com/jlzxwt8/expert-network.git       (fetch)
+production  https://github.com/jlzxwt8/expert-network.git       (push)
+```
 
-Both repos hold the same `main` branch in spirit, but only the bugfix subset reaches `production`. The full feature history accumulates on `origin`. To compare:
+### Keeping the two repos at the same SHA
+
+After `git push origin main` both repos should be at the same HEAD. Verify any time:
 
 ```bash
-git fetch origin production
-git log production/main..origin/main --oneline   # commits on Help-And-Grow not yet promoted to jlzxwt8
-git log origin/main..production/main --oneline   # commits on jlzxwt8 not in Help-And-Grow (should normally be 0 — out-of-band production push)
+echo "jlzxwt8:        $(gh api repos/jlzxwt8/expert-network/branches/main --jq '.commit.sha')"
+echo "Help-And-Grow:  $(gh api repos/Help-And-Grow/expert-network/branches/main --jq '.commit.sha')"
 ```
 
-If `production/main` ever has commits not in `origin/main` (i.e. someone pushed directly to jlzxwt8 without going through Help-And-Grow), pull those into Help-And-Grow promptly to re-align:
+If they diverge — e.g. one push reached only one repo due to a transient network failure — re-push the missing one:
 
 ```bash
-git fetch production
-git checkout main
-git merge --ff-only production/main || git rebase production/main
-git push origin main
+# Reach the lagging repo specifically:
+git push origin main      # tries both; the up-to-date one is a no-op
+git push production main  # explicit jlzxwt8 fallback
 ```
 
-### Why not a CI workflow?
+### Vercel-only push (rare)
 
-GitHub Actions on `jlzxwt8` are paused until 2026-06-01 (account minutes exhausted — see commit `ddf8519`). When they resume, the bug-fix-promotion step could be automated, but the manual cherry-pick is the right default during MVP rollout because each production push deserves explicit thought.
+For the unusual case where a change should reach production *without* simultaneously updating the Cloud Run demo (e.g. a Vercel-specific config tweak that doesn't apply on Cloud Run):
+
+```bash
+git push production main
+```
+
+This uses the dedicated `production` remote (jlzxwt8 only) and skips Help-And-Grow. Then run the dual-push later to re-sync once the change is ready for both surfaces.
 
 ### Managing Vercel environment variables
 Treat the Help And Grow Vercel project as the runtime source of truth, regardless of which GitHub repo is public.

@@ -55,6 +55,7 @@ Non-secret values shown; secrets redacted:
 Plain env vars (non-secret):
 
 ```
+AI_PROVIDER_LOCK        = gemini             # ← deploy-level pin (see below)
 AI_PROVIDER             = gemini
 AI_TEXT_PROVIDER_CHAIN  = gemini
 IMAGE_PROVIDER_CHAIN    = gemini
@@ -69,6 +70,28 @@ EMAIL_FROM              = <set>
 DB_PROVIDER             = postgresql
 NODE_ENV                = production
 VERIFY_BILLING          = <set>
+```
+
+#### About `AI_PROVIDER_LOCK`
+
+This env var is **specific to this deploy** (Cloud Run / Help-And-Grow). Vercel must NOT set it.
+
+When set, the application's provider resolver (`src/lib/ai/index.ts`) short-circuits **every** AI call path — chat, improveWriting, generateExpertProfile, normalizeQuery, generateProfileImage — to the named provider directly. It bypasses:
+
+- `ProviderRoutingScope` (Phase 3 DB-driven routing the admin page writes)
+- `SystemConfig.AI_PROVIDER` and `SystemConfig.AI_TEXT_PROVIDER_CHAIN` (admin-page singletons)
+- Env `AI_PROVIDER` and `AI_TEXT_PROVIDER_CHAIN` (cosmetic at this point)
+
+The lock exists because both Cloud Run and Vercel share the same Cloud SQL DB. Admin-page changes there are written for Vercel production; without the lock, those changes would silently affect Cloud Run too (which is the bug we hit on 2026-05-17 when `improveWriting` resolved to Qwen on Cloud Run and 401'd because no DASHSCOPE_API_KEY was set). With the lock, Cloud Run stays Gemini-only no matter what the admin page does.
+
+Allowed values: `gemini`, `qwen`, `hunyuan`, `openai`, `zai`, `byteplus`, `volcengine`.
+
+To remove the lock (let Cloud Run follow admin routing like Vercel does):
+
+```bash
+gcloud run services update expert-network \
+  --region=asia-southeast1 \
+  --remove-env-vars=AI_PROVIDER_LOCK
 ```
 
 Secret-backed env vars (each references a Secret Manager secret via `valueFrom.secretKeyRef`; runtime SA `expert-network-run@…` has `roles/secretmanager.secretAccessor` on each):

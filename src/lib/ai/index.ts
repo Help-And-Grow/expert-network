@@ -74,20 +74,23 @@ function resolveByName(name: string): AIProvider {
 
 /**
  * Default provider for utility functions (improveWriting, generateExpertProfile,
- * normalizeQuery, generateProfileImage). Uses the same chain as `chat()` so the
- * AI_TEXT_PROVIDER_CHAIN (env or SystemConfig) is honoured uniformly —
- * historically this only honored AI_PROVIDER, which created an asymmetry where
- * a deployment with `AI_TEXT_PROVIDER_CHAIN=gemini` (e.g. the Help-And-Grow
- * Cloud Run target) would still try Qwen for the single-provider paths and 401
- * because no DASHSCOPE_API_KEY is set. Chain semantics: try each in order,
- * first to succeed wins; identical behaviour for single-element chains.
+ * normalizeQuery, generateProfileImage). Single-provider path driven by
+ * `AI_PROVIDER` (env or SystemConfig) — Vercel production relies on the admin
+ * page setting SystemConfig.AI_PROVIDER and expects this to win.
  *
- * Request context is `null` because these call sites don't carry an inbound
- * Request — that's only used for WeChat region detection, which doesn't apply
- * to these server-side flows.
+ * Lock override: when `AI_PROVIDER_LOCK` is set at the env layer, ALL DB-driven
+ * routing (SystemConfig, ProviderRoutingScope) is bypassed and the named
+ * provider is used directly. This is how the Help-And-Grow Cloud Run deploy
+ * stays Gemini-only despite the shared Cloud SQL holding production's
+ * Qwen-first routing scopes — Vercel doesn't set the lock and continues to
+ * honor the admin page.
  */
 async function provider(): Promise<AIProvider> {
-  return resolveAIProvider({});
+  const locked = process.env.AI_PROVIDER_LOCK?.trim();
+  if (locked) return resolveByName(locked);
+  const { getActiveAIProviderName } = await import("./provider-catalog");
+  const name = await getActiveAIProviderName();
+  return resolveByName(name);
 }
 
 type RequestContext = {
@@ -174,6 +177,14 @@ function chainProviders(chain: AIProvider[], chainNames: string[]): AIProvider {
 export async function resolveAIProvider(
   ctx: RequestContext = {},
 ): Promise<AIProvider> {
+  // Deploy-level lock — see `provider()` for the same short-circuit. When set,
+  // bypasses ProviderRoutingScope (Phase 3 DB-driven routing) and
+  // SystemConfig.AI_TEXT_PROVIDER_CHAIN so a single deploy can be pinned to
+  // one provider regardless of the shared Cloud SQL state. Cloud Run sets
+  // AI_PROVIDER_LOCK=gemini; Vercel leaves it unset and uses the admin page.
+  const locked = process.env.AI_PROVIDER_LOCK?.trim();
+  if (locked) return resolveByName(locked);
+
   const { getActiveAIProviderChainForRequest } = await import("./provider-catalog");
   const names = await getActiveAIProviderChainForRequest(ctx.request ?? null);
   const chain = names.map(resolveByName);

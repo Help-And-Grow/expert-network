@@ -102,6 +102,17 @@ const envSchema = z
       .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
       .default("qwen"),
     /**
+     * Deploy-level pin. When set, ALL AI provider resolution (including the
+     * chain path used by chat / matchExperts) short-circuits to this single
+     * provider, ignoring SystemConfig and the Phase 3 ProviderRoutingScope
+     * table in the shared Cloud SQL. Used by the Help-And-Grow Cloud Run
+     * deploy to stay Gemini-only without disturbing the admin-driven Qwen
+     * routing on Vercel production. Leave UNSET on Vercel.
+     */
+    AI_PROVIDER_LOCK: z
+      .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
+      .optional(),
+    /**
      * Provider used when the request originates from the WeChat Mini Program
      * (detected via TCB-stamped headers in `lib/request-origin.ts`). Defaults
      * to `hunyuan` so both WeChat-CN and WeChat-Intl stacks run entirely on
