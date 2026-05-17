@@ -476,7 +476,7 @@ export default function OnboardingPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to create Stripe account");
+        throw new Error(data.detail || data.error || "Failed to create Stripe account");
       }
       const data = await res.json();
       if (data.url) {
