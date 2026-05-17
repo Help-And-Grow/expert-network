@@ -307,46 +307,54 @@ export async function PATCH(
       const rFounderName = updated.founder.nickName ?? updated.founder.name ?? "Client";
       const rExpertName = updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert";
 
-      // Notify the other party (Telegram + WeChat)
-      if (isFounder) {
-        notifyReschedule({
-          telegramId: updated.expert.user.telegramId,
-          telegramUsername: updated.expert.user.telegramUsername,
-          otherPartyName: rFounderName,
-          rescheduledByName: reschedulerName,
-          sessionType: updated.sessionType,
-          oldStartTime,
-          newStartTime: newStart,
-          timezone: updated.timezone,
-        }).catch(() => {});
-        notifyWechatBookingRescheduled({
-          userId: updated.expert.userId,
-          otherPartyName: rFounderName,
-          sessionType: updated.sessionType,
-          oldTime: oldStartTime,
-          newTime: newStart,
-          timezone: updated.timezone,
-        }).catch(() => {});
-      } else {
-        notifyReschedule({
-          telegramId: updated.founder.telegramId,
-          telegramUsername: updated.founder.telegramUsername,
-          otherPartyName: rExpertName,
-          rescheduledByName: reschedulerName,
-          sessionType: updated.sessionType,
-          oldStartTime,
-          newStartTime: newStart,
-          timezone: updated.timezone,
-        }).catch(() => {});
-        notifyWechatBookingRescheduled({
-          userId: updated.founderId,
-          otherPartyName: rExpertName,
-          sessionType: updated.sessionType,
-          oldTime: oldStartTime,
-          newTime: newStart,
-          timezone: updated.timezone,
-        }).catch(() => {});
-      }
+      // Notify BOTH parties — matches the initial-booking flow which
+      // confirms to both expert and founder. Previously only the
+      // non-initiator was notified, which meant whoever clicked Confirm
+      // (typically the founder via the magic-link manage page) got no
+      // confirmation that the reschedule went through. Bug surfaced
+      // 2026-05-16 when Mori rescheduled and didn't see anything land in
+      // her Telegram while Chris (the coach) did.
+      //
+      // Both messages set `rescheduledByName` to the actual initiator,
+      // so each side sees "rescheduled by {initiator}" — useful framing
+      // for the counterpart and a reasonable self-confirmation for the
+      // initiator.
+      notifyReschedule({
+        telegramId: updated.expert.user.telegramId,
+        telegramUsername: updated.expert.user.telegramUsername,
+        otherPartyName: rFounderName,
+        rescheduledByName: reschedulerName,
+        sessionType: updated.sessionType,
+        oldStartTime,
+        newStartTime: newStart,
+        timezone: updated.timezone,
+      }).catch(() => {});
+      notifyReschedule({
+        telegramId: updated.founder.telegramId,
+        telegramUsername: updated.founder.telegramUsername,
+        otherPartyName: rExpertName,
+        rescheduledByName: reschedulerName,
+        sessionType: updated.sessionType,
+        oldStartTime,
+        newStartTime: newStart,
+        timezone: updated.timezone,
+      }).catch(() => {});
+      notifyWechatBookingRescheduled({
+        userId: updated.expert.userId,
+        otherPartyName: rFounderName,
+        sessionType: updated.sessionType,
+        oldTime: oldStartTime,
+        newTime: newStart,
+        timezone: updated.timezone,
+      }).catch(() => {});
+      notifyWechatBookingRescheduled({
+        userId: updated.founderId,
+        otherPartyName: rExpertName,
+        sessionType: updated.sessionType,
+        oldTime: oldStartTime,
+        newTime: newStart,
+        timezone: updated.timezone,
+      }).catch(() => {});
 
       return NextResponse.json(updated);
     }
