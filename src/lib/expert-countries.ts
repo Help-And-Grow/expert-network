@@ -41,7 +41,7 @@ const COUNTRY_LIST: CountryOption[] = [
   { code: "MO", name: "Macao SAR", nameZh: "中国澳门", searchTerms: ["macao", "macau", "澳门"] },
   { code: "JP", name: "Japan", nameZh: "日本", searchTerms: ["japan", "日本", "jp"] },
   { code: "KR", name: "South Korea", nameZh: "韩国", searchTerms: ["korea", "south korea", "韩国", "kr"] },
-  { code: "IN", name: "India", nameZh: "印度", searchTerms: ["india", "印度", "in"] },
+  { code: "IN", name: "India", nameZh: "印度", searchTerms: ["india", "印度"] },
   { code: "AU", name: "Australia", nameZh: "澳大利亚", searchTerms: ["australia", "澳大利亚", "澳洲", "au"] },
   { code: "NZ", name: "New Zealand", nameZh: "新西兰", searchTerms: ["new zealand", "新西兰", "纽西兰", "nz"] },
   { code: "US", name: "United States", nameZh: "美国", searchTerms: ["united states", "usa", "us", "america", "美国"] },
@@ -134,6 +134,38 @@ export function detectCountriesInQuery(query: string): string[] {
           break;
         }
       } else if (lower.includes(term)) {
+        hits.add(country.code);
+        break;
+      }
+    }
+  }
+  return Array.from(hits);
+}
+
+/**
+ * Return the country codes when the entire query is just a country/region
+ * name or code, allowing light punctuation around it. This lets the match
+ * flow treat "Japan" as a fresh country search even if the UI still sends
+ * earlier chat history.
+ */
+export function detectStandaloneCountriesInQuery(query: string): string[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const hits = new Set<string>();
+  for (const country of COUNTRY_LIST) {
+    for (const term of country.searchTerms) {
+      const isAscii = /^[a-z0-9 .-]+$/.test(term);
+      if (isAscii) {
+        const re = new RegExp(
+          `^[\\s"'“”‘’()\\[\\]{}.,!?;:，。！？；：-]*${escapeRegex(term)}[\\s"'“”‘’()\\[\\]{}.,!?;:，。！？；：-]*$`,
+          "i",
+        );
+        if (re.test(normalized)) {
+          hits.add(country.code);
+          break;
+        }
+      } else if (normalized === term) {
         hits.add(country.code);
         break;
       }

@@ -9,6 +9,7 @@ import { resolveAIProvider } from "@/lib/ai";
 import type { NormalizedQuery } from "@/lib/ai";
 import {
   detectCountriesInQuery,
+  detectStandaloneCountriesInQuery,
   normalizeCountryCodes,
 } from "@/lib/expert-countries";
 import {
@@ -469,12 +470,15 @@ export async function POST(request: NextRequest) {
     // Step 2a: country-first recall. If the inquiry mentions a country/region
     // we recognise (e.g. "BD expert in Singapore"), build an allowlist of
     // expert ids tagged with that country and pass it to the semantic rank
-    // step below. We only do this on the first turn (history empty) — once
-    // a conversation is going, country context already lives in the chat
-    // history and the LLM ranker reuses it. If no expert claims the country
+    // step below. Full country detection runs on the first turn; later turns
+    // only override history when the current message is a standalone country
+    // input like "Japan" or "New Zealand". If no expert claims the country
     // yet, we silently fall back to the global pool so the user sees
     // *something* rather than an empty page.
-    const detectedCountries = history.length === 0 ? detectCountriesInQuery(query) : [];
+    const detectedCountries =
+      history.length === 0
+        ? detectCountriesInQuery(query)
+        : detectStandaloneCountriesInQuery(query);
     let countryAllowlistIds: string[] | null = null;
     if (detectedCountries.length > 0) {
       const allCandidates = await prisma.expert.findMany({
