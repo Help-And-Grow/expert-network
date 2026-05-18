@@ -422,6 +422,9 @@ export async function POST(request: NextRequest) {
             typeof m.content === "string",
         )
       : [];
+    const standaloneCountries =
+      history.length > 0 ? detectStandaloneCountriesInQuery(query) : [];
+    const effectiveHistory = standaloneCountries.length > 0 ? [] : history;
 
     // Region-aware provider: WeChat-originated traffic uses the WECHAT_AI_PROVIDER
     // (default Qwen) so inference stays inside the GFW; everything else uses the
@@ -476,9 +479,11 @@ export async function POST(request: NextRequest) {
     // yet, we silently fall back to the global pool so the user sees
     // *something* rather than an empty page.
     const detectedCountries =
-      history.length === 0
-        ? detectCountriesInQuery(query)
-        : detectStandaloneCountriesInQuery(query);
+      standaloneCountries.length > 0
+        ? standaloneCountries
+        : history.length === 0
+          ? detectCountriesInQuery(query)
+          : detectStandaloneCountriesInQuery(query);
     let countryAllowlistIds: string[] | null = null;
     if (detectedCountries.length > 0) {
       const allCandidates = await prisma.expert.findMany({
@@ -567,6 +572,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (standaloneCountries.length > 0 && countryAllowlistIds) {
+      const present = new Set(experts.map((e) => e.id));
+      const missingIds = countryAllowlistIds.filter((id) => !present.has(id));
+      if (missingIds.length > 0) {
+        const missing = await prisma.expert.findMany({
+          where: { ...baseWhere, id: { in: missingIds } },
+          include: {
+            user: { select: { nickName: true, name: true } },
+          },
+        });
+        const sortedMissing = [...missing].sort(
+          (a, b) =>
+            b.reviewCount - a.reviewCount ||
+            (b.avgRating ?? 0) - (a.avgRating ?? 0),
+        );
+        experts = [...experts, ...sortedMissing];
+      }
+    }
+
     console.log(
       "[experts/match] candidate pool:",
       JSON.stringify({
@@ -586,7 +610,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (semanticRank.source === "vector" && history.length === 0) {
+    if (standaloneCountries.length > 0 && semanticRank.source !== "vector") {
+      const top = [...experts]
+        .sort(
+          (a, b) =>
+            b.reviewCount - a.reviewCount ||
+            (b.avgRating ?? 0) - (a.avgRating ?? 0),
+        )
+        .slice(0, 3);
+      return NextResponse.json({
+        recommendations: top.map((expert) => ({
+          expertId: expert.id,
+          name: expert.user.nickName ?? expert.user.name ?? "Unknown",
+          summary: buildExpertSummary(expert),
+          reason: buildDeterministicExpertMatchReason(expert, query),
+          sessionTypes: [expert.sessionType],
+        })),
+      });
+    }
+
+    if (semanticRank.source === "vector" && effectiveHistory.length === 0) {
       console.log(
         "[experts/match] vector fast response:",
         JSON.stringify({ elapsedMs: Date.now() - startedAt }),
@@ -650,7 +693,7 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await Promise.race([
-        ai.matchExperts(query, expertSummaries, history, nq),
+        ai.matchExperts(query, expertSummaries, effectiveHistory, nq),
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error("[experts/match] LLM timed out after 20 s")),
