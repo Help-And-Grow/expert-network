@@ -26,6 +26,15 @@ export async function rankExpertsBySemanticRelevance(
     region?: ExpertSearchRegion;
     limit?: number;
     excludeUserId?: string;
+    /**
+     * Pre-filter the candidate pool to this allowlist of Expert.id values
+     * BEFORE pgvector ranks them. Used by the country-aware match flow:
+     * if the inquiry mentions "Singapore", the caller fetches all expert
+     * ids tagged SG and passes them here, so the vector search returns
+     * the best SG-tagged semantic matches rather than the globally best
+     * matches (which might not be SG-tagged at all).
+     */
+    expertIdAllowlist?: string[];
   } = {},
 ): Promise<SemanticRankResult> {
   if (!(await isExpertSearchVectorPrerankEnabled())) {
@@ -62,6 +71,24 @@ export async function rankExpertsBySemanticRelevance(
   const region = options.region ?? "global";
   const limit = Math.min(Math.max(options.limit ?? 10, 1), 30);
 
+  // Optional pre-filter to a specific allowlist. NULL when the caller
+  // doesn't need country/region narrowing — the SQL short-circuits the
+  // ANY check in that case.
+  const allowlist =
+    options.expertIdAllowlist && options.expertIdAllowlist.length > 0
+      ? options.expertIdAllowlist
+      : null;
+  if (allowlist && allowlist.length === 0) {
+    // Defensive: caller signalled "narrow to nothing" — return empty so the
+    // caller can fall back rather than firing a query that returns global
+    // results.
+    return {
+      expertIds: [],
+      source: "fallback",
+      reason: "allowlist empty",
+    };
+  }
+
   try {
     const ranked = await p.query<{ expert_id: string }>(
       `SELECT expert_id
@@ -80,6 +107,10 @@ export async function rankExpertsBySemanticRelevance(
              SELECT id FROM "Expert" WHERE "userId" = $3
            )
          )
+         AND (
+           $5::text[] IS NULL
+           OR expert_id = ANY($5::text[])
+         )
        ORDER BY embedding <=> $1::vector
        LIMIT $4`,
       [
@@ -87,6 +118,7 @@ export async function rankExpertsBySemanticRelevance(
         region,
         options.excludeUserId ?? null,
         limit,
+        allowlist,
       ],
     );
 
@@ -94,7 +126,9 @@ export async function rankExpertsBySemanticRelevance(
       return {
         expertIds: [],
         source: "fallback",
-        reason: "no vector candidates",
+        reason: allowlist
+          ? "no vector candidates within allowlist"
+          : "no vector candidates",
       };
     }
 

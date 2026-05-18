@@ -453,25 +453,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 2: Fetch expert pool. Semantic vector pre-rank is opt-in via
-    // EXPERT_SEARCH_VECTOR_PRERANK; otherwise this stays on the legacy pool.
-    const region = resolveExpertSearchRegion(request);
-    const semanticRank = await rankExpertsBySemanticRelevance(
-      nq.english || query,
-      {
-        region,
-        limit: semanticEnabled ? 4 : 10,
-        excludeUserId: viewerUserId ?? undefined,
-      },
-    ).catch((err) => {
-      console.warn("[experts/match] semantic pre-rank failed:", err);
-      return {
-        expertIds: [],
-        source: "fallback" as const,
-        reason: "semantic pre-rank threw",
-      };
-    });
-
     // Defense-in-depth: WeChat traffic sees only FREE + ONLINE-capable experts.
     // See src/app/api/v1/experts/route.ts for the FREE + online-only rationale.
     const baseWhere = {
@@ -484,38 +465,83 @@ export async function POST(request: NextRequest) {
           }
         : {}),
     };
+
+    // Step 2a: country-first recall. If the inquiry mentions a country/region
+    // we recognise (e.g. "BD expert in Singapore"), build an allowlist of
+    // expert ids tagged with that country and pass it to the semantic rank
+    // step below. We only do this on the first turn (history empty) — once
+    // a conversation is going, country context already lives in the chat
+    // history and the LLM ranker reuses it. If no expert claims the country
+    // yet, we silently fall back to the global pool so the user sees
+    // *something* rather than an empty page.
+    const detectedCountries = history.length === 0 ? detectCountriesInQuery(query) : [];
+    let countryAllowlistIds: string[] | null = null;
+    if (detectedCountries.length > 0) {
+      const allCandidates = await prisma.expert.findMany({
+        where: baseWhere,
+        select: { id: true, countries: true },
+      });
+      const matching = allCandidates.filter((e) => {
+        const codes = normalizeCountryCodes(e.countries);
+        return codes.some((c) => detectedCountries.includes(c));
+      });
+      if (matching.length > 0) {
+        countryAllowlistIds = matching.map((e) => e.id);
+        console.log(
+          "[experts/match] country allowlist:",
+          JSON.stringify({
+            detectedCountries,
+            allowlistSize: countryAllowlistIds.length,
+          }),
+        );
+      } else {
+        console.log(
+          "[experts/match] country detected but no expert claims it; falling back to global pool:",
+          JSON.stringify({ detectedCountries }),
+        );
+      }
+    }
+
+    // Step 2b: semantic vector pre-rank within the (optionally) country-
+    // narrowed pool. Opt-in via EXPERT_SEARCH_VECTOR_PRERANK; otherwise this
+    // is a no-op and we fall back to legacy keyword scoring.
+    const region = resolveExpertSearchRegion(request);
+    const semanticRank = await rankExpertsBySemanticRelevance(
+      nq.english || query,
+      {
+        region,
+        limit: semanticEnabled ? 4 : 10,
+        excludeUserId: viewerUserId ?? undefined,
+        expertIdAllowlist: countryAllowlistIds ?? undefined,
+      },
+    ).catch((err) => {
+      console.warn("[experts/match] semantic pre-rank failed:", err);
+      return {
+        expertIds: [],
+        source: "fallback" as const,
+        reason: "semantic pre-rank threw",
+      };
+    });
+
     let experts = await prisma.expert.findMany({
       where: {
         ...baseWhere,
+        // 1st preference: the semantic vector subset (already country-
+        // narrowed via the allowlist passed above).
+        // 2nd preference: when semantic rank is unavailable AND we have a
+        // country allowlist, restrict by country directly (keyword fallback
+        // path still needs to honour the country signal).
+        // Otherwise: full pool (legacy behaviour).
         ...(semanticRank.source === "vector"
           ? { id: { in: semanticRank.expertIds } }
-          : {}),
+          : countryAllowlistIds
+            ? { id: { in: countryAllowlistIds } }
+            : {}),
       },
       include: {
         user: { select: { nickName: true, name: true } },
       },
     });
-
-    // First-round country bias: if the inquiry mentions a country/region we
-    // recognise, pre-filter the candidate pool to experts who marked that
-    // country as a focus. We only do this on the first turn (history empty)
-    // and only when the filter leaves at least one expert in the pool —
-    // otherwise we'd return "no match" for any user who asks broadly about
-    // a country no published expert claims yet.
-    const detectedCountries = history.length === 0 ? detectCountriesInQuery(query) : [];
-    if (detectedCountries.length > 0) {
-      const filtered = experts.filter((e) => {
-        const codes = normalizeCountryCodes(e.countries);
-        return codes.some((c) => detectedCountries.includes(c));
-      });
-      if (filtered.length > 0) {
-        experts = filtered;
-        console.log(
-          "[experts/match] country filter applied:",
-          JSON.stringify({ detectedCountries, candidates: experts.length }),
-        );
-      }
-    }
 
     if (semanticRank.source === "vector") {
       const order = new Map(
