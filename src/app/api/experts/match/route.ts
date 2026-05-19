@@ -422,8 +422,14 @@ export async function POST(request: NextRequest) {
             typeof m.content === "string",
         )
       : [];
-    const standaloneCountries =
-      history.length > 0 ? detectStandaloneCountriesInQuery(query) : [];
+    // Detect standalone country queries (e.g. "Japan", "New Zealand") on every
+    // turn — not just when history is populated. The downstream missing-fill
+    // block (search for `standaloneCountries.length > 0 && countryAllowlistIds`)
+    // is what surfaces country-tagged experts that pgvector misses (e.g. those
+    // without a generated embedding yet). Gating that on `history.length > 0`
+    // meant the very first message "Japan" silently dropped any expert without
+    // an embedding row.
+    const standaloneCountries = detectStandaloneCountriesInQuery(query);
     const effectiveHistory = standaloneCountries.length > 0 ? [] : history;
 
     // Region-aware provider: WeChat-originated traffic uses the WECHAT_AI_PROVIDER
