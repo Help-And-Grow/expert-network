@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAdmin, isErrorResponse } from "@/lib/admin-auth";
+import {
+  countryFlagEmoji,
+  getCountryOption,
+  normalizeCountryCodes,
+} from "@/lib/expert-countries";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +14,24 @@ function formatMoney(cents: number | null | undefined, currency: string): string
   if (cents == null) return "";
   const val = (cents / 100).toFixed(2);
   return `${currency} ${val}`;
+}
+
+/**
+ * Render the expert's stored country codes as a flag-prefixed English list,
+ * e.g. `🇸🇬 Singapore, 🇲🇾 Malaysia`. Falls back to the bare code when an
+ * unknown value sneaks in (kept lenient so a stale row never blows up the
+ * admin export). Empty array → empty string.
+ */
+function formatCountries(raw: unknown): string {
+  const codes = normalizeCountryCodes(raw);
+  if (codes.length === 0) return "";
+  return codes
+    .map((code) => {
+      const option = getCountryOption(code);
+      const flag = countryFlagEmoji(code);
+      return option ? `${flag} ${option.name}`.trim() : code;
+    })
+    .join(", ");
 }
 
 function escapeHtml(value: string): string {
@@ -24,6 +47,7 @@ type Row = {
   profileName: string;
   email: string;
   telegramName: string;
+  countries: string;
   inviteCode: string;
   onlineFee: string;
   offlineFee: string;
@@ -33,56 +57,46 @@ function markdownEscapeCell(value: string): string {
   return value.replaceAll("|", "\\|").replaceAll("\n", " ");
 }
 
-function toMarkdownTable(rows: Row[]): string {
-  const header = [
-    "Profile Name",
-    "Email",
-    "Telegram Name",
-    "Invitation Code",
-    "Online Fee",
-    "Offline Fee",
+const HEADER_CELLS = [
+  "Profile Name",
+  "Email",
+  "Telegram Name",
+  "Country / Region",
+  "Invitation Code",
+  "Online Fee",
+  "Offline Fee",
+] as const;
+
+function rowCells(row: Row): string[] {
+  return [
+    row.profileName,
+    row.email,
+    row.telegramName,
+    row.countries,
+    row.inviteCode,
+    row.onlineFee,
+    row.offlineFee,
   ];
+}
+
+function toMarkdownTable(rows: Row[]): string {
   const lines: string[] = [];
-  lines.push(`| ${header.join(" | ")} |`);
-  lines.push(`| ${header.map(() => "---").join(" | ")} |`);
+  lines.push(`| ${HEADER_CELLS.join(" | ")} |`);
+  lines.push(`| ${HEADER_CELLS.map(() => "---").join(" | ")} |`);
   for (const row of rows) {
     lines.push(
-      `| ${[
-        row.profileName,
-        row.email,
-        row.telegramName,
-        row.inviteCode,
-        row.onlineFee,
-        row.offlineFee,
-      ]
-        .map((cell) => markdownEscapeCell(cell))
-        .join(" | ")} |`,
+      `| ${rowCells(row).map(markdownEscapeCell).join(" | ")} |`,
     );
   }
   return lines.join("\n");
 }
 
 function toHtmlTable(rows: Row[]): string {
-  const headCells = [
-    "Profile Name",
-    "Email",
-    "Telegram Name",
-    "Invitation Code",
-    "Online Fee",
-    "Offline Fee",
-  ];
-  const thead = `<thead><tr>${headCells.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>`;
+  const thead = `<thead><tr>${HEADER_CELLS.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${rows
     .map(
       (row) =>
-        `<tr>${[
-          row.profileName,
-          row.email,
-          row.telegramName,
-          row.inviteCode,
-          row.onlineFee,
-          row.offlineFee,
-        ]
+        `<tr>${rowCells(row)
           .map((cell) => `<td>${escapeHtml(cell)}</td>`)
           .join("")}</tr>`,
     )
@@ -103,6 +117,7 @@ export async function GET(request: NextRequest) {
       priceOnlineCents: true,
       priceOfflineCents: true,
       currency: true,
+      countries: true,
       user: {
         select: {
           name: true,
@@ -123,10 +138,19 @@ export async function GET(request: NextRequest) {
     const profileName = expert.user.nickName?.trim() || expert.user.name?.trim() || "";
     const email = expert.user.email?.trim() || "";
     const telegramName = expert.user.telegramUsername?.trim() || "";
+    const countries = formatCountries(expert.countries);
     const inviteCode = expert.user.inviteCode?.trim() || "";
     const onlineFee = formatMoney(expert.priceOnlineCents, expert.currency);
     const offlineFee = formatMoney(expert.priceOfflineCents, expert.currency);
-    return { profileName, email, telegramName, inviteCode, onlineFee, offlineFee };
+    return {
+      profileName,
+      email,
+      telegramName,
+      countries,
+      inviteCode,
+      onlineFee,
+      offlineFee,
+    };
   });
 
   if (format === "md" || format === "markdown") {
