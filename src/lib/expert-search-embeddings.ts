@@ -80,6 +80,7 @@ export async function embedExpertProfile(
       instagram: true,
       xiaohongshu: true,
       documentName: true,
+      countries: true,
       isPublished: true,
       user: { select: { nickName: true, name: true } },
     },

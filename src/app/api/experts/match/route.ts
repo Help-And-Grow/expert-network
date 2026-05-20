@@ -487,9 +487,7 @@ export async function POST(request: NextRequest) {
     const detectedCountries =
       standaloneCountries.length > 0
         ? standaloneCountries
-        : history.length === 0
-          ? detectCountriesInQuery(query)
-          : detectStandaloneCountriesInQuery(query);
+        : detectCountriesInQuery(query);
     let countryAllowlistIds: string[] | null = null;
     if (detectedCountries.length > 0) {
       const allCandidates = await prisma.expert.findMany({

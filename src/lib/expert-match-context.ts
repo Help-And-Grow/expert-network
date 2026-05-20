@@ -23,6 +23,10 @@
  */
 
 import {
+  getCountryOption,
+  normalizeCountryCodes,
+} from "@/lib/expert-countries";
+import {
   buildExpertFocusLabel,
   stringifyServicesOffered,
 } from "@/lib/expert-topics";
@@ -31,6 +35,7 @@ export interface ExpertMatchContext {
   id: string;
   bio: string | null;
   avatarScript: string | null;
+  countries?: unknown;
   gender?: string | null;
   sessionType: string;
   servicesOffered: unknown;
@@ -82,6 +87,17 @@ export function buildLLMExpertContext(
   );
   lines.push(`Session types: ${expert.sessionType}`);
 
+  const countryCodes = normalizeCountryCodes(expert.countries);
+  if (countryCodes.length > 0) {
+    const labels = countryCodes
+      .map((c) => {
+        const opt = getCountryOption(c);
+        return opt ? `${opt.name} (${c}) ${opt.nameZh}` : c;
+      })
+      .join(", ");
+    lines.push(`Countries: ${labels}`);
+  }
+
   const bio = expert.bio?.trim();
   // Bio is plain text from the expert, often the most direct expertise signal.
   // Clamp generously (600 chars) — most bios are 2-3 sentences anyway.
@@ -129,6 +145,17 @@ export function buildExpertEmbeddingText(
   const name = expert.user.nickName ?? expert.user.name ?? "Unknown expert";
   const focus = buildExpertFocusLabel(expert) ?? "general professional support";
   const lines: string[] = [`${name} - ${focus}.`];
+
+  const countryCodes = normalizeCountryCodes(expert.countries);
+  if (countryCodes.length > 0) {
+    const labels = countryCodes
+      .map((c) => {
+        const opt = getCountryOption(c);
+        return opt ? `${opt.name} (${c}) ${opt.nameZh}` : c;
+      })
+      .join(", ");
+    lines.push(`Countries: ${labels}.`);
+  }
 
   const bio = expert.bio?.trim();
   if (bio) lines.push(clamp(bio, 600));
