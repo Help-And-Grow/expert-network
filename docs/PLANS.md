@@ -12,7 +12,7 @@
 ## Upcoming Work
 
 - [x] **Next.js 15 upgrade** — [completed plan](exec-plans/completed/nextjs-15-upgrade.md) (run manual QA on preview before prod)
-- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 5-reply free cap) + realtime AI chat; Web, Telegram, WeChat
+- [x] **AI Voice Chat** — Feature-toggled (`VOICE_CHAT_MODE`): async voice messaging (default, 3-reply free cap) + realtime AI chat; Web, Telegram, WeChat
 - [ ] **AI Voice Chat — Realtime deployment** — Realtime readiness depends on DashScope/Qwen (`DASHSCOPE_API_KEY`); verify the timed chat UX on web and Telegram when `VOICE_CHAT_MODE` includes `realtime`
 - [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
 - [x] **Web/Telegram DB cutover from Supabase to Google Cloud SQL** — completed 2026-05-03; archived [migration record](exec-plans/archive/supabase-to-cloudsql-migration.md)
@@ -51,6 +51,6 @@
 | 2026-03 | Use Qwen as primary AI in production | Better Chinese language support for SEA market |
 | 2026-03 | Remove WhatsApp integration | Low adoption, maintenance burden |
 | 2026-03 | Stripe Express Connect for experts | Simplest marketplace payout model |
-| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async, realtime, or both; public voice stack is DashScope/Qwen with a 5-reply async cap |
+| 2026-04 | AI voice chat with feature toggle | `VOICE_CHAT_MODE`: async, realtime, or both; public voice stack is DashScope/Qwen with a 3-reply async cap |
 
 See [docs/exec-plans/](exec-plans/) for detailed execution plans.

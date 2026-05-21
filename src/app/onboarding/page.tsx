@@ -37,7 +37,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { VoiceInputButton } from "@/components/voice-input-button";
 import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import {
   SOCIAL_PLATFORMS,
@@ -1168,10 +1167,6 @@ export default function OnboardingPage() {
                 if (e.key === "Enter") handleNicknameSubmit(inputValue);
               }}
             />
-            <VoiceInputButton
-              onTranscript={(text) => setInputValue(text)}
-              className="min-h-[44px] min-w-[44px]"
-            />
             <Button
               onClick={() => handleNicknameSubmit(inputValue)}
               disabled={!inputValue.trim()}
@@ -1302,10 +1297,6 @@ export default function OnboardingPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSocialSubmit(inputValue);
                 }}
-              />
-              <VoiceInputButton
-                onTranscript={(text) => setInputValue(text)}
-                className="min-h-[44px] min-w-[44px]"
               />
               <Button
                 onClick={() => handleSocialSubmit(inputValue)}

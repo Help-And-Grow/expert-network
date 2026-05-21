@@ -86,7 +86,7 @@ export function VoiceChatModal({
   const [sending, setSending] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [maxDuration, setMaxDuration] = useState(180);
-  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 5 });
+  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 3 });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [deviceVoiceSupported, setDeviceVoiceSupported] = useState(false);

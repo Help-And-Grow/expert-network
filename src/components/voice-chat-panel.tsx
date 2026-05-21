@@ -119,7 +119,7 @@ export function VoiceChatPanel({
   const [elapsed, setElapsed] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [textInput, setTextInput] = useState("");
-  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 10 });
+  const [turnInfo, setTurnInfo] = useState({ count: 0, max: 3 });
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [showStarters, setShowStarters] = useState(true);

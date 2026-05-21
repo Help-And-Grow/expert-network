@@ -18,7 +18,7 @@ Quality grades per domain and layer. Updated periodically to track improvement.
 | Payments (TON) | C | Works but manual confirmation, no refund flow | 2026-03 |
 | Payments (WeChat Pay) | C | Implemented (incl. service-provider mode) but not yet routinely tested in production | 2026-03 |
 | AI Matching | B | Multi-provider with keyword fallback | 2026-03 |
-| Voice Chat (async) | B | DashScope/Qwen, 5-reply free cap, rate-limited; web autoplay greeting with device-speech fallback | 2026-04 |
+| Voice Chat (async) | B | DashScope/Qwen, 3-reply free cap, rate-limited; web autoplay greeting with device-speech fallback | 2026-04 |
 | Voice Chat (realtime) | C | Timed 3-min cap; readiness depends on `DASHSCOPE_API_KEY`; UX still settling on web/Telegram | 2026-04 |
 | Premium Live (TRTC) | C | Token issuance + H&G token debit shipped; needs production rehearsal | 2026-04 |
 | Appreciations (`Review`) | B | Two-way with coach follow-up | 2026-03 |

@@ -7,7 +7,7 @@ import { transcribeDashScopeAsr } from "@/lib/dashscope-asr";
 import OpenAI from "openai";
 import { QwenTTSProvider, defaultQwenTtsVoiceId } from "@/lib/integrations/qwen-tts";
 
-export const MAX_TURNS = 5;
+export const MAX_TURNS = 3;
 const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 const QWEN_VOICE_CHAT_MODEL = getQwenTextModel();
 const VOICE_SYNTHESIS_TIMEOUT_MS = 12_000;

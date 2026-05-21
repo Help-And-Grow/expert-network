@@ -88,7 +88,7 @@ A few patterns that are uncommon in tutorial-grade examples:
 - **One auth function, three platforms.** [`src/lib/request-auth.ts`](../src/lib/request-auth.ts) → `resolveUserId(request)` accepts a NextAuth cookie, a Telegram `initData` HMAC, or a WeChat `x-wechat-token` JWT and returns a unified user id. Every API route uses it.
 - **Hybrid expert memory.** Long-term memory is stored either in hosted mem9 or local pgvector (or both) — toggle via `MEMORY_BACKEND`. The vector embeddings are written alongside the natural-language source so the agent can cite specific source snippets.
 - **On-chain reputation that doesn't get in the way.** Completed bookings auto-issue EAS attestations on Base (one per role — expert + player); the `/reputation` page aggregates them and shows EASScan links. See [`src/lib/pomp-credential.ts`](../src/lib/pomp-credential.ts) and the `POMPCredential` model in [`prisma/schema.prisma`](../prisma/schema.prisma).
-- **Real-time voice (two modes).** Async messaging (5-reply free cap) and timed live chat (3-min cap), both Qwen-backed. See [`src/lib/voice-chat-session.ts`](../src/lib/voice-chat-session.ts).
+- **Real-time voice (two modes).** Async messaging (3-reply free cap) and timed live chat (3-min cap), both Qwen-backed. See [`src/lib/voice-chat-session.ts`](../src/lib/voice-chat-session.ts).
 - **Single codebase, multi-cloud deploys.** Same `main` ships to Vercel/GCP overseas and IGA Pages/Volcengine for CN; the only difference is env vars at the deploy target.
 
 Pick whichever of these sounds most interesting and dig into the linked files first.

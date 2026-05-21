@@ -31,7 +31,7 @@ A monorepo around one Next.js API layer that serves three clients plus on-chain 
 - **Database:** PostgreSQL only · Prisma 7 with `@prisma/adapter-pg` · optional `pgvector` for expert memory
 - **Auth:** Auth.js v5 (`next-auth ^5.0.0-beta.30`) — Google OAuth + Nodemailer magic link · Telegram initData HMAC · WeChat `code2session` JWT — unified by [`src/lib/request-auth.ts`](src/lib/request-auth.ts)
 - **AI:** Pluggable providers via `AI_PROVIDER` (default `qwen`): DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex Model Garden), BytePlus ModelArk, Volcengine ModelArk, Tencent Hunyuan. Memory backend (`MEMORY_BACKEND`): `mem9 | pgvector | hybrid`.
-- **Voice:** Async voice chat (5-reply free cap) and realtime AI chat (3-min cap), both DashScope/Qwen-backed (`VOICE_CHAT_MODE=async|realtime|both`)
+- **Voice:** Async voice chat (3-reply free cap) and realtime AI chat (3-min cap), both DashScope/Qwen-backed (`VOICE_CHAT_MODE=async|realtime|both`)
 - **Realtime media:** Tencent TRTC for premium live consultation
 - **Payments:** Stripe Connect (Express) · PayNow (SG, primary web) · TON · WeChat Pay (JSAPI + service-provider mode) · free flow for zero-priced experts
 - **On-chain:** Base mainnet/Sepolia · POMP (Proof of Meet Protocol) via EAS attestations · `HelpGrowToken` ERC-20 (1:1 SGD earn, 100:1 SGD redeem) · `viem` + `wagmi`
