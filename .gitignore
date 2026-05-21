@@ -74,3 +74,12 @@ expert-network.code-workspace
 # Belt-and-suspenders: block re-adding the file that triggered the
 # 2026-05-11 history rewrite (see backup/pre-secret-cleanup-20260511).
 wechat/helpandgrow_data.sql
+
+# Local agent / tooling state (never commit)
+.agents/
+.claude/
+.iga/
+skills-lock.json
+
+# WeChat mini program build output
+wechat/dist-intl/
