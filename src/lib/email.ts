@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 import { env } from "@/lib/env";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
@@ -8,6 +9,29 @@ function getResend(): Resend | null {
   if (!env.RESEND_API_KEY) return null;
   if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
   return _resend;
+}
+
+let _transporter: nodemailer.Transporter | null = null;
+function getNodemailerTransporter(): nodemailer.Transporter | null {
+  if (
+    !env.EMAIL_SERVER_HOST ||
+    !env.EMAIL_SERVER_PORT ||
+    !env.EMAIL_SERVER_USER ||
+    !env.EMAIL_SERVER_PASSWORD
+  ) {
+    return null;
+  }
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: env.EMAIL_SERVER_HOST,
+      port: Number(env.EMAIL_SERVER_PORT),
+      auth: {
+        user: env.EMAIL_SERVER_USER,
+        pass: env.EMAIL_SERVER_PASSWORD,
+      },
+    });
+  }
+  return _transporter;
 }
 
 /**
@@ -140,8 +164,10 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
  */
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
   const resend = getResend();
-  if (!resend) {
-    console.warn("[email] RESEND_API_KEY not set, skipping emails");
+  const transporter = getNodemailerTransporter();
+
+  if (!resend && !transporter) {
+    console.warn("[email] Neither RESEND_API_KEY nor SMTP credentials configured, skipping emails");
     return;
   }
 
@@ -154,38 +180,56 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
     return;
   }
 
-  const confirmationPromises = recipients.map((r) =>
-    resend.emails
-      .send({
-        from: FROM_EMAIL,
-        to: r.email,
-        subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
-        html: confirmationHtml(params, r.role),
-      })
-      .catch((err) => console.error(`[email] Failed to send confirmation to ${r.email}:`, err))
-  );
+  if (resend) {
+    const confirmationPromises = recipients.map((r) =>
+      resend.emails
+        .send({
+          from: FROM_EMAIL,
+          to: r.email,
+          subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
+          html: confirmationHtml(params, r.role),
+        })
+        .catch((err) => console.error(`[email] Failed to send Resend confirmation to ${r.email}:`, err))
+    );
 
-  const reminderTime = new Date(params.startTime.getTime() - 60 * 60 * 1000);
-  const shouldScheduleReminder = reminderTime > new Date();
+    const reminderTime = new Date(params.startTime.getTime() - 60 * 60 * 1000);
+    const shouldScheduleReminder = reminderTime > new Date();
 
-  const reminderPromises = shouldScheduleReminder
-    ? recipients.map((r) =>
-        resend.emails
-          .send({
-            from: FROM_EMAIL,
-            to: r.email,
-            subject: `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
-            html: reminderHtml(params, r.role),
-            scheduledAt: reminderTime.toISOString(),
-          })
-          .catch((err) => console.error(`[email] Failed to schedule reminder for ${r.email}:`, err))
-      )
-    : [];
+    const reminderPromises = shouldScheduleReminder
+      ? recipients.map((r) =>
+          resend.emails
+            .send({
+              from: FROM_EMAIL,
+              to: r.email,
+              subject: `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
+              html: reminderHtml(params, r.role),
+              scheduledAt: reminderTime.toISOString(),
+            })
+            .catch((err) => console.error(`[email] Failed to schedule Resend reminder for ${r.email}:`, err))
+        )
+      : [];
 
-  await Promise.all([...confirmationPromises, ...reminderPromises]);
+    await Promise.all([...confirmationPromises, ...reminderPromises]);
 
-  console.log(
-    `[email] Sent ${confirmationPromises.length} confirmations` +
-      (shouldScheduleReminder ? `, scheduled ${reminderPromises.length} reminders for ${reminderTime.toISOString()}` : "")
-  );
+    console.log(
+      `[email] Sent ${confirmationPromises.length} Resend confirmations` +
+        (shouldScheduleReminder ? `, scheduled ${reminderPromises.length} reminders for ${reminderTime.toISOString()}` : "")
+    );
+  } else if (transporter) {
+    const fromAddress = env.EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? FROM_EMAIL;
+    const confirmationPromises = recipients.map((r) =>
+      transporter
+        .sendMail({
+          from: fromAddress,
+          to: r.email,
+          subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
+          html: confirmationHtml(params, r.role),
+        })
+        .catch((err) => console.error(`[email] Failed to send Nodemailer SMTP confirmation to ${r.email}:`, err))
+    );
+
+    await Promise.all(confirmationPromises);
+    console.log(`[email] Sent ${confirmationPromises.length} SMTP confirmations via nodemailer`);
+    console.warn("[email] Scheduled reminders are not supported when using SMTP fallback (requires Resend)");
+  }
 }
