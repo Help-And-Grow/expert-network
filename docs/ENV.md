@@ -87,8 +87,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 | `WECHAT_AI_PROVIDER` | *(deprecated, boot-time fallback only)* Primary provider for WeChat-originated requests. Default `hunyuan`. The source of truth is now the `ProviderRoutingScope` rows seeded with `wechat-intl` / `wechat-cn` scope keys — edit via `/admin/providers`. This env stays honoured for cold starts before the routing-scope table is reachable. |
 | `VENDOR_ALIBABACLOUD_DEMO` | Local mimic of the AlibabaCloud showcase deployment |
 | **Qwen / DashScope** *(primary for Web/Telegram)* | `DASHSCOPE_API_KEY`, `QWEN_TEXT_MODEL`, `QWEN_IMAGE_MODEL` |
-| **Gemini (Vertex)** *(fallback for Web/Telegram + always-on for search)* | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_SERVICE_ACCOUNT_KEY` (base64) |
-| **Gemini (AI Studio)** *(simpler dev-only auth)* | `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_TTS_MODEL`, `GEMINI_EMBEDDING_MODEL`, `GEMINI_IMAGE_VERTEX_LOCATION` |
+| **Gemini via Vertex AI** *(fallback for Web/Telegram + always-on for search)* | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_SERVICE_ACCOUNT_KEY` (base64), `GEMINI_TEXT_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_TTS_MODEL`, `GEMINI_EMBEDDING_MODEL`, `GEMINI_IMAGE_VERTEX_LOCATION` |
 | **Tencent Hunyuan** *(WeChat MP only)* | `HUNYUAN_API_KEY`, `HUNYUAN_TEXT_MODEL`, `HUNYUAN_IMAGE_MODEL` |
 | **OpenAI** *(image fallback only)* | `OPENAI_API_KEY`, `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL` |
 | **Z.ai** *(image fallback only)* | `ZAI_TEXT_MODEL`, `ZAI_VERTEX_LOCATION`, `ZAI_IMAGE_MODEL`, optional `ZAI_API_KEY` + `ZAI_BASE_URL` |
@@ -98,7 +97,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 **Required for production deploys:**
 - Web (Vercel): `DASHSCOPE_API_KEY` + Vertex creds (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`).
 - WeChat SCF (current Intl + future CN): `HUNYUAN_API_KEY` only — Qwen/Gemini are not on the WeChat path.
-- Search grounding works on every surface as long as Gemini credentials (Vertex *or* AI Studio) are present somewhere on that deploy.
+- Search grounding works on Web/Telegram when Vertex Gemini credentials are present on that deploy.
 
 ## Memory backend
 
@@ -106,7 +105,7 @@ Routing is **per-surface chain** rather than a single global provider — see [a
 |---|---|
 | `MEMORY_BACKEND` | `mem9 | pgvector | hybrid` (local default `pgvector`) |
 | `EMBEDDING_PROVIDER` | Embedding model provider (local default `ollama`) |
-| `USE_PGVECTOR_MEMORY` | Mirror expert memories to Postgres pgvector — requires `GEMINI_API_KEY` (or Vertex `GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`) for `gemini-embedding-001`. Pinned to 1536 dims to match `vector(1536)`. |
+| `USE_PGVECTOR_MEMORY` | Mirror expert memories to Postgres pgvector — requires Vertex Gemini credentials (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`) for `gemini-embedding-001`. Pinned to 1536 dims to match `vector(1536)`. |
 | `PGVECTOR_DATABASE_URL` | Override DB for pgvector (defaults to `DATABASE_URL`) |
 | `EXPERT_SEARCH_VECTOR_PRERANK` | Optional env fallback for semantic expert matching. Prefer the `EXPERT_SEARCH_VECTOR_PRERANK` SystemConfig toggle in `/admin/system-config`; default is `false` until `/api/admin/embeddings/backfill` reaches high coverage. |
 | `MEM9_ENABLED` | Set `1` to enable hosted mem9 lifecycle writes with per-expert key provisioning. |

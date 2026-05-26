@@ -46,7 +46,7 @@ function getDashscopeKeyIssue(): string | null {
 
 const aiProvider = (env.AI_PROVIDER || "gemini").trim().toLowerCase();
 const geminiVoiceReady = Boolean(
-  env.GOOGLE_CLOUD_PROJECT?.trim() || env.GEMINI_API_KEY?.trim(),
+  env.GOOGLE_CLOUD_PROJECT?.trim(),
 );
 const hasDash = Boolean(dashscopeKey) && !getDashscopeKeyIssue();
 
@@ -79,7 +79,7 @@ export function getVoiceSynthesisConfigIssue(): string | null {
   const dashscopeIssue = getDashscopeKeyIssue();
   if (dashscopeIssue) return dashscopeIssue;
   if (hasDash || geminiVoiceReady) return null;
-  return "Voice audio requires DASHSCOPE_API_KEY (Qwen TTS) or GEMINI_API_KEY (Gemini TTS).";
+  return "Voice audio requires DASHSCOPE_API_KEY (Qwen TTS) or Vertex Gemini credentials (GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY).";
 }
 
 export const integrations = {

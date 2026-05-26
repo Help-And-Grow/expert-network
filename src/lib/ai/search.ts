@@ -2,7 +2,7 @@
  * Surface-aware web-search grounding for profile auto-fill.
  *
  *   Web / Telegram surfaces  →  searchSocialProfilesWithGemini
- *                                (Google Search grounding via Gemini AI Studio / Vertex)
+ *                                (Google Search grounding via Gemini on Vertex AI)
  *   WeChat surfaces          →  searchSocialProfilesWithHunyuan
  *                                (Tencent Hunyuan with `enable_enhancement: true`,
  *                                 which fans out to Sogou web search internally)
@@ -40,7 +40,7 @@ let _geminiClient: ReturnType<typeof createGeminiClient> | null = null;
 
 function getGeminiClient() {
   if (_geminiClient) return _geminiClient;
-  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) return null;
+  if (!env.GOOGLE_CLOUD_PROJECT) return null;
   _geminiClient = createGeminiClient();
   return _geminiClient;
 }
@@ -50,7 +50,7 @@ export async function searchSocialProfilesWithGemini(
 ): Promise<string> {
   const gemini = getGeminiClient();
   if (!gemini) {
-    return "Google Search grounding unavailable (GEMINI_API_KEY / Vertex creds not set). Profile will be generated from the uploaded document only.";
+    return "Google Search grounding unavailable (Vertex AI project not set). Profile will be generated from the uploaded document only.";
   }
 
   const socialLinks = formatSocialLinks(data);
@@ -166,7 +166,7 @@ export async function extractPdfWithGemini(base64: string): Promise<string> {
   const gemini = getGeminiClient();
   if (!gemini) {
     throw new Error(
-      "Gemini access is required for PDF extraction. Set GEMINI_API_KEY or Vertex AI credentials (GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY).",
+      "Gemini access is required for PDF extraction. Set Vertex AI credentials (GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY).",
     );
   }
 

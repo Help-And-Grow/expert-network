@@ -32,7 +32,7 @@ Data blocks are intentionally separated. Each solves a different problem and can
 
 **Stance:** Postgres stays the production source of truth. pgvector remains the pragmatic semantic matching index until it becomes the bottleneck; Zilliz/Milvus is the future vector provider boundary, not an immediate rewrite. mem9 stays the product memory layer, modernized to hosted `v1alpha2` calls with `X-API-Key` and `X-Mnemo-Agent-Id`. DB9 is reserved for internal agent workspace pilots.
 
-**`USE_PGVECTOR_MEMORY=1`** enables (a) dual-write from lifecycle hooks into `expert_memory_embeddings`, (b) search-first-on-PG in `searchExpertMemories` (falls back to mem9), (c) a path toward reducing mem9 dependency. Requires Gemini embeddings via `GEMINI_API_KEY` or Vertex credentials (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`). Backfill historical mem9 text via `POST /api/admin/pgvector-backfill` (admin) only after dual-write is stable.
+**`USE_PGVECTOR_MEMORY=1`** enables (a) dual-write from lifecycle hooks into `expert_memory_embeddings`, (b) search-first-on-PG in `searchExpertMemories` (falls back to mem9), (c) a path toward reducing mem9 dependency. Requires Gemini embeddings via Vertex credentials (`GOOGLE_CLOUD_PROJECT` + `GOOGLE_SERVICE_ACCOUNT_KEY`). Backfill historical mem9 text via `POST /api/admin/pgvector-backfill` (admin) only after dual-write is stable.
 
 **References**: `src/lib/integrations/mem9.ts`, `mem9-lifecycle.ts`, `pgvector-memory.ts`, `mem9-pgvector-backfill.ts`, [`agent-memory-search-stack.md`](agent-memory-search-stack.md).
 

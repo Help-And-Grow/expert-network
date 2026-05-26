@@ -40,7 +40,7 @@ Auth.js v5 prefers `AUTH_SECRET`. The legacy `NEXTAUTH_SECRET` is still accepted
 | `STRIPE_SECRET_KEY` | Stripe API (live mode, `sk_live_*`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
 | `DASHSCOPE_API_KEY` | Qwen / DashScope (default AI provider, voice chat backend) |
-| `GEMINI_API_KEY` / `GOOGLE_SERVICE_ACCOUNT_KEY` | Gemini via AI Studio or Vertex |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Gemini via Vertex AI |
 | `OPENAI_API_KEY`, `ZAI_API_KEY`, `BYTEPLUS_API_KEY`, `VOLCENGINE_API_KEY`, `DEDALUS_API_KEY` | Other AI provider keys (per `AI_PROVIDER`) |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot + Mini App initData verification |
 | `WECHAT_APP_SECRET` | WeChat Mini Program `code2session` |

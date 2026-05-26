@@ -120,7 +120,8 @@ cp .env.example .env
 #   DATABASE_URL="postgresql://..."
 #   NEXTAUTH_URL="http://localhost:5000"
 #   AUTH_SECRET="$(openssl rand -base64 32)"
-#   GEMINI_API_KEY="..." or DASHSCOPE_API_KEY="..."  # for AI features
+#   DASHSCOPE_API_KEY="..."                          # Qwen AI features
+#   GOOGLE_CLOUD_PROJECT="..." + GOOGLE_SERVICE_ACCOUNT_KEY="..."  # Vertex Gemini fallback/search
 
 # 4. Create schema
 npm run db:push

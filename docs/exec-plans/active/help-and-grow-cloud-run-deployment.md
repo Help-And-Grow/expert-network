@@ -97,13 +97,15 @@ gcloud run services update expert-network \
 Secret-backed env vars (each references a Secret Manager secret via `valueFrom.secretKeyRef`; runtime SA `expert-network-run@…` has `roles/secretmanager.secretAccessor` on each):
 
 ```
-GEMINI_API_KEY          ← expert-network-gemini-api-key:latest
 DATABASE_URL            ← expert-network-database-url:latest
 AUTH_SECRET             ← expert-network-auth-secret:latest
 GOOGLE_CLIENT_SECRET    ← expert-network-google-client-secret:latest
 EMAIL_SERVER_PASSWORD   ← expert-network-gmail-app-password:latest
 STRIPE_SECRET_KEY       ← expert-network-stripe-secret-key:latest
 ```
+
+Gemini uses Vertex AI with `GOOGLE_CLOUD_PROJECT=expert-network-489508` and
+the Cloud Run runtime service account.
 
 ### Update env vars
 

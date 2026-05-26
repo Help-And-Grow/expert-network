@@ -30,7 +30,7 @@ import type {
   MatchResult,
 } from "./types";
 
-/** Transient capacity / rate errors from Vertex or AI Studio — safe to retry. */
+/** Transient capacity / rate errors from Vertex AI — safe to retry. */
 const GEMINI_CHAT_MAX_ATTEMPTS = 4;
 const GEMINI_RETRY_BASE_MS = 800;
 
@@ -126,7 +126,7 @@ export class GeminiProvider extends BaseAIProvider {
             );
           }
           throw new Error(
-            "[Gemini] Model returned empty text. Verify GEMINI_API_KEY or Vertex (GOOGLE_CLOUD_PROJECT + Vertex AI API + service account).",
+            "[Gemini] Model returned empty text. Verify Vertex AI credentials (GOOGLE_CLOUD_PROJECT + Vertex AI API + service account).",
           );
         }
         return text;
@@ -197,15 +197,15 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   protected async generateImageRaw(prompt: string): Promise<string | null> {
-    if (!env.GOOGLE_CLOUD_PROJECT && !env.GEMINI_API_KEY) {
+    if (!env.GOOGLE_CLOUD_PROJECT) {
       console.error(
-        "[Gemini] Neither GOOGLE_CLOUD_PROJECT nor GEMINI_API_KEY is set"
+        "[Gemini] GOOGLE_CLOUD_PROJECT is not set"
       );
       return null;
     }
 
     try {
-      // Vertex / AI Studio: image models expect TEXT + IMAGE modalities (IMAGE-only often returns no inline image).
+      // Vertex image models expect TEXT + IMAGE modalities (IMAGE-only often returns no inline image).
       const response = await this.imageAi.models.generateContent({
         model: await getGeminiImageModel(),
         contents: prompt,

@@ -105,7 +105,7 @@ Switching providers requires only an admin-panel change at `/admin/ai-provider` 
 | Image generation | Qwen → Gemini (chain) | Tencent Hunyuan Image (planned) → Qwen → Gemini |
 | Text-to-speech (intro voice + async reply) | Qwen-TTS → Gemini-TTS | Tencent TXTTS (planned) → Qwen-TTS → Gemini-TTS |
 | Speech recognition (voice chat input) | DashScope Qwen3-ASR-Flash | Tencent TXASR (planned) → DashScope ASR |
-| **Web search grounding** *(profile auto-fill, expert discovery)* | **Gemini** (Google Search grounding via Vertex / AI Studio) | **Hunyuan with `enable_enhancement: true`** (Tencent's native Sogou-powered web search, stays inside the GFW) |
+| **Web search grounding** *(profile auto-fill, expert discovery)* | **Gemini** (Google Search grounding via Vertex AI) | **Hunyuan with `enable_enhancement: true`** (Tencent's native Sogou-powered web search, stays inside the GFW) |
 | Embeddings | Qwen `text-embedding-v3` → Gemini `embedding-001` | Hunyuan embeddings (when wired) |
 
 **Per-cloud search choice.** Each surface uses the search engine native to its cloud so the entire request pipeline (LLM call + grounding lookups) stays inside one compliance boundary:
@@ -148,7 +148,7 @@ The legacy `WECHAT_AI_PROVIDER` env / SystemConfig key is **deprecated** but sti
 
 WeChat-originated requests are detected via `isWeChatOriginatedRequest` exactly as before; the resolver hands the `{ isWeChat, region }` tuple to `matchesScope`.
 
-Provider availability is filtered by credential at chain-build time (`computeProviderHealth`); a provider without its required env vars is silently dropped from the chain so the deploy fails gracefully when, e.g., `GEMINI_API_KEY` is unset.
+Provider availability is filtered by credential at chain-build time (`computeProviderHealth`); a provider without its required env vars is silently dropped from the chain so the deploy fails gracefully when, e.g., Vertex Gemini credentials are unset.
 
 ### 3.4 Implementation Map
 

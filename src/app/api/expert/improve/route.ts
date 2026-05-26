@@ -20,7 +20,7 @@ async function improveWritingResilient(
     return await improveWriting(type, content);
   } catch (primaryError) {
     const hasGeminiFallback =
-      Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim()) &&
+      Boolean(env.GOOGLE_CLOUD_PROJECT?.trim()) &&
       (env.AI_PROVIDER || "qwen") !== "gemini";
 
     if (!hasGeminiFallback) {

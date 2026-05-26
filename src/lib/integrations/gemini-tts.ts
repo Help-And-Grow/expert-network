@@ -72,8 +72,8 @@ export function defaultGeminiTtsVoiceId(gender?: string | null): string {
 }
 
 /**
- * Gemini native TTS (Vertex AI or AI Studio) via @google/genai.
- * Uses the same Vertex region strategy as profile image generation (`createGeminiImageClient`).
+ * Gemini native TTS via Vertex AI and @google/genai. Uses the same Vertex
+ * region strategy as profile image generation (`createGeminiImageClient`).
  */
 export class GeminiTtsProvider implements VoiceSynthesisProvider {
   private client = createGeminiImageClient();
@@ -84,10 +84,9 @@ export class GeminiTtsProvider implements VoiceSynthesisProvider {
 
   async synthesize(input: VoiceSynthesisInput): Promise<VoiceSynthesisResult> {
     const project = env.GOOGLE_CLOUD_PROJECT?.trim();
-    const apiKey = env.GEMINI_API_KEY?.trim();
-    if (!project && !apiKey) {
+    if (!project) {
       throw new Error(
-        "Gemini TTS requires GOOGLE_CLOUD_PROJECT (Vertex) or GEMINI_API_KEY (AI Studio)",
+        "Gemini TTS requires Vertex AI credentials (GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY)",
       );
     }
 

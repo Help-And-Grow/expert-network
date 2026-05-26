@@ -56,8 +56,10 @@ If that fails on a non-Zscaler network, fall back to direct public IP (`34.126.1
 # Postgres URL pointing at the local proxy
 export DATABASE_URL="postgresql://hg_app:$(gcloud secrets versions access latest --secret=expert-network-database-url --project=expert-network-489508 | awk -F'[:@]' '{print $3}')@127.0.0.1:15432/helpgrow?sslmode=disable"
 
-# Embedding provider
-export GEMINI_API_KEY="$(gcloud secrets versions access latest --secret=expert-network-gemini-api-key --project=expert-network-489508)"
+# Embedding provider (Vertex Gemini)
+export GOOGLE_CLOUD_PROJECT="expert-network-489508"
+export GOOGLE_CLOUD_LOCATION="asia-southeast1"
+export GOOGLE_SERVICE_ACCOUNT_KEY="$(gcloud secrets versions access latest --secret=expert-network-google-service-account-key --project=expert-network-489508)"
 ```
 
 Sanity check:

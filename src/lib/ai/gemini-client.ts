@@ -20,19 +20,20 @@ function setupServiceAccountAuth() {
 }
 
 export function createGeminiClient(): GoogleGenAI {
-  const project = env.GOOGLE_CLOUD_PROJECT;
-  const location = env.GOOGLE_CLOUD_LOCATION || "us-central1";
+  const project = env.GOOGLE_CLOUD_PROJECT?.trim();
+  const location = env.GOOGLE_CLOUD_LOCATION?.trim() || "us-central1";
 
-  if (project) {
-    setupServiceAccountAuth();
-    console.log(
-      `[Gemini] Using Vertex AI (project=${project}, location=${location})`,
+  if (!project) {
+    throw new Error(
+      "GOOGLE_CLOUD_PROJECT is required for Gemini via Vertex AI.",
     );
-    return new GoogleGenAI({ vertexai: true, project, location });
   }
 
-  console.log("[Gemini] Using AI Studio API key");
-  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
+  setupServiceAccountAuth();
+  console.log(
+    `[Gemini] Using Vertex AI (project=${project}, location=${location})`,
+  );
+  return new GoogleGenAI({ vertexai: true, project, location });
 }
 
 /**
@@ -41,26 +42,28 @@ export function createGeminiClient(): GoogleGenAI {
  */
 export function createGeminiImageClient(): GoogleGenAI {
   const project = env.GOOGLE_CLOUD_PROJECT?.trim();
-  if (project) {
-    setupServiceAccountAuth();
-    let location = (
-      env.GEMINI_IMAGE_VERTEX_LOCATION?.trim() ||
-      env.GOOGLE_CLOUD_LOCATION?.trim() ||
-      "global"
-    ).toLowerCase();
-    if (!isVertexImageModelRegion(location)) {
-      console.warn(
-        `[Gemini] "${location}" is not a known gemini-3.1-flash-image-preview Vertex region; using "global" for image. Set GEMINI_IMAGE_VERTEX_LOCATION (e.g. global or us-central1).`,
-      );
-      location = "global";
-    }
-    console.log(
-      `[Gemini] Image generation Vertex (project=${project}, location=${location})`,
+  if (!project) {
+    throw new Error(
+      "GOOGLE_CLOUD_PROJECT is required for Gemini image generation via Vertex AI.",
     );
-    return new GoogleGenAI({ vertexai: true, project, location });
   }
 
-  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
+  setupServiceAccountAuth();
+  let location = (
+    env.GEMINI_IMAGE_VERTEX_LOCATION?.trim() ||
+    env.GOOGLE_CLOUD_LOCATION?.trim() ||
+    "global"
+  ).toLowerCase();
+  if (!isVertexImageModelRegion(location)) {
+    console.warn(
+      `[Gemini] "${location}" is not a known gemini-3.1-flash-image-preview Vertex region; using "global" for image. Set GEMINI_IMAGE_VERTEX_LOCATION (e.g. global or us-central1).`,
+    );
+    location = "global";
+  }
+  console.log(
+    `[Gemini] Image generation Vertex (project=${project}, location=${location})`,
+  );
+  return new GoogleGenAI({ vertexai: true, project, location });
 }
 
 /** Regions listed for Gemini 3.1 Flash Image Preview on Vertex AI (see Google Cloud model card). */

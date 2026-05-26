@@ -183,9 +183,9 @@ export const AI_PROVIDER_CATALOG: Record<AIProviderName, ProviderCatalogEntry> =
     supportsImage: true,
   },
   gemini: {
-    label: "Gemini",
-    description: "Google Gemini text and image generation.",
-    requiredAny: [["GEMINI_API_KEY"], ["GOOGLE_CLOUD_PROJECT", "GOOGLE_SERVICE_ACCOUNT_KEY"]],
+    label: "Gemini / Vertex AI",
+    description: "Google Gemini text and image generation via Vertex AI.",
+    requiredAny: [["GOOGLE_CLOUD_PROJECT", "GOOGLE_SERVICE_ACCOUNT_KEY"]],
     optional: ["GOOGLE_CLOUD_LOCATION", "GEMINI_IMAGE_VERTEX_LOCATION"],
     textModelEnvKey: "GEMINI_TEXT_MODEL",
     imageModelEnvKey: "GEMINI_IMAGE_MODEL",
@@ -632,4 +632,3 @@ export function getBytePlusTextModel(): string {
 export function getBytePlusImageModel(): string {
   return env.BYTEPLUS_IMAGE_MODEL?.trim() || BYTEPLUS_DEFAULT_IMAGE_MODEL;
 }
-

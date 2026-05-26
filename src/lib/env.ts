@@ -130,7 +130,6 @@ const envSchema = z
       .enum(["vercel", "gcs", "tencent-cos", "db"])
       .default("db"),
 
-    GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLOUD_PROJECT: z.string().optional(),
     GOOGLE_CLOUD_LOCATION: z.string().optional(),
     GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
@@ -145,7 +144,7 @@ const envSchema = z
 
     GEMINI_TEXT_MODEL: z.string().optional(),
     GEMINI_IMAGE_MODEL: z.string().optional(),
-    /** Gemini native TTS model (Vertex / AI Studio). */
+    /** Gemini native TTS model (Vertex AI). */
     GEMINI_TTS_MODEL: z.string().optional(),
     GEMINI_TTS_VOICE_MALE: z.string().optional(),
     GEMINI_TTS_VOICE_FEMALE: z.string().optional(),

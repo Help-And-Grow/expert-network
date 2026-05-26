@@ -20,7 +20,7 @@ import type {
  */
 
 function isGeminiConfigured(): boolean {
-  return Boolean(env.GEMINI_API_KEY?.trim() || env.GOOGLE_CLOUD_PROJECT?.trim());
+  return Boolean(env.GOOGLE_CLOUD_PROJECT?.trim());
 }
 
 function isImageProviderConfigured(name: AIProviderName): boolean {
@@ -92,7 +92,7 @@ export async function generateProfileImageResilient(
   const order = configured.filter(isImageProviderConfigured);
   if (order.length === 0) {
     throw new Error(
-      `No image provider in the configured chain (${configured.join(", ") || "empty"}) has credentials. Set DASHSCOPE_API_KEY (Qwen) or GEMINI_API_KEY, or update IMAGE_PROVIDER_CHAIN in /admin/ai-provider.`,
+      `No image provider in the configured chain (${configured.join(", ") || "empty"}) has credentials. Set DASHSCOPE_API_KEY (Qwen) or Vertex Gemini credentials (GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY), or update IMAGE_PROVIDER_CHAIN in /admin/providers.`,
     );
   }
 

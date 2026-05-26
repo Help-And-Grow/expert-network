@@ -11,7 +11,7 @@
  * laptop both work. See docs/runbooks/expert-embeddings-backfill.md.
  *
  * Required env: DATABASE_URL (and PGVECTOR_DATABASE_URL if different),
- *               GEMINI_API_KEY.
+ *               GOOGLE_CLOUD_PROJECT + GOOGLE_SERVICE_ACCOUNT_KEY.
  *
  * Usage:
  *   npx tsx scripts/backfill-expert-embeddings.ts            # audit + backfill all gaps

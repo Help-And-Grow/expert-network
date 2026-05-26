@@ -32,7 +32,7 @@ The two deploys share the same source code. They differ only in:
 | `AI_PROVIDER_LOCK` | unset → routes via admin page / SystemConfig | `gemini` → bypasses DB routing, always uses Gemini |
 | `AI_PROVIDER` | `qwen` | `gemini` (effectively ignored once `AI_PROVIDER_LOCK` is set) |
 | `AI_TEXT_PROVIDER_CHAIN` | unset (default chain via DB) | `gemini` (effectively ignored once `AI_PROVIDER_LOCK` is set) |
-| `DATABASE_URL`, `AUTH_SECRET`, `GEMINI_API_KEY`, etc. | Vercel-encrypted | Google Secret Manager refs |
+| `DATABASE_URL`, `AUTH_SECRET`, provider keys, etc. | Vercel-encrypted | Google Secret Manager refs |
 
 If you need to add a new env var that should diverge between the two surfaces, set it via the respective deploy mechanism (Vercel dashboard for jlzxwt8; `gcloud run services update` for Help-And-Grow). The code reads `process.env` either way and stays identical.
 

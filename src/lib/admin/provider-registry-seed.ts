@@ -287,11 +287,14 @@ export async function seedProviderRegistryIfEmpty(): Promise<{
     {
       key: "gemini-tts",
       displayName: "Gemini TTS",
-      envKeys: { apiKey: "GEMINI_API_KEY" },
+      envKeys: {
+        projectId: "GOOGLE_CLOUD_PROJECT",
+        serviceAccountKey: "GOOGLE_SERVICE_ACCOUNT_KEY",
+      },
       metadata: {
-        description: "Google Gemini TTS.",
+        description: "Google Gemini TTS via Vertex AI.",
         capabilities: ["voice"],
-        requiredAny: [["GEMINI_API_KEY"]],
+        requiredAny: [["GOOGLE_CLOUD_PROJECT", "GOOGLE_SERVICE_ACCOUNT_KEY"]],
       },
       enabled: true,
     },

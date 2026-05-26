@@ -139,6 +139,8 @@ export default function OnboardingPage() {
   const [editedBio, setEditedBio] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishNeedsPdf, setPublishNeedsPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
 
@@ -353,7 +355,7 @@ export default function OnboardingPage() {
       id: "upload-question",
       role: "ai",
       content:
-        "Would you like to upload a PDF to help me better understand your services? This could be a resume, portfolio, or service description. You can also skip this step.",
+        "Upload a service PDF so players can inspect what you offer before booking. You can skip for now and keep a draft, but publishing requires a PDF.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);
@@ -715,6 +717,8 @@ export default function OnboardingPage() {
         throw new Error(err.error || "Upload failed");
       }
       setUploadedFileName(file.name);
+      setPublishError(null);
+      setPublishNeedsPdf(false);
       setMessages((prev) => [
         ...prev,
         { id: `user-upload-${Date.now()}`, role: "user", content: `Uploaded: ${file.name}` },
@@ -879,14 +883,29 @@ export default function OnboardingPage() {
 
   const handlePublish = async () => {
     setIsSubmitting(true);
+    setPublishError(null);
     try {
       const res = await fetch("/api/onboarding/publish", {
         method: "POST",
         headers: { ...tgHeaders },
       });
-      if (!res.ok) throw new Error("Publish failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message =
+          typeof data.error === "string"
+            ? data.error
+            : `Publish failed (status ${res.status})`;
+        setPublishError(message);
+        setPublishNeedsPdf(data.code === "SERVICE_PDF_REQUIRED");
+        return;
+      }
       router.push("/booking");
-    } catch {
+    } catch (err) {
+      setPublishError(
+        err instanceof Error ? err.message : "Publish failed. Please try again.",
+      );
+      setPublishNeedsPdf(false);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1053,6 +1072,49 @@ export default function OnboardingPage() {
                   (trimmed === "" || trimmed === placeholder);
                 return (
                   <>
+                    {publishError && (
+                      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p>{publishError}</p>
+                        {publishNeedsPdf && (
+                          <>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(file);
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={isUploading}
+                              variant="outline"
+                              className="min-h-[44px] w-full border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                            >
+                              {isUploading ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : uploadedFileName ? (
+                                <>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  {uploadedFileName}
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Upload Service PDF
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
                     <Button
                       onClick={handlePublish}
                       disabled={isSubmitting || publishGated}
@@ -1377,7 +1439,7 @@ export default function OnboardingPage() {
               disabled={isUploading}
               className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
             >
-              {uploadedFileName ? "Continue with Document" : "Skip & Continue"}
+              {uploadedFileName ? "Continue with Document" : "Keep Draft Without PDF"}
             </Button>
           </div>
         )}

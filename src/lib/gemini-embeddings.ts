@@ -10,7 +10,7 @@ export async function fetchGeminiEmbedding(
   taskType: GeminiEmbeddingTaskType,
   logPrefix = "[gemini-embeddings]",
 ): Promise<number[] | null> {
-  if (!env.GEMINI_API_KEY && !env.GOOGLE_CLOUD_PROJECT) return null;
+  if (!env.GOOGLE_CLOUD_PROJECT) return null;
   const input = text.slice(0, 8000);
   try {
     const client = createGeminiClient();

@@ -7,7 +7,7 @@ An AI-native expert network platform for Singapore & Southeast Asia. Users can b
 - **Framework**: Next.js 15 (App Router) + React 18 + TypeScript 5
 - **Database ORM**: Prisma 7 with `@prisma/adapter-pg` — PostgreSQL only
 - **Auth**: Auth.js v5 (`next-auth ^5.0.0-beta.30`) with Prisma adapter; unified multi-platform resolver in `src/lib/request-auth.ts`
-- **AI**: Pluggable via `AI_PROVIDER` (default `qwen`) — DashScope/Qwen, Gemini (AI Studio or Vertex), OpenAI, Z.ai (Vertex), Tencent Hunyuan, BytePlus, Volcengine
+- **AI**: Pluggable via `AI_PROVIDER` (default `qwen`) — DashScope/Qwen, Gemini via Vertex AI, OpenAI, Z.ai (Vertex), Tencent Hunyuan, BytePlus, Volcengine
 - **Blockchain**: Base chain + EAS attestations (POMP reputation), `HelpGrowToken` ERC-20
 - **Payments**: Stripe Connect, PayNow (SG), TON, WeChat Pay, free flow
 - **Messaging**: Telegram Mini App, WeChat Mini Program (Taro)
@@ -40,7 +40,7 @@ See `.env.example` for the full list. Minimum required to start:
 | `NEXTAUTH_URL` | Full public URL of the app (e.g. `https://<repl>.replit.app`) |
 | `NEXTAUTH_SECRET` | Random secret — generate with `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (for sign-in) |
-| `GEMINI_API_KEY` | Google AI Studio key (for AI features) |
+| `GOOGLE_CLOUD_PROJECT` / `GOOGLE_SERVICE_ACCOUNT_KEY` | Vertex Gemini fallback/search credentials |
 
 Optional but used by features:
 - `EMAIL_SERVER_*` / `EMAIL_FROM` — Magic link email auth
