@@ -51,6 +51,8 @@ type Row = {
   inviteCode: string;
   onlineFee: string;
   offlineFee: string;
+  onboardingStep: string;
+  published: string;
 };
 
 function markdownEscapeCell(value: string): string {
@@ -65,6 +67,8 @@ const HEADER_CELLS = [
   "Invitation Code",
   "Online Fee",
   "Offline Fee",
+  "Onboarding Step",
+  "Published",
 ] as const;
 
 function rowCells(row: Row): string[] {
@@ -76,6 +80,8 @@ function rowCells(row: Row): string[] {
     row.inviteCode,
     row.onlineFee,
     row.offlineFee,
+    row.onboardingStep,
+    row.published,
   ];
 }
 
@@ -110,14 +116,21 @@ export async function GET(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   const format = (request.nextUrl.searchParams.get("format") || "html").toLowerCase();
+  const includeIncompleteRaw =
+    request.nextUrl.searchParams.get("includeIncomplete") ??
+    request.nextUrl.searchParams.get("include_incomplete") ??
+    "1";
+  const includeIncomplete = includeIncompleteRaw !== "0";
 
   const experts = await prisma.expert.findMany({
-    where: { onboardingStep: "PUBLISHED" },
+    where: includeIncomplete ? undefined : { onboardingStep: "PUBLISHED" },
     select: {
       priceOnlineCents: true,
       priceOfflineCents: true,
       currency: true,
       countries: true,
+      onboardingStep: true,
+      isPublished: true,
       user: {
         select: {
           name: true,
@@ -127,8 +140,6 @@ export async function GET(request: NextRequest) {
           inviteCode: true,
         },
       },
-      updatedAt: true,
-      createdAt: true,
     },
     orderBy: { updatedAt: "desc" },
     take: 500,
@@ -150,6 +161,8 @@ export async function GET(request: NextRequest) {
       inviteCode,
       onlineFee,
       offlineFee,
+      onboardingStep: expert.onboardingStep,
+      published: expert.isPublished ? "yes" : "",
     };
   });
 
@@ -163,4 +176,3 @@ export async function GET(request: NextRequest) {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 }
-
