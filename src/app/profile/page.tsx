@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 import {
@@ -76,6 +76,7 @@ interface ExpertProfile {
 export default function ProfilePage() {
   const { status: sessionStatus, isTelegram, user: authUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const telegramInitData = getTelegramInitData();
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
@@ -95,6 +96,7 @@ export default function ProfilePage() {
 
   const [improvingIntro, setImprovingIntro] = useState(false);
   const toastRef = useRef<HTMLParagraphElement>(null);
+  const stripeRedirectHandledRef = useRef<string | null>(null);
 
   const [regenerating, setRegenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -170,13 +172,16 @@ export default function ProfilePage() {
     }
   }, [sessionStatus, isTelegram, fetchProfile, router]);
 
-  const showMessage = (msg: string, section: string, isError = false, duration = 3000) => {
+  const showMessage = useCallback(
+    (msg: string, section: string, isError = false, duration = 3000) => {
     setSectionMsg({ text: msg, section, isError });
     setTimeout(() => setSectionMsg((prev) => (prev?.text === msg ? null : prev)), duration);
     requestAnimationFrame(() => {
       toastRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
-  };
+    },
+    [],
+  );
 
   const saveSection = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/expert/profile", {
@@ -556,7 +561,7 @@ export default function ProfilePage() {
     }
   };
 
-  const refreshStripeStatus = async () => {
+  const refreshStripeStatus = useCallback(async () => {
     try {
       const headers: Record<string, string> = {
         ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
@@ -580,7 +585,84 @@ export default function ProfilePage() {
     } catch {
       // silent
     }
-  };
+  }, [telegramInitData, showMessage]);
+
+  useEffect(() => {
+    if (sessionStatus === "loading" || loading) return;
+
+    const stripeConnect = searchParams.get("stripe_connect");
+    if (!stripeConnect) return;
+
+    if (stripeRedirectHandledRef.current === stripeConnect) return;
+    stripeRedirectHandledRef.current = stripeConnect;
+
+    const cleanStripeQuery = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("stripe_connect");
+      url.searchParams.delete("error");
+      url.searchParams.delete("return_to");
+      router.replace(`${url.pathname}${url.search}`);
+    };
+
+    const handle = async () => {
+      if (stripeConnect === "complete") {
+        await refreshStripeStatus();
+
+        const needsGeneration =
+          !profile?.avatarScript?.trim() || !profile?.hasAvatar || !profile?.hasAudio;
+        if (!needsGeneration) {
+          cleanStripeQuery();
+          return;
+        }
+
+        showMessage("Generating your introduction, voice intro, and profile image…", "stripe");
+        const headers: Record<string, string> = {
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+        };
+        const res = await fetch("/api/onboarding/generate", {
+          method: "POST",
+          headers,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const parts = [data.error, data.detail].filter(
+            (s: unknown) => typeof s === "string" && (s as string).trim(),
+          ) as string[];
+          throw new Error(parts.join(" — ") || "Profile generation failed");
+        }
+        showMessage("Generated! You can edit everything before publishing.", "stripe");
+        await fetchProfile();
+        cleanStripeQuery();
+        return;
+      }
+
+      if (stripeConnect === "no_account") {
+        showMessage("Stripe setup is incomplete. Please start Stripe setup again.", "stripe", true, 5000);
+        cleanStripeQuery();
+        return;
+      }
+
+      showMessage("Stripe setup did not complete. Please try again.", "stripe", true, 5000);
+      cleanStripeQuery();
+    };
+
+    handle().catch((err) => {
+      showMessage(err instanceof Error ? err.message : "Stripe setup failed", "stripe", true, 5000);
+      cleanStripeQuery();
+    });
+  }, [
+    sessionStatus,
+    loading,
+    searchParams,
+    router,
+    refreshStripeStatus,
+    profile?.avatarScript,
+    profile?.hasAvatar,
+    profile?.hasAudio,
+    telegramInitData,
+    fetchProfile,
+    showMessage,
+  ]);
 
   if (sessionStatus === "loading" || loading) {
     return (
