@@ -355,7 +355,7 @@ export default function OnboardingPage() {
       id: "upload-question",
       role: "ai",
       content:
-        "Upload a service PDF so players can inspect what you offer before booking. You can skip for now and keep a draft, but publishing requires a PDF.",
+        "Upload your service PDF. This document is required, as we will use its contents to generate your profile image and biography.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);
@@ -727,7 +727,7 @@ export default function OnboardingPage() {
       const msg = err instanceof Error ? err.message : "Upload failed";
       setMessages((prev) => [
         ...prev,
-        { id: `upload-error-${Date.now()}`, role: "ai", content: `Upload error: ${msg}. You can try again or skip.`, type: "text" },
+        { id: `upload-error-${Date.now()}`, role: "ai", content: `Upload error: ${msg}. Please try again.`, type: "text" },
       ]);
     } finally {
       setIsUploading(false);
@@ -1436,10 +1436,10 @@ export default function OnboardingPage() {
             </Button>
             <Button
               onClick={handleDocumentContinue}
-              disabled={isUploading}
+              disabled={isUploading || !uploadedFileName}
               className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
             >
-              {uploadedFileName ? "Continue with Document" : "Keep Draft Without PDF"}
+              Continue
             </Button>
           </div>
         )}
