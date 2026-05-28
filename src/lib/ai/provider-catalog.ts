@@ -140,7 +140,7 @@ export const ZAI_DEFAULT_VERTEX_TEXT_MODEL = "glm-5-maas";
 export const ZAI_DEFAULT_IMAGE_MODEL = "glm-image";
 export const QWEN_DEFAULT_TEXT_MODEL = "qwen3.6-plus";
 export const QWEN_DEFAULT_IMAGE_MODEL = "wan2.7-image-pro";
-export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.1-flash";
+export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.5-flash";
 export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
 export const HUNYUAN_DEFAULT_TEXT_MODEL = "hunyuan-turbo";
 export const BYTEPLUS_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
@@ -609,7 +609,10 @@ export function getHunyuanTextModel(): string {
 
 export async function getGeminiTextModel(): Promise<string> {
   const state = await getProviderModelState("gemini");
-  return state.textModel || GEMINI_DEFAULT_TEXT_MODEL;
+  const candidate = state.textModel || GEMINI_DEFAULT_TEXT_MODEL;
+  if (/^gemini-2\.5-flash(-lite)?$/.test(candidate)) return GEMINI_DEFAULT_TEXT_MODEL;
+  if (candidate === "gemini-3-flash-preview") return GEMINI_DEFAULT_TEXT_MODEL;
+  return candidate;
 }
 
 export async function getGeminiImageModel(): Promise<string> {

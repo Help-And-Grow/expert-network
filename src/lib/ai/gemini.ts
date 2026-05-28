@@ -1,4 +1,4 @@
-import { Modality } from "@google/genai";
+import { Modality, ThinkingLevel } from "@google/genai";
 
 import { env } from "@/lib/env";
 
@@ -83,15 +83,17 @@ export class GeminiProvider extends BaseAIProvider {
     // to pass unconditionally. Operators who genuinely want thinking can flip
     // this back by editing this file (no env knob — reasoning is the wrong
     // default for an interactive product).
+    const model = await getGeminiTextModel();
     const config: Record<string, unknown> = {
       safetySettings: [...safetySettings],
-      thinkingConfig: { thinkingBudget: 0 },
+      thinkingConfig: model.startsWith("gemini-3.")
+        ? { thinkingLevel: ThinkingLevel.MINIMAL }
+        : { thinkingBudget: 0 },
     };
     if (systemInstruction) {
       config.systemInstruction = systemInstruction;
     }
 
-    const model = await getGeminiTextModel();
     const genConfig = config as Parameters<
       typeof this.ai.models.generateContent
     >[0]["config"];
@@ -171,6 +173,7 @@ export class GeminiProvider extends BaseAIProvider {
       config: {
         systemInstruction: SYSTEM_PROMPTS.PROFILE_BUILDER,
         tools: [{ googleSearch: {} }],
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
         safetySettings: [
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           { category: "HARM_CATEGORY_HATE_SPEECH" as any, threshold: "BLOCK_ONLY_HIGH" as any },
