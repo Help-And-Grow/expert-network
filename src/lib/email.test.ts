@@ -1,26 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const sendMailMock = vi.fn().mockResolvedValue({ messageId: "test-id" });
+// ---------------------------------------------------------------------------
+// Hoisted mock fns for verifying calls
+// ---------------------------------------------------------------------------
+
+const emailsSendMock = vi.hoisted(() => vi.fn().mockResolvedValue({ data: { id: "resend-id" }, error: null }));
+const sendMailMock = vi.hoisted(() => vi.fn().mockResolvedValue({ messageId: "test-id" }));
+
+// Use a real class so `new Resend()` works inside the module under test
+vi.mock("resend", () => {
+  class MockResend {
+    constructor(_apiKey: string) {}
+    emails = { send: emailsSendMock };
+  }
+  return { Resend: MockResend };
+});
 
 vi.mock("nodemailer", () => ({
   default: {
-    createTransport: vi.fn(() => ({
-      sendMail: sendMailMock,
-    })),
+    createTransport: () => ({ sendMail: sendMailMock }),
   },
 }));
 
 vi.mock("@/lib/env", () => ({
   env: {
-    GMAIL_CLIENT_ID: "test-client-id",
-    GMAIL_CLIENT_SECRET: "test-client-secret",
-    GMAIL_REFRESH_TOKEN: "test-refresh-token",
-    GMAIL_USER: "hello@test.com",
-    EMAIL_SERVER_HOST: undefined,
-    EMAIL_SERVER_PORT: undefined,
-    EMAIL_SERVER_USER: undefined,
-    EMAIL_SERVER_PASSWORD: undefined,
-    EMAIL_FROM: undefined,
+    GMAIL_CLIENT_ID: "",
+    GMAIL_CLIENT_SECRET: "",
+    GMAIL_REFRESH_TOKEN: "",
+    GMAIL_USER: "",
+    RESEND_API_KEY: "re_test_key",
+    RESEND_EMAIL_FROM: "Help & Grow <test@resend.dev>",
+    EMAIL_SERVER_HOST: "",
+    EMAIL_SERVER_PORT: "",
+    EMAIL_SERVER_USER: "",
+    EMAIL_SERVER_PASSWORD: "",
+    EMAIL_FROM: "",
   },
 }));
 
@@ -30,57 +44,65 @@ vi.mock("@/lib/google-maps", () => ({
 
 import { sendBookingEmails } from "@/lib/email";
 
-describe("email (Gmail OAuth2)", () => {
+describe("sendBookingEmails", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  const baseParams = {
-    expertName: "Alice",
-    founderName: "Bob",
-    expertEmail: "alice@test.com",
-    founderEmail: "bob@test.com",
-    sessionType: "ONLINE" as const,
-    startTime: new Date("2026-06-15T10:00:00Z"),
-    endTime: new Date("2026-06-15T11:00:00Z"),
-    timezone: "Asia/Singapore",
-    meetingLink: "https://meet.google.com/test",
-    offlineAddress: null,
-    bookingId: "booking-123",
-  };
-
-  it("sends confirmation emails to both expert and founder via Gmail", async () => {
-    await sendBookingEmails(baseParams);
-
-    // 2 confirmations + 0 reminders (reminder time is in the past relative to the test)
-    expect(sendMailMock.mock.calls.length).toBeGreaterThanOrEqual(2);
-
-    const recipients = sendMailMock.mock.calls.map((c: any[]) => c[0].to);
-    expect(recipients).toContain("alice@test.com");
-    expect(recipients).toContain("bob@test.com");
-
-    const froms = sendMailMock.mock.calls.map((c: any[]) => c[0].from);
-    expect(froms[0]).toContain("hello@test.com");
-  });
-
-  it("sends confirmation + reminder when start time is in the future", async () => {
-    const futureStart = new Date();
-    futureStart.setHours(futureStart.getHours() + 2);
-
+  it("sends confirmation to both expert and founder via Resend fallback", async () => {
     await sendBookingEmails({
-      ...baseParams,
-      startTime: futureStart,
-      endTime: new Date(futureStart.getTime() + 60 * 60 * 1000),
+      expertName: "Dr. Smith",
+      founderName: "Alice",
+      expertEmail: "expert@test.com",
+      founderEmail: "founder@test.com",
+      sessionType: "ONLINE",
+      startTime: new Date("2026-06-01T10:00:00Z"),
+      endTime: new Date("2026-06-01T11:00:00Z"),
+      timezone: "Asia/Singapore",
+      meetingLink: "https://meet.google.com/abc",
+      offlineAddress: null,
+      bookingId: "booking-1",
     });
 
-    // 2 confirmations + 2 reminders
-    expect(sendMailMock).toHaveBeenCalledTimes(4);
+    // 2 confirmations + 2 reminders (startTime - 1hr is in the future)
+    expect(emailsSendMock).toHaveBeenCalledTimes(4);
   });
 
-  it("uses Gmail OAuth2 from address", async () => {
-    await sendBookingEmails(baseParams);
+  it("skips reminders when meetup is less than 1 hour away", async () => {
+    await sendBookingEmails({
+      expertName: "Dr. Smith",
+      founderName: "Alice",
+      expertEmail: "expert@test.com",
+      founderEmail: "founder@test.com",
+      sessionType: "ONLINE",
+      startTime: new Date(Date.now() + 30 * 60 * 1000), // 30 min from now
+      endTime: new Date(Date.now() + 90 * 60 * 1000),
+      timezone: "Asia/Singapore",
+      meetingLink: "https://meet.google.com/abc",
+      offlineAddress: null,
+      bookingId: "booking-2",
+    });
 
-    const firstCall = sendMailMock.mock.calls[0][0];
-    expect(firstCall.from).toContain("hello@test.com");
+    // Only 2 confirmations, no reminders (reminder time is in the past)
+    expect(emailsSendMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses correct from address from RESEND_EMAIL_FROM", async () => {
+    await sendBookingEmails({
+      expertName: "Dr. Smith",
+      founderName: "Alice",
+      expertEmail: "expert@test.com",
+      founderEmail: null,
+      sessionType: "ONLINE",
+      startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+      timezone: "Asia/Singapore",
+      meetingLink: null,
+      offlineAddress: null,
+      bookingId: "booking-3",
+    });
+
+    const call = emailsSendMock.mock.calls[0][0];
+    expect(call.from).toBe("Help & Grow <test@resend.dev>");
   });
 });

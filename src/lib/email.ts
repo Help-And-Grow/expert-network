@@ -1,10 +1,11 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 import { env } from "@/lib/env";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
 
 // ---------------------------------------------------------------------------
-// Gmail OAuth2 transporter (primary, replaces Resend + generic SMTP)
+// Transport 1: Gmail OAuth2 (primary, recommended for production)
 // ---------------------------------------------------------------------------
 
 let _gmailTransporter: nodemailer.Transporter | null = null;
@@ -34,7 +35,19 @@ function getGmailTransporter(): nodemailer.Transporter | null {
 }
 
 // ---------------------------------------------------------------------------
-// Fallback: generic SMTP (for local dev without Gmail OAuth)
+// Transport 2: Resend SDK (configured on Vercel, fallback when no Gmail)
+// ---------------------------------------------------------------------------
+
+let _resend: Resend | null = null;
+
+function getResend(): Resend | null {
+  if (!env.RESEND_API_KEY) return null;
+  if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
+  return _resend;
+}
+
+// ---------------------------------------------------------------------------
+// Transport 3: Generic SMTP (local dev / self-hosted fallback)
 // ---------------------------------------------------------------------------
 
 let _smtpTransporter: nodemailer.Transporter | null = null;
@@ -61,14 +74,6 @@ function getSmtpTransporter(): nodemailer.Transporter | null {
   return _smtpTransporter;
 }
 
-/**
- * Resolve the best available transporter: Gmail OAuth2 first, then SMTP
- * fallback. Returns null when neither is configured.
- */
-function getTransporter(): nodemailer.Transporter | null {
-  return getGmailTransporter() ?? getSmtpTransporter();
-}
-
 // ---------------------------------------------------------------------------
 // "From" address resolution
 // ---------------------------------------------------------------------------
@@ -76,10 +81,10 @@ function getTransporter(): nodemailer.Transporter | null {
 const FROM_EMAIL =
   env.GMAIL_USER
     ? `Help & Grow <${env.GMAIL_USER}>`
-    : env.EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? "Help & Grow <noreply@help-and-grow.com>";
+    : env.RESEND_EMAIL_FROM ?? env.EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? "Help & Grow <noreply@help-and-grow.com>";
 
 // ---------------------------------------------------------------------------
-// Email content generators (unchanged logic)
+// Email content generators
 // ---------------------------------------------------------------------------
 
 interface BookingEmailParams {
@@ -199,6 +204,39 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
 }
 
 // ---------------------------------------------------------------------------
+// Internal: send a single email via the best available transport
+// ---------------------------------------------------------------------------
+
+async function sendSingleEmail(to: string, subject: string, html: string): Promise<string> {
+  // Priority: Gmail OAuth2 → Resend SDK → SMTP
+  const gmail = getGmailTransporter();
+  if (gmail) {
+    await gmail.sendMail({ from: FROM_EMAIL, to, subject, html });
+    return "Gmail OAuth2";
+  }
+
+  const resend = getResend();
+  if (resend) {
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html,
+    });
+    if (error) throw error;
+    return "Resend";
+  }
+
+  const smtp = getSmtpTransporter();
+  if (smtp) {
+    await smtp.sendMail({ from: FROM_EMAIL, to, subject, html });
+    return "SMTP";
+  }
+
+  throw new Error("No email transporter configured (need GMAIL_* or RESEND_API_KEY or EMAIL_SERVER_*)");
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -206,18 +244,10 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
  * Send meetup confirmation emails to both expert and founder,
  * and schedule reminder emails for 1 hour before the meetup.
  *
- * Gmail OAuth2 is the primary path. If Gmail credentials are not configured,
- * falls back to generic SMTP (env EMAIL_SERVER_*). When neither is available,
- * logs a warning and returns silently.
+ * Transport priority: Gmail OAuth2 → Resend SDK → generic SMTP.
+ * When none is configured, logs a warning and returns silently.
  */
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
-  const transporter = getTransporter();
-
-  if (!transporter) {
-    console.warn("[email] Neither Gmail OAuth2 nor SMTP credentials configured, skipping emails");
-    return;
-  }
-
   const recipients: { email: string; role: "expert" | "founder" }[] = [];
   if (params.expertEmail) recipients.push({ email: params.expertEmail, role: "expert" });
   if (params.founderEmail) recipients.push({ email: params.founderEmail, role: "founder" });
@@ -228,39 +258,45 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
   }
 
   // --- Confirmations (immediate) ---
-  const confirmationPromises = recipients.map((r) =>
-    transporter
-      .sendMail({
-        from: FROM_EMAIL,
-        to: r.email,
-        subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
-        html: confirmationHtml(params, r.role),
-      })
-      .catch((err) => console.error(`[email] Failed to send confirmation to ${r.email}:`, err))
+  const confirmationResults = await Promise.allSettled(
+    recipients.map(async (r) => {
+      const transport = await sendSingleEmail(
+        r.email,
+        `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
+        confirmationHtml(params, r.role),
+      );
+      return { email: r.email, transport };
+    }),
   );
 
-  await Promise.all(confirmationPromises);
-  console.log(`[email] Sent ${confirmationPromises.length} confirmation(s) via ${getGmailTransporter() ? "Gmail OAuth2" : "SMTP"}`);
+  for (const result of confirmationResults) {
+    if (result.status === "fulfilled") {
+      console.log(`[email] Sent confirmation to ${result.value.email} via ${result.value.transport}`);
+    } else {
+      console.error(`[email] Failed to send confirmation:`, result.reason);
+    }
+  }
 
   // --- Reminders (1 hour before, if in the future) ---
   const reminderTime = new Date(params.startTime.getTime() - 60 * 60 * 1000);
   if (reminderTime > new Date()) {
-    // Nodemailer does not support scheduled sends natively.
-    // For now we send the reminder immediately with a note in the subject
-    // line. A proper scheduled-reminder system (Vercel Cron / Inngest) can
-    // be layered on later.
-    const reminderPromises = recipients.map((r) =>
-      transporter
-        .sendMail({
-          from: FROM_EMAIL,
-          to: r.email,
-          subject: `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
-          html: reminderHtml(params, r.role),
-        })
-        .catch((err) => console.error(`[email] Failed to send reminder to ${r.email}:`, err))
+    const reminderResults = await Promise.allSettled(
+      recipients.map(async (r) => {
+        const transport = await sendSingleEmail(
+          r.email,
+          `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
+          reminderHtml(params, r.role),
+        );
+        return { email: r.email, transport };
+      }),
     );
 
-    await Promise.all(reminderPromises);
-    console.log(`[email] Sent ${reminderPromises.length} reminder(s) via ${getGmailTransporter() ? "Gmail OAuth2" : "SMTP"}`);
+    for (const result of reminderResults) {
+      if (result.status === "fulfilled") {
+        console.log(`[email] Sent reminder to ${result.value.email} via ${result.value.transport}`);
+      } else {
+        console.error(`[email] Failed to send reminder:`, result.reason);
+      }
+    }
   }
 }
