@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
 
 // ---------------------------------------------------------------------------
-// Transport 1: Gmail OAuth2 (primary, recommended for production)
+// Transport 1: Gmail OAuth2 (primary)
 // ---------------------------------------------------------------------------
 
 let _gmailTransporter: nodemailer.Transporter | null = null;
@@ -35,19 +35,7 @@ function getGmailTransporter(): nodemailer.Transporter | null {
 }
 
 // ---------------------------------------------------------------------------
-// Transport 2: Resend SDK (configured on Vercel, fallback when no Gmail)
-// ---------------------------------------------------------------------------
-
-let _resend: Resend | null = null;
-
-function getResend(): Resend | null {
-  if (!env.RESEND_API_KEY) return null;
-  if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
-  return _resend;
-}
-
-// ---------------------------------------------------------------------------
-// Transport 3: Generic SMTP (local dev / self-hosted fallback)
+// Transport 2: Generic SMTP (fallback — also used by NextAuth magic-link)
 // ---------------------------------------------------------------------------
 
 let _smtpTransporter: nodemailer.Transporter | null = null;
@@ -75,6 +63,18 @@ function getSmtpTransporter(): nodemailer.Transporter | null {
 }
 
 // ---------------------------------------------------------------------------
+// Transport 3: Resend SDK (last resort)
+// ---------------------------------------------------------------------------
+
+let _resend: Resend | null = null;
+
+function getResend(): Resend | null {
+  if (!env.RESEND_API_KEY) return null;
+  if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
+  return _resend;
+}
+
+// ---------------------------------------------------------------------------
 // "From" address resolution
 // ---------------------------------------------------------------------------
 
@@ -99,12 +99,6 @@ interface BookingEmailParams {
   meetingLink: string | null;
   offlineAddress: string | null;
   bookingId: string;
-  /**
-   * Optional magic-link URL the founder can use to view/cancel/reschedule the
-   * booking without signing in. When set, the founder's confirmation email
-   * gets a "Manage your booking" CTA below the meeting details. Phase 2 of
-   * guest-booking; see docs/exec-plans/active/guest-booking.md §5.4.
-   */
   founderManageUrl?: string;
 }
 
@@ -208,23 +202,11 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
 // ---------------------------------------------------------------------------
 
 async function sendSingleEmail(to: string, subject: string, html: string): Promise<string> {
-  // Priority: Gmail OAuth2 → Resend SDK → SMTP
+  // Priority: Gmail OAuth2 → generic SMTP → Resend SDK
   const gmail = getGmailTransporter();
   if (gmail) {
     await gmail.sendMail({ from: FROM_EMAIL, to, subject, html });
     return "Gmail OAuth2";
-  }
-
-  const resend = getResend();
-  if (resend) {
-    const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to,
-      subject,
-      html,
-    });
-    if (error) throw error;
-    return "Resend";
   }
 
   const smtp = getSmtpTransporter();
@@ -233,7 +215,14 @@ async function sendSingleEmail(to: string, subject: string, html: string): Promi
     return "SMTP";
   }
 
-  throw new Error("No email transporter configured (need GMAIL_* or RESEND_API_KEY or EMAIL_SERVER_*)");
+  const resend = getResend();
+  if (resend) {
+    const { error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+    if (error) throw error;
+    return "Resend";
+  }
+
+  throw new Error("No email transporter configured (need GMAIL_* or EMAIL_SERVER_* or RESEND_API_KEY)");
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +233,7 @@ async function sendSingleEmail(to: string, subject: string, html: string): Promi
  * Send meetup confirmation emails to both expert and founder,
  * and schedule reminder emails for 1 hour before the meetup.
  *
- * Transport priority: Gmail OAuth2 → Resend SDK → generic SMTP.
+ * Transport priority: Gmail OAuth2 → generic SMTP → Resend SDK.
  * When none is configured, logs a warning and returns silently.
  */
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
