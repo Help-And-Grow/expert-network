@@ -5,37 +5,7 @@ import { env } from "@/lib/env";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
 
 // ---------------------------------------------------------------------------
-// Transport 1: Gmail OAuth2 (primary)
-// ---------------------------------------------------------------------------
-
-let _gmailTransporter: nodemailer.Transporter | null = null;
-
-function getGmailTransporter(): nodemailer.Transporter | null {
-  if (
-    !env.GMAIL_CLIENT_ID ||
-    !env.GMAIL_CLIENT_SECRET ||
-    !env.GMAIL_REFRESH_TOKEN ||
-    !env.GMAIL_USER
-  ) {
-    return null;
-  }
-  if (!_gmailTransporter) {
-    _gmailTransporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user: env.GMAIL_USER,
-        clientId: env.GMAIL_CLIENT_ID,
-        clientSecret: env.GMAIL_CLIENT_SECRET,
-        refreshToken: env.GMAIL_REFRESH_TOKEN,
-      },
-    });
-  }
-  return _gmailTransporter;
-}
-
-// ---------------------------------------------------------------------------
-// Transport 2: Generic SMTP (fallback — also used by NextAuth magic-link)
+// Transport 1: Generic SMTP (primary — same as NextAuth magic-link)
 // ---------------------------------------------------------------------------
 
 let _smtpTransporter: nodemailer.Transporter | null = null;
@@ -63,7 +33,7 @@ function getSmtpTransporter(): nodemailer.Transporter | null {
 }
 
 // ---------------------------------------------------------------------------
-// Transport 3: Resend SDK (last resort)
+// Transport 2: Resend SDK (fallback)
 // ---------------------------------------------------------------------------
 
 let _resend: Resend | null = null;
@@ -79,9 +49,7 @@ function getResend(): Resend | null {
 // ---------------------------------------------------------------------------
 
 const FROM_EMAIL =
-  env.GMAIL_USER
-    ? `Help & Grow <${env.GMAIL_USER}>`
-    : env.RESEND_EMAIL_FROM ?? env.EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? "Help & Grow <noreply@help-and-grow.com>";
+  env.EMAIL_FROM ?? env.RESEND_EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? "Help & Grow <noreply@help-and-grow.com>";
 
 // ---------------------------------------------------------------------------
 // Email content generators
@@ -202,13 +170,7 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
 // ---------------------------------------------------------------------------
 
 async function sendSingleEmail(to: string, subject: string, html: string): Promise<string> {
-  // Priority: Gmail OAuth2 → generic SMTP → Resend SDK
-  const gmail = getGmailTransporter();
-  if (gmail) {
-    await gmail.sendMail({ from: FROM_EMAIL, to, subject, html });
-    return "Gmail OAuth2";
-  }
-
+  // Priority: generic SMTP (EMAIL_SERVER_*) → Resend SDK
   const smtp = getSmtpTransporter();
   if (smtp) {
     await smtp.sendMail({ from: FROM_EMAIL, to, subject, html });
@@ -222,7 +184,7 @@ async function sendSingleEmail(to: string, subject: string, html: string): Promi
     return "Resend";
   }
 
-  throw new Error("No email transporter configured (need GMAIL_* or EMAIL_SERVER_* or RESEND_API_KEY)");
+  throw new Error("No email transporter configured (need EMAIL_SERVER_* or RESEND_API_KEY)");
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +195,7 @@ async function sendSingleEmail(to: string, subject: string, html: string): Promi
  * Send meetup confirmation emails to both expert and founder,
  * and schedule reminder emails for 1 hour before the meetup.
  *
- * Transport priority: Gmail OAuth2 → generic SMTP → Resend SDK.
+ * Transport priority: SMTP (EMAIL_SERVER_*) → Resend SDK.
  * When none is configured, logs a warning and returns silently.
  */
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
