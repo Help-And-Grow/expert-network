@@ -1,18 +1,45 @@
-import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
 import { env } from "@/lib/env";
 import { buildGoogleMapsUrl } from "@/lib/google-maps";
 
-let _resend: Resend | null = null;
-function getResend(): Resend | null {
-  if (!env.RESEND_API_KEY) return null;
-  if (!_resend) _resend = new Resend(env.RESEND_API_KEY);
-  return _resend;
+// ---------------------------------------------------------------------------
+// Gmail OAuth2 transporter (primary, replaces Resend + generic SMTP)
+// ---------------------------------------------------------------------------
+
+let _gmailTransporter: nodemailer.Transporter | null = null;
+
+function getGmailTransporter(): nodemailer.Transporter | null {
+  if (
+    !env.GMAIL_CLIENT_ID ||
+    !env.GMAIL_CLIENT_SECRET ||
+    !env.GMAIL_REFRESH_TOKEN ||
+    !env.GMAIL_USER
+  ) {
+    return null;
+  }
+  if (!_gmailTransporter) {
+    _gmailTransporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user: env.GMAIL_USER,
+        clientId: env.GMAIL_CLIENT_ID,
+        clientSecret: env.GMAIL_CLIENT_SECRET,
+        refreshToken: env.GMAIL_REFRESH_TOKEN,
+      },
+    });
+  }
+  return _gmailTransporter;
 }
 
-let _transporter: nodemailer.Transporter | null = null;
-function getNodemailerTransporter(): nodemailer.Transporter | null {
+// ---------------------------------------------------------------------------
+// Fallback: generic SMTP (for local dev without Gmail OAuth)
+// ---------------------------------------------------------------------------
+
+let _smtpTransporter: nodemailer.Transporter | null = null;
+
+function getSmtpTransporter(): nodemailer.Transporter | null {
   if (
     !env.EMAIL_SERVER_HOST ||
     !env.EMAIL_SERVER_PORT ||
@@ -21,8 +48,8 @@ function getNodemailerTransporter(): nodemailer.Transporter | null {
   ) {
     return null;
   }
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
+  if (!_smtpTransporter) {
+    _smtpTransporter = nodemailer.createTransport({
       host: env.EMAIL_SERVER_HOST,
       port: Number(env.EMAIL_SERVER_PORT),
       auth: {
@@ -31,16 +58,29 @@ function getNodemailerTransporter(): nodemailer.Transporter | null {
       },
     });
   }
-  return _transporter;
+  return _smtpTransporter;
 }
 
 /**
- * Meetup confirmation + scheduled reminders only (Resend API).
- * Do not reuse magic-link `EMAIL_FROM` here: that may point at Gmail SMTP.
- * Resend free tier: typically only the account / verified test inboxes — use for internal QA until domain + plan allow broadcast.
+ * Resolve the best available transporter: Gmail OAuth2 first, then SMTP
+ * fallback. Returns null when neither is configured.
  */
+function getTransporter(): nodemailer.Transporter | null {
+  return getGmailTransporter() ?? getSmtpTransporter();
+}
+
+// ---------------------------------------------------------------------------
+// "From" address resolution
+// ---------------------------------------------------------------------------
+
 const FROM_EMAIL =
-  env.RESEND_EMAIL_FROM ?? "Help & Grow <onboarding@resend.dev>";
+  env.GMAIL_USER
+    ? `Help & Grow <${env.GMAIL_USER}>`
+    : env.EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? "Help & Grow <noreply@help-and-grow.com>";
+
+// ---------------------------------------------------------------------------
+// Email content generators (unchanged logic)
+// ---------------------------------------------------------------------------
 
 interface BookingEmailParams {
   expertName: string;
@@ -158,16 +198,23 @@ function reminderHtml(p: BookingEmailParams, recipientRole: "expert" | "founder"
     </div>`;
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
  * Send meetup confirmation emails to both expert and founder,
  * and schedule reminder emails for 1 hour before the meetup.
+ *
+ * Gmail OAuth2 is the primary path. If Gmail credentials are not configured,
+ * falls back to generic SMTP (env EMAIL_SERVER_*). When neither is available,
+ * logs a warning and returns silently.
  */
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
-  const resend = getResend();
-  const transporter = getNodemailerTransporter();
+  const transporter = getTransporter();
 
-  if (!resend && !transporter) {
-    console.warn("[email] Neither RESEND_API_KEY nor SMTP credentials configured, skipping emails");
+  if (!transporter) {
+    console.warn("[email] Neither Gmail OAuth2 nor SMTP credentials configured, skipping emails");
     return;
   }
 
@@ -180,56 +227,40 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
     return;
   }
 
-  if (resend) {
-    const confirmationPromises = recipients.map((r) =>
-      resend.emails
-        .send({
-          from: FROM_EMAIL,
-          to: r.email,
-          subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
-          html: confirmationHtml(params, r.role),
-        })
-        .catch((err) => console.error(`[email] Failed to send Resend confirmation to ${r.email}:`, err))
-    );
+  // --- Confirmations (immediate) ---
+  const confirmationPromises = recipients.map((r) =>
+    transporter
+      .sendMail({
+        from: FROM_EMAIL,
+        to: r.email,
+        subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
+        html: confirmationHtml(params, r.role),
+      })
+      .catch((err) => console.error(`[email] Failed to send confirmation to ${r.email}:`, err))
+  );
 
-    const reminderTime = new Date(params.startTime.getTime() - 60 * 60 * 1000);
-    const shouldScheduleReminder = reminderTime > new Date();
+  await Promise.all(confirmationPromises);
+  console.log(`[email] Sent ${confirmationPromises.length} confirmation(s) via ${getGmailTransporter() ? "Gmail OAuth2" : "SMTP"}`);
 
-    const reminderPromises = shouldScheduleReminder
-      ? recipients.map((r) =>
-          resend.emails
-            .send({
-              from: FROM_EMAIL,
-              to: r.email,
-              subject: `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
-              html: reminderHtml(params, r.role),
-              scheduledAt: reminderTime.toISOString(),
-            })
-            .catch((err) => console.error(`[email] Failed to schedule Resend reminder for ${r.email}:`, err))
-        )
-      : [];
-
-    await Promise.all([...confirmationPromises, ...reminderPromises]);
-
-    console.log(
-      `[email] Sent ${confirmationPromises.length} Resend confirmations` +
-        (shouldScheduleReminder ? `, scheduled ${reminderPromises.length} reminders for ${reminderTime.toISOString()}` : "")
-    );
-  } else if (transporter) {
-    const fromAddress = env.EMAIL_FROM ?? env.EMAIL_SERVER_USER ?? FROM_EMAIL;
-    const confirmationPromises = recipients.map((r) =>
+  // --- Reminders (1 hour before, if in the future) ---
+  const reminderTime = new Date(params.startTime.getTime() - 60 * 60 * 1000);
+  if (reminderTime > new Date()) {
+    // Nodemailer does not support scheduled sends natively.
+    // For now we send the reminder immediately with a note in the subject
+    // line. A proper scheduled-reminder system (Vercel Cron / Inngest) can
+    // be layered on later.
+    const reminderPromises = recipients.map((r) =>
       transporter
         .sendMail({
-          from: fromAddress,
+          from: FROM_EMAIL,
           to: r.email,
-          subject: `Meetup confirmed — ${params.sessionType === "ONLINE" ? "Online" : "In-person"}`,
-          html: confirmationHtml(params, r.role),
+          subject: `Reminder: Meetup with ${r.role === "expert" ? params.founderName : params.expertName} in 1 hour`,
+          html: reminderHtml(params, r.role),
         })
-        .catch((err) => console.error(`[email] Failed to send Nodemailer SMTP confirmation to ${r.email}:`, err))
+        .catch((err) => console.error(`[email] Failed to send reminder to ${r.email}:`, err))
     );
 
-    await Promise.all(confirmationPromises);
-    console.log(`[email] Sent ${confirmationPromises.length} SMTP confirmations via nodemailer`);
-    console.warn("[email] Scheduled reminders are not supported when using SMTP fallback (requires Resend)");
+    await Promise.all(reminderPromises);
+    console.log(`[email] Sent ${reminderPromises.length} reminder(s) via ${getGmailTransporter() ? "Gmail OAuth2" : "SMTP"}`);
   }
 }

@@ -9,6 +9,7 @@ import {
   isAsyncEnabled,
   isRealtimeEnabled,
 } from "@/lib/voice-chat-config";
+import { checkAndIncrementUsage } from "@/lib/voice-chat-usage";
 import {
   getRealtimeSession,
   processVoiceDrafts,
@@ -94,13 +95,13 @@ export async function POST(request: NextRequest) {
       error: msg,
     });
 
-    const status = msg.includes("Turn limit")
+    const status = msg.includes("Turn limit") || msg.includes("Free reply limit")
       ? 429
       : msg.includes("Expert not found")
         ? 404
         : msg.includes("own expert profile")
           ? 403
-        : 500;
+          : 500;
     return NextResponse.json({ error: msg }, { status });
   }
 }
@@ -124,6 +125,7 @@ async function handleVoiceMessage(request: NextRequest, userId: string) {
   const audioBase64 = Buffer.from(arrayBuf).toString("base64");
   const mimeType = audioFile.type || "audio/webm";
 
+  await checkAndIncrementUsage(expertId);
   const result = await processVoiceMessage(userId, expertId, audioBase64, mimeType);
 
   return NextResponse.json({
@@ -170,6 +172,7 @@ async function handleTextMessage(request: NextRequest, userId: string) {
       );
     }
 
+    await checkAndIncrementUsage(expertId);
     const result = await processVoiceDrafts(userId, expertId, normalized);
     return NextResponse.json({
       userText: result.userText,
@@ -214,6 +217,7 @@ async function handleTextMessage(request: NextRequest, userId: string) {
     }
   }
 
+  await checkAndIncrementUsage(expertId);
   const result = await processTextMessage(userId, expertId, text.trim(), {
     synthesizeAudio: includeAudio,
     voiceSynthesisTimeoutMs: includeAudio ? 10_000 : undefined,

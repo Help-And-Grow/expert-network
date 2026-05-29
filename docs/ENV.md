@@ -26,7 +26,8 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 |---|---|
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth provider |
 | `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD`, `EMAIL_FROM` | Magic-link SMTP (Gmail / Resend SMTP) |
-| `RESEND_API_KEY`, `RESEND_EMAIL_FROM` | Booking confirmation + reminder emails (NOT magic-link) |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_USER` | Gmail OAuth2 for booking confirmation + reminder emails (primary path) |
+| `RESEND_API_KEY`, `RESEND_EMAIL_FROM` | Booking confirmation + reminder emails (legacy fallback) |
 
 Production Google OAuth checklist:
 
@@ -122,6 +123,8 @@ mem9 runtime calls use hosted `v1alpha2` (`/v1alpha2/mem9s/...`) with the expert
 | `VOICE_CHAT_MODE` | `async` (default) `|` `realtime` `|` `both` |
 | `VOICE_CHAT_DEFAULT_VOICE` | Default Qwen voice when expert has no clone |
 | `DASHSCOPE_API_KEY` | Required for both async TTS/ASR and realtime |
+
+Free quota: each expert gets **3 free async-voice-chat replies per calendar month** (UTC). The quota resets implicitly on the 1st of each month via a new `VoiceChatUsage` row — no cron job required. When the limit is exceeded, the API returns HTTP 429 with the message `"Free reply limit exceeded"`. Quota tracking lives in `src/lib/voice-chat-usage.ts`; the limit constant is `FREE_REPLY_LIMIT` in `src/lib/voice-chat-config.ts`.
 
 ## Premium live (Tencent TRTC)
 

@@ -485,3 +485,19 @@ model ProviderConfigDrift {
   @@index([resolved, detectedAt])
   @@index([configKey, environment])
 }
+
+/// Per-expert monthly usage tracking for async voice-chat free quota.
+/// Each row tracks how many AI replies an expert has consumed in a given
+/// month (format "YYYY-MM"). Resets implicitly when a new month row is
+/// created; no cron job needed.
+model VoiceChatUsage {
+  id         String  @id @default(cuid())
+  expertId   String
+  month      String  // "YYYY-MM" — e.g. "2026-05"
+  replyCount Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([expertId, month])
+  @@index([month])
+}

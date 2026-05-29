@@ -91,6 +91,15 @@ const envSchema = z
     RESEND_EMAIL_FROM: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
 
+    /** Gmail OAuth2 client ID for booking confirmation + reminder emails. */
+    GMAIL_CLIENT_ID: z.string().optional(),
+    /** Gmail OAuth2 client secret. */
+    GMAIL_CLIENT_SECRET: z.string().optional(),
+    /** Gmail OAuth2 refresh token. */
+    GMAIL_REFRESH_TOKEN: z.string().optional(),
+    /** Gmail address to send from (e.g. "hello@help-and-grow.com"). */
+    GMAIL_USER: z.string().optional(),
+
     /**
      * Head of the text-provider chain for non-WeChat surfaces (Web, Telegram,
      * REST). Default `qwen`. The full chain is Qwen → Gemini; this var only

@@ -1,5 +1,8 @@
 import { env } from "@/lib/env";
 
+/** Maximum free async-voice-chat replies per expert per month. */
+export const FREE_REPLY_LIMIT = 3;
+
 export type VoiceChatMode = "async" | "realtime" | "both";
 
 export function getVoiceChatMode(): VoiceChatMode {
