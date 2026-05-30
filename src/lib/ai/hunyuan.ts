@@ -16,8 +16,8 @@ import { parseProfileResponse, type ProfileInput, type ProfileOutput } from "./t
  * https://console.cloud.tencent.com/cam/capi (sub-account API key with
  * Hunyuan service permissions).
  *
- * Models: hunyuan-pro / hunyuan-standard / hunyuan-lite / hunyuan-turbo /
- * hunyuan-vision. Set `HUNYUAN_TEXT_MODEL` to pin (default: hunyuan-turbo).
+ * Models: hy3-preview (default), hunyuan-pro, hunyuan-standard, hunyuan-lite,
+ * hunyuan-turbo, hunyuan-vision. Set `HUNYUAN_TEXT_MODEL` to pin.
  *
  * Image generation lives on a separate Tencent endpoint (Hunyuan Image,
  * `hunyuanaitp.tencentcloudapi.com`) with a TC3-HMAC-SHA256 signature and is
