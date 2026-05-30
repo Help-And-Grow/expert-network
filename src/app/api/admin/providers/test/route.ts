@@ -170,7 +170,11 @@ export async function POST(request: NextRequest) {
 
   let result: ProbeResult;
   if (category === "llm") {
-    result = await probeLlm(key);
+    const caps = (row.metadata as unknown as { capabilities?: unknown })?.capabilities;
+    const isVoice =
+      Array.isArray(caps) &&
+      caps.some((c) => typeof c === "string" && c.toLowerCase() === "voice");
+    result = isVoice ? await probeVoice(key) : await probeLlm(key);
   } else if (category === "storage") {
     result = await probeStorage(key);
   } else {
@@ -257,6 +261,44 @@ async function probeLlm(key: string): Promise<ProbeResult> {
       ok: true,
       latencyMs: Date.now() - startedAt,
       sampleOutput: typeof out === "string" ? out.slice(0, 80) : undefined,
+      probedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      latencyMs: Date.now() - startedAt,
+      error: err instanceof Error ? err.message : String(err),
+      probedAt: new Date().toISOString(),
+    };
+  }
+}
+
+async function probeVoice(key: string): Promise<ProbeResult> {
+  const startedAt = Date.now();
+  try {
+    const provider = await (async () => {
+      if (key === "qwen-tts") {
+        const { QwenTTSProvider } = await import("@/lib/integrations/qwen-tts");
+        return new QwenTTSProvider();
+      }
+      if (key === "gemini-tts") {
+        const { GeminiTtsProvider } = await import("@/lib/integrations/gemini-tts");
+        return new GeminiTtsProvider();
+      }
+      throw new Error(`No voice probe implemented for ${key}`);
+    })();
+
+    const out = await withTimeout(
+      provider.synthesize({ text: "ping" }),
+      PROBE_TIMEOUT_MS,
+      "Voice probe",
+    );
+
+    const byteLen = Buffer.from(out.audioBase64, "base64").length;
+    return {
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      sampleOutput: `${key} format=${out.format} bytes=${byteLen}`,
       probedAt: new Date().toISOString(),
     };
   } catch (err) {
