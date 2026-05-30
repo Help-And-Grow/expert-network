@@ -12,7 +12,7 @@ export const chargeRemainderScheduled = inngest.createFunction(
   {
     id: "charge-remainder-scheduled",
     name: "Booking maintenance",
-    triggers: [cron("0 0 * * *")],
+    triggers: [cron("0 * * * *")],
   },
   async ({ step }) => {
     return step.run("run-charge-remainder-cron", async () => {

@@ -16,18 +16,40 @@ export type ChargeRemainderCronResult = {
  * Remainder charging is retired because bookings now require full payment upfront.
  */
 export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResult> {
+  const now = new Date();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const completed = await prisma.booking.updateMany({
+  // Find CONFIRMED bookings that have ended — update one-by-one so we can
+  // trigger POMP credential issuance for each (updateMany skips side-effects).
+  const endedBookings = await prisma.booking.findMany({
     where: {
       status: "CONFIRMED",
-      endTime: { lt: new Date() },
+      endTime: { lt: now },
     },
-    data: { status: "COMPLETED" },
+    select: { id: true },
   });
-  if (completed.count > 0) {
+
+  let autoCompleted = 0;
+  for (const b of endedBookings) {
+    await prisma.booking.update({
+      where: { id: b.id },
+      data: { status: "COMPLETED" },
+    });
+    autoCompleted++;
+
+    // Issue POMP credentials asynchronously (fire-and-forget OK for cron)
+    const { issuePOMPCredentials } = await import("@/lib/pomp-credential");
+    issuePOMPCredentials(b.id).catch((err) =>
+      console.error(
+        `[charge-remainder-cron] POMP issue failed for booking ${b.id}:`,
+        err,
+      ),
+    );
+  }
+
+  if (autoCompleted > 0) {
     console.log(
-      `[charge-remainder-cron] Auto-completed ${completed.count} bookings`,
+      `[charge-remainder-cron] Auto-completed ${autoCompleted} bookings`,
     );
   }
 
@@ -118,6 +140,6 @@ export async function runChargeRemainderCron(): Promise<ChargeRemainderCronResul
     failed,
     manualDue,
     reminders,
-    autoCompleted: completed.count,
+    autoCompleted,
   };
 }
