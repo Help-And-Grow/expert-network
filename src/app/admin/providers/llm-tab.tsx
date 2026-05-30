@@ -26,8 +26,6 @@ import type {
   DraftState,
   Environment,
   ChainPickerOption,
-  RoutingScopeRow,
-  RoutingMatchRules,
 } from "./shared-types";
 import { ChainPicker } from "./chain-picker";
 import {

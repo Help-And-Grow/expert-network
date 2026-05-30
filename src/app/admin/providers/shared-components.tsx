@@ -4,11 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
-  AlertTriangle,
   CheckCircle2,
   History,
   Loader2,
-  Plus,
   XCircle,
 } from "lucide-react";
 
@@ -17,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -391,7 +388,7 @@ export function RecentChangesPanel({
                   </div>
                   {r.reason && (
                     <p className="mt-0.5 text-[10px] italic text-slate-500">
-                      "{r.reason}"
+                      &ldquo;{r.reason}&rdquo;
                     </p>
                   )}
                 </li>
