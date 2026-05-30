@@ -42,7 +42,7 @@ export class HunyuanProvider extends BaseAIProvider {
 
   protected async chat(prompt: string): Promise<string> {
     const response = await this.hunyuan.chat.completions.create({
-      model: getHunyuanTextModel(),
+      model: await getHunyuanTextModel(),
       messages: [{ role: "user", content: prompt }],
     });
     return response.choices[0]?.message?.content ?? "";

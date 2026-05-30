@@ -142,7 +142,7 @@ export const QWEN_DEFAULT_TEXT_MODEL = "qwen3.6-plus";
 export const QWEN_DEFAULT_IMAGE_MODEL = "wan2.7-image-pro";
 export const GEMINI_DEFAULT_TEXT_MODEL = "gemini-3.5-flash";
 export const GEMINI_DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
-export const HUNYUAN_DEFAULT_TEXT_MODEL = "hy3-preview";
+export const HUNYUAN_DEFAULT_TEXT_MODEL = "hunyuan-turbo";
 export const BYTEPLUS_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
 export const BYTEPLUS_DEFAULT_IMAGE_MODEL = "doubao-seedream-4.0-flash";
 export const VOLCENGINE_DEFAULT_TEXT_MODEL = "doubao-seed-1.6-flash";
@@ -602,8 +602,9 @@ export function getQwenImageModel(): string {
   return env.QWEN_IMAGE_MODEL?.trim() || QWEN_DEFAULT_IMAGE_MODEL;
 }
 
-export function getHunyuanTextModel(): string {
-  return env.HUNYUAN_TEXT_MODEL?.trim() || HUNYUAN_DEFAULT_TEXT_MODEL;
+export async function getHunyuanTextModel(): Promise<string> {
+  const state = await getProviderModelState("hunyuan");
+  return state.textModel || HUNYUAN_DEFAULT_TEXT_MODEL;
 }
 
 

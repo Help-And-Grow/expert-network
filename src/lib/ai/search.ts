@@ -128,7 +128,7 @@ export async function searchSocialProfilesWithHunyuan(
         authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: getHunyuanTextModel(),
+        model: await getHunyuanTextModel(),
         messages: [{ role: "user", content: prompt }],
         // Tencent-specific: turn on internal Sogou web search grounding.
         enable_enhancement: true,
