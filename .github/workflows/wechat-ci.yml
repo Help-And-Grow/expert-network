@@ -26,8 +26,8 @@ on:
 jobs:
   # ── fast build check (always runs, catches SCSS/TS errors before upload) ──
   build-check:
-    # Only jlzxwt8/expert-network — the active dev repo with WECHAT_CI_PRIVATE_KEY configured.
-    if: github.repository == 'jlzxwt8/expert-network'
+    # Only Help-And-Grow/expert-network — now configured with WECHAT_CI_PRIVATE_KEY.
+    if: github.repository == 'Help-And-Grow/expert-network'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,8 +48,8 @@ jobs:
 
   # ── upload (only runs after build-check passes, and only when key is set) ──
   upload:
-    # Only jlzxwt8/expert-network — the active dev repo with WECHAT_CI_PRIVATE_KEY configured.
-    if: github.repository == 'jlzxwt8/expert-network'
+    # Only Help-And-Grow/expert-network — now configured with WECHAT_CI_PRIVATE_KEY.
+    if: github.repository == 'Help-And-Grow/expert-network'
     needs: build-check
     runs-on: ubuntu-latest
     steps:
