@@ -337,7 +337,8 @@ export async function seedProviderRegistryIfEmpty(): Promise<{
           sortOrder: voiceOrder,
         },
       });
-      refreshed++;
+      // We don't increment `refreshed` here because it is defined later in the file
+      // Instead, we just let the DB row be updated natively.
       voiceOrder++;
       continue;
     }
