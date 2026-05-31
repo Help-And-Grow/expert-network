@@ -172,8 +172,9 @@ export async function POST(request: NextRequest) {
   if (category === "llm") {
     const caps = (row.metadata as unknown as { capabilities?: unknown })?.capabilities;
     const isVoice =
-      Array.isArray(caps) &&
-      caps.some((c) => typeof c === "string" && c.toLowerCase() === "voice");
+      key.endsWith("-tts") ||
+      (Array.isArray(caps) &&
+        caps.some((c) => typeof c === "string" && c.toLowerCase() === "voice"));
     result = isVoice ? await probeVoice(key) : await probeLlm(key);
   } else if (category === "storage") {
     result = await probeStorage(key);
