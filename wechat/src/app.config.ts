@@ -6,7 +6,7 @@ export default defineAppConfig({
     "pages/book/index",
     "pages/reschedule/index",
     "pages/dashboard/index",
-    "pages/onboarding/index",
+    // "pages/onboarding/index", // removed — WeChat policy prohibits expert-network model for foreign entities
     "pages/profile/index",
     // "pages/consultation/index", // live-pusher/live-player — not available for overseas entities
     // "pages/membership/index", // hidden until WeChat Pay is provisioned

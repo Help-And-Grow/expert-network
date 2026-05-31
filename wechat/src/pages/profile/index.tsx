@@ -331,24 +331,11 @@ export default function ProfilePage() {
           </>
         )}
 
-        {!isExpert && (
-          <View
-            className="profile__menu-item"
-            hoverClass="profile__menu-item--hover"
-            onClick={() =>
-              Taro.navigateTo({ url: "/pages/onboarding/index" })
-            }
-          >
-            <View className="profile__menu-icon-wrap profile__menu-icon-wrap--amber">
-              <Icon name="star" size={28} color="#d97706" />
-            </View>
-            <View className="profile__menu-content">
-              <Text className="profile__menu-label">成为志愿导师</Text>
-              <Text className="profile__menu-hint">为青年学员分享你的 AI 经验，全部公益</Text>
-            </View>
-            <Text className="profile__menu-arrow">›</Text>
-          </View>
-        )}
+        {/*
+          "成为志愿导师" entry removed — Tencent WeChat Platform does not
+          allow expert-network business model for foreign-company-registered
+          Mini Programs. Keep onboarding page code for future reference.
+        */}
 
         {/*
           我的会员 entry hidden until WeChat Pay merchant credentials are
