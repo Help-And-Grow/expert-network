@@ -327,7 +327,17 @@ export async function seedProviderRegistryIfEmpty(): Promise<{
   for (const item of voiceSeed) {
     const existing = await safeFindUnique("llm", item.key);
     if (existing) {
-      skipped++;
+      // Upsert: keep existing rows fresh with the latest static definitions.
+      await prisma.providerRegistry.update({
+        where: { id: existing.id },
+        data: {
+          displayName: item.displayName,
+          envKeys: item.envKeys as Prisma.InputJsonValue,
+          metadata: item.metadata as Prisma.InputJsonValue,
+          sortOrder: voiceOrder,
+        },
+      });
+      refreshed++;
       voiceOrder++;
       continue;
     }
