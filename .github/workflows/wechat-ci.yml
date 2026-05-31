@@ -26,8 +26,8 @@ on:
 jobs:
   # ── fast build check (always runs, catches SCSS/TS errors before upload) ──
   build-check:
-    # Active-dev repo only — see ci.yml for the Help-And-Grow / jlzxwt8 split.
-    if: github.repository == 'Help-And-Grow/expert-network'
+    # Run on both repos — jlzxwt8/expert-network is the active dev repo for WeChat.
+    if: github.repository == 'Help-And-Grow/expert-network' || github.repository == 'jlzxwt8/expert-network'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,8 +48,8 @@ jobs:
 
   # ── upload (only runs after build-check passes, and only when key is set) ──
   upload:
-    # Active-dev repo only — see ci.yml for the Help-And-Grow / jlzxwt8 split.
-    if: github.repository == 'Help-And-Grow/expert-network'
+    # Run on both repos — jlzxwt8/expert-network is the active dev repo for WeChat.
+    if: github.repository == 'Help-And-Grow/expert-network' || github.repository == 'jlzxwt8/expert-network'
     needs: build-check
     runs-on: ubuntu-latest
     steps:
