@@ -1,9 +1,7 @@
 import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Icon from "../../components/Icon";
-import { get } from "../../shared/api";
-import { isLoggedIn } from "../../shared/auth";
 import {
   BRAND_NAME,
   BRAND_LOGO,
@@ -18,34 +16,9 @@ export default function IndexPage() {
     const sysInfo = Taro.getSystemInfoSync();
     return sysInfo.statusBarHeight || 20;
   });
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!isLoggedIn()) {
-      setOnboardingDone(false);
-      return;
-    }
-    get<{ expert?: { isPublished?: boolean } }>("/api/user")
-      .then((res) => {
-        if (res.statusCode === 200) {
-          setOnboardingDone(!!res.data?.expert?.isPublished);
-        } else {
-          setOnboardingDone(false);
-        }
-      })
-      .catch(() => setOnboardingDone(false));
-  }, []);
 
   const goDiscover = () => {
     Taro.switchTab({ url: "/pages/discover/index" });
-  };
-
-  const goOnboarding = () => {
-    Taro.navigateTo({ url: "/pages/onboarding/index" });
-  };
-
-  const goDashboard = () => {
-    Taro.switchTab({ url: "/pages/dashboard/index" });
   };
 
   return (
@@ -76,13 +49,10 @@ export default function IndexPage() {
         >
           找一位导师
         </View>
-        <View
-          className="landing__btn landing__btn--outline"
-          hoverClass="landing__btn--hover"
-          onClick={onboardingDone ? goDashboard : goOnboarding}
-        >
-          {onboardingDone ? "我的学习见面" : "成为志愿导师"}
-        </View>
+        {/*
+          "成为志愿导师" button removed — WeChat policy prohibits expert-network
+          model for foreign-company-registered Mini Programs.
+        */}
       </View>
 
       <View className="landing__features">
