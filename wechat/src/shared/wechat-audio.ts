@@ -90,19 +90,23 @@ export async function prepareAudioForInnerAudio(
 
   // Taro.downloadFile saves to a temp path without an audio extension (e.g. tmp_xxxx).
   // WeChat's InnerAudioContext needs a proper extension (.mp3/.m4a) to detect the
-  // codec; without it the decoder silently fails. Copy to a permanent path with .mp3.
-  const permPath = `${root}/hg_dl_${safeKey}.mp3`;
-
-  await new Promise<void>((resolve, reject) => {
-    fs.copyFile({
-      srcPath: tempPath,
-      destPath: permPath,
-      success: () => resolve(),
-      fail: (err) => reject(err),
+  // codec; without it the decoder silently fails — especially on iOS.
+  // copyFile is best-effort: on some iOS builds it fails (temp-file lifecycle),
+  // so fall back to the raw tempPath which still works on Mac/Android.
+  try {
+    const permPath = `${root}/hg_dl_${safeKey}.mp3`;
+    await new Promise<void>((resolve, reject) => {
+      fs.copyFile({
+        srcPath: tempPath,
+        destPath: permPath,
+        success: () => resolve(),
+        fail: (err) => reject(err),
+      });
     });
-  });
-
-  return permPath;
+    return permPath;
+  } catch {
+    return tempPath;
+  }
 }
 
 export async function readLocalAudioAsBase64(
