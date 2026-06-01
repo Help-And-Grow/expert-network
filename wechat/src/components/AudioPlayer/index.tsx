@@ -44,7 +44,7 @@ export default function AudioPlayer({ src, label }: Props) {
         const localPath = await prepareAudioForInnerAudio(src, cacheKey);
         if (cancelled) return;
 
-        const audio = Taro.createInnerAudioContext();
+        const audio = Taro.createInnerAudioContext({ useWebAudioImplement: true });
         audio.obeyMuteSwitch = false;
         audio.autoplay = false;
         audio.src = localPath;

@@ -99,7 +99,7 @@ export default function VoiceRecorder({
   const playRecording = () => {
     if (!tempFilePath) return;
     if (!audioRef.current) {
-      audioRef.current = Taro.createInnerAudioContext();
+      audioRef.current = Taro.createInnerAudioContext({ useWebAudioImplement: true });
       audioRef.current.onEnded(() => setPlaying(false));
       audioRef.current.onStop(() => setPlaying(false));
     }

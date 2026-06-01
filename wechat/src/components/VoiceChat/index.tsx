@@ -102,7 +102,7 @@ export default function VoiceChat(props: VoiceChatProps) {
       audioCtxRef.current.destroy();
     }
 
-    const ctx = Taro.createInnerAudioContext();
+    const ctx = Taro.createInnerAudioContext({ useWebAudioImplement: true });
     ctx.obeyMuteSwitch = false;
     ctx.src = localPath;
     ctx.onEnded(() => setPlayingId(null));

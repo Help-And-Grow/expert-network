@@ -179,7 +179,7 @@ export default function ExpertPage() {
       introAudioRef.current?.stop();
       introAudioRef.current?.destroy();
 
-      const ctx = Taro.createInnerAudioContext();
+      const ctx = Taro.createInnerAudioContext({ useWebAudioImplement: true });
       ctx.obeyMuteSwitch = false;
       ctx.src = localPath;
       ctx.onPlay(() => {
