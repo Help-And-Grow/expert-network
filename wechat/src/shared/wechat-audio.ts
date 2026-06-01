@@ -34,6 +34,12 @@ export async function prepareAudioForInnerAudio(
   cacheKey: string,
 ): Promise<string> {
   const trimmed = src.trim();
+  const fs = Taro.getFileSystemManager();
+  const root = Taro.env.USER_DATA_PATH;
+  if (!root) {
+    throw new Error("Taro.env.USER_DATA_PATH is empty (WeChat base lib too old?)");
+  }
+  const safeKey = cacheKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 
   if (trimmed.startsWith("data:")) {
     const match = trimmed.match(DATA_AUDIO_RE);
@@ -42,12 +48,6 @@ export async function prepareAudioForInnerAudio(
     }
     const ext = extFromMime(match[1]);
     const b64 = match[2].replace(/\s/g, "");
-    const fs = Taro.getFileSystemManager();
-    const root = Taro.env.USER_DATA_PATH;
-    if (!root) {
-      throw new Error("Taro.env.USER_DATA_PATH is empty (WeChat base lib too old?)");
-    }
-    const safeKey = cacheKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
     const filePath = `${root}/hg_vc_${safeKey}.${ext}`;
 
     await new Promise<void>((resolve, reject) => {
@@ -63,28 +63,46 @@ export async function prepareAudioForInnerAudio(
     return filePath;
   }
 
+  let tempPath: string;
+
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     const res = await Taro.downloadFile({ url: trimmed });
     if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
       throw new Error(`downloadFile failed: ${res.statusCode}`);
     }
-    return res.tempFilePath;
+    tempPath = res.tempFilePath;
+  } else {
+    const API_BASE = getApiBase();
+    const apiPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    const joinChar = apiPath.includes("?") ? "&" : "?";
+    const url = `${API_BASE}${apiPath}${joinChar}full=1`;
+    const token = getToken();
+    const res = await Taro.downloadFile({
+      url,
+      header: token ? { "x-wechat-token": token } : {},
+    });
+    // Our audio API may return 206 Partial Content when WeChat sends Range (same as browser probes).
+    if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
+      throw new Error(`downloadFile failed: ${res.statusCode}`);
+    }
+    tempPath = res.tempFilePath;
   }
 
-  const API_BASE = getApiBase();
-  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  const join = path.includes("?") ? "&" : "?";
-  const url = `${API_BASE}${path}${join}full=1`;
-  const token = getToken();
-  const res = await Taro.downloadFile({
-    url,
-    header: token ? { "x-wechat-token": token } : {},
+  // Taro.downloadFile saves to a temp path without an audio extension (e.g. tmp_xxxx).
+  // WeChat's InnerAudioContext needs a proper extension (.mp3/.m4a) to detect the
+  // codec; without it the decoder silently fails. Copy to a permanent path with .mp3.
+  const permPath = `${root}/hg_dl_${safeKey}.mp3`;
+
+  await new Promise<void>((resolve, reject) => {
+    fs.copyFile({
+      srcPath: tempPath,
+      destPath: permPath,
+      success: () => resolve(),
+      fail: (err) => reject(err),
+    });
   });
-  // Our audio API may return 206 Partial Content when WeChat sends Range (same as browser probes).
-  if (!isSuccessfulDownloadStatus(res.statusCode) || !res.tempFilePath) {
-    throw new Error(`downloadFile failed: ${res.statusCode}`);
-  }
-  return res.tempFilePath;
+
+  return permPath;
 }
 
 export async function readLocalAudioAsBase64(
