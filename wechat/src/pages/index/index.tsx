@@ -92,15 +92,6 @@ export default function IndexPage() {
         </View>
       </View>
 
-      <View className="landing__about">
-        <Text className="landing__about-title">关于我们</Text>
-        <Text className="landing__about-text">
-          {BRAND_PROVIDER} ·
-          专注于通过导师网络与实战项目，帮助中国与东南亚青年面对未来职业挑战。
-          本小程序为非商业平台，不收取任何费用，亦不提供商业服务。
-        </Text>
-      </View>
-
       <View className="landing__safe-bottom" />
     </View>
   );
