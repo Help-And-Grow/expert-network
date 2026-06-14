@@ -1,0 +1,66 @@
+name: Deploy to Alibaba Cloud SAE
+
+on:
+  push:
+    branches:
+      - main # For the Help-And-Grow repo
+
+env:
+  ALIYUN_REGION_ID: ap-southeast-1
+  ACR_REGISTRY: registry.ap-southeast-1.aliyuncs.com
+  ACR_NAMESPACE: expert-network
+  IMAGE_NAME: expert-network-app
+  SAE_NAMESPACE_ID: ${{ secrets.SAE_NAMESPACE_ID }}
+  SAE_APP_ID: ${{ secrets.SAE_APP_ID }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    if: github.repository == 'Help-And-Grow/expert-network'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Aliyun Credentials
+        uses: aliyun/credentials-action@v1
+        with:
+          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+
+      - name: Login to Alibaba Cloud Container Registry (ACR)
+        uses: aliyun/acr-login@v1
+        with:
+          login-server: https://${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACCESS_KEY_ID }} # Sometimes requires a specific ACR username
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          FULL_IMAGE_URL=${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+          
+          echo "Building image $FULL_IMAGE_URL"
+          docker build -t $FULL_IMAGE_URL .
+          
+          echo "Pushing image"
+          docker push $FULL_IMAGE_URL
+          
+          echo "IMAGE_URL=$FULL_IMAGE_URL" >> $GITHUB_ENV
+
+      - name: Install Aliyun CLI
+        run: |
+          wget https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar xzvf aliyun-cli-linux-latest-amd64.tgz
+          sudo cp aliyun /usr/local/bin
+          aliyun configure set --profile default --mode AK --region ${{ env.ALIYUN_REGION_ID }} --access-key-id ${{ secrets.ALIYUN_ACCESS_KEY_ID }} --access-key-secret ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+
+      - name: Deploy to Serverless App Engine (SAE)
+        run: |
+          echo "Deploying to SAE Application ID: ${{ env.SAE_APP_ID }}"
+          aliyun sae DeployApplication \
+            --AppId ${{ env.SAE_APP_ID }} \
+            --ImageUrl ${{ env.IMAGE_URL }} \
+            --UpdateStrategy '{"type":"GrayBatchUpdate","batchUpdate":{"batch":2,"releaseType":"auto","batchWaitTime":0},"grayUpdate":{"gray":1}}'
+          
+          echo "Deployment initiated successfully."
