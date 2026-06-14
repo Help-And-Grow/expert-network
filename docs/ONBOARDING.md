@@ -69,14 +69,14 @@ For domain layers, dependency rules, and per-subsystem deep-dives, read [`ARCHIT
 
 ### Production deploy topology
 
-> **Updated 2026-05-13 — MVP rollout.** Repo roles inverted: `Help-And-Grow` is now the active development repo, `jlzxwt8` is locked down as production-only. Full rationale in [`docs/references/multi-repo-strategy.md`](references/multi-repo-strategy.md).
+> **Updated 2026-06-14 — single-source workflow.** Routine development and deploy-triggering pushes now happen only in `jlzxwt8/expert-network`. `Help-And-Grow/expert-network` remains as a frozen public mirror / historical reference. Full rationale in [`docs/references/multi-repo-strategy.md`](references/multi-repo-strategy.md).
 
 | Repo | Role | Local remote | Vercel connection |
 |---|---|---|---|
-| `Help-And-Grow/expert-network` | **Active development** — daily commits, hackathon demos, investor pitches, OpenAI + ByteDance credit-grant showcases | `origin` (fetch + push) | Not auto-deployed to www.help-and-grow.com |
-| `jlzxwt8/expert-network` | **Production lockdown** — bugfixes only, cherry-picked from Help-And-Grow | `production` (fetch + push) | Auto-deploys to www.help-and-grow.com via Vercel GitHub App |
+| `jlzxwt8/expert-network` | **Source of truth** — routine development and deploy-triggering pushes | `origin` (fetch + push) | Auto-deploys to www.help-and-grow.com via Vercel GitHub App |
+| `Help-And-Grow/expert-network` | **Frozen mirror** — historical reference only | none required for routine work | No routine deploy target |
 
-Routine push goes to `origin` only. Hotfixes follow the cherry-pick → `git push production HEAD:main` recipe described in [`CLAUDE.md`](../CLAUDE.md). The Volcengine deployment path for IGA Pages CN is in [`docs/exec-plans/active/iga-pages-volcengine-deployment.md`](exec-plans/active/iga-pages-volcengine-deployment.md).
+Routine push goes to `origin` only, and `origin` should point at `jlzxwt8/expert-network`. The Volcengine deployment path for IGA Pages CN is in [`docs/exec-plans/active/iga-pages-volcengine-deployment.md`](exec-plans/active/iga-pages-volcengine-deployment.md).
 
 ---
 
@@ -108,7 +108,7 @@ You can read the codebase without running it. If you want to run it:
 
 ```bash
 # 1. Clone
-git clone https://github.com/Help-And-Grow/expert-network.git
+git clone https://github.com/jlzxwt8/expert-network.git
 cd expert-network
 
 # 2. Install (postinstall runs prisma generate automatically)
@@ -208,8 +208,8 @@ In-house terms you'll see in the code and docs:
 - **Take notes as you go.** A first-week intern's notes are often the best onboarding doc for the *next* intern. If you spot something confusing in the docs, propose an edit.
 
 ### What requires a heads-up first
-- **Running anything against the production database** (`DATABASE_URL` pointing at Cloud SQL). Don't.
-- **Pushing to any branch on `jlzxwt8/expert-network` or `Help-And-Grow/expert-network`.** As of 2026-05, only the project lead pushes to `main`. `jlzxwt8/main` auto-deploys to www.help-and-grow.com via Vercel — one bad push to production has compounding effects. `Help-And-Grow/main` doesn't auto-deploy production, but it's still the active development source the lead works from daily; an unreviewed push there is also disruptive.
+- **Running anything against the production database** (`DATABASE_URL` pointing at Alibaba RDS). Don't.
+- **Pushing to any branch on `jlzxwt8/expert-network`.** `jlzxwt8/main` auto-deploys to www.help-and-grow.com via Vercel, so one bad push to production has compounding effects. `Help-And-Grow/expert-network` is now a frozen mirror and should not be used for routine work either.
 - **Touching env vars on Vercel or IGA Pages.** Those are the live production secrets.
 - **Rotating any token, key, or password.** Even if you spot a leak (see the 2026-05-11 incident, summarized below) — flag it, don't fix it yourself.
 
@@ -221,7 +221,7 @@ In May 2026 the repo had a `.env.production` and a `wechat/helpandgrow_data.sql`
 
 - **`.env*` files (except `.env.example`) are gitignored.** Don't `git add -f` them.
 - **Database dumps belong outside the repo.** `*.dump`, `*_data.sql`, `*_backup.sql` are gitignored too.
-- **GitHub Secret Scanning Push Protection is on for `Help-And-Grow/expert-network`.** It will block your push if it detects a real secret — that's a feature, not an annoyance. If you ever see that block trigger, stop and tell the project lead.
+- **GitHub Secret Scanning Push Protection may still be enabled on the public mirror.** Treat any push-protection block as a signal to stop and tell the project lead.
 
 ### Asking for help
 

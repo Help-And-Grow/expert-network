@@ -1,48 +1,71 @@
-# Repo & Showcase Deployment Strategy
+# Repo & Deployment Strategy
 
-This document defines how Help & Grow is operated across two GitHub repositories while keeping the live Vercel deployment stable and predictable.
+This document defines the current repo policy after the Alibaba database migration decision on `2026-06-14`.
 
-> **2026-05-17 — dual-push restored, divergence moved to the env layer.** The Help-And-Grow-only-active phase (commit `84e2c0b` to `def0d1a3`) created too much friction maintaining two histories. Same code now ships to both repos via a single dual-push `origin`; the per-deploy provider/storage/etc. choices live entirely in environment variables on each platform. The repos converge in code, diverge only at deploy config.
+> **2026-06-14 — dual-push retired.** The project now uses a single routine source of truth: **`jlzxwt8/expert-network`**. The earlier Cloud Run / dual-push / showcase flow is retired. `Help-And-Grow/expert-network` remains only as a frozen public mirror / historical reference.
 
-## 1. Source of Truth — by responsibility
+## 1. Source of truth
 
-Help & Grow uses a **dual-push** model: one `git push origin main` publishes to both repos, and each repo's deploy target picks up the same code with its own env vars.
+### `jlzxwt8/expert-network` — production source of truth
 
-### A. `jlzxwt8/expert-network` — Vercel production
-- **Local remote alias:** `origin` (push) + `production` (push & fetch). `git push origin main` covers it as part of the dual-push.
-- **Deploy:** Vercel GitHub App on push → www.help-and-grow.com.
-- **AI provider:** whatever's set in the **admin page** (`/admin/providers`) → SystemConfig + ProviderRoutingScope in Cloud SQL. Currently Qwen-primary, Gemini fallback.
-- **Storage:** Vercel Blob / GCS / Tencent COS (admin-driven).
+- **Local remote alias:** `origin`
+- **Deploy:** Vercel GitHub App on push → `https://www.help-and-grow.com`
+- **Database:** Alibaba ApsaraDB RDS Serverless (`helpgrow`)
+- **AI provider:** whatever is active in the admin page (`/admin/providers`)
+- **Routine policy:** all normal development, bug fixes, and deploy-triggering pushes happen here
 
-### B. `Help-And-Grow/expert-network` — Cloud Run demo
-- **Local remote alias:** `origin` (push & fetch). `git push origin main` covers it as part of the dual-push.
-- **Deploy:** Cloud Build trigger on push → Cloud Run service `expert-network` in `asia-southeast1` → https://expert-network-druobkk2ma-as.a.run.app. Full runbook: [`docs/exec-plans/active/help-and-grow-cloud-run-deployment.md`](../exec-plans/active/help-and-grow-cloud-run-deployment.md).
-- **AI provider:** **Gemini only.** Locked via `AI_PROVIDER_LOCK=gemini` env on Cloud Run, which short-circuits all DB-driven routing (SystemConfig + ProviderRoutingScope). Vercel leaves this var unset, so the admin page continues to drive Vercel.
-- **Storage:** `STORAGE_PROVIDER=db` for now (no dedicated GCS bucket yet).
+### `Help-And-Grow/expert-network` — frozen public mirror
 
----
+- **Deploy:** none
+- **Routine policy:** do not push as part of normal development
+- **Purpose:** historical reference, public visibility, optional manual sync only if explicitly requested
 
-## 2. Deployment Architecture
+## 2. Deployment architecture
 
-| Aspect | jlzxwt8 → Vercel | Help-And-Grow → Cloud Run |
-|---|---|---|
-| Vercel team / GCP project | `Help And Grow` team | `expert-network-489508` (`asia-southeast1`) |
-| Service / URL | `expert-network` → www.help-and-grow.com | `expert-network` → https://expert-network-druobkk2ma-as.a.run.app |
-| Build trigger | Vercel GitHub App | Cloud Build trigger `rmgpgab-…-Help-And-Grow-expert-gps` |
-| DB | Cloud SQL `hg-postgres-prod` (shared) | Cloud SQL `hg-postgres-prod` (shared) |
-| Storage | admin-driven (Vercel Blob / GCS / Tencent COS) | `STORAGE_PROVIDER=db` (until dedicated GCS bucket lands) |
-| Text LLM | admin-page driven (`AI_PROVIDER=qwen` default) | **Gemini only** via `AI_PROVIDER_LOCK=gemini` |
-| Secrets storage | Vercel encrypted env | Google Secret Manager refs (see [Cloud Run runbook §3](../exec-plans/active/help-and-grow-cloud-run-deployment.md)) |
+| Aspect | Steady state |
+|---|---|
+| GitHub repo | `jlzxwt8/expert-network` |
+| Hosting | Vercel |
+| Production URL | `https://www.help-and-grow.com` |
+| Database | Alibaba ApsaraDB RDS Serverless |
+| Default branch | `main` |
+| Automatic deploy trigger | Vercel GitHub App on push |
+| Public mirror | `Help-And-Grow/expert-network` |
 
-Both deploys read the **same Cloud SQL DB**, so schema migrations propagate to both. The auto-migration postinstall (`prisma-migrate-if-vercel.mjs`) only fires when `VERCEL=1` is set — so Vercel pushes migrate, Cloud Build pushes don't. This is intentional: production migration is one source of truth, Cloud Run picks up the new columns on its next deploy.
+## 3. Daily workflow
 
-### The `AI_PROVIDER_LOCK` env
+### Routine push
 
-Cloud Run sets `AI_PROVIDER_LOCK=gemini`. When set, the application short-circuits **all** AI provider resolution (DB-driven `ProviderRoutingScope`, `SystemConfig.AI_PROVIDER`, `SystemConfig.AI_TEXT_PROVIDER_CHAIN`, env `AI_PROVIDER`, env `AI_TEXT_PROVIDER_CHAIN`) and routes every call — `chat`, `improveWriting`, `generateExpertProfile`, `normalizeQuery`, `generateProfileImage` — to the named provider directly. This is how Cloud Run stays Gemini-only despite the shared Cloud SQL holding production's Qwen-first routing rules. Implemented in `src/lib/ai/index.ts`.
+```bash
+git push origin main
+```
 
-Vercel leaves `AI_PROVIDER_LOCK` unset, so the admin page (`/admin/providers`) keeps full control over production routing.
+That should publish only to `jlzxwt8/expert-network` and trigger only the Vercel deployment.
 
-### Vercel dashboard URLs (avoid 404)
+### Required local remote configuration
+
+If your clone still has the older dual-push configuration, clean it up once:
+
+```bash
+git remote set-url origin https://github.com/jlzxwt8/expert-network.git
+git remote set-url --delete --push origin https://github.com/Help-And-Grow/expert-network.git
+git remote set-url --add --push origin https://github.com/jlzxwt8/expert-network.git
+git remote remove production 2>/dev/null || true
+```
+
+Expected output after cleanup:
+
+```bash
+git remote -v
+origin  https://github.com/jlzxwt8/expert-network.git (fetch)
+origin  https://github.com/jlzxwt8/expert-network.git (push)
+```
+
+### Optional manual mirror sync
+
+Do not sync the `Help-And-Grow` mirror as part of routine work. If the mirror ever needs an update for a public showcase or archival reason, do it as an explicit one-off task and document the reason in the commit / release notes.
+
+## 4. Vercel dashboard URLs (avoid 404)
 
 Deployment pages use:
 
@@ -84,99 +107,29 @@ Do not assume the GitHub org and the Vercel team are the same thing. The dashboa
 
 ---
 
-## 3. Operational Guidelines
+## 5. Operational guidelines
 
-### Daily development (single dual-push)
+### After each routine push
 
-```bash
-git push origin main   # → Help-And-Grow/main AND jlzxwt8/main, in one command
-```
-
-`fetch` resolves to Help-And-Grow only (the active code stream). `push` fires both URLs. Both deploys auto-build from their respective triggers. After the push, verify both surfaces:
+After the push, verify the Vercel surface:
 
 ```bash
 # Vercel build status
 vercel logs --follow https://www.help-and-grow.com
-
-# Cloud Build / Cloud Run status
-gcloud builds list --limit=1 --filter="source.repoSource.repoName:Help-And-Grow*"
-gcloud run services describe expert-network --region=asia-southeast1 --format="value(status.traffic[0].revisionName)"
 ```
-
-### Required local remote configuration
-
-```bash
-# One-time setup on the maintainer's clone:
-git remote remove origin       2>/dev/null || true
-git remote remove helpandgrow  2>/dev/null || true
-git remote remove production   2>/dev/null || true
-
-# origin: fetches from Help-And-Grow (the active code stream),
-#         pushes to BOTH repos so a single `git push origin main` covers both deploys.
-git remote add origin https://github.com/Help-And-Grow/expert-network.git
-git remote set-url --add --push origin https://github.com/jlzxwt8/expert-network.git
-
-# production: jlzxwt8-only convenience for the occasional Vercel-only push.
-git remote add production https://github.com/jlzxwt8/expert-network.git
-
-# Verify (origin should have 2× (push) URLs):
-git remote -v
-```
-
-Expected output:
-```
-origin      https://github.com/Help-And-Grow/expert-network.git (fetch)
-origin      https://github.com/Help-And-Grow/expert-network.git (push)
-origin      https://github.com/jlzxwt8/expert-network.git       (push)
-production  https://github.com/jlzxwt8/expert-network.git       (fetch)
-production  https://github.com/jlzxwt8/expert-network.git       (push)
-```
-
-### Keeping the two repos at the same SHA
-
-After `git push origin main` both repos should be at the same HEAD. Verify any time:
-
-```bash
-echo "jlzxwt8:        $(gh api repos/jlzxwt8/expert-network/branches/main --jq '.commit.sha')"
-echo "Help-And-Grow:  $(gh api repos/Help-And-Grow/expert-network/branches/main --jq '.commit.sha')"
-```
-
-If they diverge — e.g. one push reached only one repo due to a transient network failure — re-push the missing one:
-
-```bash
-# Reach the lagging repo specifically:
-git push origin main      # tries both; the up-to-date one is a no-op
-git push production main  # explicit jlzxwt8 fallback
-```
-
-### Vercel-only push (rare)
-
-For the unusual case where a change should reach production *without* simultaneously updating the Cloud Run demo (e.g. a Vercel-specific config tweak that doesn't apply on Cloud Run):
-
-```bash
-git push production main
-```
-
-This uses the dedicated `production` remote (jlzxwt8 only) and skips Help-And-Grow. Then run the dual-push later to re-sync once the change is ready for both surfaces.
 
 ### Managing Vercel environment variables
 Treat the Help And Grow Vercel project as the runtime source of truth, regardless of which GitHub repo is public.
 
-Managing environment variables is simpler when the live deployment stays on one provider stack. We keep the `scripts/vercel-merge-env.mjs` utility to safely propagate shared core settings (like database URLs and auth secrets) while preserving Alibaba-specific keys.
+Managing environment variables is simpler now that the live deployment stays on one provider stack and one routine repo.
 
 **Workflow to update environments:**
 ```bash
-# 1. Pull the master configuration from your private origin project
-npx vercel env pull /tmp/vercel-origin-production.env --project expert-network --environment production
+# Pull the current production env locally
+npx vercel env pull .env.vercel.production --project expert-network --environment production
 
-# 2. Pull the showcase project's current configuration
-npx vercel env pull /tmp/vercel-alibabacloud-production.env --project expert-network --environment production
+# Edit or rotate the needed values
 
-# 3. Merge them intelligently using our script
-npm run vercel:env:alibabacloud
-
-# 4. Apply the merged configuration back to Vercel
-npx vercel env push .env.vercel.alibabacloud.sync --project expert-network --environment production
+# Push the updated env back to production
+npx vercel env push .env.vercel.production --project expert-network --environment production
 ```
-
-This strategy ensures your product remains highly agile in private while maintaining a stable Alibaba/Qwen public showcase.

@@ -105,7 +105,7 @@ Open [http://localhost:5000](http://localhost:5000). Local sign-in shortcut on `
 
 ## Deployment
 
-Production canonical URL: **`https://www.help-and-grow.com`** (the `expert-network.vercel.app` alias still resolves to the same deployment as a fallback). The live Vercel project is owned by the **Help And Grow** team; default Git iteration follows **`jlzxwt8/expert-network`**. Push to `main` triggers Vercel build (`npm run build`), which auto-baselines the migration history when needed.
+Production canonical URL: **`https://www.help-and-grow.com`** (the `expert-network.vercel.app` alias still resolves to the same deployment as a fallback). The live Vercel project is owned by the **Help And Grow** team, and routine Git iteration now follows **`jlzxwt8/expert-network` only**. The public `Help-And-Grow/expert-network` repo is a frozen mirror / historical reference and should not receive routine pushes. Push to `main` on `jlzxwt8/expert-network` triggers the Vercel build (`npm run build`), which auto-baselines the migration history when needed.
 
 GitHub Actions workflows: [`.github/workflows/`](.github/workflows/) — `ci.yml` (lint + Playwright against canonical production URL), `deploy-smoke.yml`, `playwright-e2e.yml`, `wechat-ci.yml`, `npm-audit.yml`. The `ui-smoke.yml` workflow + ephemeral CI Postgres were removed 2026-05-06; live prod is the single source of truth for browser smoke. (Workflows were re-enabled in commit `27f2570` after the Action-minute quota window reset.)
 

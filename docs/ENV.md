@@ -4,7 +4,7 @@ Grouped reference for every env var the app reads. The full annotated list lives
 
 Validation: production startup fails fast if `DATABASE_URL`, `NEXTAUTH_URL`, and an auth secret (`AUTH_SECRET` or `NEXTAUTH_SECRET`, ≥32 chars) are missing. Emergency local bypass: `SKIP_ENV_VALIDATION=1` (never use on Vercel).
 
-For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). Web/Telegram production runs on **Google Cloud SQL** (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03; the migration record lives at [`exec-plans/archive/supabase-to-cloudsql-migration.md`](exec-plans/archive/supabase-to-cloudsql-migration.md), and everyday DB-access patterns at [`references/cloud-sql-data-viewing.md`](references/cloud-sql-data-viewing.md).
+For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). Web/Telegram production runs on **Alibaba ApsaraDB RDS Serverless** in Singapore since `2026-06-14`; the migration record lives at [`exec-plans/active/alibaba-cloud-migration-runbook.md`](exec-plans/active/alibaba-cloud-migration-runbook.md).
 
 ---
 
@@ -12,8 +12,8 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 
 | Var | Required | Purpose |
 |---|---|---|
-| `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`) — points at Google Cloud SQL `hg-postgres-prod` for Web/Telegram. |
-| `DB_PROVIDER` | optional | Identifier for the active provider — `cloudsql` in production. Informational; not required by Prisma. |
+| `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`) — points at Alibaba ApsaraDB RDS Serverless for Web/Telegram production. |
+| `DB_PROVIDER` | optional | Identifier for the active provider. Informational; not required by Prisma. |
 | `NEXTAUTH_URL` | yes | Canonical public origin of the app. Production must be `https://www.help-and-grow.com` after the custom-domain cutover. |
 | `AUTH_URL` | optional | Auth.js v5 canonical URL alias. If set, keep it equal to production `NEXTAUTH_URL`. |
 | `AUTH_SECRET` | yes | Auth.js v5 JWT signing secret (`openssl rand -base64 32`) |

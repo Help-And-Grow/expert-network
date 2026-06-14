@@ -61,15 +61,16 @@ This means you can take a fresh Vercel project pointed at an existing Postgres d
 
 ## Deploy
 
-Two deploy surfaces, two repos.
+One production deploy surface, one routine repo.
 
 ### Production (Vercel — `jlzxwt8/expert-network`)
-The live `expert-network` project is owned by the **Help And Grow** Vercel team. Vercel's GitHub App is connected to **`jlzxwt8/expert-network`** (the production-locked repo) — pushes there auto-deploy to www.help-and-grow.com. Default daily pushes do **not** go here; only verified bugfixes do (cherry-picked from Help-And-Grow). See [`CLAUDE.md`](../CLAUDE.md).
+The live `expert-network` project is owned by the **Help And Grow** Vercel team. Vercel's GitHub App is connected to **`jlzxwt8/expert-network`** — pushes there auto-deploy to `www.help-and-grow.com`.
 
-### Active dev (Cloud Run — `Help-And-Grow/expert-network`)
-Cloud Build trigger fires on every push to `Help-And-Grow/main` → builds container → Cloud Run service `expert-network` (project `expert-network-489508`, region `asia-southeast1`) → URL https://expert-network-druobkk2ma-as.a.run.app. AI provider is Gemini (Google-Cloud-native demo stack). Full runbook: [`docs/exec-plans/active/help-and-grow-cloud-run-deployment.md`](exec-plans/active/help-and-grow-cloud-run-deployment.md).
+### Database
+Production uses Alibaba ApsaraDB RDS Serverless for PostgreSQL. The migration record and shutdown checklist for the retired Google Cloud resources live in [`docs/exec-plans/active/alibaba-cloud-migration-runbook.md`](exec-plans/active/alibaba-cloud-migration-runbook.md).
 
-Both deploys share Cloud SQL `hg-postgres-prod`. Migration discipline lives in the Cloud Run runbook §6.
+### Public mirror
+`Help-And-Grow/expert-network` is now a frozen mirror / historical reference. It is not part of the routine deploy path.
 
 ### Push-to-deploy
 Pushing to `main` triggers Vercel to run `npm run build`. The auto-baseline migration runs first (postinstall → migrate deploy).

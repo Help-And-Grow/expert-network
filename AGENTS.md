@@ -12,8 +12,8 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Web/Telegram production runs on Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03. See [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md).
-- **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Web/Telegram production runs on Alibaba ApsaraDB RDS Serverless for PostgreSQL (`pgm-gs5j57uq0lrdq46h`, `ap-southeast-1`) since 2026-06-14. See [alibaba-cloud-migration-runbook.md](docs/exec-plans/active/alibaba-cloud-migration-runbook.md).
+- **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, and routine Git-based iteration and deploys follow **`jlzxwt8/expert-network`** only. The public `Help-And-Grow/expert-network` repo is a frozen mirror unless the user explicitly asks to sync it.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
 - **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
 
@@ -54,8 +54,8 @@ See `docs/` for full details:
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
-| Postgres operations | [docs/exec-plans/active/postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md) | Cloud SQL env vars, deploy checklist, local dev tunneling |
-| Cloud SQL data viewing | [docs/references/cloud-sql-data-viewing.md](docs/references/cloud-sql-data-viewing.md) | Connecting via `gcloud sql connect` / Cloud SQL Auth Proxy |
+| Postgres operations | [docs/exec-plans/active/alibaba-cloud-migration-runbook.md](docs/exec-plans/active/alibaba-cloud-migration-runbook.md) | Alibaba RDS cutover record, shutdown checklist, datasource notes |
+| Cloud SQL data viewing | [docs/references/cloud-sql-data-viewing.md](docs/references/cloud-sql-data-viewing.md) | Historical Google Cloud SQL access patterns before shutdown |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
 
@@ -63,9 +63,9 @@ See `docs/` for full details:
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
 2. **AI providers**: Multiple adapters in code (`gemini`, `qwen`, `openai`, `zai`, `byteplus`, `volcengine`, `hunyuan`). Deployment topology:
-   - **jlzxwt8/expert-network on Vercel + GCP (overseas prod, current)**: `qwen → gemini` chain (default `AI_PROVIDER=qwen`).
+   - **jlzxwt8/expert-network on Vercel + Alibaba RDS (overseas prod, current)**: `qwen → gemini` chain (default `AI_PROVIDER=qwen`).
    - **jlzxwt8/expert-network on IGA Pages + Volcengine (CN prod, after company-setup + ICP)**: `volcengine` (Doubao-Seed-1.6 + Seedream-4.0). See [docs/exec-plans/active/iga-pages-volcengine-deployment.md](docs/exec-plans/active/iga-pages-volcengine-deployment.md).
-   - **Help-And-Grow/expert-network (one-way mirror, hackathon + investor + credit-grant showcases)**: highlights OpenAI + ByteDance integrations — typical chain is `openai,volcengine,byteplus` so the admin UI can flip between them live during demos.
+   - **Help-And-Grow/expert-network (frozen public mirror)**: historical mirror only; no routine deploys or automatic sync.
    - WeChat-originated traffic always uses `hunyuan` for text (Tencent Cloud compliance boundary) regardless of the chain config.
    The admin UI at `/admin/providers` flips chains at runtime via `SystemConfig`. See `src/lib/ai/index.ts` and `src/lib/ai/provider-catalog.ts`.
 3. **Expert memory backend**: `MEMORY_BACKEND=mem9|pgvector|hybrid`. Local/on-prem defaults should be **`pgvector`** with `EMBEDDING_PROVIDER=ollama`; mem9 remains optional for cloud/hybrid runs. See `src/lib/integrations/mem9-lifecycle.ts` and `src/lib/integrations/pgvector-memory.ts`.
