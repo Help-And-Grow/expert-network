@@ -6,7 +6,87 @@ Target: Migrate the [`Help-And-Grow/expert-network`](https://github.com/Help-And
 
 This runbook covers the end-to-end process of setting up the new Alibaba Cloud resources, deploying the active-development surface, and cutting over the production Vercel deployment (`jlzxwt8/expert-network`) to the new shared database.
 
+## Current handoff state
+
+As of `2026-06-14`, the migration is partially completed and can continue from another laptop without re-provisioning the Alibaba database.
+
+### Alibaba RDS target already created
+
+| Item | Value |
+|---|---|
+| Instance ID | `pgm-gs5j57uq0lrdq46h` |
+| Region / zone | `ap-southeast-1` / `ap-southeast-1a` |
+| Billing | `Serverless` |
+| Engine | `PostgreSQL 14.0` |
+| Instance type | `pg.n2.serverless.1c` |
+| VPC | `vpc-t4nutmnnx0eukabv34kyz` |
+| vSwitch | `vsw-t4niujsgonik6gyfkk3y4` |
+| Private endpoint | `pgm-gs5j57uq0lrdq46h.rwlb.singapore.rds.aliyuncs.com:5432` |
+| Public endpoint | `hg-pg-20260614.rwlb.singapore.rds.aliyuncs.com:5432` |
+| Database | `helpgrow` |
+| App account | `hg_app` |
+
+### Current Alibaba network posture
+
+- The instance whitelist already contains:
+  - `172.16.0.0/16`
+  - `121.7.17.106/32`
+- A corporate laptop using Zscaler timed out on direct PostgreSQL access to the Alibaba public endpoint, even after the whitelist entry was confirmed.
+- Conclusion: continue the SQL import from a different laptop or network that can open outbound PostgreSQL TCP connections to the Alibaba endpoint.
+
+### Google Cloud SQL export already completed
+
+The source Cloud SQL instance `hg-postgres-prod` already exported the `helpgrow` database to Google Cloud Storage.
+
+| Item | Value |
+|---|---|
+| GCP project | `expert-network-489508` |
+| Source instance | `hg-postgres-prod` |
+| Export operation status | `DONE` |
+| Export bucket | `gs://expert-network-489508-sql-export-20260614` |
+| Export object | `gs://expert-network-489508-sql-export-20260614/Cloud_SQL_Export_2026-06-14 (13:39:45).sql` |
+| Suggested local filename | `./helpgrow-20260614.sql` |
+
+### Continue on another laptop
+
+1. Download the SQL export from GCS:
+
+   ```bash
+   gsutil cp \
+     "gs://expert-network-489508-sql-export-20260614/Cloud_SQL_Export_2026-06-14 (13:39:45).sql" \
+     ./helpgrow-20260614.sql
+   ```
+
+2. Verify the file exists locally:
+
+   ```bash
+   ls -lh ./helpgrow-20260614.sql
+   ```
+
+3. Import the SQL file into Alibaba RDS:
+
+   ```bash
+   PGPASSWORD='<ALIBABA_DB_PASSWORD>' psql \
+     -h hg-pg-20260614.rwlb.singapore.rds.aliyuncs.com \
+     -p 5432 \
+     -U hg_app \
+     -d helpgrow \
+     -f ./helpgrow-20260614.sql
+   ```
+
+4. After the import finishes, validate the migrated schema and row counts before switching Vercel.
+
+### Important notes for the next operator
+
+- Do **not** create another Alibaba RDS instance. The correct target is already live: `pgm-gs5j57uq0lrdq46h`.
+- Do **not** use the earlier accidental pay-as-you-go instances; they should remain released/deleted.
+- If the new laptop has a different public IP, add that IP to the Alibaba whitelist before importing.
+- Rotate the Alibaba `hg_app` password after migration because it was used during setup and terminal testing.
+- Vercel build validation showed the Alibaba public endpoint does **not** support TLS for Prisma connections. For Vercel production cutover, use datasource URLs with `sslmode=disable` rather than `sslmode=require`.
+
 ## Architecture at a glance
+
+| Concern | Current (Google Cloud + Vercel) | Future (Alibaba Cloud + Vercel) |
 
 | Concern | Current (Google Cloud + Vercel) | Future (Alibaba Cloud + Vercel) |
 |---|---|---|
