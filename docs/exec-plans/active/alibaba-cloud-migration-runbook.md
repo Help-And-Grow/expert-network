@@ -94,11 +94,11 @@ Completed. The Cloud SQL export was written to Google Cloud Storage and imported
 
 Completed. `DATABASE_URL` and `DIRECT_URL` were updated in Vercel production and the deployment was revalidated successfully against Alibaba RDS.
 
-## Remaining work: sunset Google Cloud
+## Google Cloud sunset status
 
-The old Google Cloud resources are no longer part of the target architecture.
+The old Google Cloud resources are no longer part of the target architecture, and the teardown completed on `2026-06-14`.
 
-### Resources to remove
+### Removed resources
 
 | Resource | Identifier |
 |---|---|
@@ -106,16 +106,16 @@ The old Google Cloud resources are no longer part of the target architecture.
 | Cloud SQL instance | `hg-postgres-prod` |
 | Cloud Build trigger | `rmgpgab-expert-network-asia-southeast1-Help-And-Grow-expert-gps` |
 
-### Shutdown checklist
+### Final shutdown record
 
-1. Confirm the Alibaba export artifact is retained in GCS or copied to long-term storage.
-2. Confirm Vercel production remains healthy against Alibaba RDS.
-3. Delete or disable the Cloud Build trigger for `Help-And-Grow/expert-network`.
-4. Delete the Cloud Run service `expert-network`.
-5. Delete the Cloud SQL instance `hg-postgres-prod`.
-6. Keep the export bucket only as long as needed for rollback evidence, then delete it separately.
+1. Alibaba export artifact retained in GCS for rollback evidence.
+2. Vercel production verified healthy against Alibaba RDS before teardown.
+3. Cloud Build trigger deleted.
+4. Cloud Run service deleted.
+5. Cloud SQL instance deleted.
+6. Export bucket can now be deleted separately once no longer needed.
 
-### Suggested commands
+### Commands used
 
 Run these from a machine with a current `gcloud` install and the correct project selected:
 
@@ -131,7 +131,7 @@ gcloud run services delete expert-network \
 gcloud sql instances delete hg-postgres-prod
 ```
 
-Note: on the current laptop, `gcloud` list commands for Cloud Run / Cloud Build are unreliable because the local CLI is running on unsupported Python `3.9`. Do the final destructive shutdown from the console or from a machine with updated `gcloud`.
+Note: the local Homebrew `gcloud` wrapper was repaired by pinning `CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.11` during teardown. Future local use should keep that override or restore a working `/opt/homebrew/bin/python3` symlink.
 
 ## Repo policy after migration
 

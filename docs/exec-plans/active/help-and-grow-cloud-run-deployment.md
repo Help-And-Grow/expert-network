@@ -1,12 +1,22 @@
 # Help-And-Grow Google Cloud Run Sunset Runbook
 
-Status: **decommissioning / historical only**.
+Status: **decommissioned / historical only**.
 
 The old `Help-And-Grow/expert-network` Google Cloud path is no longer the target architecture. Compute stays on **Vercel**, the shared database now lives on **Alibaba ApsaraDB RDS**, and routine development happens only in `jlzxwt8/expert-network`.
 
 Use this document only to identify and shut down the remaining Google Cloud resources.
 
 See [`docs/exec-plans/active/alibaba-cloud-migration-runbook.md`](./alibaba-cloud-migration-runbook.md) for the current production architecture and final repo policy.
+
+## Completion note
+
+As of `2026-06-14`, the Google Cloud teardown is complete:
+
+- Cloud Build trigger deleted
+- Cloud Run service `expert-network` deleted
+- Cloud SQL instance `hg-postgres-prod` deleted
+
+Production remains on `Vercel` and continues to use Alibaba ApsaraDB RDS.
 
 ## Historical resources to remove
 
