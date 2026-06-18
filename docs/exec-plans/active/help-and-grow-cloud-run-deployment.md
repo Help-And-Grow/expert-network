@@ -1,241 +1,75 @@
-# Help-And-Grow × Google Cloud Run deployment runbook
+# Help-And-Grow Google Cloud Run Sunset Runbook
 
-Target: deploy [`Help-And-Grow/expert-network`](https://github.com/Help-And-Grow/expert-network) on **Google Cloud Run** using **Gemini** as the AI provider and **Cloud SQL for PostgreSQL** as the database. This is the active-development surface used for hackathon demos, investor pitches, and credit-grant showcases — separate from the Vercel-served production at `www.help-and-grow.com` (which is wired to `jlzxwt8/expert-network`).
+Status: **decommissioned / historical only**.
 
-See [`docs/references/multi-repo-strategy.md`](../../references/multi-repo-strategy.md) for the full source-of-truth + repo-roles model.
+The old `Help-And-Grow/expert-network` Google Cloud path is no longer the target architecture. Compute stays on **Vercel**, the shared database now lives on **Alibaba ApsaraDB RDS**, and routine development happens only in `jlzxwt8/expert-network`.
 
-## Architecture at a glance
+Use this document only to identify and shut down the remaining Google Cloud resources.
 
-| Concern | Production (Vercel) | Help-And-Grow demo (Cloud Run) |
-|---|---|---|
-| Repo / branch | `jlzxwt8/main` (production-locked) | `Help-And-Grow/main` (active dev) |
-| Local remote | `production` | `origin` |
-| Compute | Vercel serverless (`sin1`) | Cloud Run service `expert-network` in `asia-southeast1` |
-| Auto-deploy trigger | Vercel GitHub App on push | Cloud Build trigger on push |
-| Database | Cloud SQL `hg-postgres-prod` (shared) | Cloud SQL `hg-postgres-prod` (shared — same Postgres instance) |
-| Storage | GCS / Vercel Blob | `STORAGE_PROVIDER=db` for now (no dedicated bucket yet) |
-| Text LLM | Qwen → Gemini | **Gemini only** (single-cloud, no fallback) |
-| Image LLM | Qwen → Gemini | **Gemini only** |
-| Service URL | https://www.help-and-grow.com | https://expert-network-druobkk2ma-as.a.run.app |
+See [`docs/exec-plans/active/alibaba-cloud-migration-runbook.md`](./alibaba-cloud-migration-runbook.md) for the current production architecture and final repo policy.
 
-The two surfaces share the same Postgres instance — feature work on Cloud Run runs against the same data Vercel serves. Schema migrations stay manual (the `prisma-migrate-if-vercel.mjs` postinstall script's auto-migrate path is gated on `VERCEL=1` / `IGA_PAGES=1` / `IGA_BUILD_REGION` / `PRISMA_AUTO_MIGRATE=1` — none of which are set during Cloud Build, so production schema is never touched by a Help-And-Grow deploy).
+## Completion note
 
-## §1 · GCP resources in use
+As of `2026-06-14`, the Google Cloud teardown is complete:
+
+- Cloud Build trigger deleted
+- Cloud Run service `expert-network` deleted
+- Cloud SQL instance `hg-postgres-prod` deleted
+
+Production remains on `Vercel` and continues to use Alibaba ApsaraDB RDS.
+
+## Historical resources to remove
 
 | Resource | Identifier |
 |---|---|
 | GCP project | `expert-network-489508` |
-| Cloud Run service | `expert-network` (region `asia-southeast1`) |
+| Cloud Run service | `expert-network` |
+| Region | `asia-southeast1` |
 | Cloud Run runtime service account | `expert-network-run@expert-network-489508.iam.gserviceaccount.com` |
-| Cloud Build trigger | `rmgpgab-expert-network-asia-southeast1-Help-And-Grow-expert-gps` — fires on push to `Help-And-Grow/expert-network` `main` |
-| Cloud SQL instance | `expert-network-489508:asia-southeast1:hg-postgres-prod` (mounted via `run.googleapis.com/cloudsql-instances` annotation) |
-| Source upload bucket | `expert-network-489508-source-bucket` |
-| Build cache bucket | `expert-network-489508_cloudbuild` |
+| Cloud Build trigger | `rmgpgab-expert-network-asia-southeast1-Help-And-Grow-expert-gps` |
+| Cloud SQL instance | `hg-postgres-prod` |
+| Export bucket | `gs://expert-network-489508-sql-export-20260614` |
+| Export object | `Cloud_SQL_Export_2026-06-14 (13:39:45).sql` |
 
-## §2 · Deploy flow
+## Current decision
 
-1. `git push origin main` (Help-And-Grow).
-2. GitHub fires webhook → Cloud Build trigger.
-3. Cloud Build runs the buildpack / Dockerfile → image pushed to Artifact Registry.
-4. Cloud Run creates a new revision, routes 100% of traffic to it once Ready.
-5. No manual step required; verify in the Cloud Run console or via:
+- Do **not** deploy from `Help-And-Grow/expert-network`.
+- Do **not** recreate the Google Cloud Run service.
+- Do **not** create an Alibaba SAE replacement.
+- Keep production on `Vercel` and keep the database on Alibaba RDS.
 
-```bash
-gcloud run revisions list \
-  --service=expert-network --region=asia-southeast1 \
-  --limit=5 --format="table(metadata.name, status.conditions[?type=='Ready'].status, metadata.creationTimestamp)"
-```
+## Shutdown order
 
-## §3 · Environment configuration
+1. Verify Vercel production is healthy against Alibaba RDS.
+2. Retain the final Cloud SQL export in GCS or copy it to another safe location.
+3. Delete or disable the Cloud Build trigger so GitHub pushes can no longer start Cloud Run deployments.
+4. Delete the Cloud Run service `expert-network`.
+5. Delete the Cloud SQL instance `hg-postgres-prod`.
+6. Delete supporting Google Cloud resources only after confirming no other workload depends on them.
 
-### Currently set (2026-05-17)
+## Suggested commands
 
-Non-secret values shown; secrets redacted:
-
-Plain env vars (non-secret):
-
-```
-AI_PROVIDER_LOCK        = gemini             # ← deploy-level pin (see below)
-AI_PROVIDER             = gemini
-AI_TEXT_PROVIDER_CHAIN  = gemini
-IMAGE_PROVIDER_CHAIN    = gemini
-GEMINI_TEXT_MODEL       = gemini-2.5-flash
-GEMINI_IMAGE_MODEL      = gemini-2.5-flash-image
-GOOGLE_CLOUD_PROJECT    = expert-network-489508
-NEXTAUTH_URL            = https://expert-network-druobkk2ma-as.a.run.app
-EMAIL_SERVER_HOST       = <set, Nodemailer host>
-EMAIL_SERVER_PORT       = <set>
-EMAIL_SERVER_USER       = <set>
-EMAIL_FROM              = <set>
-DB_PROVIDER             = postgresql
-NODE_ENV                = production
-VERIFY_BILLING          = <set>
-```
-
-#### About `AI_PROVIDER_LOCK`
-
-This env var is **specific to this deploy** (Cloud Run / Help-And-Grow). Vercel must NOT set it.
-
-When set, the application's provider resolver (`src/lib/ai/index.ts`) short-circuits **every** AI call path — chat, improveWriting, generateExpertProfile, normalizeQuery, generateProfileImage — to the named provider directly. It bypasses:
-
-- `ProviderRoutingScope` (Phase 3 DB-driven routing the admin page writes)
-- `SystemConfig.AI_PROVIDER` and `SystemConfig.AI_TEXT_PROVIDER_CHAIN` (admin-page singletons)
-- Env `AI_PROVIDER` and `AI_TEXT_PROVIDER_CHAIN` (cosmetic at this point)
-
-The lock exists because both Cloud Run and Vercel share the same Cloud SQL DB. Admin-page changes there are written for Vercel production; without the lock, those changes would silently affect Cloud Run too (which is the bug we hit on 2026-05-17 when `improveWriting` resolved to Qwen on Cloud Run and 401'd because no DASHSCOPE_API_KEY was set). With the lock, Cloud Run stays Gemini-only no matter what the admin page does.
-
-Allowed values: `gemini`, `qwen`, `hunyuan`, `openai`, `zai`, `byteplus`, `volcengine`.
-
-To remove the lock (let Cloud Run follow admin routing like Vercel does):
+Run these from a machine with working `gcloud` tooling:
 
 ```bash
-gcloud run services update expert-network \
-  --region=asia-southeast1 \
-  --remove-env-vars=AI_PROVIDER_LOCK
-```
+gcloud config set project expert-network-489508
 
-Secret-backed env vars (each references a Secret Manager secret via `valueFrom.secretKeyRef`; runtime SA `expert-network-run@…` has `roles/secretmanager.secretAccessor` on each):
+gcloud beta builds triggers delete \
+  rmgpgab-expert-network-asia-southeast1-Help-And-Grow-expert-gps
 
-```
-DATABASE_URL            ← expert-network-database-url:latest
-AUTH_SECRET             ← expert-network-auth-secret:latest
-GOOGLE_CLIENT_SECRET    ← expert-network-google-client-secret:latest
-EMAIL_SERVER_PASSWORD   ← expert-network-gmail-app-password:latest
-STRIPE_SECRET_KEY       ← expert-network-stripe-secret-key:latest
-```
-
-Gemini uses Vertex AI with `GOOGLE_CLOUD_PROJECT=expert-network-489508` and
-the Cloud Run runtime service account.
-
-### Update env vars
-
-```bash
-gcloud run services update expert-network \
-  --region=asia-southeast1 \
-  --update-env-vars="KEY1=value1,KEY2=value2"
-```
-
-For values that contain commas, use the alternative delimiter syntax:
-
-```bash
-gcloud run services update expert-network \
-  --region=asia-southeast1 \
-  --update-env-vars="^@^KEY1=val,with,commas@KEY2=other"
-```
-
-`--update-env-vars` is additive — it preserves existing variables not listed. To remove a variable: `--remove-env-vars=KEY1,KEY2`.
-
-### Add a new secret-backed env var
-
-The pattern, used for the six secrets above:
-
-```bash
-# 1. Create the secret with the value via stdin (avoids shell history).
-printf "%s" "<the-value>" | gcloud secrets create expert-network-<descriptor> \
-  --data-file=- \
-  --replication-policy=automatic \
-  --labels=service=expert-network,kind=<credential|config>
-
-# 2. Grant the runtime SA accessor on this specific secret.
-gcloud secrets add-iam-policy-binding expert-network-<descriptor> \
-  --member="serviceAccount:expert-network-run@expert-network-489508.iam.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-
-# 3. Atomically swap plain env → secret reference (or just add fresh).
-gcloud run services update expert-network \
-  --region=asia-southeast1 \
-  --remove-env-vars=<NAME> \
-  --update-secrets=<NAME>=expert-network-<descriptor>:latest
-```
-
-### Rotate a secret value
-
-```bash
-printf "%s" "<new-value>" | gcloud secrets versions add expert-network-<descriptor> \
-  --data-file=-
-```
-
-Because Cloud Run references `:latest`, the next cold start picks up the new version automatically. To force an immediate rollout: `gcloud run services update expert-network --region=asia-southeast1` (with no other flags creates a new revision that re-reads `:latest`).
-
-To roll back a bad rotation: `gcloud secrets versions enable <prev-version-number> --secret=expert-network-<descriptor>` then disable the bad one.
-
-## §4 · Logs + debugging
-
-```bash
-# Recent runtime logs (last 10 minutes)
-gcloud run services logs read expert-network \
-  --region=asia-southeast1 --limit=200
-
-# Tail live
-gcloud run services logs tail expert-network \
+gcloud run services delete expert-network \
   --region=asia-southeast1
 
-# Recent build runs (success/failure of the auto-deploy trigger)
-gcloud builds list --limit=10 \
-  --format="table(id.scope(builds), status, source.repoSource.repoName, source.repoSource.branchName, startTime, duration)"
-
-# Inspect a specific build
-gcloud builds log <build-id>
+gcloud sql instances delete hg-postgres-prod
 ```
 
-## §5 · Rollback
+If the local `gcloud` installation still crashes on `run` or `builds` commands because it is pinned to unsupported Python `3.9`, do the shutdown from:
 
-Cloud Run preserves revisions. To revert to a known-good one:
+- Google Cloud Console, or
+- another laptop with an updated Google Cloud CLI.
 
-```bash
-gcloud run revisions list --service=expert-network --region=asia-southeast1 --limit=10
-gcloud run services update-traffic expert-network \
-  --region=asia-southeast1 \
-  --to-revisions=expert-network-00020-xxx=100
-```
+## Historical notes kept for audit
 
-## §6 · Schema-change discipline
-
-The Cloud Run service shares Cloud SQL `hg-postgres-prod` with Vercel production. **Any schema change you ship to `Help-And-Grow/main` will eventually need to be applied to that DB** — but auto-migration is intentionally NOT wired into the Cloud Build path. Sequence for a feature that introduces a Prisma migration:
-
-1. Develop on `Help-And-Grow/main` as usual. The Cloud Run deploy succeeds but the new code will throw `P2022` ("column does not exist") at runtime until the migration is applied.
-2. Decide when to apply the migration. The safest path is to apply it via the production cherry-pick:
-
-   ```bash
-   git fetch production
-   git checkout -b hotfix/migration-<name> production/main
-   git cherry-pick <migration-commit-sha>
-   git push production HEAD:main
-   ```
-
-   Vercel's `prisma migrate deploy` postinstall fires on the `jlzxwt8` push → DB schema updates → both Vercel and Cloud Run pick up the new columns immediately (same Postgres instance).
-
-3. Alternative for Help-And-Grow-only experimental migrations: apply manually via Cloud SQL Studio with the rest of the team's awareness.
-
-## §7 · Cost guardrails
-
-- `autoscaling.knative.dev/maxScale` = 3 (cap on parallel instances)
-- `autoscaling.knative.dev/minScale` = 0 (scales to zero when idle — cold start ~1-2s)
-- Cloud SQL connection is pooled; no per-request connection cost.
-- Cloud Build trigger fires only on `main` push; feature-branch pushes don't burn build minutes.
-
-For hackathon load levels, expected GCP spend is single-digit USD/month.
-
-## §8 · Service URL + custom domain
-
-Default: https://expert-network-druobkk2ma-as.a.run.app (this is `NEXTAUTH_URL` — the canonical URL the service redirects to).
-
-The alternative auto-generated URL `https://expert-network-960290333777.asia-southeast1.run.app` 308-redirects to the canonical one.
-
-To add a custom subdomain (e.g. `demo.help-and-grow.com`):
-
-```bash
-gcloud beta run domain-mappings create \
-  --service=expert-network \
-  --region=asia-southeast1 \
-  --domain=demo.help-and-grow.com
-```
-
-Then add the DNS records GCP prints back. The Cloud Run service will obtain a managed TLS cert automatically.
-
-## §9 · See also
-
-- [docs/references/multi-repo-strategy.md](../../references/multi-repo-strategy.md) — production vs. active-dev repo split
-- [CLAUDE.md](../../../CLAUDE.md) — daily workflow + hotfix-cherry-pick recipe
-- [docs/exec-plans/active/iga-pages-volcengine-deployment.md](./iga-pages-volcengine-deployment.md) — sibling CN deployment (Volcengine), for future post-ICP rollout
-- [docs/references/telegram-bot.md](../../references/telegram-bot.md) — Telegram webhook stays on Vercel (production); Cloud Run deploy doesn't currently have a webhook attached
+- The previous Cloud Run URL was `https://expert-network-druobkk2ma-as.a.run.app`.
+- Cloud Run used `AI_PROVIDER_LOCK=gemini` so demo traffic stayed Gemini-only.
+- Cloud Run and Vercel previously shared the same Cloud SQL instance; that dependency ended once Vercel moved to Alibaba RDS on `2026-06-14`.

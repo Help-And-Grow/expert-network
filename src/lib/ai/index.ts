@@ -80,10 +80,10 @@ function resolveByName(name: string): AIProvider {
  *
  * Lock override: when `AI_PROVIDER_LOCK` is set at the env layer, ALL DB-driven
  * routing (SystemConfig, ProviderRoutingScope) is bypassed and the named
- * provider is used directly. This is how the Help-And-Grow Cloud Run deploy
- * stays Gemini-only despite the shared Cloud SQL holding production's
- * Qwen-first routing scopes — Vercel doesn't set the lock and continues to
- * honor the admin page.
+ * provider is used directly. Historically this let the retired Help-And-Grow
+ * Cloud Run deploy stay Gemini-only despite the shared production database
+ * holding Vercel's Qwen-first routing scopes. Vercel doesn't set the lock and
+ * continues to honor the admin page.
  */
 async function provider(): Promise<AIProvider> {
   const locked = process.env.AI_PROVIDER_LOCK?.trim();
@@ -180,8 +180,9 @@ export async function resolveAIProvider(
   // Deploy-level lock — see `provider()` for the same short-circuit. When set,
   // bypasses ProviderRoutingScope (Phase 3 DB-driven routing) and
   // SystemConfig.AI_TEXT_PROVIDER_CHAIN so a single deploy can be pinned to
-  // one provider regardless of the shared Cloud SQL state. Cloud Run sets
-  // AI_PROVIDER_LOCK=gemini; Vercel leaves it unset and uses the admin page.
+  // one provider regardless of the shared production DB state. Historically
+  // the retired Cloud Run deploy set AI_PROVIDER_LOCK=gemini; Vercel leaves it
+  // unset and uses the admin page.
   const locked = process.env.AI_PROVIDER_LOCK?.trim();
   if (locked) return resolveByName(locked);
 

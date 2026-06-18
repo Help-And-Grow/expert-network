@@ -4,7 +4,7 @@ Grouped reference for every env var the app reads. The full annotated list lives
 
 Validation: production startup fails fast if `DATABASE_URL`, `NEXTAUTH_URL`, and an auth secret (`AUTH_SECRET` or `NEXTAUTH_SECRET`, ≥32 chars) are missing. Emergency local bypass: `SKIP_ENV_VALIDATION=1` (never use on Vercel).
 
-For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). The current shared production Postgres for Web, Telegram, and the intl WeChat Mini Program runs on **Alibaba ApsaraDB RDS PostgreSQL** (`pgm-gs5j57uq0lrdq46h`, `ap-southeast-1`) since 2026-06-14; the current cutover record lives at [`exec-plans/active/alibaba-cloud-migration-runbook.md`](exec-plans/active/alibaba-cloud-migration-runbook.md). Historical Google Cloud SQL access notes remain in [`references/cloud-sql-data-viewing.md`](references/cloud-sql-data-viewing.md).
+For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-environments-solo-pm.md`](references/vercel-environments-solo-pm.md). The current shared production Postgres for Web, Telegram, and the intl WeChat Mini Program runs on **Alibaba ApsaraDB RDS Serverless** in Singapore (`pgm-gs5j57uq0lrdq46h`, `ap-southeast-1`) since `2026-06-14`; the current cutover record lives at [`exec-plans/active/alibaba-cloud-migration-runbook.md`](exec-plans/active/alibaba-cloud-migration-runbook.md). Historical Google Cloud SQL access notes remain in [`references/cloud-sql-data-viewing.md`](references/cloud-sql-data-viewing.md).
 
 ---
 
@@ -12,7 +12,7 @@ For Vercel env workflows (pull / list / sync), see [`docs/references/vercel-envi
 
 | Var | Required | Purpose |
 |---|---|---|
-| `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`) — points at the active production Postgres target, currently Alibaba ApsaraDB RDS for Web, Telegram, and the intl WeChat Mini Program. |
+| `DATABASE_URL` | yes (prod) | PostgreSQL connection string (`postgresql://` or `postgres://`) — points at the active production Postgres target, currently Alibaba ApsaraDB RDS Serverless for Web, Telegram, and the intl WeChat Mini Program. |
 | `DB_PROVIDER` | optional | Identifier for the active provider. Informational only; not required by Prisma. |
 | `NEXTAUTH_URL` | yes | Canonical public origin of the app. Production must be `https://www.help-and-grow.com` after the custom-domain cutover. |
 | `AUTH_URL` | optional | Auth.js v5 canonical URL alias. If set, keep it equal to production `NEXTAUTH_URL`. |

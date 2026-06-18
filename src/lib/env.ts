@@ -105,9 +105,10 @@ const envSchema = z
      * Deploy-level pin. When set, ALL AI provider resolution (including the
      * chain path used by chat / matchExperts) short-circuits to this single
      * provider, ignoring SystemConfig and the Phase 3 ProviderRoutingScope
-     * table in the shared Cloud SQL. Used by the Help-And-Grow Cloud Run
-     * deploy to stay Gemini-only without disturbing the admin-driven Qwen
-     * routing on Vercel production. Leave UNSET on Vercel.
+     * table in the shared production database. Historically this was used by
+     * the retired Help-And-Grow Cloud Run deploy to stay Gemini-only without
+     * disturbing the admin-driven Qwen routing on Vercel production. Leave
+     * UNSET on Vercel unless a future deploy intentionally needs a hard pin.
      */
     AI_PROVIDER_LOCK: z
       .enum(["gemini", "qwen", "hunyuan", "openai", "zai", "byteplus", "volcengine"])
