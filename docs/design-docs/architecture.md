@@ -12,41 +12,34 @@ This document is the technical foundation. It captures **where the app runs**, *
 
 The rollout now has two explicit phases:
 
-1. **Current user test:** the international WeChat Mini Program registered through the Singapore company, using Tencent CloudBase / SCF and Hunyuan. This app reads expert data from a Tencent-side database synchronized from the global primary DB (Google Cloud SQL `hg-postgres-prod` since 2026-05-03).
+1. **Current user test:** the international WeChat Mini Program registered through the Singapore company. The Mini Program client calls the shared Vercel backend directly, authenticates with `x-wechat-token`, and reads/writes the same primary PostgreSQL database as Web/Telegram (Alibaba ApsaraDB RDS since 2026-06-14). WeChat-originated requests still keep WeChat-specific routing for AI/storage.
 2. **Future mainland-CN launch:** a separate mainland mini program after the Chinese company, mainland AppID, WeChat Pay merchant, and review path are ready.
 
 | Stack | Status | Audience | Compute | Storage | Database | AI |
 |---|---|---|---|---|---|---|
-| **Web / Telegram** | Live | Browsers and Telegram users | Vercel Functions in `sin1` | Vercel Blob | Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) | Qwen/Gemini chain |
-| **WeChat — International** | **Current focus** | WeChat users outside mainland CN | Tencent CloudBase / SCF Web Function, env `cn-wechat-d1gzncs8i34827c98` | Tencent COS | Tencent-side Postgres synchronized from the global primary DB | Tencent Hunyuan |
+| **Web / Telegram** | Live | Browsers and Telegram users | Vercel Functions in `sin1` | Vercel Blob | Alibaba ApsaraDB RDS PostgreSQL (`pgm-gs5j57uq0lrdq46h`, `ap-southeast-1`) | Qwen/Gemini chain |
+| **WeChat — International** | **Current focus** | WeChat users outside mainland CN | Mini Program client -> Vercel Functions in `sin1` | Tencent COS for WeChat-originated assets when configured; otherwise shared storage routing | Same Alibaba ApsaraDB RDS PostgreSQL as Web/Telegram | Tencent Hunyuan routing on the shared backend |
 | **WeChat — Mainland CN** | Future | Mainland-CN WeChat users | Separate Tencent CloudBase / SCF env | Separate Tencent COS CN bucket | Separate TencentDB CN | Tencent Hunyuan |
 
 **Two separate WeChat Mini Program apps.** The current international app uses AppID `wx09d0eb079596060d`. The mainland-CN app will use a different AppID after the Chinese company is set up and approved. The `wechat/` Taro source supports both builds, but only `TARO_APP_REGION=intl` is deploy-ready today; `build-config/cn.json` is intentionally blocked with `PENDING_*` values.
 
-**Removed Tencent Cloud International Singapore experiment.** On 2026-05-05 the separate Tencent Cloud International Singapore resources were cleaned up: PostgreSQL `postgres-8bqbytbh`, COS bucket `sg-expert-network-1424085034`, subnets `subnet-lrcgprpg` / `subnet-91o4zq0c`, VPC `vpc-2ari99bl`, local `infra/tencent-intl/`, and `.cos.conf`. Do not recreate this stack for phase 1. The cleanup does not affect the Web/Telegram stack or the global DB cutover plan.
+**Removed Tencent Cloud International Singapore experiment.** On 2026-05-05 the separate Tencent Cloud International Singapore resources were cleaned up: PostgreSQL `postgres-8bqbytbh`, COS bucket `sg-expert-network-1424085034`, subnets `subnet-lrcgprpg` / `subnet-91o4zq0c`, VPC `vpc-2ari99bl`, local `infra/tencent-intl/`, and `.cos.conf`. Do not recreate this stack for phase 1. The cleanup does not affect the shared Vercel backend or the Alibaba primary DB.
 
-**Shared expert visibility.** Experts onboarded through Web or Telegram must become visible in the international WeChat Mini Program through database synchronization from the global primary DB into the Tencent-side WeChat backend.
+**Shared expert visibility.** Experts onboarded through Web, Telegram, or WeChat appear across all current surfaces because they already share one primary PostgreSQL database behind the Vercel backend; no Tencent-side database synchronization is needed for the current international app.
 
-**Web and Telegram remain on Vercel + the global primary DB** — the Tencent backend exists so the WeChat app can run on WeChat-friendly infrastructure and use Tencent-native AI.
+**Web, Telegram, and the current international WeChat app all use the shared Vercel backend + global primary DB.** The WeChat-specific behavior now lives in per-request routing (for example Hunyuan-first AI and Tencent COS storage), not in a separate Tencent database tier.
 
-**Cloud SQL status.** Web/Telegram DB ran cutover from Supabase to Google Cloud SQL on 2026-05-03 (instance `hg-postgres-prod`, project `expert-network-489508`, region `asia-southeast1`). Migration record archived at [`../exec-plans/archive/supabase-to-cloudsql-migration.md`](../exec-plans/archive/supabase-to-cloudsql-migration.md); operations runbook at [`../exec-plans/active/postgres-cutover-runbook.md`](../exec-plans/active/postgres-cutover-runbook.md).
+**Primary DB status.** The global DB first moved from Supabase to Google Cloud SQL on 2026-05-03, then cut over from Google Cloud SQL to Alibaba ApsaraDB RDS PostgreSQL on 2026-06-14. Historical migration record: [`../exec-plans/archive/supabase-to-cloudsql-migration.md`](../exec-plans/archive/supabase-to-cloudsql-migration.md). Current operations runbook: [`../exec-plans/active/alibaba-cloud-migration-runbook.md`](../exec-plans/active/alibaba-cloud-migration-runbook.md).
 
-### CloudBase HTTP access in front of SCF
+### Direct Vercel HTTP access for the current intl app
 
-WeChat Mini Programs require callable domains to be on the WeChat allowlist. The current international app calls the CloudBase default domain directly:
+WeChat Mini Programs require callable domains to be on the WeChat allowlist. The current international app calls the shared Vercel backend directly:
 
 ```text
-https://cn-wechat-d1gzncs8i34827c98-1426867475.ap-shanghai.app.tcloudbase.com/api/...
+https://www.help-and-grow.com/api/...
 ```
 
-CloudBase HTTP access routes `/api` to the SCF Web Function as `WEB_SCF` with path passthrough enabled. The SCF deployment sets:
-
-- `IS_WECHAT=true`
-- `PROXY_REGION=intl`
-- `AI_PROVIDER=hunyuan`
-- `STORAGE_PROVIDER=tencent-cos`
-
-`src/lib/request-origin.ts` treats `IS_WECHAT=true` as the WeChat-origin signal and uses `PROXY_REGION` for region-aware decisions. The older TCB-proxy header path is still supported for compatibility.
+The Mini Program stamps `x-wechat-token` on requests. `src/lib/request-origin.ts` treats that header as the canonical WeChat-origin signal now that the TCB proxy path has been retired. The legacy `x-forwarded-via: tcb-proxy` / `x-forwarded-from: wechat` stamps remain supported only for compatibility with any straggler deploys.
 
 ### Dynamic Configuration (`SystemConfig`)
 
@@ -71,7 +64,7 @@ A factory-based storage system with multiple drivers, all implementing `StorageP
 | `GoogleCloudStorageProvider` | GCP deployments, large files | `src/lib/storage/gcs.ts` |
 | `TencentCOSStorageProvider` | China-region uploads, WeChat-originated traffic | `src/lib/storage/tencent-cos.ts` |
 
-**Auto-routing.** `getStorageProvider({ request })` (`src/lib/storage/index.ts`) inspects `x-forwarded-via` / `x-forwarded-from` (stamped by the TCB proxy). WeChat-originated requests route to Tencent COS automatically when the COS env vars are configured; everything else uses the `STORAGE_PROVIDER` setting in `SystemConfig`.
+**Auto-routing.** `getStorageProvider({ request })` (`src/lib/storage/index.ts`) uses the same WeChat-origin detection as `src/lib/request-origin.ts`: `x-wechat-token` is the canonical signal, with the older TCB proxy headers kept for compatibility. WeChat-originated requests route to Tencent COS automatically when the COS env vars are configured; everything else uses the `STORAGE_PROVIDER` setting in `SystemConfig`.
 
 The `request` is threaded through the upload sites (`src/app/api/onboarding/generate/route.ts`, `src/app/api/expert/generate-audio/route.ts`) so the factory can inspect headers without leaking abstractions.
 

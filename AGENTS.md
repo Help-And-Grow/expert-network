@@ -12,7 +12,7 @@
 ## Quick Start
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
-- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). Web/Telegram production runs on Google Cloud SQL (`hg-postgres-prod`, `asia-southeast1`) since 2026-05-03. See [postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md).
+- **Database**: Prisma 7 with PostgreSQL only (`@prisma/adapter-pg`). The shared production database for Web, Telegram, and the current international WeChat Mini Program now runs on Alibaba Cloud ApsaraDB RDS PostgreSQL (`pgm-gs5j57uq0lrdq46h`, `ap-southeast-1`) since 2026-06-14. See [alibaba-cloud-migration-runbook.md](docs/exec-plans/active/alibaba-cloud-migration-runbook.md).
 - **Hosting**: Vercel (serverless). The live `expert-network` project is owned by the **Help And Grow** Vercel team, but default Git-based iteration and deploys follow **`jlzxwt8/expert-network`** unless the user explicitly asks to sync the public `Help-And-Grow/expert-network` mirror.
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
 - **UI smoke**: Playwright (`npm run test:ui`) with local dev-login (`DEV_AUTH_EMAIL`, optional `DEV_AUTH_ROLE`). On GitHub Actions, set repo secret **`E2E_DATABASE_URL`** (Postgres for `db:push` + auth); if unset, install/test steps are skipped and the workflow still **succeeds** (see `.github/workflows/ui-smoke.yml`).
@@ -54,7 +54,7 @@ See `docs/` for full details:
 | Exec plans | [docs/exec-plans/](docs/exec-plans/) | Active plans, completed, tech debt |
 | Product specs | [docs/product-specs/](docs/product-specs/) | Feature specifications |
 | References | [docs/references/](docs/references/) | LLM-friendly external references + [documentation maintenance](docs/references/documentation-maintenance.md) + [multi-tenant Vercel / dashboard URLs](docs/references/multi-repo-strategy.md) |
-| Postgres operations | [docs/exec-plans/active/postgres-cutover-runbook.md](docs/exec-plans/active/postgres-cutover-runbook.md) | Cloud SQL env vars, deploy checklist, local dev tunneling |
+| Postgres operations | [docs/exec-plans/active/alibaba-cloud-migration-runbook.md](docs/exec-plans/active/alibaba-cloud-migration-runbook.md) | Alibaba RDS cutover, import/resume commands, Vercel env update, whitelist hardening |
 | Cloud SQL data viewing | [docs/references/cloud-sql-data-viewing.md](docs/references/cloud-sql-data-viewing.md) | Connecting via `gcloud sql connect` / Cloud SQL Auth Proxy |
 | Memos | [docs/memos/](docs/memos/) | Investor & GTM briefs |
 | Generated | [docs/generated/](docs/generated/) | Auto-generated DB schema docs |
@@ -63,7 +63,7 @@ See `docs/` for full details:
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports Auth.js (NextAuth v5), Telegram, and WeChat in one call. Config: `src/auth.ts`.
 2. **AI providers**: Multiple adapters in code (`gemini`, `qwen`, `openai`, `zai`, `byteplus`, `volcengine`, `hunyuan`). Deployment topology:
-   - **jlzxwt8/expert-network on Vercel + GCP (overseas prod, current)**: `qwen → gemini` chain (default `AI_PROVIDER=qwen`).
+   - **jlzxwt8/expert-network on Vercel + Alibaba RDS (overseas prod, current)**: `qwen → gemini` chain for general web/Telegram traffic (default `AI_PROVIDER=qwen`).
    - **jlzxwt8/expert-network on IGA Pages + Volcengine (CN prod, after company-setup + ICP)**: `volcengine` (Doubao-Seed-1.6 + Seedream-4.0). See [docs/exec-plans/active/iga-pages-volcengine-deployment.md](docs/exec-plans/active/iga-pages-volcengine-deployment.md).
    - **Help-And-Grow/expert-network (one-way mirror, hackathon + investor + credit-grant showcases)**: highlights OpenAI + ByteDance integrations — typical chain is `openai,volcengine,byteplus` so the admin UI can flip between them live during demos.
    - WeChat-originated traffic always uses `hunyuan` for text (Tencent Cloud compliance boundary) regardless of the chain config.
@@ -71,7 +71,7 @@ See `docs/` for full details:
 3. **Expert memory backend**: `MEMORY_BACKEND=mem9|pgvector|hybrid`. Local/on-prem defaults should be **`pgvector`** with `EMBEDDING_PROVIDER=ollama`; mem9 remains optional for cloud/hybrid runs. See `src/lib/integrations/mem9-lifecycle.ts` and `src/lib/integrations/pgvector-memory.ts`.
 4. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
 5. **Database switching**: Run `node scripts/switch-db.mjs` — Prisma is PostgreSQL-only and the script enforces `provider = "postgresql"` in `prisma/schema.prisma`.
-6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Current user-test target is the international app (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`) on Tencent CloudBase env `cn-wechat-d1gzncs8i34827c98`; the mainland-CN app is a future separate company/AppID path. Uses the same backend API with `x-wechat-token` auth header. The separate Tencent Cloud International Singapore experiment (`infra/tencent-intl/`, SG PostgreSQL/COS/VPC) was cleaned up on 2026-05-05; do not recreate it unless explicitly reopening Tencent Intl infrastructure.
+6. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Current user-test target is the international app (`TARO_APP_REGION=intl`, AppID `wx09d0eb079596060d`); it calls the shared Vercel backend at `https://www.help-and-grow.com` directly and authenticates with the `x-wechat-token` header. WeChat-originated requests still keep WeChat-specific routing on the backend (notably Hunyuan-first AI and Tencent COS when configured), but they use the same primary PostgreSQL database as Web/Telegram. The mainland-CN app remains a future separate company/AppID path. The older TCB proxy path and the separate Tencent Cloud International Singapore experiment (`infra/tencent-intl/`, SG PostgreSQL/COS/VPC) have been retired; do not recreate them unless explicitly reopening Tencent infrastructure.
 7. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
 8. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
 9. **POMP (Proof of Meet Protocol)**: Every completed meetup (`Booking` row) creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
